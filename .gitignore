@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Data Files (can regenerate)
+data/
+*.csv
+*.xlsx
+*.xls
+*.json
+*.parquet
+*.db
+*.sqlite
+
+# Secrets & Credentials
+infrastructure/data/config.yaml
+*.key
+*.pem
+.env
+secrets/
+
+# IDE Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS Files
+Thumbs.db
+.DS_Store
