@@ -233,7 +233,7 @@ def calculate_all_metrics(data, net_returns, cost):    # Main function to calcul
     calmar_ratio = calculate_calmar_ratio(total_return, max_drawdown)
     
     # Calculate yearly metrics
-    yearly_metrics = calculate_yearly_metrics(net_returns, equity_curve)
+    yearly_metrics = calculate_yearly_metrics(net_returns, equity_curve, periods_per_year)
     
     # Compile all metrics
     metrics = {
