@@ -29,16 +29,11 @@ ENV/
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb_checkpoints/
-
-# Data Files (can regenerate)
-data/
-*.csv
-*.xlsx
-*.xls
-*.json
 *.parquet
 *.db
 *.sqlite
+*.xlsx
+*.xls
 
 # Secrets & Credentials
 infrastructure/data/config.yaml
