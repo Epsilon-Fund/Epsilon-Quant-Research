@@ -1,10 +1,11 @@
 from binance.client import Client
 import pandas as pd
 import yaml
+import os
 
 def get_binance_client():    ### Authentication for Binance API
     
-    with open('infrastructure/data/config.yaml', 'r') as f:
+    with open(os.path.join(os.path.dirname(__file__), 'config.yaml'), 'r') as f:
         config = yaml.safe_load(f)
     
     return Client(
