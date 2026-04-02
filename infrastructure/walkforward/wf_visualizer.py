@@ -263,9 +263,9 @@ def plot_oos_equity(oos_metrics, oos_combined_df, fold_boundaries=None,
     if benchmark_equity is not None:
         fig.add_trace(go.Scatter(
             x=benchmark_equity.index, y=benchmark_equity.values,
-            mode='lines', name='BTC Benchmark',
+            mode='lines', name='Buy and Hold Benchmark',
             line=dict(color=_AMBER, width=2),
-            hovertemplate='<b>BTC Benchmark</b><br>Date: %{x}<br>Equity: %{y:.4f}<extra></extra>',
+            hovertemplate='<b>Buy and Hold Benchmark</b><br>Date: %{x}<br>Equity: %{y:.4f}<extra></extra>',
         ), row=1, col=1)
 
     # drawdown

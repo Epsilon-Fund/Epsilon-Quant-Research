@@ -332,7 +332,7 @@ def walk_forward(
                    oos_df.dropna(subset=existing_cols, inplace=True)
 
                 # find first real entry within OOS window and zero everything before it
-                first_entry = oos_df[oos_df['position'].diff() == 1].index
+                first_entry = oos_df[oos_df['position'].diff() != 0].index
                 if len(first_entry) == 0:
                 # no entries at all — zero entire slice
                     oos_df['position']      = 0
