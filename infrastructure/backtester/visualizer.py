@@ -27,7 +27,7 @@ def plot_equity_curve(equity_curve, benchmark_equity=None, title="Portfolio Equi
             x=benchmark_equity.index,
             y=benchmark_equity.values,
             mode='lines',
-            name='Benchmark (Buy & Hold)',
+            name='Benchmark',
             line=dict(color='#ff7f0e', width=2, dash='dash'),
             hovertemplate='<b>Benchmark</b><br>Date: %{x}<br>Equity: %{y:.4f}<extra></extra>'
         ))
@@ -73,11 +73,11 @@ def plot_drawdown(equity_curve, title="Portfolio Drawdown"):
     
     fig.add_trace(go.Scatter(
         x=drawdown.index,
-        y=drawdown.values * 100,  
+        y=drawdown.values * 100,
         mode='lines',
         name='Drawdown',
         fill='tozeroy',
-        fillcolor='rgba(239, 68, 68, 0.3)',  
+        fillcolor='rgba(239, 68, 68, 0.3)',
         line=dict(color='#ef4444', width=1),
         hovertemplate='<b>Drawdown</b><br>Date: %{x}<br>Drawdown: %{y:.2f}%<extra></extra>'
     ))
@@ -132,7 +132,7 @@ Cost: <b>{metrics['cost_percent']*100:.2f}%</b>
         yearly_sharpe_text += f"{year}: <b>{sharpe:.2f}</b><br>"
     
     trade_text = f"""
-<b>Trade Statistics</b><br>
+<b>Strategy Statistics</b><br>
 Total Trades: <b>{metrics['num_trades']}</b><br>
 Win Rate: <b>{metrics['win_rate']*100:.2f}%</b><br>
 Profit Factor: <b>{metrics['profit_factor']:.2f}</b><br>
@@ -146,7 +146,6 @@ def plot_results(metrics, benchmark_data=None, show=True, save_html=None):
 
     benchmark_equity = None
     if benchmark_data is not None:
-
         benchmark_returns = benchmark_data['Close'].pct_change()
         benchmark_equity = (1 + benchmark_returns).cumprod()
         benchmark_equity.fillna(1.0, inplace=True)
@@ -180,9 +179,9 @@ def plot_results(metrics, benchmark_data=None, show=True, save_html=None):
                 x=benchmark_equity.index,
                 y=benchmark_equity.values,
                 mode='lines',
-                name='BTC Benchmark',
+                name='Benchmark',
                 line=dict(color='#f59e0b', width=2),
-                hovertemplate='<b>BTC Benchmark</b><br>Date: %{x}<br>Equity: %{y:.4f}<extra></extra>'
+                hovertemplate='<b>Benchmark</b><br>Date: %{x}<br>Equity: %{y:.4f}<extra></extra>'
             ),
             row=1, col=1
         )
@@ -213,11 +212,7 @@ def plot_results(metrics, benchmark_data=None, show=True, save_html=None):
         row=2, col=1
     )
     
-    # --- METRICS ANNOTATIONS ---
     main_text, yearly_returns_text, yearly_sharpe_text, trade_text = format_metrics_annotation(metrics)
-    
-    start_date = equity_curve.index[0]
-    end_date = equity_curve.index[-1]
     
     fig.add_annotation(
         xref="x domain", yref="y domain",
@@ -298,7 +293,6 @@ def plot_results(metrics, benchmark_data=None, show=True, save_html=None):
         row=2, col=1
     )
     
-
     fig.update_layout(
         height=900,
         showlegend=True,
@@ -339,7 +333,6 @@ def plot_results(metrics, benchmark_data=None, show=True, save_html=None):
 def plot_trades_on_price(data, trades_df, show=True, save_html=None):
 
     fig = go.Figure()
-    
 
     fig.add_trace(go.Scatter(
         x=data.index,
@@ -349,7 +342,6 @@ def plot_trades_on_price(data, trades_df, show=True, save_html=None):
         line=dict(color='#64748b', width=1.5),
         hovertemplate='<b>Price</b><br>Date: %{x}<br>Close: $%{y:.2f}<extra></extra>'
     ))
-    
 
     if len(trades_df) > 0:
 

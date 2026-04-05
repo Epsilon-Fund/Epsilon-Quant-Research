@@ -14,25 +14,28 @@ def infer_frequency(index):
     hours = median_diff.total_seconds() / 3600
     
     if hours <= 1:
-        return 8760 
+        return 8760
     elif hours <= 4:
-        return 2190  
+        return 2190
     elif hours <= 24:
-        return 365   
+        return 365
     elif hours <= 168:
-        return 52   
+        return 52
     else:
-        return 12  
-    
+        return 12
+
 
 # Metrics functions
 
-def calculate_total_return(equity_curve):    # Calculate total return
+def calculate_total_return(equity_curve):
 
     total_return = equity_curve.iloc[-1] - 1
     return total_return
 
-def calculate_sharpe_ratio(returns, periods_per_year):   # Calculate Sharpe 
+
+def calculate_sharpe_ratio(returns, periods_per_year):
+
+    returns = returns.dropna()
 
     if len(returns) < 2:
         return 0.0
@@ -47,18 +50,16 @@ def calculate_sharpe_ratio(returns, periods_per_year):   # Calculate Sharpe
     return sharpe
 
 
-def calculate_max_drawdown(equity_curve):   # Calculate max drawdown
+def calculate_max_drawdown(equity_curve):
 
     running_max = equity_curve.cummax()
-    
     drawdown = (equity_curve - running_max) / running_max
-    
     max_dd = drawdown.min()
     
     return max_dd
 
 
-def identify_trades(data):   # Identify and log the trades
+def identify_trades(data):
 
     trades = []
     
@@ -75,22 +76,21 @@ def identify_trades(data):   # Identify and log the trades
     for idx, row in data.iterrows():
         current_position = row['position']
         
-        # Entering a position (from 0 to 1 or -1)
+        # Entering a position
         if not in_position and current_position != 0:
             in_position = True
             entry_price = row['Close']
             entry_direction = current_position
             entry_time = idx
         
-        # Exiting a position (from 1/-1 to 0 or flipping)
+        # Exiting a position or flipping
         elif in_position and (current_position == 0 or (current_position != 0 and current_position != entry_direction)):
             exit_price = row['Close']
             exit_time = idx
             
-            # Calculate P&L
-            if entry_direction == 1:  # Long trade
+            if entry_direction == 1:
                 pnl = (exit_price - entry_price) / entry_price
-            else:  # Short trade (entry_direction == -1)
+            else:
                 pnl = (entry_price - exit_price) / entry_price
             
             trades.append({
@@ -102,7 +102,6 @@ def identify_trades(data):   # Identify and log the trades
                 'pnl': pnl
             })
             
-            # If flipping (not exiting to 0), immediately enter new position
             if current_position != 0:
                 entry_price = row['Close']
                 entry_direction = current_position
@@ -113,7 +112,7 @@ def identify_trades(data):   # Identify and log the trades
     return pd.DataFrame(trades)
 
 
-def calculate_win_rate(trades_df):    # Calculate win rate
+def calculate_win_rate(trades_df):
 
     if len(trades_df) == 0:
         return 0.0
@@ -125,12 +124,12 @@ def calculate_win_rate(trades_df):    # Calculate win rate
     return win_rate
 
 
-def calculate_num_trades(trades_df):   # Calculate number of trades
+def calculate_num_trades(trades_df):
 
     return len(trades_df)
 
 
-def calculate_avg_win_loss_ratio(trades_df):    # Calculate average win/loss ratio
+def calculate_avg_win_loss_ratio(trades_df):
 
     if len(trades_df) == 0:
         return 0.0
@@ -148,7 +147,7 @@ def calculate_avg_win_loss_ratio(trades_df):    # Calculate average win/loss rat
     return ratio
 
 
-def calculate_profit_factor(trades_df):    # Calculate profit factor
+def calculate_profit_factor(trades_df):
 
     if len(trades_df) == 0:
         return 0.0
@@ -163,7 +162,7 @@ def calculate_profit_factor(trades_df):    # Calculate profit factor
     return profit_factor
 
 
-def calculate_calmar_ratio(total_return, max_drawdown):    # Calculate Calmar ratio
+def calculate_calmar_ratio(total_return, max_drawdown):
 
     if max_drawdown == 0:
         return 0.0
@@ -172,7 +171,37 @@ def calculate_calmar_ratio(total_return, max_drawdown):    # Calculate Calmar ra
     return calmar
 
 
-def calculate_yearly_metrics(returns, equity_curve, periods_per_year):    # Calculate yearly returns, Sharpe, and max drawdown
+def build_equity_curve(returns, return_type="arithmetic"):
+    """
+    return_type:
+        'arithmetic' -> equity = (1 + r).cumprod()
+        'log'        -> equity = exp(cumsum(r))
+    """
+    returns = returns.fillna(0.0)
+
+    if return_type == "log":
+        equity_curve = np.exp(returns.cumsum())
+    else:
+        equity_curve = (1 + returns).cumprod()
+
+    equity_curve = pd.Series(equity_curve, index=returns.index)
+    equity_curve.fillna(1.0, inplace=True)
+    return equity_curve
+
+
+def to_arithmetic_returns(returns, return_type="arithmetic"):
+    """
+    Convert returns to arithmetic returns for reporting metrics.
+    """
+    returns = returns.copy()
+
+    if return_type == "log":
+        return np.exp(returns) - 1.0
+    
+    return returns
+
+
+def calculate_yearly_metrics(returns, equity_curve, periods_per_year):
 
     returns_by_year = returns.groupby(returns.index.year)
     equity_by_year = equity_curve.groupby(equity_curve.index.year)
@@ -187,19 +216,24 @@ def calculate_yearly_metrics(returns, equity_curve, periods_per_year):    # Calc
 
         start_value = year_equity.iloc[0]
         end_value = year_equity.iloc[-1]
-        yearly_return = (end_value - start_value) / start_value
+
+        if start_value != 0:
+            yearly_return = (end_value - start_value) / start_value
+        else:
+            yearly_return = 0.0
+
         yearly_returns[year] = yearly_return
         
-
         mean_ret = year_returns.mean()
         std_ret = year_returns.std()
+
         if std_ret > 0:
             sharpe = (mean_ret / std_ret) * np.sqrt(periods_per_year)
-        else: 
+        else:
             sharpe = 0.0
+
         yearly_sharpe[year] = sharpe
         
-
         running_max = year_equity.cummax()
         drawdown = (year_equity - running_max) / running_max
         yearly_max_dd[year] = drawdown.min()
@@ -210,11 +244,21 @@ def calculate_yearly_metrics(returns, equity_curve, periods_per_year):    # Calc
         'yearly_max_drawdown': yearly_max_dd
     }
 
-def calculate_all_metrics(data, net_returns, cost):    # Main function to calculate all performance metrics and compile results
 
-    # Build equity curve
-    equity_curve = (1 + net_returns).cumprod()
-    equity_curve.fillna(1.0, inplace=True)
+def calculate_all_metrics(data, net_returns, cost, return_type="arithmetic"):
+    """
+    Main function to calculate all performance metrics and compile results.
+
+    return_type:
+        'arithmetic' -> net_returns are simple returns
+        'log'        -> net_returns are log returns
+    """
+
+    # Use arithmetic returns for reporting metrics like Sharpe
+    arith_returns = to_arithmetic_returns(net_returns, return_type=return_type)
+
+    # Build equity curve correctly depending on return type
+    equity_curve = build_equity_curve(net_returns, return_type=return_type)
     
     # Infer data frequency
     periods_per_year = infer_frequency(data.index)
@@ -224,7 +268,7 @@ def calculate_all_metrics(data, net_returns, cost):    # Main function to calcul
     
     # Calculate individual metrics
     total_return = calculate_total_return(equity_curve)
-    sharpe_ratio = calculate_sharpe_ratio(net_returns, periods_per_year)
+    sharpe_ratio = calculate_sharpe_ratio(arith_returns, periods_per_year)
     max_drawdown = calculate_max_drawdown(equity_curve)
     win_rate = calculate_win_rate(trades_df)
     num_trades = calculate_num_trades(trades_df)
@@ -232,8 +276,8 @@ def calculate_all_metrics(data, net_returns, cost):    # Main function to calcul
     profit_factor = calculate_profit_factor(trades_df)
     calmar_ratio = calculate_calmar_ratio(total_return, max_drawdown)
     
-    # Calculate yearly metrics
-    yearly_metrics = calculate_yearly_metrics(net_returns, equity_curve, periods_per_year)
+    # Calculate yearly metrics on arithmetic returns, using correct equity curve
+    yearly_metrics = calculate_yearly_metrics(arith_returns, equity_curve, periods_per_year)
     
     # Compile all metrics
     metrics = {

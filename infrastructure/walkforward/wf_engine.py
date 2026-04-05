@@ -25,7 +25,7 @@ def _default_score(metrics):
     Tune *_MAX caps to fit your strategy's realistic range.
     """
     SHARPE_MAX = 2.5
-    CALMAR_MAX = 70.0
+    CALMAR_MAX = 60.0
     RETURN_MAX = 15.0
 
     calmar = (metrics['total_return'] / abs(metrics['max_drawdown'])
@@ -41,7 +41,7 @@ def _default_score(metrics):
 def _default_reject(metrics):
     """Returns True if this trial should be discarded (score → -999)."""
     if metrics is None:              return True
-    if metrics['num_trades']   < 10: return True
+    if metrics['num_trades']   < 7: return True
     if metrics['win_rate']     < 0.35: return True
     if metrics['max_drawdown'] < -0.80: return True
     if metrics['profit_factor'] < 0.8:  return True
@@ -220,6 +220,8 @@ def walk_forward(
     seed_base     = 42,
     save_csv      = None,
 ):
+    
+    print("UPDATED WALK_FORWARD FILE IS RUNNING")
     """
     Rolling walk-forward optimisation with Optuna.
 
@@ -325,11 +327,14 @@ def walk_forward(
         oos_df  = None
         try:
             test_strat_full, indicator_cols  = strategy_fn(fold['test_burnin'].copy(), best_params)
+
             if test_strat_full is not None:
-                oos_df = test_strat_full.iloc[fold['trim_at']:].copy()
+                oos_df = test_strat_full.copy()
                 existing_cols = [c for c in indicator_cols if c in oos_df.columns]
                 if existing_cols:
+                   before_drop = len(oos_df)
                    oos_df.dropna(subset=existing_cols, inplace=True)
+
 
                 # find first real entry within OOS window and zero everything before it
                 first_entry = oos_df[oos_df['position'].diff() != 0].index
@@ -346,10 +351,11 @@ def walk_forward(
                     oos_df.loc[before_entry, 'stop_loss']     = 0.0
 
                 test_m = _run_backtest(oos_df, cost)
+                print("test_m:", test_m)
                 if oos_df is not None and len(oos_df) > 0:
                     oos_slices.append(oos_df)
-        except Exception:
-            pass
+        except Exception as e:
+            raise
 
         record = {
             'fold':         i + 1,
