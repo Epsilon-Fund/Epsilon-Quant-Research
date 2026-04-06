@@ -560,3 +560,111 @@ def plot_walk_forward_results(
             )
         else:
             print('No valid combined OOS data — skipping equity chart.')
+
+def plot_portfolio_oos(
+    coin_dfs:    dict,
+    weights:     dict = None,
+    show_coins:  list = None,
+    benchmark:   dict = None,
+    cost:        float = 0.0,
+    show:        bool  = True,
+    save_html:   str   = None,
+):
+    """
+    Stitch OOS dataframes from multiple coins into a combined portfolio
+    and run through backtest() for consistent metrics + chart.
+
+    Parameters
+    ----------
+    coin_dfs    : {'BTC': oos_df, 'ETH': oos_df, ...}
+    weights     : {'BTC': 0.4, 'ETH': 0.3, ...} — auto equal-weights if None
+    show_coins  : subset of coin_dfs keys to include — None = all
+    benchmark   : {'BTC': oos_df} or multi-coin dict for B&H benchmark.
+                  None = equal-weight B&H of show_coins.
+                  Single coin e.g. {'BTC': btc_df} = BTC B&H only.
+    cost        : already paid per-coin, keep 0.0 unless you want to add
+                  a portfolio-level rebalancing cost
+    """
+    import sys, os
+    # resolve backtester so backtest() is importable from here
+    _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backtester'))
+    if _ROOT not in sys.path:
+        sys.path.insert(0, _ROOT)
+    from engine import backtest
+
+    # ── defaults ──────────────────────────────────────────────────────────────
+    if show_coins is None:
+        show_coins = list(coin_dfs.keys())
+
+    raw_weights = {k: weights.get(k, 1/len(show_coins)) if weights else 1/len(show_coins)
+                   for k in show_coins}
+    total = sum(raw_weights.values())
+    w = {k: v / total for k, v in raw_weights.items()}   # normalise
+
+    # ── per-coin bar returns ──────────────────────────────────────────────────
+    def _strat_ret(df):
+        r    = df['Close'].pct_change().fillna(0)
+        pos  = df['position']      if 'position'      in df.columns else pd.Series(1,   index=df.index)
+        size = df['position_size'] if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
+        return r * pos * size
+
+    aligned = pd.concat(
+        [_strat_ret(coin_dfs[k]).rename(k) for k in show_coins],
+        axis=1,
+    ).fillna(0)
+
+    combined_ret = sum(aligned[k] * w[k] for k in show_coins)
+
+    # ── build synthetic OHLCV the engine can consume ──────────────────────────
+    equity = (1 + combined_ret).cumprod()
+    port_df = pd.DataFrame({
+        'Close':         equity,
+        'Open':          equity.shift(1).bfill(),
+        'High':          equity,
+        'Low':           equity,
+        'Volume':        1.0,
+        'position':      1,
+        'position_size': 1.0,
+        'stop_loss':     0.0,
+    }, index=combined_ret.index)
+
+    # ── benchmark ─────────────────────────────────────────────────────────────
+    if benchmark is None:
+        # equal-weight B&H of show_coins
+        bh_aligned = pd.concat(
+            [coin_dfs[k]['Close'].pct_change().fillna(0).rename(k) for k in show_coins],
+            axis=1,
+        ).fillna(0)
+        bh_ret    = sum(bh_aligned[k] * w[k] for k in show_coins)
+        bh_equity = (1 + bh_ret).cumprod()
+        bench_df  = pd.DataFrame({'Close': bh_equity}, index=bh_equity.index)
+    else:
+        # caller supplied benchmark — single or multi-coin
+        bench_coins = list(benchmark.keys())
+        bw = {k: 1/len(bench_coins) for k in bench_coins}
+        bh_aligned = pd.concat(
+            [benchmark[k]['Close'].pct_change().fillna(0).rename(k) for k in bench_coins],
+            axis=1,
+        ).fillna(0)
+        bh_ret    = sum(bh_aligned[k] * bw[k] for k in bench_coins)
+        bh_equity = (1 + bh_ret).cumprod()
+        bench_df  = pd.DataFrame({'Close': bh_equity}, index=bh_equity.index)
+
+    # normalise benchmark to same start as portfolio
+    bench_df = bench_df.reindex(port_df.index, method='nearest')
+    bench_df['Close'] = bench_df['Close'] / bench_df['Close'].iloc[0]
+
+    # ── title suffix ──────────────────────────────────────────────────────────
+    weight_str = '  |  '.join(f'{k} {round(w[k]*100, 1)}%' for k in show_coins)
+
+    # ── run through backtest ──────────────────────────────────────────────────
+    metrics = backtest(
+        data           = port_df,
+        cost           = cost,
+        show_plot      = show,
+        save_html      = save_html,
+        show_trades    = False,
+        benchmark_data = bench_df,
+    )
+
+    return metrics

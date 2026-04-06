@@ -66,10 +66,13 @@ def _run_backtest(strategy_df, cost):
         return None
 
 
+# wf_engine.py — replace _calmar() helper:
 def _calmar(metrics):
     if metrics is None or metrics['max_drawdown'] == 0:
         return 0.0
-    return metrics['total_return'] / abs(metrics['max_drawdown'])
+    # use the already-correct calmar_ratio from performance_metrics
+    return metrics.get('calmar_ratio', 0.0)
+
 
 
 def _make_objective(df_train, strategy_fn, param_defs, fixed_params,

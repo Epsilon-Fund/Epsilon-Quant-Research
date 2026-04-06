@@ -162,13 +162,15 @@ def calculate_profit_factor(trades_df):
     return profit_factor
 
 
-def calculate_calmar_ratio(total_return, max_drawdown):
-
+def calculate_calmar_ratio(total_return, max_drawdown, periods_per_year, n_periods):
     if max_drawdown == 0:
         return 0.0
-    
-    calmar = total_return / abs(max_drawdown)
-    return calmar
+    # annualise the total return
+    n_years = n_periods / periods_per_year
+    if n_years == 0:
+        return 0.0
+    annualised_return = (1 + total_return) ** (1 / n_years) - 1
+    return annualised_return / abs(max_drawdown)
 
 
 def build_equity_curve(returns, return_type="arithmetic"):
@@ -274,7 +276,12 @@ def calculate_all_metrics(data, net_returns, cost, return_type="arithmetic"):
     num_trades = calculate_num_trades(trades_df)
     avg_win_loss = calculate_avg_win_loss_ratio(trades_df)
     profit_factor = calculate_profit_factor(trades_df)
-    calmar_ratio = calculate_calmar_ratio(total_return, max_drawdown)
+    calmar_ratio = calculate_calmar_ratio(
+    total_return,
+    max_drawdown,
+    periods_per_year,
+    n_periods = len(net_returns),
+)
     
     # Calculate yearly metrics on arithmetic returns, using correct equity curve
     yearly_metrics = calculate_yearly_metrics(arith_returns, equity_curve, periods_per_year)
