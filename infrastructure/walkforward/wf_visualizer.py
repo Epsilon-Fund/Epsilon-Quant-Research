@@ -604,7 +604,7 @@ def plot_portfolio_oos(
     # ── per-coin bar returns ──────────────────────────────────────────────────
     def _strat_ret(df):
         r    = df['Close'].pct_change().fillna(0)
-        pos  = df['position']      if 'position'      in df.columns else pd.Series(1,   index=df.index)
+        pos  = df['position'].shift(1).fillna(0) if 'position' in df.columns else pd.Series(1, index=df.index)
         size = df['position_size'] if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
         return r * pos * size
 
