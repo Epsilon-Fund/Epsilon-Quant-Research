@@ -41,19 +41,33 @@ print(f'Loaded: {list(coin_dfs.keys())}')
 #                for faster iteration (fetches once, switch time in one cell)
 # 'worst_long' : enter at High[T+1], exit at Low[T+1] — no API call needed
 
-SCENARIO = 'close'   # ← 'close' | integer hour (0-23) | 'worst_long'
+SCENARIO = 'close'   # ← 'close' | integer hour e.g. 10 for 10am | 'worst_long'
 
 def apply_scenario(coin_dfs, scenario):
     """
-    Replaces Close on signal days only with the chosen execution price.
+    Adjusts execution price by modifying Close on two specific bar types per trade.
 
-    Engine logic: strategy_return[T] = position[T-1] * pct_change(Close)[T]
-    Signal day S: position[S] changes, effective_position[S] = position[S-1] = 0
-    so Close[S] only feeds into bar S+1's pct_change — the execution bar.
+    plot_portfolio_oos computes: strategy_ret[T] = position[T] * pct_change(Close)[T]
+    (no shift — position[T] is already the active position on bar T)
 
-    Replacing Close[S] = exec_price makes the execution bar capture:
-        entry: (Close[S+1] - exec_price) / exec_price
-        exit:  (exec_price - Close[S-1]) / Close[S-1]
+    WHY previous approach was wrong:
+      Replacing Close on signal days (where position is already non-zero) means
+      the exec price appears in both the numerator of bar T and denominator of
+      bar T+1. These always cancel: (exec/prev) * (close/exec) = close/prev.
+      Results are identical to baseline, or broken for 1-bar trades.
+
+    CORRECT approach — replace Close on bars where position = 0 on one side:
+
+      PRE-ENTRY bar (position=0, next position!=0):
+        position=0 so this bar contributes 0 to returns regardless of Close.
+        But Close[pre_entry] is the denominator for the NEXT bar's pct_change.
+        Setting it to exec_price makes the first holding bar capture:
+          (Close[entry] - exec_price) / exec_price  ✓  no cancellation
+
+      LAST-ACTIVE bar (position!=0, next position=0):
+        The following bar has position=0, contributing 0, so nothing cancels.
+        Setting Close[last_active] to exec_price makes that bar capture:
+          (exec_price - Close[prev_holding]) / Close[prev_holding]  ✓
     """
     if scenario == 'close':
         return coin_dfs
@@ -66,12 +80,16 @@ def apply_scenario(coin_dfs, scenario):
     for coin, df in coin_dfs.items():
         d = df.copy()
         d.index = d.index.normalize()
+        pos = d['position']
 
-        # signal days: any day position changes value
-        signal_days = d['position'] != d['position'].shift(1).fillna(d['position'].iloc[0])
+        # last flat bar before entering a position
+        pre_entry   = (pos == 0) & (pos.shift(-1).fillna(0) != 0)
+        # last holding bar before going flat
+        last_active = (pos != 0) & (pos.shift(-1).fillna(0) == 0)
+
+        exec_close = d['Close'].copy()
 
         if isinstance(scenario, int):
-            # fetch 1h data and extract HH:00 UTC price for each day
             symbol = coin + 'USDT'
             klines = client.get_historical_klines(
                 symbol, '1h', str(d.index[0].date()), str(d.index[-1].date())
@@ -86,30 +104,22 @@ def apply_scenario(coin_dfs, scenario):
 
             prices_hh = h[h.index.hour == scenario]['Close'].resample('1D').last()
             prices_hh.index = prices_hh.index.tz_localize(None).normalize()
-
-            # shift(-1): index T now holds HH:00 price of T+1 (execution day)
+            # shift(-1): value at index T is HH:00 price of day T+1 (execution day)
             next_exec = prices_hh.shift(-1).reindex(d.index).ffill()
 
-            exec_close = d['Close'].copy()
-            exec_close[signal_days] = next_exec[signal_days]
-            d['Close'] = exec_close
-            print(f'  {coin}: {scenario}h UTC prices applied on signal days')
+            exec_close[pre_entry]   = next_exec[pre_entry]
+            exec_close[last_active] = next_exec[last_active]
+            print(f'  {coin}: {scenario}h UTC — {int(pre_entry.sum())} entries, {int(last_active.sum())} exits adjusted')
 
         elif scenario == 'worst_long':
-            # entry signal days → fill at High[T+1], exit signal days → fill at Low[T+1]
-            # High and Low are already in the pkl — no API call needed
-            entry_signal = signal_days & (d['position'] != 0)
-            exit_signal  = signal_days & (d['position'] == 0)
-
-            # shift(-1): index T now holds next day's High / Low
+            # High/Low already in the pkl — no API call needed
+            # shift(-1): value at T is next day's High / Low
             next_high = d['High'].shift(-1)
             next_low  = d['Low'].shift(-1)
+            exec_close[pre_entry]   = next_high[pre_entry]
+            exec_close[last_active] = next_low[last_active]
 
-            exec_close = d['Close'].copy()
-            exec_close[entry_signal] = next_high[entry_signal]
-            exec_close[exit_signal]  = next_low[exit_signal]
-            d['Close'] = exec_close
-
+        d['Close'] = exec_close
         adjusted[coin] = d
 
     return adjusted
