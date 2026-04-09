@@ -68,14 +68,17 @@ def identify_trades(data):
     if len(change_points) == 0:
         return pd.DataFrame()
     
-    in_position = False
-    entry_price = None
-    entry_direction = None
-    entry_time = None
-    
+    # handle position already open on bar 0 (e.g. carry from burn-in into OOS window)
+    # treat bar 0 as the entry so the trade is counted and closed correctly
+    first_pos = data['position'].iloc[0]
+    in_position     = first_pos != 0
+    entry_price     = data['Close'].iloc[0]     if in_position else None
+    entry_direction = first_pos                 if in_position else None
+    entry_time      = data.index[0]             if in_position else None
+
     for idx, row in data.iterrows():
         current_position = row['position']
-        
+
         # Entering a position
         if not in_position and current_position != 0:
             in_position = True

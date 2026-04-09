@@ -339,22 +339,11 @@ def walk_forward(
                    oos_df.dropna(subset=existing_cols, inplace=True)
 
 
-                # find first real entry within OOS window and zero everything before it
-                first_entry = oos_df[oos_df['position'].diff() != 0].index
-                if len(first_entry) == 0:
-                # no entries at all — zero entire slice
-                    oos_df['position']      = 0
-                    oos_df['position_size'] = 0.0
-                    oos_df['stop_loss']     = 0.0
-                else:
-                # zero everything before first genuine OOS entry
-                    before_entry = oos_df.index < first_entry[0]
-                    oos_df.loc[before_entry, 'position']      = 0
-                    oos_df.loc[before_entry, 'position_size'] = 0.0
-                    oos_df.loc[before_entry, 'stop_loss']     = 0.0
+                # trim burnin bars — keep only the real OOS window
+                test_start = fold['test_start']
+                oos_df = oos_df.loc[oos_df.index >= test_start].copy()
 
                 test_m = _run_backtest(oos_df, cost)
-                print("test_m:", test_m)
                 if oos_df is not None and len(oos_df) > 0:
                     oos_slices.append(oos_df)
         except Exception as e:
