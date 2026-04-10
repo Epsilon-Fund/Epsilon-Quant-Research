@@ -651,20 +651,78 @@ def plot_portfolio_oos(
         bench_df  = pd.DataFrame({'Close': bh_equity}, index=bh_equity.index)
 
     # normalise benchmark to same start as portfolio
+    # align tz before reindex — apply_scenario strips tz from coin_dfs but the
+    # benchmark dict may still be tz-aware; mismatched tz → silent all-NaN reindex
+    if bench_df.index.tz is not None and port_df.index.tz is None:
+        bench_df.index = bench_df.index.tz_convert(None).normalize()
+    elif bench_df.index.tz is None and port_df.index.tz is not None:
+        bench_df.index = bench_df.index.tz_localize(port_df.index.tz)
     bench_df = bench_df.reindex(port_df.index, method='nearest')
     bench_df['Close'] = bench_df['Close'] / bench_df['Close'].iloc[0]
 
     # ── title suffix ──────────────────────────────────────────────────────────
     weight_str = '  |  '.join(f'{k} {round(w[k]*100, 1)}%' for k in show_coins)
 
-    # ── run through backtest ──────────────────────────────────────────────────
+    # ── compute per-coin trade stats ─────────────────────────────────────────
+    # port_df always has position=1 so backtest() finds zero trade transitions.
+    # compute trade stats directly from each coin's df and aggregate.
+    import sys as _sys, os as _os
+    _bt_dir = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), '..', 'backtester'))
+    if _bt_dir not in _sys.path:
+        _sys.path.insert(0, _bt_dir)
+    from performance_metrics import identify_trades
+    from visualizer import plot_results as _plot_results
+
+    coin_trade_stats = {}
+    all_trades_list  = []
+    for coin in show_coins:
+        df_c = coin_dfs[coin].copy()
+        df_c['position_change'] = df_c['position'].diff().abs().fillna(0)
+        t = identify_trades(df_c)
+        coin_trade_stats[coin] = t
+        if len(t) > 0:
+            all_trades_list.append(t)
+
+    if all_trades_list:
+        agg          = pd.concat(all_trades_list, ignore_index=True)
+        n_trades     = len(agg)
+        wins         = agg[agg['pnl'] > 0]
+        losses       = agg[agg['pnl'] < 0]
+        win_rate     = len(wins) / n_trades if n_trades else 0.0
+        gross_profit = wins['pnl'].sum()
+        gross_loss   = abs(losses['pnl'].sum())
+        pf           = gross_profit / gross_loss if gross_loss > 0 else 0.0
+        avg_w        = wins['pnl'].mean()        if len(wins)   > 0 else 0.0
+        avg_l        = abs(losses['pnl'].mean()) if len(losses) > 0 else 0.0
+        awl          = avg_w / avg_l             if avg_l       > 0 else 0.0
+    else:
+        n_trades = 0
+        win_rate = pf = awl = 0.0
+
+    # ── run backtest for equity / sharpe / drawdown (no chart yet) ───────────
     metrics = backtest(
         data           = port_df,
         cost           = cost,
-        show_plot      = show,
-        save_html      = save_html,
+        show_plot      = False,
+        save_html      = None,
         show_trades    = False,
         benchmark_data = bench_df,
     )
+
+    # override trade stats with the correctly aggregated values
+    metrics['num_trades']         = n_trades
+    metrics['win_rate']           = win_rate
+    metrics['profit_factor']      = pf
+    metrics['avg_win_loss_ratio'] = awl
+    metrics['coin_trade_stats']   = coin_trade_stats
+
+    # render chart with corrected metrics
+    if show or save_html:
+        _plot_results(
+            metrics        = metrics,
+            benchmark_data = bench_df,
+            show           = show,
+            save_html      = save_html,
+        )
 
     return metrics
