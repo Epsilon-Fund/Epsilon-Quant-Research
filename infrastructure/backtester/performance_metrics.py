@@ -61,57 +61,60 @@ def calculate_max_drawdown(equity_curve):
 
 def identify_trades(data):
 
-    trades = []
-    
-    change_points = data[data['position_change'] > 0].copy()
-    
-    if len(change_points) == 0:
+    pos    = data['position'].to_numpy()
+    closes = data['Close'].to_numpy()
+    index  = data.index
+
+    n = len(pos)
+    if n == 0:
         return pd.DataFrame()
-    
-    # handle position already open on bar 0 (e.g. carry from burn-in into OOS window)
-    # treat bar 0 as the entry so the trade is counted and closed correctly
-    first_pos = data['position'].iloc[0]
-    in_position     = first_pos != 0
-    entry_price     = data['Close'].iloc[0]     if in_position else None
-    entry_direction = first_pos                 if in_position else None
-    entry_time      = data.index[0]             if in_position else None
 
-    for idx, row in data.iterrows():
-        current_position = row['position']
+    # prev_pos: shift right by 1; pad first element with 0 unless position already
+    # open on bar 0 (burn-in carry-over), in which case treat bar 0 as an entry.
+    prev_pos        = np.empty(n, dtype=pos.dtype)
+    prev_pos[1:]    = pos[:-1]
+    prev_pos[0]     = 0          # bar-0 handled as special entry below
 
-        # Entering a position
-        if not in_position and current_position != 0:
-            in_position = True
-            entry_price = row['Close']
-            entry_direction = current_position
-            entry_time = idx
-        
-        # Exiting a position or flipping
-        elif in_position and (current_position == 0 or (current_position != 0 and current_position != entry_direction)):
-            exit_price = row['Close']
-            exit_time = idx
-            
-            if entry_direction == 1:
-                pnl = (exit_price - entry_price) / entry_price
-            else:
-                pnl = (entry_price - exit_price) / entry_price
-            
-            trades.append({
-                'entry_time': entry_time,
-                'exit_time': exit_time,
-                'entry_price': entry_price,
-                'exit_price': exit_price,
-                'direction': 'Long' if entry_direction == 1 else 'Short',
-                'pnl': pnl
-            })
-            
-            if current_position != 0:
-                entry_price = row['Close']
-                entry_direction = current_position
-                entry_time = idx
-            else:
-                in_position = False
-    
+    # entry: previous flat (or bar 0 already in position), current non-zero
+    entry_mask = ((prev_pos == 0) & (pos != 0))
+    # handle position already open on bar 0
+    if pos[0] != 0:
+        entry_mask[0] = True
+
+    # exit: was in position, now flat OR flipped direction
+    exit_mask  = (prev_pos != 0) & ((pos == 0) | (pos != prev_pos))
+
+    entry_idx = np.where(entry_mask)[0]
+    exit_idx  = np.where(exit_mask)[0]
+
+    if len(entry_idx) == 0:
+        return pd.DataFrame()
+
+    # pair each entry with the next exit that comes after it
+    trades = []
+    ei = 0
+    for e in entry_idx:
+        # find first exit strictly after this entry
+        candidates = exit_idx[exit_idx > e]
+        if len(candidates) == 0:
+            break
+        x = candidates[0]
+
+        direction   = int(pos[e])
+        entry_price = float(closes[e])
+        exit_price  = float(closes[x])
+        pnl = ((exit_price - entry_price) / entry_price if direction == 1
+               else (entry_price - exit_price) / entry_price)
+
+        trades.append({
+            'entry_time':  index[e],
+            'exit_time':   index[x],
+            'entry_price': entry_price,
+            'exit_price':  exit_price,
+            'direction':   'Long' if direction == 1 else 'Short',
+            'pnl':         pnl,
+        })
+
     return pd.DataFrame(trades)
 
 

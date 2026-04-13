@@ -79,6 +79,8 @@ def _make_objective(df_train, strategy_fn, param_defs, fixed_params,
                     cost, score_fn, reject_fn):
     """Factory — returns an Optuna objective bound to one training slice."""
 
+    _error_reported = [False]   # mutable container so inner fn can flip it
+
     def objective(trial):
         params = {}
         for name, (dtype, lo, hi) in param_defs.items():
@@ -91,12 +93,19 @@ def _make_objective(df_train, strategy_fn, param_defs, fixed_params,
 
         try:
             result = strategy_fn(df_train.copy(), params)
-        except Exception:
+        except Exception as e:
+            if not _error_reported[0]:
+                import traceback
+                print(f'\n[wf_engine] strategy_fn raised an exception (first occurrence):\n'
+                      f'  {type(e).__name__}: {e}')
+                traceback.print_exc()
+                _error_reported[0] = True
+            trial.set_user_attr('error', str(e))
             return -999.0
 
         if result is None:
             return -999.0
-            
+
         strategy_df, _ = result
 
         m = _run_backtest(strategy_df, cost)

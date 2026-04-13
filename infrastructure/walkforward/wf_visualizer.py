@@ -603,10 +603,11 @@ def plot_portfolio_oos(
 
     # ── per-coin bar returns ──────────────────────────────────────────────────
     def _strat_ret(df):
-        r    = df['Close'].pct_change().fillna(0)
-        pos  = df['position'].shift(1).fillna(0) if 'position' in df.columns else pd.Series(1, index=df.index)
-        size = df['position_size'] if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
-        return r * pos * size
+        r          = df['Close'].pct_change().fillna(0)
+        pos        = df['position'].shift(1).fillna(0)      if 'position'      in df.columns else pd.Series(1,   index=df.index)
+        size       = df['position_size'].shift(1).fillna(0) if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
+        trade_cost = df['position'].diff().abs().fillna(0) * cost if 'position' in df.columns else pd.Series(0.0, index=df.index)
+        return r * pos * size - trade_cost
 
     aligned = pd.concat(
         [_strat_ret(coin_dfs[k]).rename(k) for k in show_coins],
@@ -716,6 +717,27 @@ def plot_portfolio_oos(
     metrics['avg_win_loss_ratio'] = awl
     metrics['coin_trade_stats']   = coin_trade_stats
 
+    # ── per-year trade statistics ─────────────────────────────────────────────
+    yearly_trade_stats = {}
+    if all_trades_list:
+        agg['year'] = pd.to_datetime(agg['entry_time']).dt.year
+        for yr, grp in agg.groupby('year'):
+            n   = len(grp)
+            w   = grp[grp['pnl'] > 0]
+            l   = grp[grp['pnl'] < 0]
+            wr  = len(w) / n if n else 0.0
+            gp  = w['pnl'].sum()
+            gl  = abs(l['pnl'].sum())
+            pfy = gp / gl if gl > 0 else 0.0
+            aw  = w['pnl'].mean()        if len(w) > 0 else 0.0
+            al  = abs(l['pnl'].mean())   if len(l) > 0 else 0.0
+            awly = aw / al              if al > 0 else 0.0
+            yearly_trade_stats[yr] = {
+                'trades': n, 'win_rate': wr,
+                'profit_factor': pfy, 'avg_win_loss': awly,
+            }
+    metrics['yearly_trade_stats'] = yearly_trade_stats
+
     # render chart with corrected metrics
     if show or save_html:
         _plot_results(
@@ -724,5 +746,16 @@ def plot_portfolio_oos(
             show           = show,
             save_html      = save_html,
         )
+
+    # ── print granular yearly trade table ────────────────────────────────────
+    if yearly_trade_stats:
+        print(f'\n── Yearly Trade Statistics ──')
+        print(f'  {"Year":<6} {"Trades":>7} {"Win Rate":>10} {"Prof.Factor":>13} {"Avg W/L":>9}')
+        print(f'  {"─"*6} {"─"*7} {"─"*10} {"─"*13} {"─"*9}')
+        for yr in sorted(yearly_trade_stats):
+            s = yearly_trade_stats[yr]
+            pf_s  = f'{s["profit_factor"]:>13.2f}' if s["profit_factor"] > 0 else f'{"—":>13}'
+            awl_s = f'{s["avg_win_loss"]:>9.2f}'   if s["avg_win_loss"]  > 0 else f'{"—":>9}'
+            print(f'  {yr:<6} {s["trades"]:>7} {s["win_rate"]*100:>9.1f}% {pf_s} {awl_s}')
 
     return metrics
