@@ -276,6 +276,48 @@
     padding: 7px 16px; font-size: 11px; color: var(--color-muted);
     border-bottom: 1px solid var(--color-border); font-style: italic;
   }
+
+  /* ── Trade log forms ── */
+  .log-forms { display: flex; flex-wrap: wrap; gap: 14px; padding: 16px; }
+  .log-form {
+    flex: 1 1 280px; max-width: 360px;
+    background: #fafaf9; border: 1px solid var(--color-border);
+    border-radius: 6px; padding: 14px 16px;
+  }
+  .log-form h3 {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--color-header-text); margin-bottom: 12px;
+  }
+  .log-form h3 .action-badge {
+    display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 3px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .log-form label {
+    display: block; font-size: 11px; color: var(--color-muted);
+    margin-bottom: 2px; margin-top: 8px;
+  }
+  .log-form label:first-of-type { margin-top: 0; }
+  .log-form input[type="number"],
+  .log-form input[type="text"] {
+    width: 100%; padding: 5px 8px; font-size: 12px;
+    border: 1px solid var(--color-border); border-radius: 4px;
+    background: #fff; color: var(--color-text);
+    font-family: inherit;
+  }
+  .log-form input[type="number"]:focus,
+  .log-form input[type="text"]:focus {
+    outline: none; border-color: var(--color-amber);
+  }
+  .log-form button {
+    margin-top: 12px; width: 100%;
+    padding: 6px 0; font-size: 12px; font-weight: 500;
+    border: none; border-radius: 4px; cursor: pointer;
+    font-family: inherit;
+  }
+  .log-form.action-ENTRY button { background: var(--color-entry-bg); color: var(--color-entry-text); }
+  .log-form.action-EXIT  button { background: var(--color-exit-bg);  color: var(--color-exit-text);  }
+  .log-form.action-ENTRY button:hover { background: #d6edca; }
+  .log-form.action-EXIT  button:hover { background: #f7d8d8; }
 </style>
 </head>
 <body>
@@ -284,8 +326,8 @@
 <div class="page-header">
   <h1>Epsilon Fund — Live Trading Dashboard</h1>
   <div class="meta">
-    <span><strong>Signal date:</strong> 2026-04-14</span>
-    <span><strong>Generated:</strong> 2026-04-15 19:56:25 UTC</span>
+    <span><strong>Signal date:</strong> 2026-04-15</span>
+    <span><strong>Generated:</strong> 2026-04-16 16:42:37 UTC</span>
     <span><strong>Execution hour:</strong> 8h UTC (T+1)</span>
     <span><strong>Capital:</strong> $100,000</span>
   </div>
@@ -314,36 +356,33 @@
       
       
       
-      <tr class="row-ENTRY">
+      <tr class="row-FLAT">
         <td class="asset">
           ETHUSDT<br>
           <span class="muted">$25,000 alloc (25% of $100,000)</span>
         </td>
-        <td><span class="badge badge-ENTRY">ENTRY</span></td>
+        <td><span class="badge badge-FLAT">FLAT</span></td>
 
         
-          <td class="num">0.84x</td>
-        
-
-        
-          <td class="num">$20,887</td>
+          <td class="num dash">—</td>
         
 
         
-          <td class="num">9.0162</td>
+          <td class="num dash">—</td>
         
 
         
-          <td class="num">
-            $2,322.80
-            
-          </td>
+          <td class="num dash">—</td>
         
 
-        <td class="num">$2,322.44</td>
+        
+          <td class="num dash">—</td>
+        
+
+        <td class="num">$2,359.95</td>
 
         
-          <td class="num">$2,316.62</td>
+          <td class="num">$2,341.52</td>
         
       </tr>
       
@@ -372,10 +411,10 @@
           <td class="num dash">—</td>
         
 
-        <td class="num">$83.72</td>
+        <td class="num">$84.90</td>
 
         
-          <td class="num">$82.92</td>
+          <td class="num">$85.21</td>
         
       </tr>
       
@@ -404,42 +443,45 @@
           <td class="num dash">—</td>
         
 
-        <td class="num">$1.36</td>
+        <td class="num">$1.39</td>
 
         
-          <td class="num">$1.35</td>
+          <td class="num">$1.41</td>
         
       </tr>
       
       
       
-      <tr class="row-FLAT">
+      <tr class="row-ENTRY">
         <td class="asset">
           BTCUSDT<br>
           <span class="muted">$25,000 alloc (25% of $100,000)</span>
         </td>
-        <td><span class="badge badge-FLAT">FLAT</span></td>
+        <td><span class="badge badge-ENTRY">ENTRY</span></td>
 
         
-          <td class="num dash">—</td>
-        
-
-        
-          <td class="num dash">—</td>
+          <td class="num">1.29x</td>
         
 
         
-          <td class="num dash">—</td>
+          <td class="num">$32,343</td>
         
 
         
-          <td class="num dash">—</td>
+          <td class="num">0.4329</td>
         
 
-        <td class="num">$74,131.55</td>
+        
+          <td class="num">
+            $73,553.39
+            
+          </td>
+        
+
+        <td class="num">$74,809.99</td>
 
         
-          <td class="num">$73,730.43</td>
+          <td class="num">$74,707.02</td>
         
       </tr>
       
@@ -486,60 +528,24 @@
       
       <tr>
         <td class="asset">ETHUSDT</td>
-        <td class="num">$2,164.21</td>
+        <td class="num">$2,177.71</td>
         <td class="num cond-true">
-          1.07
+          1.08
         </td>
         <td class="ctr cond-true">
           <span class="bool-true">TRUE</span>
         </td>
-        <td class="num cond-false">33.4</td>
+        <td class="num cond-false">35.5</td>
         <td class="num">40</td>
         <td class="ctr cond-false">
           <span class="bool-false">FALSE</span>
         </td>
         
-          <td class="num cond-true">
-            1.29
+          <td class="num cond-false">
+            0.77
           </td>
-          <td class="ctr cond-true">
-            <span class="bool-true">TRUE</span>
-          </td>
-        
-        <td class="ctr ">
-          <span class="bool-false">FALSE</span>
-        </td>
-        <td class="ctr ">
-          <span class="bool-false">FALSE</span>
-        </td>
-        <td class="ctr entry-true">
-          TRUE
-          
-        </td>
-      </tr>
-      
-      
-      
-      <tr>
-        <td class="asset">SOLUSDT</td>
-        <td class="num">$85.45</td>
-        <td class="num cond-false">
-          0.98
-        </td>
-        <td class="ctr cond-false">
-          <span class="bool-false">FALSE</span>
-        </td>
-        <td class="num cond-false">14.3</td>
-        <td class="num">66</td>
-        <td class="ctr cond-false">
-          <span class="bool-false">FALSE</span>
-        </td>
-        
-          <td class="num cond-true">
-            1.25
-          </td>
-          <td class="ctr cond-true">
-            <span class="bool-true">TRUE</span>
+          <td class="ctr cond-false">
+            <span class="bool-false">FALSE</span>
           </td>
         
         <td class="ctr ">
@@ -550,7 +556,43 @@
         </td>
         <td class="ctr entry-false">
           FALSE
-          <br><span style="font-size:10px;font-weight:400">Close below EMA</span>
+          <br><span style="font-size:10px;font-weight:400">Volume below MA</span>
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td class="asset">SOLUSDT</td>
+        <td class="num">$85.42</td>
+        <td class="num cond-false">
+          0.99
+        </td>
+        <td class="ctr cond-false">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="num cond-false">12.7</td>
+        <td class="num">66</td>
+        <td class="ctr cond-false">
+          <span class="bool-false">FALSE</span>
+        </td>
+        
+          <td class="num cond-false">
+            0.94
+          </td>
+          <td class="ctr cond-false">
+            <span class="bool-false">FALSE</span>
+          </td>
+        
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr entry-false">
+          FALSE
+          <br><span style="font-size:10px;font-weight:400">Close below EMA, Volume below MA</span>
         </td>
       </tr>
       
@@ -558,21 +600,21 @@
       
       <tr>
         <td class="asset">XRPUSDT</td>
-        <td class="num">$1.36</td>
+        <td class="num">$1.37</td>
         <td class="num cond-true">
-          1.00
+          1.02
         </td>
         <td class="ctr cond-true">
           <span class="bool-true">TRUE</span>
         </td>
-        <td class="num cond-false">14.7</td>
+        <td class="num cond-false">16.1</td>
         <td class="num">44</td>
         <td class="ctr cond-false">
           <span class="bool-false">FALSE</span>
         </td>
         
           <td class="num cond-true">
-            1.09
+            1.16
           </td>
           <td class="ctr cond-true">
             <span class="bool-true">TRUE</span>
@@ -594,14 +636,14 @@
       
       <tr>
         <td class="asset">BTCUSDT</td>
-        <td class="num">$70,864.36</td>
+        <td class="num">$71,258.92</td>
         <td class="num cond-true">
           1.05
         </td>
         <td class="ctr cond-true">
           <span class="bool-true">TRUE</span>
         </td>
-        <td class="num cond-false">30.2</td>
+        <td class="num cond-false">30.6</td>
         <td class="num">57</td>
         <td class="ctr cond-false">
           <span class="bool-false">FALSE</span>
@@ -610,15 +652,15 @@
           <td class="ctr muted">—</td>
           <td class="ctr muted">—</td>
         
-        <td class="ctr caution-active">
-          <span class="bool-true">TRUE</span>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
         </td>
         <td class="ctr ">
           <span class="bool-false">FALSE</span>
         </td>
-        <td class="ctr entry-false">
-          FALSE
-          <br><span style="font-size:10px;font-weight:400">ADX below threshold</span>
+        <td class="ctr entry-true">
+          TRUE
+          
         </td>
       </tr>
       
@@ -672,8 +714,8 @@
         <td class="ctr ">
           <span class="bool-false">FALSE</span>
         </td>
-        <td class="ctr caution-active">
-          <span class="bool-true">TRUE</span>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
         </td>
         <td class="ctr ">
           <span class="bool-false">FALSE</span>
@@ -697,14 +739,14 @@
       
       <tr>
         <td class="asset">BTCUSDT</td>
-        <td class="ctr caution-active">
-          <span class="bool-true">TRUE</span>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
         </td>
         <td class="ctr caution-active">
           <span class="bool-true">TRUE</span>
         </td>
-        <td class="ctr caution-active">
-          <span class="bool-true">TRUE</span>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
         </td>
       </tr>
       
@@ -745,11 +787,11 @@
         <tr class="tbl-divider"><td colspan="5">Inputs</td></tr>
         <tr>
           <td>Swing Hi Stp</td>
-          <td>$2,415.50</td><td>$87.67</td><td>$1.40</td><td>$76,038.00</td>
+          <td>$2,415.50</td><td>$87.67</td><td>$1.41</td><td>$76,038.00</td>
         </tr>
         <tr>
           <td>ATR Stp</td>
-          <td>$112.60</td><td>$4.19</td><td>$0.05</td><td>$2,544.99</td>
+          <td>$109.87</td><td>$4.02</td><td>$0.05</td><td>$2,484.61</td>
         </tr>
         <tr>
           <td>Stop ATR scale</td>
@@ -758,28 +800,28 @@
         <tr class="tbl-divider"><td colspan="5">Entry stop (Day 1)</td></tr>
         <tr>
           <td>Path</td>
-          <td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_both">ent_both</span></td><td class="td-ctr"><span class="badge badge-ent_both">ent_both</span></td>
+          <td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_both">ent_both</span></td><td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td>
         </tr>
         <tr>
           <td>Multiplier</td>
-          <td>0.56</td><td>1.00</td><td>2.39</td><td>1.68</td>
+          <td>0.56</td><td>1.00</td><td>2.39</td><td>1.00</td>
         </tr>
         <tr>
           <td>Entry stop</td>
-          <td>$2,322.80</td><td>$82.38</td><td>$1.30</td><td>$71,770.12</td>
+          <td>$2,325.05</td><td>$82.60</td><td>$1.32</td><td>$73,553.39</td>
         </tr>
         <tr class="tbl-divider"><td colspan="5">Hold stop (Day 2+ ratchet)</td></tr>
         <tr>
           <td>Path</td>
-          <td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_caution">pos_caution</span></td><td class="td-ctr"><span class="badge badge-pos_caution">pos_caution</span></td>
+          <td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_caution">pos_caution</span></td><td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td>
         </tr>
         <tr>
           <td>Multiplier</td>
-          <td>1.45</td><td>1.42</td><td>0.18</td><td>0.43</td>
+          <td>1.45</td><td>1.42</td><td>0.18</td><td>1.00</td>
         </tr>
         <tr>
           <td>Hold candidate</td>
-          <td>$2,174.76</td><td>$80.16</td><td>$1.39</td><td>$74,945.35</td>
+          <td>$2,180.60</td><td>$80.46</td><td>$1.40</td><td>$73,553.39</td>
         </tr>
         <tr>
           <td>Previous stop</td>
@@ -1508,6 +1550,50 @@
     </table>
   </div>
 </details>
+
+
+
+
+<div class="section">
+  <div class="section-header">
+    <h2>User decision log</h2>
+    <span class="note">Log actual execution — pre-filled with theoretical values</span>
+  </div>
+  <div class="log-forms">
+    
+    
+    <div class="log-form action-ENTRY">
+      <h3>
+        BTCUSDT
+        <span class="action-badge badge-ENTRY">ENTRY</span>
+      </h3>
+      <form method="POST" action="http://localhost:5003/log_trade">
+        
+        <input type="hidden" name="asset"                value="BTCUSDT">
+        <input type="hidden" name="action"               value="ENTRY">
+        <input type="hidden" name="date"                 value="2026-04-15">
+        <input type="hidden" name="theoretical_price"    value="74707.02">
+        <input type="hidden" name="theoretical_size_pct" value="1.2937228407769843">
+        <input type="hidden" name="strategy"             value="">
+
+        <label>Actual price</label>
+        <input type="number" name="actual_price" step="0.0001" required
+               value="74707.02">
+
+        <label>Actual size (%)</label>
+        <input type="number" name="actual_size_pct" step="0.01" required
+               value="1.29">
+
+        <label>Discretion note (optional)</label>
+        <input type="text" name="discretion_note" placeholder="e.g. delayed, sized down due to news…">
+
+        <button type="submit">Log trade</button>
+      </form>
+    </div>
+    
+  </div>
+</div>
+
 
 </body>
 </html>

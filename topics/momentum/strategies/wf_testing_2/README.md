@@ -44,14 +44,29 @@ Note the distinct logic between the moment of entry and the management of the tr
 ---
 
 ## The Caution Logic (Internal Circuit Breakers)
+- **C1 — Caution Long (Overextension):**  
+  Detects **"buying exhaustion."**  
+  **OBV Divergence:** Price is rising, but On-Balance Volume is below its average (hollow move).  
+  **Price Stretch:** Current Low is > $1.5 \times ATR$ away from the Swing High (mean-reversion risk).
 
-- **C1 — OBV Divergence:**  
-  If the price is making new highs but the On-Balance Volume is below its average, the move is considered "fake" or unsupported.
+- **C2 — Caution Short (Bear Exhaustion):**  
+  Signals that **shorting is now risky.**  
+  **Trend Breach:** Price has climbed above the EMA.  
+  **Downside Stretch:** Current High is > $1.5 \times ATR$ away from the Swing Low.  
+  **Role:** Acts as a *"Structural Floor"* indicating a shift back to bullish/neutral bias.
 
-- **C2 — Overextension:**  
-  If the distance between the recent high and current low exceeds $1.5 \times ATR$, the rubber band is stretched too far.  
-  Entry is flagged as risky.
+- **C3 — Caution "Both" (Volatility/Chop):**  
+  Triggered when **C1 and C2 are active simultaneously.**  
+  Indicates extreme, directionless volatility and "long wicks" in both directions.  
+  **Action:** Applies a conservative, wider stop multiplier (`stop_mult_ent_both`) to survive market noise.
+---
 
+## C3 — Caution "Both" (Volatility/Chop)
+Triggered when **C1 and C2 are active simultaneously.**
+
+- Indicates extreme, directionless volatility and "long wicks" in both directions.
+
+**Action:** Applies a conservative, wider stop multiplier (`stop_mult_ent_both`) to survive market noise.
 ---
 
 ##Position Sizing

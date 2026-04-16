@@ -276,6 +276,48 @@
     padding: 7px 16px; font-size: 11px; color: var(--color-muted);
     border-bottom: 1px solid var(--color-border); font-style: italic;
   }
+
+  /* ── Trade log forms ── */
+  .log-forms { display: flex; flex-wrap: wrap; gap: 14px; padding: 16px; }
+  .log-form {
+    flex: 1 1 280px; max-width: 360px;
+    background: #fafaf9; border: 1px solid var(--color-border);
+    border-radius: 6px; padding: 14px 16px;
+  }
+  .log-form h3 {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--color-header-text); margin-bottom: 12px;
+  }
+  .log-form h3 .action-badge {
+    display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 3px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .log-form label {
+    display: block; font-size: 11px; color: var(--color-muted);
+    margin-bottom: 2px; margin-top: 8px;
+  }
+  .log-form label:first-of-type { margin-top: 0; }
+  .log-form input[type="number"],
+  .log-form input[type="text"] {
+    width: 100%; padding: 5px 8px; font-size: 12px;
+    border: 1px solid var(--color-border); border-radius: 4px;
+    background: #fff; color: var(--color-text);
+    font-family: inherit;
+  }
+  .log-form input[type="number"]:focus,
+  .log-form input[type="text"]:focus {
+    outline: none; border-color: var(--color-amber);
+  }
+  .log-form button {
+    margin-top: 12px; width: 100%;
+    padding: 6px 0; font-size: 12px; font-weight: 500;
+    border: none; border-radius: 4px; cursor: pointer;
+    font-family: inherit;
+  }
+  .log-form.action-ENTRY button { background: var(--color-entry-bg); color: var(--color-entry-text); }
+  .log-form.action-EXIT  button { background: var(--color-exit-bg);  color: var(--color-exit-text);  }
+  .log-form.action-ENTRY button:hover { background: #d6edca; }
+  .log-form.action-EXIT  button:hover { background: #f7d8d8; }
 </style>
 </head>
 <body>
@@ -672,6 +714,54 @@
     </table>
   </div>
 </details>
+
+{# ══════════════════════════════════════════════════════════════════════
+   Section 6 — User decision log
+   Only shown for ENTRY and EXIT decisions — HOLD and FLAT have no action.
+   ══════════════════════════════════════════════════════════════════════ #}
+{% set actionable = coins | selectattr('sig.decision', 'in', ['ENTRY', 'EXIT']) | list %}
+{% if actionable %}
+<div class="section">
+  <div class="section-header">
+    <h2>User decision log</h2>
+    <span class="note">Log actual execution — pre-filled with theoretical values</span>
+  </div>
+  <div class="log-forms">
+    {% for c in actionable %}
+    {% set d = c.sig.decision %}
+    <div class="log-form action-{{ d }}">
+      <h3>
+        {{ c.symbol }}
+        <span class="action-badge badge-{{ d }}">{{ d }}</span>
+      </h3>
+      <form method="POST" action="http://localhost:{{ journal_port }}/log_trade">
+        {# Hidden fields — passed through to journal_server.py #}
+        <input type="hidden" name="asset"                value="{{ c.symbol }}">
+        <input type="hidden" name="action"               value="{{ d }}">
+        <input type="hidden" name="date"                 value="{{ signal_date }}">
+        <input type="hidden" name="theoretical_price"    value="{{ c.exec_price if c.exec_price else c.sig.close }}">
+        <input type="hidden" name="theoretical_size_pct" value="{{ c.sig.size_pct if c.sig.size_pct else '' }}">
+        <input type="hidden" name="theoretical_stop"     value="{{ c.sig.current_stop if c.sig.current_stop else '' }}">
+        <input type="hidden" name="strategy"             value="{{ c.strategy }}">
+
+        <label>Actual price</label>
+        <input type="number" name="actual_price" step="0.0001" required
+               value="{{ c.exec_price | round(4) if c.exec_price else c.sig.close | round(2) }}">
+
+        <label>Actual size (%)</label>
+        <input type="number" name="actual_size_pct" step="0.01" required
+               value="{{ c.sig.size_pct | round(2) if c.sig.size_pct else '' }}">
+
+        <label>Discretion note (optional)</label>
+        <input type="text" name="discretion_note" placeholder="e.g. delayed, sized down due to news…">
+
+        <button type="submit">Log trade</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 </body>
 </html>

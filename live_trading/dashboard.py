@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import webbrowser
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -20,13 +19,37 @@ from config import ACTIVE_ASSETS, INDICATOR_WARMUP, EXECUTION_HOUR, CAPITAL, COI
 
 LIVE_PARAMS_PATH  = os.path.join(_LT_DIR, 'live_params.json')
 POSITIONS_PATH    = os.path.join(_LT_DIR, 'positions.json')
+SERVER_PATH       = os.path.join(_LT_DIR, 'server.json')
 TEMPLATES_DIR     = os.path.join(_LT_DIR, 'templates')
 OUTPUT_HTML       = os.path.join(_LT_DIR, 'outputs', 'dashboard.html')
+
+
+def _load_journal_port():
+    """Read the port journal_server.py is running on. Falls back to 5001."""
+    if not os.path.exists(SERVER_PATH):
+        return 5001
+    with open(SERVER_PATH) as f:
+        return json.load(f).get('port', 5001)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Data fetching
 # ══════════════════════════════════════════════════════════════════════════════
+
+def fetch_live_price(symbol):
+    """
+    Fetch the current market price for a single symbol via the ticker endpoint.
+    Very lightweight — one REST call, no OHLCV data fetched.
+    Returns a float, or None on error.
+    """
+    try:
+        client = get_binance_client()
+        ticker = client.get_symbol_ticker(symbol=symbol)
+        return float(ticker['price'])
+    except Exception as e:
+        print(f"  fetch_live_price({symbol}) failed: {e}")
+        return None
+
 
 def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
     """
@@ -271,11 +294,11 @@ def apply_decision(sig, position, exec_price, capital):
 
     # ── HOLD ──────────────────────────────────────────────────────────────────
     if in_position and entry_long:
-        old_stop     = float(position['current_stop'])
+        old_stop     = float(position.get('current_stop') or 0)
         candidate    = stop_detail['hold_stop_candidate']
         new_stop     = max(old_stop, candidate)     # never move stop down
         stop_updated = new_stop > old_stop
-        size_pct     = position['size']
+        size_pct     = position['size_pct']
         size_usd     = size_pct * capital
         stop_detail['hold_stop_previous'] = old_stop
         stop_detail['hold_stop_final']    = new_stop
@@ -499,6 +522,7 @@ def render_html(coin_rows, signal_date, generated_at):
         capital        = CAPITAL,
         all_fixed_keys = all_fixed_keys,
         all_optim_keys = all_optim_keys,
+        journal_port   = _load_journal_port(),
     )
 
     os.makedirs(os.path.dirname(OUTPUT_HTML), exist_ok=True)
@@ -506,7 +530,6 @@ def render_html(coin_rows, signal_date, generated_at):
         f.write(html)
 
     print(f"\nHTML dashboard written → {OUTPUT_HTML}")
-    webbrowser.open(f'file://{OUTPUT_HTML}')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -590,6 +613,7 @@ def main():
 
         coin_rows.append({
             'symbol':       symbol,
+            'strategy':     strategy,
             'sig':          sig,
             'exec_price':   exec_price,
             'fixed_params': fixed_params,

@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "date": "2026-04-15",
+    "asset": "BTCUSDT",
+    "action": "ENTRY",
+    "theoretical_price": 74707.02,
+    "actual_price": 74700.02,
+    "slippage_pct": -0.0094,
+    "theoretical_size_pct": 1.2937228407769843,
+    "actual_size_pct": 0.8,
+    "discretion_note": "discretion",
+    "strategy": "",
+    "logged_at": "2026-04-16 16:57:13"
+  },
+  {
+    "date": "2026-04-15",
+    "asset": "BTCUSDT",
+    "action": "ENTRY",
+    "theoretical_price": 74707.02,
+    "actual_price": 74600.02,
+    "slippage_pct": -0.1432,
+    "theoretical_size_pct": 1.2937228407769843,
+    "actual_size_pct": 1.5,
+    "discretion_note": "discretion 2",
+    "strategy": "",
+    "logged_at": "2026-04-16 16:58:37"
+  }
+]

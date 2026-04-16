@@ -1,1 +1,13 @@
-{}
+{
+  "BTCUSDT": {
+    "in_position": true,
+    "entry_price": 74707,
+    "entry_date": "2026-04-15",
+    "current_stop": null,
+    "size_pct": 1.5,
+    "strategy": "",
+    "exit_price": null,
+    "exit_date": null,
+    "discretion_note": ""
+  }
+}
