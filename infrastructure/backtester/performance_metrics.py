@@ -59,6 +59,61 @@ def calculate_max_drawdown(equity_curve):
     return max_dd
 
 
+def identify_trades_pairs(data):
+    """
+    Trade identification for pairs strategies where df['Close'] is a synthetic
+    equity curve (already direction-adjusted by the engine).  P&L is always
+    (exit_equity - entry_equity) / entry_equity — the directional sign must NOT
+    be flipped for shorts because the equity curve already accounts for it.
+    """
+    trades = []
+
+    change_points = data[data['position_change'] > 0].copy()
+
+    if len(change_points) == 0:
+        return pd.DataFrame()
+
+    first_pos       = data['position'].iloc[0]
+    in_position     = first_pos != 0
+    entry_price     = data['Close'].iloc[0] if in_position else None
+    entry_direction = first_pos             if in_position else None
+    entry_time      = data.index[0]         if in_position else None
+
+    for idx, row in data.iterrows():
+        current_position = row['position']
+
+        if not in_position and current_position != 0:
+            in_position     = True
+            entry_price     = row['Close']
+            entry_direction = current_position
+            entry_time      = idx
+
+        elif in_position and (current_position == 0 or current_position != entry_direction):
+            exit_price = row['Close']
+            exit_time  = idx
+
+            # equity curve is already signed — always use (exit - entry) / entry
+            pnl = (exit_price - entry_price) / entry_price
+
+            trades.append({
+                'entry_time':  entry_time,
+                'exit_time':   exit_time,
+                'entry_price': entry_price,
+                'exit_price':  exit_price,
+                'direction':   'Long' if entry_direction == 1 else 'Short',
+                'pnl':         pnl,
+            })
+
+            if current_position != 0:
+                entry_price     = row['Close']
+                entry_direction = current_position
+                entry_time      = idx
+            else:
+                in_position = False
+
+    return pd.DataFrame(trades)
+
+
 def identify_trades(data):
 
     trades = []
@@ -250,7 +305,7 @@ def calculate_yearly_metrics(returns, equity_curve, periods_per_year):
     }
 
 
-def calculate_all_metrics(data, net_returns, cost, return_type="arithmetic"):
+def calculate_all_metrics(data, net_returns, cost, return_type="arithmetic", strategy_type="single_asset"):
     """
     Main function to calculate all performance metrics and compile results.
 
@@ -269,7 +324,10 @@ def calculate_all_metrics(data, net_returns, cost, return_type="arithmetic"):
     periods_per_year = infer_frequency(data.index)
     
     # Identify trades
-    trades_df = identify_trades(data)
+    if strategy_type == 'pairs':
+       trades_df = identify_trades_pairs(data)
+    else:
+       trades_df = identify_trades(data)
     
     # Calculate individual metrics
     total_return = calculate_total_return(equity_curve)

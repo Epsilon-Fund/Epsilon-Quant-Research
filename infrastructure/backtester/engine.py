@@ -71,7 +71,8 @@ def backtest(data, cost=0.0, show_plot=True, save_html=None, show_trades=False, 
     metrics = calculate_all_metrics(
         data=df,
         net_returns=df['net_returns'],
-        cost=cost
+        cost=cost,
+        strategy_type = 'pairs' if use_precomputed else 'single_asset'
     )
 
     if show_plot or save_html:
