@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
-Pairs_Screening_v5_1.py
+Pairs_Screening_v7_0.py
 ========================
-Strategy-aligned pair screener for episodic mean-reversion.
+Cointegration-dominant pair screener for episodic mean-reversion.
 
-V5.1 Changes from V5.0:
-  - Fix 1: Multi-reference lookback scan (5 lookbacks instead of 1 fixed)
-  - Fix 2: ADF computed on best-reference spread (not fixed lookback)
-  - Fix 3: Relative beta smoothness (normalized to beta level)
-  - Fix 4: Weight rebalance (RT 30, Beta 10, WRS 20, Regime 25, ADF 5)
-  - Fix 5: Regime quality threshold (>= 2 RTs AND completion >= 25%)
+V7.0 Changes from V6.0:
+  - ADF weight raised to dominant position: 35 → 50 pts
+  - WRS (half-life) reduced slightly: 25 → 22 pts
+    (ADF + WRS = 72 pts — 72% of score is cointegration-related)
+  - Regime stability reduced: 20 → 15 pts
+  - RT frequency reduced to viability gate: 15 → 10 pts
+  - Beta smoothness reduced to tiebreaker: 5 → 3 pts
+  - Total remains 100 pts
 
 Output:
-  pairs_screen_v5_1_wf_input.csv  → top N candidates for WF template
-  pairs_screen_v5_1_full.csv      → all scored pairs for diagnostics
+  pairs_screen_v7_0_wf_input.csv  → top N candidates for WF template
+  pairs_screen_v7_0_full.csv      → all scored pairs for diagnostics
 """
 
 import sys
@@ -77,13 +79,23 @@ REGIME_MIN_COMPLETION = 0.25
 KURTOSIS_THRESHOLD = 3.0
 KURTOSIS_MAX_PENALTY = 5.0
 
-# --- Score Weights (Fix 4) ---
-W_RT_FREQUENCY = 30
-W_BETA_SMOOTH = 10
-W_WINDOW_REVERSION = 20
-W_REGIME_STABILITY = 25
-W_ADF = 5
-W_DATA_BONUS = 5
+# --- Pre-filters (applied before expensive computation) ---
+MIN_CORRELATION      = 0.50   # min Pearson correlation of log-returns; below = skip
+MAX_ADF_PVALUE       = 0.10   # ADF hard gate: skip pair if p-value > this
+REQUIRE_POSITIVE_BETA = True  # skip pairs where median hedge ratio <= 0
+
+# --- Z-Score Normalisation (strategy-aligned) ---
+Z_LOOKBACK = 60               # rolling window for spread mean/std — matches trading strategy
+
+# --- RT Frequency Threshold ---
+RT_MIN_ANNUAL = 2.0           # minimum RT/year to be considered active (was 4.0)
+
+# --- Score Weights (V7.0: cointegration-dominant, ADF+WRS = 72 pts) ---
+W_RT_FREQUENCY = 10
+W_BETA_SMOOTH = 3
+W_WINDOW_REVERSION = 22
+W_REGIME_STABILITY = 15
+W_ADF = 50
 KURTOSIS_PENALTY_MAX = 5
 
 # --- Beta Smoothness Relative Thresholds (Fix 3) ---
@@ -98,7 +110,7 @@ RT_COMP_WORST = 0.15
 
 # --- ADF Thresholds ---
 ADF_BEST = 0.01
-ADF_WORST = 0.20
+ADF_WORST = 0.10   # matches hard gate — full scoring range is now used
 
 # --- Output ---
 TOP_N = 50
@@ -147,40 +159,35 @@ def load_prices(symbols, client, timeframe=TIMEFRAME, n_bars=N_BARS):
 # CORE COMPUTATIONS
 # ═══════════════════════════════════════════════════════════════════
 
-def compute_rolling_ols(log_y, log_x, lookback):
+def compute_rolling_ols(log_y, log_x, lookback, z_lookback=Z_LOOKBACK):
     """
     Rolling OLS: ln(Y) = alpha + beta * ln(X) + epsilon
     Vectorized using rolling sums for speed.
+
+    Z-score normalisation uses a separate rolling z_lookback window,
+    matching the trading strategy rather than the OLS estimation window.
     """
     n = len(log_y)
     y = log_y.values
     x = log_x.values
 
-    betas = np.full(n, np.nan)
-    alphas = np.full(n, np.nan)
+    betas   = np.full(n, np.nan)
+    alphas  = np.full(n, np.nan)
     spreads = np.full(n, np.nan)
-    z_scores = np.full(n, np.nan)
 
     # precompute rolling sums
-    cum_x = np.cumsum(x)
-    cum_y = np.cumsum(y)
+    cum_x  = np.cumsum(x)
+    cum_y  = np.cumsum(y)
     cum_x2 = np.cumsum(x * x)
     cum_xy = np.cumsum(x * y)
-    cum_y2 = np.cumsum(y * y)
 
     for i in range(lookback, n):
         j = i - lookback
 
-        if j == 0:
-            sx  = cum_x[i-1]
-            sy  = cum_y[i-1]
-            sx2 = cum_x2[i-1]
-            sxy = cum_xy[i-1]
-        else:
-            sx  = cum_x[i-1]  - cum_x[j-1]
-            sy  = cum_y[i-1]  - cum_y[j-1]
-            sx2 = cum_x2[i-1] - cum_x2[j-1]
-            sxy = cum_xy[i-1] - cum_xy[j-1]
+        sx  = cum_x[i-1]  - (cum_x[j-1]  if j > 0 else 0)
+        sy  = cum_y[i-1]  - (cum_y[j-1]  if j > 0 else 0)
+        sx2 = cum_x2[i-1] - (cum_x2[j-1] if j > 0 else 0)
+        sxy = cum_xy[i-1] - (cum_xy[j-1] if j > 0 else 0)
 
         denom = lookback * sx2 - sx * sx
         if abs(denom) < 1e-14:
@@ -189,42 +196,21 @@ def compute_rolling_ols(log_y, log_x, lookback):
         beta_val  = (lookback * sxy - sx * sy) / denom
         alpha_val = (sy - beta_val * sx) / lookback
 
-        betas[i]  = beta_val
-        alphas[i] = alpha_val
+        betas[i]   = beta_val
+        alphas[i]  = alpha_val
+        spreads[i] = y[i] - alpha_val - beta_val * x[i]
 
-        spread_val = y[i] - alpha_val - beta_val * x[i]
-        spreads[i] = spread_val
+    idx           = log_y.index
+    spread_series = pd.Series(spreads, index=idx)
 
-        # compute spread std over the window
-        # spread_k = y_k - alpha - beta * x_k
-        # mean(spread) = (sy - alpha*lb - beta*sx)/lb = 0 by construction
-        # but let's compute properly
-        # sum_spread = sy_win - alpha*lb - beta*sx_win = 0
-        # sum_spread2 = sum(y^2) - 2*alpha*sy - 2*beta*sxy + alpha^2*lb + 2*alpha*beta*sx + beta^2*sx2
-        if j == 0:
-            sy2_win = cum_y2[i-1]
-        else:
-            sy2_win = cum_y2[i-1] - cum_y2[j-1]
+    # ── Z-score: separate rolling window matches trading strategy ──
+    spread_mean = spread_series.rolling(z_lookback).mean()
+    spread_std  = spread_series.rolling(z_lookback).std()
+    z_scores    = (spread_series - spread_mean) / spread_std.replace(0, np.nan)
 
-        sum_sp2 = (sy2_win
-                    - 2.0 * alpha_val * sy
-                    - 2.0 * beta_val * sxy
-                    + alpha_val * alpha_val * lookback
-                    + 2.0 * alpha_val * beta_val * sx
-                    + beta_val * beta_val * sx2)
-
-        var = sum_sp2 / lookback  # mean of spread is ~0
-        # more precise: var = sum_sp2/lb - (sum_sp/lb)^2, but sum_sp≈0
-        if var > 1e-20:
-            sigma = np.sqrt(var)
-            z_scores[i] = spread_val / sigma  # mean ≈ 0
-        else:
-            z_scores[i] = 0.0
-
-    idx = log_y.index
-    return (pd.Series(z_scores, index=idx),
-            pd.Series(betas, index=idx),
-            pd.Series(spreads, index=idx))
+    return (z_scores,
+            pd.Series(betas,  index=idx),
+            spread_series)
 
 
 def calc_roundtrips(z_scores, entry_z, exit_z, max_hold):
@@ -333,8 +319,7 @@ def scan_best_reference(log_y, log_x):
         lb_stability_bonus = 1.0 + 0.15 * (lb - REF_LOOKBACKS[0]) / (REF_LOOKBACKS[-1] - REF_LOOKBACKS[0])
 
         # ── Minimum activity threshold ──
-        # Need at least 4 RT/year to be interesting regardless of lookback
-        if rt_annual < 4.0:
+        if rt_annual < RT_MIN_ANNUAL:
             combined = 0.0
         else:
             combined = rt_per_bar * (rt_comp ** 1.5) * lb_stability_bonus
@@ -488,7 +473,7 @@ def linear_score(value, worst, best, max_points):
     return ratio * max_points
 
 
-def score_pair(ref_result, log_y, log_x, n_overlap_days):
+def score_pair(ref_result, log_y, log_x, n_overlap_days, adf_pvalue=None):
     """Compute composite score for a pair using all V5.1 metrics."""
     scores = {}
     metrics = {}
@@ -504,8 +489,8 @@ def score_pair(ref_result, log_y, log_x, n_overlap_days):
     n_rt = ref_result['n_rt']
     n_sig = ref_result['n_sig']
 
-    score_freq = linear_score(rt_annual, RT_ANNUAL_WORST, RT_ANNUAL_BEST, 18)
-    score_comp = linear_score(rt_comp, RT_COMP_WORST, RT_COMP_BEST, 12)
+    score_freq = linear_score(rt_annual, RT_ANNUAL_WORST, RT_ANNUAL_BEST, 6)
+    score_comp = linear_score(rt_comp, RT_COMP_WORST, RT_COMP_BEST, 4)
     scores['rt_frequency'] = score_freq + score_comp
 
     metrics['RT_Total'] = n_rt
@@ -522,7 +507,7 @@ def score_pair(ref_result, log_y, log_x, n_overlap_days):
         scores['beta_smoothness'] = 0.0
     else:
         scores['beta_smoothness'] = linear_score(
-            delta_beta_rel, BETA_REL_WORST, BETA_REL_BEST, W_BETA_SMOOTH
+            delta_beta_rel, BETA_REL_WORST, BETA_REL_BEST, W_BETA_SMOOTH  # 3 pts
         )
 
     metrics['Delta_Beta_Std'] = round(delta_beta_std, 6) if not np.isnan(delta_beta_std) else None
@@ -535,8 +520,8 @@ def score_pair(ref_result, log_y, log_x, n_overlap_days):
         log_y, log_x, best_lb
     )
 
-    score_pct_fast = linear_score(wrs_pct, 0.2, 0.8, 12)
-    score_median_hl = linear_score(wrs_median_hl, WRS_HALFLIFE_THRESHOLD, 2.0, 8)
+    score_pct_fast = linear_score(wrs_pct, 0.2, 0.8, 13)
+    score_median_hl = linear_score(wrs_median_hl, WRS_HALFLIFE_THRESHOLD, 2.0, 9)
     scores['window_reversion'] = score_pct_fast + score_median_hl
 
     metrics['WRS_Pct_Fast'] = round(wrs_pct, 4)
@@ -546,8 +531,8 @@ def score_pair(ref_result, log_y, log_x, n_overlap_days):
     # ── Metric 4: Regime Stability (25 pts) ──
     quality_regimes, total_regimes, regime_details, consistency = calc_regime_stability(z_scores)
 
-    score_regime_count = linear_score(quality_regimes, 0, total_regimes, 15)
-    score_consistency = consistency * 10
+    score_regime_count = linear_score(quality_regimes, 0, total_regimes, 9)
+    score_consistency = consistency * 6
     scores['regime_stability'] = score_regime_count + score_consistency
 
     metrics['Regime_Quality'] = quality_regimes
@@ -556,14 +541,15 @@ def score_pair(ref_result, log_y, log_x, n_overlap_days):
     metrics['Regime_Detail'] = json.dumps(regime_details)
 
     # ── Metric 5: ADF on Best-Reference Spread (5 pts) ──
-    spread_for_adf = spreads.dropna()
-    if len(spread_for_adf) > 50:
-        try:
-            adf_pvalue = adfuller(spread_for_adf, maxlag=20, autolag='AIC')[1]
-        except:
+    if adf_pvalue is None:
+        spread_for_adf = spreads.dropna()
+        if len(spread_for_adf) > 50:
+            try:
+                adf_pvalue = adfuller(spread_for_adf, maxlag=20, autolag='AIC')[1]
+            except:
+                adf_pvalue = 1.0
+        else:
             adf_pvalue = 1.0
-    else:
-        adf_pvalue = 1.0
 
     scores['adf'] = linear_score(adf_pvalue, ADF_WORST, ADF_BEST, W_ADF)
 
@@ -583,14 +569,6 @@ def score_pair(ref_result, log_y, log_x, n_overlap_days):
     scores['kurtosis_penalty'] = -penalty
     metrics['Spread_Kurtosis'] = round(excess_kurt, 4)
 
-    # ── Data Bonus (5 pts) ──
-    if n_overlap_days >= 900:
-        scores['data_bonus'] = W_DATA_BONUS
-    elif n_overlap_days >= 365:
-        scores['data_bonus'] = W_DATA_BONUS * (n_overlap_days - 365) / (900 - 365)
-    else:
-        scores['data_bonus'] = 0.0
-
     metrics['Overlap_Days'] = n_overlap_days
 
     # ── Total Score ──
@@ -608,7 +586,7 @@ def run_screening():
     """Main screening pipeline."""
 
     print("=" * 70)
-    print("  PAIRS SCREENER V5.1 — Strategy-Aligned with Multi-Reference Scan")
+    print("  PAIRS SCREENER V7.0 — Cointegration-Dominant with Multi-Reference Scan")
     print("=" * 70)
 
     # ── Connect & Load Data ──
@@ -650,16 +628,42 @@ def run_screening():
         log_y = np.log(mask[sym_y])
         log_x = np.log(mask[sym_x])
 
+        # ── Pre-filter 1: Correlation ──
+        log_ret_y    = log_y.diff().dropna()
+        log_ret_x    = log_x.diff().dropna()
+        aligned_rets = pd.concat([log_ret_y, log_ret_x], axis=1).dropna()
+        if len(aligned_rets) < 100:
+            continue
+        if aligned_rets.iloc[:, 0].corr(aligned_rets.iloc[:, 1]) < MIN_CORRELATION:
+            continue
+
         # ── Multi-Reference Scan ──
         ref_result = scan_best_reference(log_y, log_x)
 
         if ref_result is None:
             continue
 
+        # ── Pre-filter 2: Beta sign ──
+        if REQUIRE_POSITIVE_BETA:
+            beta_mean_val = ref_result['betas'].dropna().mean()
+            if np.isnan(beta_mean_val) or beta_mean_val <= 0:
+                continue
+
+        # ── Pre-filter 3: ADF hard gate ──
+        spread_for_adf = ref_result['spreads'].dropna()
+        adf_pvalue = 1.0
+        if len(spread_for_adf) > 50:
+            try:
+                adf_pvalue = adfuller(spread_for_adf, maxlag=20, autolag='AIC')[1]
+            except:
+                adf_pvalue = 1.0
+        if adf_pvalue > MAX_ADF_PVALUE:
+            continue
+
         # ── Score ──
         try:
             total_score, score_detail, metrics = score_pair(
-                ref_result, log_y, log_x, n_overlap_days
+                ref_result, log_y, log_x, n_overlap_days, adf_pvalue=adf_pvalue
             )
         except Exception as e:
             print(f"  [ERROR] {sym_y}/{sym_x}: {e}")
@@ -688,13 +692,13 @@ def run_screening():
     df.insert(0, 'Rank', range(1, len(df) + 1))
 
     # ── Save Full Results ──
-    full_path = OUTPUT_DIR / "pairs_screen_v5_1_full.csv"
+    full_path = OUTPUT_DIR / "pairs_screen_v7_0_full.csv"
     df.to_csv(full_path, index=False)
     print(f"\n[3/4] Full results saved: {full_path} ({len(df)} pairs)")
 
     # ── Save Top N for WF Template ──
     df_top = df.head(TOP_N).copy()
-    wf_path = OUTPUT_DIR / "pairs_screen_v5_1_wf_input.csv"
+    wf_path = OUTPUT_DIR / "pairs_screen_v7_0_wf_input.csv"
 
     wf_cols = [
         'Rank', 'Pair', 'Symbol_Y', 'Symbol_X', 'Score',
@@ -730,16 +734,6 @@ def run_screening():
     print(f"    Top 50: {df['Score'].head(50).mean():.1f} (avg)")
     print(f"    Median: {df['Score'].median():.1f}")
     print(f"    Min:    {df['Score'].min():.1f}")
-
-    # ── Check for TRX/LINK ──
-    trx_link = df[
-        ((df['Symbol_Y'] == 'TRXUSDT') & (df['Symbol_X'] == 'LINKUSDT')) |
-        ((df['Symbol_Y'] == 'LINKUSDT') & (df['Symbol_X'] == 'TRXUSDT'))
-    ]
-    if not trx_link.empty:
-        print(f"\n  ★ TRX/LINK: Rank {trx_link.iloc[0]['Rank']}, "
-              f"Score {trx_link.iloc[0]['Score']}, "
-              f"Best LB {trx_link.iloc[0].get('Best_Ref_Lookback', '?')}")
 
     return df
 
