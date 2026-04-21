@@ -367,8 +367,8 @@
         </td>
         <td><span class="badge badge-{{ d }}">{{ d }}</span></td>
 
-        {% if sig.size_pct is not none %}
-          <td class="num">{{ "%.2f"|format(sig.size_pct) }}x{% if d == 'HOLD' %}<br><span class="muted">held</span>{% endif %}</td>
+        {% if sig.leverage_multiplier is not none %}
+          <td class="num">{{ "%.2f"|format(sig.leverage_multiplier) }}x{% if d == 'HOLD' %}<br><span class="muted">held</span>{% endif %}</td>
         {% else %}
           <td class="num dash">—</td>
         {% endif %}
@@ -740,7 +740,7 @@
         <input type="hidden" name="action"               value="{{ d }}">
         <input type="hidden" name="date"                 value="{{ signal_date }}">
         <input type="hidden" name="theoretical_price"    value="{{ c.exec_price if c.exec_price else c.sig.close }}">
-        <input type="hidden" name="theoretical_size_pct" value="{{ c.sig.size_pct if c.sig.size_pct else '' }}">
+        <input type="hidden" name="theoretical_size_pct" value="{{ c.sig.leverage_multiplier if c.sig.leverage_multiplier else '' }}">
         <input type="hidden" name="theoretical_stop"     value="{{ c.sig.current_stop if c.sig.current_stop else '' }}">
         <input type="hidden" name="strategy"             value="{{ c.strategy }}">
 
@@ -748,9 +748,9 @@
         <input type="number" name="actual_price" step="0.0001" required
                value="{{ c.exec_price | round(4) if c.exec_price else c.sig.close | round(2) }}">
 
-        <label>Actual size (%)</label>
+        <label>Actual leverage (x)</label>
         <input type="number" name="actual_size_pct" step="0.01" required
-               value="{{ c.sig.size_pct | round(2) if c.sig.size_pct else '' }}">
+               value="{{ c.sig.leverage_multiplier | round(2) if c.sig.leverage_multiplier else '' }}">
 
         <label>Discretion note (optional)</label>
         <input type="text" name="discretion_note" placeholder="e.g. delayed, sized down due to news…">

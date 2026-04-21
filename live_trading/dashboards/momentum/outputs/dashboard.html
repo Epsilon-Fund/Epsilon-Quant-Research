@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epsilon Fund — Live Trading Dashboard</title>
+<style>
+  :root {
+    --color-bg:           #f8f8f7;
+    --color-card:         #ffffff;
+    --color-border:       #e4e4e1;
+    --color-text:         #1a1a18;
+    --color-muted:        #8a8a85;
+    --color-header-text:  #5a5a55;
+    --color-entry-bg:     #EAF3DE;
+    --color-entry-text:   #3B6D11;
+    --color-hold-bg:      #FAEEDA;
+    --color-hold-text:    #854F0B;
+    --color-exit-bg:      #FCEBEB;
+    --color-exit-text:    #A32D2D;
+    --color-flat-bg:      #f0f0ee;
+    --color-flat-text:    #6a6a65;
+    --color-true-text:    #3B6D11;
+    --color-false-text:   #A32D2D;
+    --color-true-cell:    #f3f9ed;
+    --color-false-cell:   #fdf1f1;
+    --color-warn-bg:      #FAEEDA;
+    --color-warn-text:    #854F0B;
+    --color-divider-bg:   #f5f5f3;
+    --color-amber:        #d4a84e;
+    --label-col:          160px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px 32px 48px;
+  }
+
+  /* ── Page header ── */
+  .page-header { margin-bottom: 20px; }
+  .page-header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .page-header .meta { display: flex; flex-wrap: wrap; gap: 20px; font-size: 12px; color: var(--color-muted); }
+  .page-header .meta span strong { color: var(--color-header-text); font-weight: 500; }
+
+  /* ── Section cards ── */
+  .section {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .section-header h2 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--color-header-text);
+    white-space: nowrap;
+  }
+
+  /* ── Inline hint <details> inside section headers ── */
+  .hint-details {
+    display: inline-block;
+    font-size: 11px;
+  }
+  .hint-details summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--color-muted);
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .hint-details summary::-webkit-details-marker { display: none; }
+  .hint-details summary::before {
+    content: '▶';
+    font-size: 8px;
+    display: inline-block;
+    transition: transform 0.12s;
+  }
+  .hint-details[open] summary::before { transform: rotate(90deg); }
+  .hint-details summary:hover { color: var(--color-header-text); }
+  .hint-body {
+    position: absolute;
+    z-index: 10;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-amber);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    padding: 10px 14px;
+    max-width: 380px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--color-text);
+    margin-top: 4px;
+  }
+  .hint-body ul { padding-left: 14px; margin: 4px 0 0; }
+  .hint-body li { margin-bottom: 3px; }
+  .hint-body code {
+    font-family: ui-monospace, 'Menlo', monospace;
+    font-size: 11px;
+    background: #f3f3f1;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    padding: 4px 8px;
+    display: block;
+    margin: 5px 0;
+    white-space: pre;
+  }
+  .hint-body .dim { color: var(--color-muted); font-size: 11px; }
+  /* Wrapper for sections that contain hints — needs relative positioning */
+  .section-header { position: relative; }
+
+  /* ── Standard tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  thead th {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--color-muted);
+    padding: 7px 12px 5px; text-align: left;
+    border-bottom: 1px solid var(--color-border); white-space: nowrap;
+  }
+  thead th.num { text-align: right; }
+  thead th.ctr { text-align: center; }
+  thead th .sub {
+    display: block; font-size: 10px; font-weight: 400; text-transform: none;
+    letter-spacing: 0; color: var(--color-muted); margin-top: 1px; white-space: normal;
+  }
+  tbody td {
+    padding: 7px 12px; border-bottom: 1px solid var(--color-border);
+    vertical-align: middle; font-size: 13px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; }
+  td.ctr { text-align: center; }
+  td.asset { font-weight: 500; font-size: 12px; white-space: nowrap; }
+  .muted { color: var(--color-muted); font-size: 11px; }
+  .dash  { color: var(--color-muted); }
+
+  /* ── Transposed tables ── */
+  .table-scroll { overflow-x: auto; }
+  .transposed-table {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Label column */
+  .transposed-table th:first-child,
+  .transposed-table td:first-child {
+    width: 160px;
+    min-width: 160px;
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-muted);
+    background: #fafaf9;
+    border-right: 1px solid var(--color-border);
+    padding: 6px 12px;
+  }
+  /* Shared header style for label col */
+  .transposed-table thead th:first-child {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
+  }
+  /* Coin columns */
+  .transposed-table th:not(:first-child) {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-muted);
+    padding: 7px 12px 5px;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+  }
+  .transposed-table th:not(:first-child) .sub {
+    display: block; font-size: 10px; font-weight: 400; text-transform: none;
+    letter-spacing: 0; color: var(--color-muted); margin-top: 1px;
+  }
+  .transposed-table td:not(:first-child) {
+    text-align: right;
+    padding: 6px 24px 6px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+  }
+  .transposed-table tbody tr:last-child td { border-bottom: none; }
+  /* td-ctr is only used for badge cells (path rows) — not for dash placeholders */
+  .transposed-table td.td-ctr { text-align: center; padding-right: 12px; }
+
+  /* ── Table divider rows ── */
+  tr.tbl-divider td {
+    background: var(--color-divider-bg);
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--color-muted);
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block; padding: 2px 7px; border-radius: 3px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .badge-ENTRY      { background: var(--color-entry-bg);  color: var(--color-entry-text); }
+  .badge-HOLD       { background: var(--color-hold-bg);   color: var(--color-hold-text); }
+  .badge-EXIT       { background: var(--color-exit-bg);   color: var(--color-exit-text); }
+  .badge-FLAT       { background: var(--color-flat-bg);   color: var(--color-flat-text); }
+  .badge-ent_normal  { background: var(--color-flat-bg);  color: var(--color-flat-text); }
+  .badge-ent_caution { background: var(--color-warn-bg);  color: var(--color-warn-text); }
+  .badge-ent_both    { background: var(--color-exit-bg);  color: var(--color-exit-text); }
+  .badge-pos_normal  { background: var(--color-flat-bg);  color: var(--color-flat-text); }
+  .badge-pos_caution { background: var(--color-warn-bg);  color: var(--color-warn-text); }
+
+  /* ── Row tinting ── */
+  tr.row-ENTRY td { background: #fafef7; }
+  tr.row-EXIT  td { background: #fffafa; }
+
+  /* ── Bool / condition cells ── */
+  .bool-true  { color: var(--color-true-text);  font-weight: 500; }
+  .bool-false { color: var(--color-false-text); }
+  td.cond-true  { background: var(--color-true-cell); }
+  td.cond-false { background: var(--color-false-cell); }
+  td.entry-true  { background: var(--color-entry-bg); color: var(--color-entry-text); font-weight: 600; }
+  td.entry-false { background: var(--color-exit-bg);  color: var(--color-exit-text);  font-weight: 600; }
+  td.caution-active  { background: var(--color-warn-bg); color: var(--color-warn-text); font-weight: 500; }
+  td.adx-override    { background: var(--color-true-cell); }
+  .stop-up   { color: var(--color-true-text); font-size: 11px; }
+  .stop-prev { color: var(--color-muted);     font-size: 11px; }
+
+  /* ── Collapsible section-level details ── */
+  details.section { overflow: visible; }
+  details.section > summary {
+    list-style: none; cursor: pointer;
+    padding: 10px 16px; display: flex; align-items: center; gap: 8px; user-select: none;
+  }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before {
+    content: '▶'; font-size: 9px; color: var(--color-muted);
+    transition: transform 0.15s; display: inline-block; width: 14px; flex-shrink: 0;
+  }
+  details.section[open] > summary::before { transform: rotate(90deg); }
+  details.section > summary h2 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--color-header-text);
+  }
+  details.section > summary .note { font-size: 11px; color: var(--color-muted); }
+  details.section > summary:hover h2 { color: var(--color-text); }
+  details.section .note-block {
+    padding: 7px 16px; font-size: 11px; color: var(--color-muted);
+    border-bottom: 1px solid var(--color-border); font-style: italic;
+  }
+
+  /* ── Trade log forms ── */
+  .log-forms { display: flex; flex-wrap: wrap; gap: 14px; padding: 16px; }
+  .log-form {
+    flex: 1 1 280px; max-width: 360px;
+    background: #fafaf9; border: 1px solid var(--color-border);
+    border-radius: 6px; padding: 14px 16px;
+  }
+  .log-form h3 {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--color-header-text); margin-bottom: 12px;
+  }
+  .log-form h3 .action-badge {
+    display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 3px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .log-form label {
+    display: block; font-size: 11px; color: var(--color-muted);
+    margin-bottom: 2px; margin-top: 8px;
+  }
+  .log-form label:first-of-type { margin-top: 0; }
+  .log-form input[type="number"],
+  .log-form input[type="text"] {
+    width: 100%; padding: 5px 8px; font-size: 12px;
+    border: 1px solid var(--color-border); border-radius: 4px;
+    background: #fff; color: var(--color-text);
+    font-family: inherit;
+  }
+  .log-form input[type="number"]:focus,
+  .log-form input[type="text"]:focus {
+    outline: none; border-color: var(--color-amber);
+  }
+  .log-form button {
+    margin-top: 12px; width: 100%;
+    padding: 6px 0; font-size: 12px; font-weight: 500;
+    border: none; border-radius: 4px; cursor: pointer;
+    font-family: inherit;
+  }
+  .log-form.action-ENTRY button { background: var(--color-entry-bg); color: var(--color-entry-text); }
+  .log-form.action-EXIT  button { background: var(--color-exit-bg);  color: var(--color-exit-text);  }
+  .log-form.action-ENTRY button:hover { background: #d6edca; }
+  .log-form.action-EXIT  button:hover { background: #f7d8d8; }
+</style>
+</head>
+<body>
+
+
+<div class="page-header">
+  <h1>Epsilon Fund — Live Trading Dashboard</h1>
+  <div class="meta">
+    <span><strong>Signal date:</strong> 2026-04-17</span>
+    <span><strong>Generated:</strong> 2026-04-18 11:24:18 UTC</span>
+    <span><strong>Execution hour:</strong> 8h UTC (T+1)</span>
+    <span><strong>Capital:</strong> $100,000</span>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="section-header">
+    <h2>Decisions</h2>
+    <span style="font-size:11px;color:var(--color-muted)">Execution at 8h UTC on T+1</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Asset</th>
+        <th>Decision</th>
+        <th class="num">Size (%)</th>
+        <th class="num">Size ($)</th>
+        <th class="num">Size (units)</th>
+        <th class="num">Stop</th>
+        <th class="num">Close</th>
+        <th class="num">Exec price</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      
+      
+      <tr class="row-HOLD">
+        <td class="asset">
+          ETHUSDT<br>
+          <span class="muted">$25,000 alloc (25% of $100,000)</span>
+        </td>
+        <td><span class="badge badge-HOLD">HOLD</span></td>
+
+        
+          <td class="num">0.84x<br><span class="muted">held</span></td>
+        
+
+        
+          <td class="num">$21,000</td>
+        
+
+        
+          <td class="num muted" style="font-size:11px">in position</td>
+        
+
+        
+          <td class="num">
+            $2,326.64
+            
+          </td>
+        
+
+        <td class="num">$2,419.00</td>
+
+        
+          <td class="num">$2,403.71</td>
+        
+      </tr>
+      
+      
+      
+      <tr class="row-HOLD">
+        <td class="asset">
+          SOLUSDT<br>
+          <span class="muted">$25,000 alloc (25% of $100,000)</span>
+        </td>
+        <td><span class="badge badge-HOLD">HOLD</span></td>
+
+        
+          <td class="num">0.95x<br><span class="muted">held</span></td>
+        
+
+        
+          <td class="num">$23,850</td>
+        
+
+        
+          <td class="num muted" style="font-size:11px">in position</td>
+        
+
+        
+          <td class="num">
+            $85.31
+            
+          </td>
+        
+
+        <td class="num">$88.76</td>
+
+        
+          <td class="num">$88.45</td>
+        
+      </tr>
+      
+      
+      
+      <tr class="row-ENTRY">
+        <td class="asset">
+          XRPUSDT<br>
+          <span class="muted">$25,000 alloc (25% of $100,000)</span>
+        </td>
+        <td><span class="badge badge-ENTRY">ENTRY</span></td>
+
+        
+          <td class="num">1.15x</td>
+        
+
+        
+          <td class="num">$28,759</td>
+        
+
+        
+          <td class="num">19508.3949</td>
+        
+
+        
+          <td class="num">
+            $1.44
+            
+          </td>
+        
+
+        <td class="num">$1.48</td>
+
+        
+          <td class="num">$1.47</td>
+        
+      </tr>
+      
+      
+      
+      <tr class="row-HOLD">
+        <td class="asset">
+          BTCUSDT<br>
+          <span class="muted">$25,000 alloc (25% of $100,000)</span>
+        </td>
+        <td><span class="badge badge-HOLD">HOLD</span></td>
+
+        
+          <td class="num">1.20x<br><span class="muted">held</span></td>
+        
+
+        
+          <td class="num">$30,000</td>
+        
+
+        
+          <td class="num muted" style="font-size:11px">in position</td>
+        
+
+        
+          <td class="num">
+            $75,745.12
+            
+          </td>
+        
+
+        <td class="num">$77,072.00</td>
+
+        
+          <td class="num">$76,997.79</td>
+        
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+
+<div class="section">
+  <div class="section-header">
+    <h2>Entry conditions</h2>
+    <details class="hint-details">
+      <summary>▸ How entry works</summary>
+      <div class="hint-body">
+        <ul>
+          <li><strong>E1 EMA</strong> — Close &gt; EMA (uptrend filter)</li>
+          <li><strong>E2 Volume</strong> — Volume &gt; Vol_MA (confirms participation). <span class="dim">Not used for BTC/AVAX.</span></li>
+          <li><strong>E3 Caution gate</strong> — Caution_Long blocks entry. <strong>ADX override:</strong> if ADX &gt; adx_override, caution is bypassed.</li>
+          <li><strong>E4 Validity</strong> — Swing highs and ATRs must be non-NaN.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Asset</th>
+        <th class="num">EMA</th>
+        <th class="num">Close / EMA</th>
+        <th class="ctr">EMA cross</th>
+        <th class="num">ADX</th>
+        <th class="num">Threshold</th>
+        <th class="ctr">ADX strong</th>
+        <th class="num">Vol / VolMA</th>
+        <th class="ctr">Vol above</th>
+        <th class="ctr">Caution Long</th>
+        <th class="ctr">ADX override</th>
+        <th class="ctr">Entry Long</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      
+      
+      <tr>
+        <td class="asset">ETHUSDT</td>
+        <td class="num">$2,205.31</td>
+        <td class="num cond-true">
+          1.10
+        </td>
+        <td class="ctr cond-true">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="num cond-false">38.3</td>
+        <td class="num">40</td>
+        <td class="ctr cond-false">
+          <span class="bool-false">FALSE</span>
+        </td>
+        
+          <td class="num cond-true">
+            1.41
+          </td>
+          <td class="ctr cond-true">
+            <span class="bool-true">TRUE</span>
+          </td>
+        
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr entry-true">
+          TRUE
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td class="asset">SOLUSDT</td>
+        <td class="num">$85.78</td>
+        <td class="num cond-true">
+          1.03
+        </td>
+        <td class="ctr cond-true">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="num cond-false">19.0</td>
+        <td class="num">66</td>
+        <td class="ctr cond-false">
+          <span class="bool-false">FALSE</span>
+        </td>
+        
+          <td class="num cond-true">
+            1.43
+          </td>
+          <td class="ctr cond-true">
+            <span class="bool-true">TRUE</span>
+          </td>
+        
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr entry-true">
+          TRUE
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td class="asset">XRPUSDT</td>
+        <td class="num">$1.42</td>
+        <td class="num cond-true">
+          1.04
+        </td>
+        <td class="ctr cond-true">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="num cond-false">26.3</td>
+        <td class="num">44</td>
+        <td class="ctr cond-false">
+          <span class="bool-false">FALSE</span>
+        </td>
+        
+          <td class="num cond-true">
+            1.55
+          </td>
+          <td class="ctr cond-true">
+            <span class="bool-true">TRUE</span>
+          </td>
+        
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr entry-true">
+          TRUE
+          
+        </td>
+      </tr>
+      
+      
+      
+      <tr>
+        <td class="asset">BTCUSDT</td>
+        <td class="num">$72,190.82</td>
+        <td class="num cond-true">
+          1.07
+        </td>
+        <td class="ctr cond-true">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="num cond-false">33.2</td>
+        <td class="num">57</td>
+        <td class="ctr cond-false">
+          <span class="bool-false">FALSE</span>
+        </td>
+        
+          <td class="ctr muted">—</td>
+          <td class="ctr muted">—</td>
+        
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr entry-true">
+          TRUE
+          
+        </td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+
+<div class="section">
+  <div class="section-header">
+    <h2>Caution flags</h2>
+    <details class="hint-details">
+      <summary>▸ How caution works</summary>
+      <div class="hint-body">
+        <ul>
+          <li><strong>C1 OBV divergence</strong> — Price at highs but OBV below OBV_MA. Unsupported move.</li>
+          <li><strong>C2 Overextension</strong> — (Swing_Hi_Cau − Low) &gt; 1.5 × ATR_Cau. Range stretched too wide.</li>
+          <li>Either flag sets <strong>Caution_Long = True</strong>, blocking new entries unless ADX override is active.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Asset</th>
+        <th class="ctr">Caution Long</th>
+        <th class="ctr">Caution Short</th>
+        <th class="ctr">Caution OBV</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      
+      <tr>
+        <td class="asset">ETHUSDT</td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr caution-active">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+      </tr>
+      
+      
+      <tr>
+        <td class="asset">SOLUSDT</td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr caution-active">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+      </tr>
+      
+      
+      <tr>
+        <td class="asset">XRPUSDT</td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr caution-active">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+      </tr>
+      
+      
+      <tr>
+        <td class="asset">BTCUSDT</td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+        <td class="ctr caution-active">
+          <span class="bool-true">TRUE</span>
+        </td>
+        <td class="ctr ">
+          <span class="bool-false">FALSE</span>
+        </td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+
+<details class="section">
+  <summary>
+    <h2>Stop loss calculations</h2>
+    <details class="hint-details" style="margin-left:4px" onclick="event.stopPropagation()">
+      <summary>▸ How stops work</summary>
+      <div class="hint-body">
+        <ul>
+          <li><strong>S1 Entry anchor</strong> — set on entry day, path chosen by caution state</li>
+          <li><strong>S2 Ratchet</strong> — recalculated daily, stop only moves up</li>
+        </ul>
+        <code>Stop = Swing_Hi_Stp − (ATR × Mult × Scale)</code>
+        Paths: ent_normal / ent_caution / ent_both (entry) · pos_normal / pos_caution (hold)
+      </div>
+    </details>
+    <span class="note">— click to expand</span>
+  </summary>
+  <div class="table-scroll">
+    <table class="transposed-table">
+      <colgroup>
+        <col style="width:160px">
+        <col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>ETHUSDT</th><th>SOLUSDT</th><th>XRPUSDT</th><th>BTCUSDT</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="tbl-divider"><td colspan="5">Inputs</td></tr>
+        <tr>
+          <td>Swing Hi Stp</td>
+          <td>$2,464.91</td><td>$90.73</td><td>$1.51</td><td>$78,333.00</td>
+        </tr>
+        <tr>
+          <td>ATR Stp</td>
+          <td>$110.97</td><td>$4.29</td><td>$0.06</td><td>$2,587.88</td>
+        </tr>
+        <tr>
+          <td>Stop ATR scale</td>
+          <td>1.48</td><td>1.26</td><td>0.77</td><td>1.00</td>
+        </tr>
+        <tr class="tbl-divider"><td colspan="5">Entry stop (Day 1)</td></tr>
+        <tr>
+          <td>Path</td>
+          <td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td><td class="td-ctr"><span class="badge badge-ent_normal">ent_normal</span></td>
+        </tr>
+        <tr>
+          <td>Multiplier</td>
+          <td>0.56</td><td>1.00</td><td>1.47</td><td>1.00</td>
+        </tr>
+        <tr>
+          <td>Entry stop</td>
+          <td>$2,373.56</td><td>$85.31</td><td>$1.44</td><td>$75,745.12</td>
+        </tr>
+        <tr class="tbl-divider"><td colspan="5">Hold stop (Day 2+ ratchet)</td></tr>
+        <tr>
+          <td>Path</td>
+          <td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td><td class="td-ctr"><span class="badge badge-pos_normal">pos_normal</span></td>
+        </tr>
+        <tr>
+          <td>Multiplier</td>
+          <td>1.45</td><td>1.42</td><td>1.94</td><td>1.00</td>
+        </tr>
+        <tr>
+          <td>Hold candidate</td>
+          <td>$2,227.67</td><td>$83.04</td><td>$1.42</td><td>$75,745.12</td>
+        </tr>
+        <tr>
+          <td>Previous stop</td>
+          
+          
+          <td>$2,326.64</td>
+          
+          
+          <td>$85.31</td>
+          
+          
+          <td><span class="muted" style="display:block;text-align:center">—</span></td>
+          
+          
+          <td>$75,745.12</td>
+          
+        </tr>
+        <tr>
+          <td>Final stop</td>
+          
+          
+          <td>$2,326.64</td>
+          
+          
+          <td>$85.31</td>
+          
+          
+          <td><span class="muted" style="display:block;text-align:center">—</span></td>
+          
+          
+          <td>$75,745.12</td>
+          
+        </tr>
+        <tr>
+          <td>Updated</td>
+          
+          
+          <td class="td-ctr ">
+            <span class="muted">No</span>
+          </td>
+          
+          
+          <td class="td-ctr ">
+            <span class="muted">No</span>
+          </td>
+          
+          
+          <td class="td-ctr ">
+            <span class="muted">No</span>
+          </td>
+          
+          
+          <td class="td-ctr ">
+            <span class="muted">No</span>
+          </td>
+          
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+
+<details class="section">
+  <summary>
+    <h2>Fixed params</h2>
+    <span class="note">— click to expand · anchored by stability analysis</span>
+  </summary>
+  <div class="table-scroll">
+    <table class="transposed-table">
+      <colgroup>
+        <col style="width:160px">
+        <col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Param</th>
+          <th>ETHUSDT</th><th>SOLUSDT</th><th>XRPUSDT</th><th>BTCUSDT</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>adx_override</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>44</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>atr_caution</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>12</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>atr_size</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>13</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>ema_span</td>
+          
+            
+              <td>28</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>max_leverage</td>
+          
+            
+              <td>2.60</td>
+            
+          
+            
+              <td>3</td>
+            
+          
+            
+              <td>2.50</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>obv_lookback</td>
+          
+            
+              <td>28</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>obv_ma_period</td>
+          
+            
+              <td>20</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>risk_per_trade</td>
+          
+            
+              <td>0.04</td>
+            
+          
+            
+              <td>0.05</td>
+            
+          
+            
+              <td>0.05</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_atr_scale</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>1.26</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_mult_pos_caution</td>
+          
+            
+              <td>0.50</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>swing_caution</td>
+          
+            
+              <td>5</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>14</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</details>
+
+
+<details class="section">
+  <summary>
+    <h2>Optimised params</h2>
+    <span class="note">— click to expand</span>
+  </summary>
+  <div class="table-scroll">
+    <table class="transposed-table">
+      <colgroup>
+        <col style="width:160px">
+        <col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)"><col style="width:calc((100% - 160px) / 4)">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Param</th>
+          
+          <th>ETHUSDT<span class="sub">2026-04-15</span></th>
+          
+          <th>SOLUSDT<span class="sub">2026-04-15</span></th>
+          
+          <th>XRPUSDT<span class="sub">2026-04-15</span></th>
+          
+          <th>BTCUSDT<span class="sub">2026-04-14</span></th>
+          
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>adx_override</td>
+          
+            
+              <td>40</td>
+            
+          
+            
+              <td>66</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>57</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>atr_caution</td>
+          
+            
+              <td>19</td>
+            
+          
+            
+              <td>27</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>26</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>atr_size</td>
+          
+            
+              <td>8</td>
+            
+          
+            
+              <td>14</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>6</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>atr_stop</td>
+          
+            
+              <td>25</td>
+            
+          
+            
+              <td>11</td>
+            
+          
+            
+              <td>16</td>
+            
+          
+            
+              <td>20</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>ema_span</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>37</td>
+            
+          
+            
+              <td>5</td>
+            
+          
+            
+              <td>19</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>max_leverage</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>2.83</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>obv_lookback</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>15</td>
+            
+          
+            
+              <td>14</td>
+            
+          
+            
+              <td>17</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>obv_ma_period</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>31</td>
+            
+          
+            
+              <td>34</td>
+            
+          
+            
+              <td>33</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>risk_per_trade</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>0.04</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_atr_scale</td>
+          
+            
+              <td>1.48</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>0.77</td>
+            
+          
+            
+              <td>1</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_mult_ent_both</td>
+          
+            
+              <td>2.16</td>
+            
+          
+            
+              <td>1.51</td>
+            
+          
+            
+              <td>2.39</td>
+            
+          
+            
+              <td>1.68</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_mult_ent_caution</td>
+          
+            
+              <td>0.88</td>
+            
+          
+            
+              <td>0.47</td>
+            
+          
+            
+              <td>0.88</td>
+            
+          
+            
+              <td>0.81</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_mult_ent_normal</td>
+          
+            
+              <td>0.56</td>
+            
+          
+            
+              <td>1.00</td>
+            
+          
+            
+              <td>1.47</td>
+            
+          
+            
+              <td>1</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_mult_pos_caution</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>0.52</td>
+            
+          
+            
+              <td>0.18</td>
+            
+          
+            
+              <td>0.43</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>stop_mult_pos_normal</td>
+          
+            
+              <td>1.45</td>
+            
+          
+            
+              <td>1.42</td>
+            
+          
+            
+              <td>1.94</td>
+            
+          
+            
+              <td>1</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>swing_caution</td>
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>8</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+            
+              <td>9</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>swing_stop</td>
+          
+            
+              <td>3</td>
+            
+          
+            
+              <td>4</td>
+            
+          
+            
+              <td>7</td>
+            
+          
+            
+              <td>8</td>
+            
+          
+        </tr>
+        
+        <tr>
+          <td>vol_ma_period</td>
+          
+            
+              <td>37</td>
+            
+          
+            
+              <td>20</td>
+            
+          
+            
+              <td>27</td>
+            
+          
+            
+              <td class="muted">—</td>
+            
+          
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</details>
+
+
+
+
+<div class="section">
+  <div class="section-header">
+    <h2>User decision log</h2>
+    <span class="note">Log actual execution — pre-filled with theoretical values</span>
+  </div>
+  <div class="log-forms">
+    
+    
+    <div class="log-form action-ENTRY">
+      <h3>
+        XRPUSDT
+        <span class="action-badge badge-ENTRY">ENTRY</span>
+      </h3>
+      <form method="POST" action="http://localhost:5001/log_trade">
+        
+        <input type="hidden" name="asset"                value="XRPUSDT">
+        <input type="hidden" name="action"               value="ENTRY">
+        <input type="hidden" name="date"                 value="2026-04-17">
+        <input type="hidden" name="theoretical_price"    value="1.4742">
+        <input type="hidden" name="theoretical_size_pct" value="1.150371032389354">
+        <input type="hidden" name="theoretical_stop"     value="1.4439089509297909">
+        <input type="hidden" name="strategy"             value="momentum_swing">
+
+        <label>Actual price</label>
+        <input type="number" name="actual_price" step="0.0001" required
+               value="1.4742">
+
+        <label>Actual leverage (x)</label>
+        <input type="number" name="actual_size_pct" step="0.01" required
+               value="1.15">
+
+        <label>Discretion note (optional)</label>
+        <input type="text" name="discretion_note" placeholder="e.g. delayed, sized down due to news…">
+
+        <button type="submit">Log trade</button>
+      </form>
+    </div>
+    
+  </div>
+</div>
+
+
+</body>
+</html>
