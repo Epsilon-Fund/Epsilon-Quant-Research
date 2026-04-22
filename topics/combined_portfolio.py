@@ -15,7 +15,7 @@ sys.path.append(os.path.join(ROOT, 'infrastructure', 'backtester'))
 from engine import backtest
 
 # ── config ────────────────────────────────────────────────────────────────────
-STRATEGY_WEIGHTS   = {'statarb': 0.5, 'momentum': 0.5}  # 50/50
+STRATEGY_WEIGHTS   = {'statarb': 0.30, 'momentum': 0.70}  # optimal Sharpe split
 
 # stat arb inverse-vol method
 STATARB_VOL_METHOD = 'in_market'   # 'full' | 'in_market'
@@ -153,6 +153,26 @@ def _bt(ret):
 m_sa   = _bt(sa_r)
 m_mom  = _bt(mo_r)
 m_comb = _bt(comb_ret)
+
+# ── correlation & weight optimisation ────────────────────────────────────────
+corr = sa_r.corr(mo_r)
+print()
+print('═' * 62)
+print('  STRATEGY CORRELATION')
+print('─' * 62)
+print(f'  Stat Arb vs Momentum:  {corr:.4f}')
+print('─' * 62)
+print(f'  {"SA%":>5}  {"MOM%":>5}  {"Sharpe":>7}  {"Return":>8}  {"MaxDD":>7}  {"Calmar":>7}')
+print(f'  {"-"*5}  {"-"*5}  {"-"*7}  {"-"*8}  {"-"*7}  {"-"*7}')
+best_sharpe_split = (sw['statarb'], sw['momentum'])
+for sa_pct in range(0, 101, 5):
+    mo_pct = 100 - sa_pct
+    m = _bt(sa_r * (sa_pct / 100) + mo_r * (mo_pct / 100))
+    marker = ' <-- current' if (sa_pct / 100 == sw['statarb']) else ''
+    print(f'  {sa_pct:>5}  {mo_pct:>5}  {m["sharpe_ratio"]:>7.2f}  '
+          f'{m["total_return"]*100:>7.1f}%  {m["max_drawdown"]*100:>7.1f}%  '
+          f'{m["calmar_ratio"]:>7.2f}{marker}')
+print('═' * 62)
 
 # ── print metrics ─────────────────────────────────────────────────────────────
 print()
