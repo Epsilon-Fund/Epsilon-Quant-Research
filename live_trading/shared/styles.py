@@ -16,6 +16,13 @@ _CSS = """
   .stApp            { background-color: #f8f8f7 !important; }
   .block-container  { background-color: #f8f8f7 !important; padding-top: 5rem; padding-bottom: 2rem; }
 
+  /* Remove horizontal padding that Streamlit injects inside tab panels so
+     content inside tabs fills the same full width as standalone pages. */
+  [data-baseweb="tab-panel"] {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+  }
+
   /* Expander header typography — compact hint style */
   .streamlit-expanderHeader {
       font-size: 11px !important;

@@ -21,6 +21,13 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
+# ── Optional Streamlit cache (no-op when run outside a Streamlit server) ──────
+try:
+    import streamlit as _st
+    _cache_data = _st.cache_data(ttl=300)
+except Exception:
+    _cache_data = lambda f: f  # passthrough in plain Python scripts
+
 # ── Path setup (for binance_client in compute_mae) ────────────────────────────
 _SHARED_DIR = os.path.dirname(os.path.abspath(__file__))   # live_trading/shared/
 _LT_DIR     = os.path.dirname(_SHARED_DIR)                  # live_trading/
@@ -412,8 +419,14 @@ _EQUITY_COLS = ['date', 'actual_pnl', 'theoretical_pnl',
                 'actual_cumulative', 'theoretical_cumulative']
 
 
-def _equity_df_from_closed(closed: list, start_date: date) -> pd.DataFrame:
-    """Shared helper: build daily equity step-function from a list of closed pairs."""
+def _equity_df_from_closed(closed: list,
+                           start_date: date,
+                           end_date: date) -> pd.DataFrame:
+    """Shared helper: build daily equity step-function from a list of closed pairs.
+
+    Both start_date and end_date must be derived from trades data by the caller —
+    never from date.today() or any config value.
+    """
     pnl_by_date: dict = {}
     for p in closed:
         d = p['exit_date']
@@ -426,8 +439,7 @@ def _equity_df_from_closed(closed: list, start_date: date) -> pd.DataFrame:
 
     rows = []
     current = start_date
-    today   = date.today()
-    while current <= today:
+    while current <= end_date:
         day = pnl_by_date.get(current, {'actual_pnl': 0.0, 'theoretical_pnl': 0.0})
         rows.append({'date': current, **day})
         current += timedelta(days=1)
@@ -438,9 +450,13 @@ def _equity_df_from_closed(closed: list, start_date: date) -> pd.DataFrame:
     return df
 
 
+@_cache_data
 def build_equity_curve(data_dir: str) -> pd.DataFrame:
     """
     Daily step-function equity curve from closed trade pairs.
+
+    Date range: min(entry_date) → max(exit_date) across all closed pairs.
+    Derived entirely from trades data — never uses date.today().
 
     Columns: date | actual_pnl | theoretical_pnl |
              actual_cumulative | theoretical_cumulative
@@ -451,11 +467,18 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
     if not closed:
         return pd.DataFrame(columns=_EQUITY_COLS)
 
-    exit_dates = [p['exit_date'] for p in closed if p['exit_date']]
-    if not exit_dates:
+    entry_dates = [p['entry_date'] for p in closed if p['entry_date']]
+    exit_dates  = [p['exit_date']  for p in closed if p['exit_date']]
+
+    if not entry_dates or not exit_dates:
         return pd.DataFrame(columns=_EQUITY_COLS)
 
-    return _equity_df_from_closed(closed, min(exit_dates))
+    start_date = min(entry_dates)
+    end_date   = max(exit_dates)
+
+    print(f"build_equity_curve: start_date={start_date}  end_date={end_date}")
+
+    return _equity_df_from_closed(closed, start_date, end_date)
 
 
 def build_coin_equity_curves(data_dir: str) -> dict:
@@ -479,16 +502,20 @@ def build_coin_equity_curves(data_dir: str) -> dict:
 
     result = {}
     for symbol, sym_closed in by_symbol.items():
-        exit_dates = [p['exit_date'] for p in sym_closed if p['exit_date']]
-        if not exit_dates:
+        entry_dates = [p['entry_date'] for p in sym_closed if p['entry_date']]
+        exit_dates  = [p['exit_date']  for p in sym_closed if p['exit_date']]
+        if not entry_dates or not exit_dates:
             continue
-        result[symbol] = _equity_df_from_closed(sym_closed, min(exit_dates))
+        result[symbol] = _equity_df_from_closed(
+            sym_closed, min(entry_dates), max(exit_dates)
+        )
 
     return result
 
 
 # ── Capital deployment builder ────────────────────────────────────────────────
 
+@_cache_data
 def build_capital_deployment(data_dir: str) -> pd.DataFrame:
     """
     Daily capital deployment series.

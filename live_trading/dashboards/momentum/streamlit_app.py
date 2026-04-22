@@ -1,3 +1,4 @@
+# Standalone entry point — primary app is live_trading/app.py
 """
 Epsilon Fund — Momentum Dashboard (Streamlit)
 
@@ -561,15 +562,18 @@ _days_since_optim = (
 )
 _optim_note = (f"{_days_since_optim}d ago" if _days_since_optim is not None else "—")
 
-st.markdown(f"""
+if not globals().get('_SUPPRESS_H1', False):
+    st.markdown("""
 <h1 style="font-size:35px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">
   Epsilon Fund — Live Trading Dashboard
 </h1>
+""", unsafe_allow_html=True)
+
+st.markdown(f"""
 <div class="dash-meta">
   <strong>Signal date:</strong> {signal_date} &nbsp;&nbsp;
   <strong>Generated:</strong> {generated_at} UTC &nbsp;&nbsp;
-  <strong>Execution hour:</strong> {EXECUTION_HOUR}h UTC (T+1) &nbsp;&nbsp;
-  <strong>Last optimised:</strong> {_optim_note}
+  <strong>Execution hour:</strong> {EXECUTION_HOUR}h UTC (T+1)
 </div>
 """, unsafe_allow_html=True)
 
