@@ -227,24 +227,17 @@ def compute_mae(position_id: str, symbol: str, entry_date, exit_date,
             return cache[position_id]
 
     try:
-        import pandas as pd
-        from binance_client import get_binance_client, get_data
+        from shared.cache_manager import get_daily_ohlcv_range
 
-        today     = _date.today()
-        end_date  = exit_date if exit_date is not None else today
-        days_back = max((today - entry_date).days + 5, 10)
+        today    = _date.today()
+        end_dt   = exit_date if exit_date is not None else today
 
-        client = get_binance_client()
-        df     = get_data(client, symbol, '1d', days_back)
+        df = get_daily_ohlcv_range(symbol, entry_date, end_dt)
 
-        start_ts = pd.Timestamp(str(entry_date))
-        end_ts   = pd.Timestamp(str(end_date)) + pd.Timedelta(days=1)
-        period   = df[(df.index >= start_ts) & (df.index < end_ts)]
-
-        if len(period) < 1:
+        if df is None or df.empty or len(df) < 1:
             return None
 
-        min_low = float(period['Low'].min())
+        min_low = float(df['Low'].min())
         mae_pct = (min_low - entry_price) / entry_price * 100
 
         if is_closed:
@@ -474,6 +467,135 @@ def _equity_df_from_closed(closed: list,
     return df
 
 
+def _add_execution_pnl(
+    df: pd.DataFrame,
+    closed: list,
+    execution_hour: int,
+    end_date: date,
+    data_dir: str,
+) -> pd.DataFrame:
+    """
+    Compute execution-hour P&L for each closed pair and add two columns:
+
+      execution_pnl         — daily P&L booked at exit_date + 1 day
+      execution_cumulative  — cumulative sum of execution_pnl
+
+    Execution model:
+      Signal fires on the close of day T.
+      Entry  executed at the Open of the EXECUTION_HOUR UTC bar on T+1.
+      Exit   executed at the Open of the EXECUTION_HOUR UTC bar on exit_date+1.
+
+    Falls back to flagging the pair with exec_approx=True and skipping it
+    when the hourly bar is unavailable (cache not yet populated).
+    """
+    try:
+        from shared.cache_manager import get_hourly_ohlcv
+    except ImportError:
+        return df   # cache module unavailable — skip silently
+
+    _cfg      = _load_config(data_dir)
+    cost_pct  = getattr(_cfg, 'TRADING_COST_PCT', 0.0)
+
+    exec_pnl_by_date: dict[date, float] = {}
+    n_approx = 0
+
+    for p in closed:
+        entry_date = p['entry_date']
+        exit_date  = p['exit_date']
+        symbol     = p['symbol']
+        size_usd   = p.get('actual_size_usd') or p.get('size_usd') or 0.0
+
+        if not entry_date or not exit_date or not size_usd:
+            continue
+
+        try:
+            hourly = get_hourly_ohlcv(symbol, entry_date, exit_date)
+            if hourly is None or hourly.empty:
+                p['exec_approx'] = True
+                n_approx += 1
+                continue
+
+            # Build tz-naive T+1 execution timestamps
+            exec_entry_ts = (
+                pd.Timestamp(str(entry_date + timedelta(days=1)))
+                + pd.Timedelta(hours=execution_hour)
+            )
+            exec_exit_ts = (
+                pd.Timestamp(str(exit_date + timedelta(days=1)))
+                + pd.Timedelta(hours=execution_hour)
+            )
+
+            # Normalise index timezone so the lookup works regardless of
+            # whether the cache stored tz-naive or tz-aware timestamps.
+            idx = hourly.index
+            if idx.tz is not None:
+                # Make both the index and our lookup keys tz-naive UTC
+                hourly = hourly.copy()
+                hourly.index = idx.tz_convert('UTC').tz_localize(None)
+
+            exec_entry_price = (
+                float(hourly.loc[exec_entry_ts, 'Open'])
+                if exec_entry_ts in hourly.index else None
+            )
+            exec_exit_price = (
+                float(hourly.loc[exec_exit_ts, 'Open'])
+                if exec_exit_ts  in hourly.index else None
+            )
+
+            if exec_entry_price is None or exec_exit_price is None:
+                p['exec_approx'] = True
+                n_approx += 1
+                continue
+
+            exec_return  = (exec_exit_price - exec_entry_price) / exec_entry_price
+            exec_pnl_usd = exec_return * size_usd - size_usd * cost_pct * 2
+
+            # Book at exit_date + 1 day (when the exit execution actually occurs)
+            book_date = exit_date + timedelta(days=1)
+            exec_pnl_by_date[book_date] = (
+                exec_pnl_by_date.get(book_date, 0.0) + exec_pnl_usd
+            )
+
+        except Exception as e:
+            print(f"  exec_pnl {symbol} ({entry_date}→{exit_date}): {e}")
+            p['exec_approx'] = True
+            n_approx += 1
+
+    if not exec_pnl_by_date:
+        if n_approx:
+            print(f"  build_equity_curve: execution P&L unavailable for "
+                  f"{n_approx} pair(s) — run backfill_cache.py")
+        return df
+
+    # Extend date range if execution bookings fall after end_date
+    exec_end = max(exec_pnl_by_date.keys())
+    if exec_end > end_date:
+        last_actual_cum  = float(df['actual_cumulative'].iloc[-1])
+        last_theo_cum    = float(df['theoretical_cumulative'].iloc[-1])
+        extra_rows = []
+        current = end_date + timedelta(days=1)
+        while current <= exec_end:
+            extra_rows.append({
+                'date':                   current,
+                'actual_pnl':             0.0,
+                'theoretical_pnl':        0.0,
+                'actual_cumulative':      last_actual_cum,
+                'theoretical_cumulative': last_theo_cum,
+            })
+            current += timedelta(days=1)
+        df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True)
+
+    df = df.copy()
+    df['execution_pnl']        = df['date'].map(exec_pnl_by_date).fillna(0.0)
+    df['execution_cumulative'] = df['execution_pnl'].cumsum()
+
+    if n_approx:
+        print(f"  build_equity_curve: {n_approx} pair(s) fell back to approx "
+              f"(hourly cache missing for those dates)")
+
+    return df
+
+
 @_cache_data
 def build_equity_curve(data_dir: str) -> pd.DataFrame:
     """
@@ -483,7 +605,8 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
     Derived entirely from trades data — never uses date.today().
 
     Columns: date | actual_pnl | theoretical_pnl |
-             actual_cumulative | theoretical_cumulative
+             actual_cumulative | theoretical_cumulative |
+             execution_pnl | execution_cumulative   ← added when hourly cache exists
     """
     pairs  = build_trade_pairs(data_dir)
     closed = pairs.get('closed', [])
@@ -502,7 +625,17 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
 
     print(f"build_equity_curve: start_date={start_date}  end_date={end_date}")
 
-    return _equity_df_from_closed(closed, start_date, end_date)
+    df = _equity_df_from_closed(closed, start_date, end_date)
+
+    # ── Execution-hour P&L (added when hourly cache is populated) ─────────────
+    try:
+        _cfg           = _load_config(data_dir)
+        execution_hour = getattr(_cfg, 'EXECUTION_HOUR', 8)
+        df = _add_execution_pnl(df, closed, execution_hour, end_date, data_dir)
+    except Exception as e:
+        print(f"build_equity_curve: execution P&L skipped — {e}")
+
+    return df
 
 
 def build_coin_equity_curves(data_dir: str) -> dict:

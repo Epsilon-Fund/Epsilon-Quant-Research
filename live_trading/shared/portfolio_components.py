@@ -94,24 +94,24 @@ def _load_fund_data(dashboard_dirs_tuple: tuple):
     return strategy_curves, strategy_cfgs, strategy_deployments, strategy_pairs
 
 
-@st.cache_data(ttl=3600, show_spinner="Fetching BTC benchmark…")
+@st.cache_data(ttl=3600, show_spinner="Loading BTC benchmark from cache…")
 def _fetch_btc_series(start_date: str, end_date: str) -> pd.Series:
     """
-    Fetch daily BTC/USDT closing prices between start_date and end_date
-    (both as 'YYYY-MM-DD' strings).  Returns an empty Series on any error.
-    Cached for 1 hour — Binance daily bars don't change after close.
+    Return daily BTC/USDT closing prices between start_date and end_date
+    (both as 'YYYY-MM-DD' strings).
+
+    Reads from the local parquet cache (live_trading/cache/daily/).
+    Falls back to a live Binance fetch on cache miss.
+    Returns an empty Series on any error.
     """
     try:
-        from binance_client import get_binance_client, get_data  # noqa: PLC0415
-        start = datetime.strptime(start_date, '%Y-%m-%d')
-        end   = datetime.strptime(end_date,   '%Y-%m-%d')
-        days_back = (end - start).days + 10
-        client = get_binance_client()
-        df     = get_data(client, 'BTCUSDT', '1d', days_back)
-        mask   = (df.index >= start_date) & (df.index <= end_date)
-        return df.loc[mask, 'Close'].astype(float)
+        from shared.cache_manager import get_daily_ohlcv_range  # noqa: PLC0415
+        df = get_daily_ohlcv_range('BTCUSDT', start_date, end_date)
+        if df is None or df.empty:
+            raise ValueError("No BTC data in cache for requested range")
+        return df['Close'].astype(float)
     except Exception as exc:
-        st.warning(f"Could not fetch BTC benchmark: {exc}")
+        st.warning(f"Could not load BTC benchmark: {exc}")
         return pd.Series(dtype=float)
 
 
@@ -383,7 +383,18 @@ def render_strategy_portfolio(
                 key=f'{prefix}_show_execution_overview',
             )
             if show_execution:
-                st.caption("Fetches hourly Binance data — may be slow")
+                _has_exec = (
+                    curve is not None
+                    and not curve.empty
+                    and 'execution_cumulative' in curve.columns
+                )
+                if _has_exec:
+                    st.caption("Execution hour prices loaded from local cache")
+                else:
+                    st.warning(
+                        "Execution hour data unavailable — "
+                        "run `python3 live_trading/backfill_cache.py` first"
+                    )
 
         # col_t3 reserved for future toggles
 

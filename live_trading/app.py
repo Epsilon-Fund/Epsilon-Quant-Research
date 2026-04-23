@@ -33,6 +33,22 @@ from shared.data_loader import load_trades, build_trade_pairs, load_config
 
 apply_styles()
 
+# ── One-time cache warm-up on server startup ──────────────────────────────────
+# @st.cache_resource runs once per `streamlit run` process and is shared across
+# all browser sessions.  On a warm cache this completes in < 1 second.
+# On a cold/stale cache it fetches only the missing bars (never a full re-pull).
+@st.cache_resource(show_spinner="Updating market data cache…")
+def _warm_cache():
+    try:
+        from shared.cache_manager import update_all_caches
+        from dashboards.momentum.config import ACTIVE_ASSETS
+        update_all_caches(ACTIVE_ASSETS)
+    except Exception as e:
+        st.warning(f"Cache update skipped: {e}")
+    return True
+
+_warm_cache()
+
 # ── Registered strategy dashboards ───────────────────────────────────────────
 DASHBOARD_DIRS = {
     "Momentum":    os.path.join(_LT_DIR, "dashboards", "momentum"),

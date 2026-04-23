@@ -65,23 +65,27 @@ def fetch_live_price(symbol):
         return None
 
 
-@st.cache_data(ttl=300)
 def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
     """
-    Fetch daily OHLCV — enough bars to warm up indicators.
+    Return daily OHLCV — enough bars to warm up indicators.
 
-    The last bar returned by Binance is often the *current* incomplete candle
-    (opened at 00:00 UTC today, not yet closed).  Strip it so the strategy
-    always runs on fully-closed bars only.
+    Reads from the local parquet cache (live_trading/cache/daily/).
+    Falls back to a live Binance fetch on cache miss (first run or after
+    running backfill_cache.py).
 
-    A daily bar is only complete if its open timestamp is more than 24 hours
-    in the past.  Comparing against a 24-hour cutoff is timezone-safe and does
-    not depend on matching calendar dates.
+    The last bar is stripped when its open timestamp is less than 24 h old
+    (current incomplete candle).  Strategy always runs on fully-closed bars.
     """
-    client = get_binance_client()
-    df     = get_data(client, symbol, interval='1d', lookback=warmup_bars + 10)
+    from shared.cache_manager import get_daily_ohlcv
+    df = get_daily_ohlcv(symbol, warmup_bars=warmup_bars + 10)
 
-    # ── Strip incomplete bar: open timestamp < 24 h ago means bar not yet closed
+    if df.empty:
+        raise RuntimeError(
+            f'fetch_ohlcv: no daily data for {symbol}. '
+            'Run backfill_cache.py first.'
+        )
+
+    # Strip incomplete bar: open timestamp < 24 h ago → bar not yet closed
     cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(hours=24)
     last_utc_naive = (
         df.index[-1].tz_convert('UTC').tz_localize(None)
@@ -98,27 +102,37 @@ def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
     return df
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)
 def fetch_hourly_recent(symbol, days=3):
     """
-    Fetch the last `days` days of 1h OHLCV for a symbol.
-    Uses client.get_historical_klines directly, matching the approach in
-    topics/momentum/results/portfolio_2.ipynb (cell: "fetch 1h data").
+    Return the last `days` days of 1h OHLCV for a symbol.
 
-    Returns a DataFrame indexed by UTC-aware datetime with float OHLCV columns.
-    3 days = ~72 bars — enough buffer if the latest hourly bar isn't available yet.
+    Reads from the local parquet cache (live_trading/cache/hourly/).
+    The cache is updated daily by update_cache.py; intra-day freshness is
+    not critical since exec_price is only needed for signal display.
+
+    Returns a DataFrame indexed by UTC-aware timestamps (same contract as
+    the original Binance-fetching implementation) so get_execution_price()
+    works without changes.
     """
-    client = get_binance_client()
-    klines = client.get_historical_klines(symbol, '1h', f'{days} days ago UTC')
+    from shared.cache_manager import get_hourly_ohlcv
+    from datetime import date, timedelta
 
-    df = pd.DataFrame(klines, columns=[
-        'Time', 'Open', 'High', 'Low', 'Close', 'Volume',
-        'Close_time', 'Quote_volume', 'Trades', 'Taker_base', 'Taker_quote', 'Ignore'
-    ])
-    df['Time'] = pd.to_datetime(df['Time'], unit='ms', utc=True)
-    for col in ['Open', 'High', 'Low', 'Close']:
-        df[col] = df[col].astype(float)
-    return df.set_index('Time')
+    start = date.today() - timedelta(days=days + 1)
+    end   = date.today() + timedelta(days=1)
+
+    df = get_hourly_ohlcv(symbol, start, end)
+
+    if df.empty:
+        return df
+
+    # Cache stores tz-naive timestamps; localise to UTC to match the original
+    # function's contract (get_execution_price looks up tz-aware exec_dt).
+    if df.index.tz is None:
+        df = df.copy()
+        df.index = df.index.tz_localize('UTC')
+
+    return df
 
 
 def get_execution_price(hourly_df, signal_date, hour_utc):
