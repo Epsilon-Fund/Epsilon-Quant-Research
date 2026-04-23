@@ -53,6 +53,10 @@ def _default_reject(metrics):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _run_backtest(strategy_df, cost):
+    # `cost` is a per-leg fraction.  engine.backtest() applies it at every
+    # position change (separately at entry and at exit), so the total
+    # round-trip cost per trade = 2 × cost.
+    # e.g. cost=0.001 → 0.1% per leg → 0.2% round-trip.
     try:
         return backtest(
             data           = strategy_df,
@@ -247,7 +251,9 @@ def walk_forward(
     test_bars    : test window length in bars
     burnin_bars  : bars prepended to test slice for indicator warmup (trimmed before evaluation)
     n_trials     : Optuna trials per fold
-    cost         : round-trip trading cost fraction
+    cost         : per-leg trading cost fraction (applied at entry AND exit separately,
+                   so effective round-trip cost = 2 × cost).
+                   e.g. cost=0.001 → 0.1% per leg → 0.2% round-trip.
     score_fn     : fn(metrics) → float  (default: Sharpe/Calmar/Return composite)
     reject_fn    : fn(metrics) → bool   (default: min trade / drawdown filters)
     seed_base    : fold i uses seed_base + i
@@ -482,6 +488,9 @@ def plateau_analysis(
     base_params : dict of parameter values to hold fixed while sweeping each one
                   (typically consensus_params from a walk-forward run)
     param_defs  : same {name: ('int'|'float', lo, hi)} used in WF
+    cost        : per-leg trading cost fraction (applied at entry AND exit separately,
+                  so effective round-trip cost = 2 × cost).
+                  e.g. cost=0.001 → 0.1% per leg → 0.2% round-trip.
     n_steps     : number of points to evaluate per parameter sweep
     """
     if fixed_params is None:
@@ -674,6 +683,12 @@ def perturbation_test(
 
     Returns a DataFrame with columns [offset_pct, mean_score, median_score,
     std_score, min_score, pct_degradation_from_base].
+
+    Parameters (cost)
+    -----------------
+    cost : per-leg trading cost fraction (applied at entry AND exit separately,
+           so effective round-trip cost = 2 × cost).
+           e.g. cost=0.001 → 0.1% per leg → 0.2% round-trip.
     """
     if fixed_params is None:
         fixed_params = {}
@@ -764,6 +779,13 @@ def cost_stress_test(
     Fragile strategies degrade sharply; robust ones degrade gradually.
 
     Returns a DataFrame with one row per cost level.
+
+    Parameters
+    ----------
+    base_cost : per-leg trading cost fraction (applied at entry AND exit
+                separately, so effective round-trip = 2 × base_cost).
+                e.g. base_cost=0.001 → 0.1% per leg → 0.2% round-trip.
+                cost_multipliers scale this value before each backtest run.
     """
     records = []
     for mult in cost_multipliers:

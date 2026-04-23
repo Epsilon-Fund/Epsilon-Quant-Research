@@ -202,8 +202,10 @@ def per_coin_chart(trade_pairs: dict) -> go.Figure:
         return _empty_fig('Per-coin returns (no closed trades yet)')
 
     labels    = [f"{t['position_id']} {t['entry_date']}" for t in closed]
-    actual    = [t['actual_return_pct']      for t in closed]
-    theo      = [t['theoretical_return_pct'] for t in closed]
+    # Use net return (after round-trip costs) so bars reflect actual P&L impact.
+    # Falls back to gross return for legacy records missing the net field.
+    actual    = [t.get('actual_net_return_pct',      t['actual_return_pct'])      for t in closed]
+    theo      = [t.get('theoretical_net_return_pct', t['theoretical_return_pct']) for t in closed]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -324,37 +326,37 @@ def equity_chart(curve_df: pd.DataFrame,
 
 def drawdown_chart(curve_df: pd.DataFrame, title: str = '') -> go.Figure:
     """
-    Drawdown from peak on actual_cumulative, expressed as %.
+    Drawdown from peak on actual_cumulative, in dollars.
 
-    drawdown% = (actual_cumulative - peak) / |peak| * 100
-    where peak is rolling maximum; peak == 0 → drawdown = 0.
+    drawdown = actual_cumulative - running_peak  (always <= 0)
+    No division by peak — avoids inf/nan when the curve starts at 0.
     """
     fig = go.Figure()
 
     if curve_df.empty or 'actual_cumulative' not in curve_df.columns:
         _portfolio_layout(fig, title or 'Drawdown from Peak',
-                          xaxis_title='Date', yaxis_title='Drawdown (%)')
+                          xaxis_title='Date', yaxis_title='Drawdown ($)')
         return fig
 
-    cum   = curve_df['actual_cumulative']
-    peak  = cum.cummax()
-    # avoid division by zero when peak is 0
-    dd_pct = np.where(peak != 0, (cum - peak) / peak.abs() * 100, 0.0)
+    cum      = curve_df['actual_cumulative']
+    peak     = cum.cummax()
+    drawdown = cum - peak   # always <= 0, in dollars
 
     fig.add_trace(go.Scatter(
         x=curve_df['date'],
-        y=dd_pct,
+        y=drawdown,
         name='Drawdown',
         mode='lines',
         fill='tozeroy',
         line=dict(color='#ef4444', width=1.5),
         fillcolor='rgba(254,226,226,0.6)',
-        hovertemplate='%{x|%b %d, %Y}<br>Drawdown: %{y:.2f}%<extra></extra>',
+        hovertemplate='%{x|%b %d, %Y}<br>Drawdown: $%{y:,.0f}<extra></extra>',
     ))
 
     fig.add_hline(y=0, line_color=_C_ZERO_LINE, line_width=1)
     _portfolio_layout(fig, title or 'Drawdown from Peak',
-                      xaxis_title='Date', yaxis_title='Drawdown (%)')
+                      xaxis_title='Date', yaxis_title='Drawdown ($)')
+    fig.update_yaxes(tickformat=_dollar_tickformat())
     return fig
 
 
@@ -403,12 +405,19 @@ def capital_deployment_chart(deployment_df: pd.DataFrame,
 def coin_equity_chart(coin_curves_dict: dict,
                       coins_to_show: list = None,
                       normalised: bool = False,
+                      coin_capitals: dict = None,
+                      show_combined: bool = False,
                       title: str = '') -> go.Figure:
     """
-    Multi-line cumulative P&L (or indexed return) per coin.
+    Multi-line cumulative P&L (or % return) per coin, with optional combined
+    portfolio line.
 
-    normalised=False → Y axis in USD.
-    normalised=True  → each coin indexed to 100 at its first date.
+    normalised=False → Y axis in USD cumulative P&L.
+    normalised=True  → Y axis as % return on allocated coin capital
+                       (actual_cumulative / coin_capital * 100).
+                       coin_capitals dict {symbol: float} must be supplied.
+    show_combined    → overlay a thick dashed line summing all shown coins:
+                       total P&L in USD mode, blended % return in normalised mode.
     """
     fig = go.Figure()
 
@@ -417,23 +426,25 @@ def coin_equity_chart(coin_curves_dict: dict,
         symbols = [s for s in symbols if s in coins_to_show]
 
     if not symbols:
-        yaxis_title = '% Return (indexed)' if normalised else 'Cumulative P&L ($)'
+        yaxis_title = '% Return on allocated capital' if normalised else 'Cumulative P&L ($)'
         _portfolio_layout(fig, title or 'Per-Coin Equity',
                           xaxis_title='Date', yaxis_title=yaxis_title)
         return fig
 
+    # ── Individual coin lines ─────────────────────────────────────────────────
     for i, symbol in enumerate(symbols):
         df    = coin_curves_dict[symbol]
         color = _SAFE_PALETTE[i % len(_SAFE_PALETTE)]
-        y     = df['actual_cumulative']
+        cum   = df['actual_cumulative']
 
-        if normalised:
-            first = y.iloc[0]
-            y = (y - first) / abs(first) * 100 if first != 0 else y * 0
+        if normalised and coin_capitals and symbol in coin_capitals:
+            cap = float(coin_capitals[symbol])
+            y   = cum / cap * 100 if cap else cum
             hover_tmpl = (
-                f'%{{x|%b %d, %Y}}<br>{symbol}: %{{y:.1f}}%<extra></extra>'
+                f'%{{x|%b %d, %Y}}<br>{symbol}: %{{y:.2f}}%<extra></extra>'
             )
         else:
+            y          = cum
             hover_tmpl = (
                 f'%{{x|%b %d, %Y}}<br>{symbol}: $%{{y:,.0f}}<extra></extra>'
             )
@@ -447,10 +458,38 @@ def coin_equity_chart(coin_curves_dict: dict,
             hovertemplate=hover_tmpl,
         ))
 
-    fig.add_hline(y=0 if not normalised else 100,
-                  line_color=_C_ZERO_LINE, line_width=1)
+    # ── Combined portfolio line ───────────────────────────────────────────────
+    if show_combined and len(symbols) > 1:
+        frames = []
+        for sym in symbols:
+            df_s = coin_curves_dict[sym][['date', 'actual_cumulative']].copy()
+            df_s = df_s.set_index('date').rename(
+                columns={'actual_cumulative': sym})
+            frames.append(df_s)
 
-    yaxis_title = '% Return (indexed to 100)' if normalised else 'Cumulative P&L ($)'
+        wide     = pd.concat(frames, axis=1).sort_index().ffill().fillna(0)
+        combined = wide.sum(axis=1)
+
+        if normalised and coin_capitals:
+            total_cap = sum(float(coin_capitals.get(s, 0)) for s in symbols)
+            y_comb    = combined / total_cap * 100 if total_cap else combined
+            hover_comb = '%{x|%b %d, %Y}<br>Combined: %{y:.2f}%<extra></extra>'
+        else:
+            y_comb     = combined
+            hover_comb = '%{x|%b %d, %Y}<br>Combined: $%{y:,.0f}<extra></extra>'
+
+        fig.add_trace(go.Scatter(
+            x=wide.index,
+            y=y_comb,
+            name='Combined',
+            mode='lines',
+            line=dict(color=_C_ACTUAL, width=2.5, dash='dash'),
+            hovertemplate=hover_comb,
+        ))
+
+    fig.add_hline(y=0, line_color=_C_ZERO_LINE, line_width=1)
+
+    yaxis_title = '% Return on allocated capital' if normalised else 'Cumulative P&L ($)'
     _portfolio_layout(fig, title or 'Per-Coin Equity',
                       xaxis_title='Date', yaxis_title=yaxis_title)
     if not normalised:
@@ -460,17 +499,23 @@ def coin_equity_chart(coin_curves_dict: dict,
 
 # ── 5. fund_equity_chart ──────────────────────────────────────────────────────
 
+
 def fund_equity_chart(strategy_curves_dict: dict,
                       strategies_to_show: list = None,
                       normalised: bool = False,
                       benchmark_series: pd.Series = None,
+                      total_capital: float = 0.0,
                       title: str = '') -> go.Figure:
     """
     Combined fund equity curve, summing actual_cumulative across strategies.
 
-    strategy_curves_dict: {strategy_name: equity_curve_df}
-    benchmark_series:     pd.Series of BTC daily closes, date-indexed.
-    normalised:           index combined curve to 100 at first date.
+    strategy_curves_dict : {strategy_name: equity_curve_df}
+    benchmark_series     : pd.Series of BTC daily closes, date-indexed.
+    total_capital        : sum of capital across selected strategies; used to
+                           index the curve correctly and to convert BTC to
+                           equivalent dollar P&L when not normalised.
+    normalised           : if True, plot portfolio value indexed to 100 at the
+                           start date.  Requires total_capital > 0.
     """
     fig = go.Figure()
 
@@ -479,7 +524,7 @@ def fund_equity_chart(strategy_curves_dict: dict,
         names = [n for n in names if n in strategies_to_show]
 
     if not names:
-        yaxis_title = '% Return (indexed)' if normalised else 'Cumulative P&L ($)'
+        yaxis_title = '% Return (indexed to 100)' if normalised else 'Cumulative P&L ($)'
         _portfolio_layout(fig, title or 'Fund Equity Curve',
                           xaxis_title='Date', yaxis_title=yaxis_title)
         return fig
@@ -493,21 +538,23 @@ def fund_equity_chart(strategy_curves_dict: dict,
 
     combined_wide = pd.concat(frames, axis=1).sort_index()
     combined_wide = combined_wide.ffill().fillna(0)
-    combined_sum  = combined_wide.sum(axis=1)
+    combined_sum  = combined_wide.sum(axis=1)   # cumulative P&L series
 
     dates = combined_sum.index
 
-    if normalised:
-        first  = combined_sum.iloc[0]
-        y_plot = (combined_sum / abs(first) * 100
-                  if first != 0 else combined_sum * 0 + 100)
-        hover_tmpl = '%{x|%b %d, %Y}<br>Fund: %{y:.1f}%<extra></extra>'
-        ref_line   = 100
-        yaxis_title = '% Return (indexed to 100)'
+    if normalised and total_capital > 0:
+        # Portfolio value = capital + cumulative P&L, then index to 100.
+        # combined_sum starts at 0 (no trades closed yet), so day-1 value
+        # is exactly total_capital → index = 100.0 ✓
+        portfolio_value = total_capital + combined_sum
+        y_plot      = portfolio_value / total_capital * 100
+        hover_tmpl  = '%{x|%b %d, %Y}<br>Fund: %{y:.2f}<extra></extra>'
+        ref_line    = 100
+        yaxis_title = 'Portfolio value (indexed to 100)'
     else:
-        y_plot     = combined_sum
-        hover_tmpl = '%{x|%b %d, %Y}<br>Fund: $%{y:,.0f}<extra></extra>'
-        ref_line   = 0
+        y_plot      = combined_sum
+        hover_tmpl  = '%{x|%b %d, %Y}<br>Fund: $%{y:,.0f}<extra></extra>'
+        ref_line    = 0
         yaxis_title = 'Cumulative P&L ($)'
 
     fig.add_trace(go.Scatter(
@@ -524,15 +571,31 @@ def fund_equity_chart(strategy_curves_dict: dict,
         start = dates[0]
         bm    = benchmark_series[benchmark_series.index >= str(start)]
         if not bm.empty:
-            bm_norm = bm / bm.iloc[0] * 100
+            if normalised and total_capital > 0:
+                # Index BTC to 100 — same scale as the fund index
+                bm_y   = bm / bm.iloc[0] * 100
+                bm_lbl = 'BTC (indexed to 100)'
+                bm_tmpl = '%{x|%b %d, %Y}<br>BTC: %{y:.2f}<extra></extra>'
+            elif total_capital > 0:
+                # Convert BTC to equivalent dollar P&L:
+                # "if you had invested total_capital in BTC instead"
+                bm_y   = (bm / bm.iloc[0] - 1) * total_capital
+                bm_lbl = 'BTC equiv. P&L ($)'
+                bm_tmpl = '%{x|%b %d, %Y}<br>BTC: $%{y:,.0f}<extra></extra>'
+            else:
+                # No capital info — index to 100 as fallback
+                bm_y   = bm / bm.iloc[0] * 100
+                bm_lbl = 'BTC (indexed)'
+                bm_tmpl = '%{x|%b %d, %Y}<br>BTC: %{y:.2f}<extra></extra>'
+
             fig.add_trace(go.Scatter(
                 x=bm.index,
-                y=bm_norm,
-                name='BTC (indexed)',
+                y=bm_y,
+                name=bm_lbl,
                 mode='lines',
                 line=dict(color=_C_BENCHMARK, width=1.5, dash='dot'),
                 opacity=0.75,
-                hovertemplate='%{x|%b %d, %Y}<br>BTC: %{y:.1f}%<extra></extra>',
+                hovertemplate=bm_tmpl,
             ))
 
     fig.add_hline(y=ref_line, line_color=_C_ZERO_LINE, line_width=1)
@@ -540,4 +603,66 @@ def fund_equity_chart(strategy_curves_dict: dict,
                       xaxis_title='Date', yaxis_title=yaxis_title)
     if not normalised:
         fig.update_yaxes(tickformat=_dollar_tickformat())
+    return fig
+
+
+# ── 6. correlation_heatmap ────────────────────────────────────────────────────
+
+def correlation_heatmap(corr_matrix: pd.DataFrame, title: str = '') -> go.Figure:
+    """
+    Strategy (or coin) correlation heatmap with annotated cells.
+
+    corr_matrix : square DataFrame with strategy names as index and columns,
+                  values in [-1, 1].
+    """
+    fig = go.Figure()
+
+    if corr_matrix is None or corr_matrix.empty:
+        _portfolio_layout(fig, title or 'Strategy Correlation')
+        return fig
+
+    labels = list(corr_matrix.columns)
+    z      = corr_matrix.values
+    text   = [[f'{v:.2f}' for v in row] for row in z]
+
+    fig.add_trace(go.Heatmap(
+        z=z,
+        x=labels,
+        y=labels,
+        text=text,
+        texttemplate='%{text}',
+        colorscale='RdYlGn',
+        zmin=-1,
+        zmax=1,
+        showscale=True,
+        colorbar=dict(
+            title=dict(text='Correlation', side='right'),
+            thickness=12,
+            len=0.8,
+        ),
+        hovertemplate='%{y} × %{x}: %{z:.2f}<extra></extra>',
+    ))
+
+    n = len(labels)
+    fig.update_layout(
+        title=dict(text=title or 'Strategy Correlation', font=dict(size=14, weight=700)),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        font=dict(family='system-ui, sans-serif', size=12, color='#334155'),
+        margin=dict(l=64, r=24, t=52, b=80),
+        width=max(400, n * 120),
+        height=max(360, n * 100),
+        xaxis=dict(
+            showgrid=False,
+            linecolor='#e2e8f0',
+            tickfont=dict(size=11),
+            side='bottom',
+        ),
+        yaxis=dict(
+            showgrid=False,
+            linecolor='#e2e8f0',
+            tickfont=dict(size=11),
+            autorange='reversed',
+        ),
+    )
     return fig

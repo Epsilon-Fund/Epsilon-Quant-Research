@@ -14,6 +14,11 @@ CAPITAL          = 100_000  # total portfolio capital in USD
 EXECUTION_HOUR   = 8        # UTC hour for theoretical execution price
 INDICATOR_WARMUP = 100      # bars fetched to warm up indicators ie burn in bars
 
+# Round-trip trading cost as a fraction of notional position size.
+# Entry cost + exit cost = size_usd * TRADING_COST_PCT * 2
+# Set once you know the platform fee schedule (e.g. 0.001 = 0.1% per leg).
+TRADING_COST_PCT = 0.001
+
 # Coin weights — must sum to 1.0
 # Edit here to allocate unequally across coins.
 # Coins in ACTIVE_ASSETS but absent from this dict share the remaining weight equally.

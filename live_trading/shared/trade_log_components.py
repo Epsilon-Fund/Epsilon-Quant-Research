@@ -126,7 +126,9 @@ def _compute_stats(pairs: list) -> dict | None:
         return None
 
     pnls    = [p['actual_pnl_usd'] for p in pairs]
-    returns = [p['actual_return_pct'] for p in pairs]
+    # Use net return (after round-trip costs) so stats are consistent with P&L ($).
+    # Falls back to gross actual_return_pct for legacy records missing the field.
+    returns = [p.get('actual_net_return_pct', p['actual_return_pct']) for p in pairs]
     wins    = [p for p in pairs if p['actual_pnl_usd'] > 0]
     losses  = [p for p in pairs if p['actual_pnl_usd'] <= 0]
     maes    = [p['mae_pct'] for p in pairs if p['mae_pct'] is not None]
@@ -140,14 +142,18 @@ def _compute_stats(pairs: list) -> dict | None:
 
     avg_win_usd  = sum_wins / len(wins) if wins else 0
     avg_loss_usd = sum(p['actual_pnl_usd'] for p in losses) / len(losses) if losses else 0
-    avg_win_pct  = sum(p['actual_return_pct'] for p in wins) / len(wins) if wins else 0
-    avg_loss_pct = sum(p['actual_return_pct'] for p in losses) / len(losses) if losses else 0
+    avg_win_pct  = sum(p.get('actual_net_return_pct', p['actual_return_pct']) for p in wins)   / len(wins)   if wins   else 0
+    avg_loss_pct = sum(p.get('actual_net_return_pct', p['actual_return_pct']) for p in losses) / len(losses) if losses else 0
     avg_ret_pct  = sum(returns) / n
 
     largest_win  = max(pairs, key=lambda p: p['actual_pnl_usd']) if wins  else None
     largest_loss = min(pairs, key=lambda p: p['actual_pnl_usd']) if losses else None
 
-    results = ['W' if p['actual_pnl_usd'] > 0 else 'L' for p in pairs]
+    # Sort chronologically before computing streaks and drawdown so the result
+    # is identical regardless of how pairs were ordered by the caller
+    # (fund tab sorts by entry_date; momentum tab preserves build_trade_pairs order).
+    sorted_pairs = sorted(pairs, key=lambda p: p['exit_date'] or p['entry_date'])
+    results = ['W' if p['actual_pnl_usd'] > 0 else 'L' for p in sorted_pairs]
     max_win_streak = max_loss_streak = cur_w = cur_l = 0
     for r in results:
         if r == 'W':
@@ -165,7 +171,6 @@ def _compute_stats(pairs: list) -> dict | None:
         else:
             break
 
-    sorted_pairs = sorted(pairs, key=lambda p: p['exit_date'] or p['entry_date'])
     cum    = np.cumsum([p['actual_pnl_usd'] for p in sorted_pairs])
     peak   = np.maximum.accumulate(cum)
     max_dd = float((cum - peak).min())
@@ -178,6 +183,35 @@ def _compute_stats(pairs: list) -> dict | None:
     n_disc       = sum(1 for p in pairs if (p.get('entry_type') or 'Strategy') == 'Discretionary')
     n_strat_exit = sum(1 for p in pairs if _normalize_exit_reason(p.get('exit_reason')) == 'Strategy')
     n_disc_exit  = sum(1 for p in pairs if _normalize_exit_reason(p.get('exit_reason')) == 'Discretionary')
+
+    # ── Time in market ────────────────────────────────────────────────────────
+    # Union of all [entry_date, exit_date] intervals, divided by total date range.
+    time_in_market_pct = None
+    _intervals = [
+        (p['entry_date'], p['exit_date'])
+        for p in pairs
+        if p['entry_date'] and p['exit_date']
+    ]
+    if _intervals:
+        _min_date = min(s for s, _ in _intervals)
+        _max_date = max(e for _, e in _intervals)
+        _total_calendar_days = (_max_date - _min_date).days
+        if _total_calendar_days > 0:
+            # Merge overlapping intervals to count unique calendar days in market
+            _merged = sorted(_intervals)
+            _unique_days = 0
+            _cur_s = _cur_e = None
+            for _s, _e in _merged:
+                if _cur_s is None:
+                    _cur_s, _cur_e = _s, _e
+                elif _s <= _cur_e:
+                    _cur_e = max(_cur_e, _e)
+                else:
+                    _unique_days += (_cur_e - _cur_s).days
+                    _cur_s, _cur_e = _s, _e
+            if _cur_s is not None:
+                _unique_days += (_cur_e - _cur_s).days
+            time_in_market_pct = _unique_days / _total_calendar_days * 100
 
     return {
         'n': n, 'total_pnl': total_pnl, 'win_rate': win_rate,
@@ -201,6 +235,7 @@ def _compute_stats(pairs: list) -> dict | None:
                           if any(l['mae_pct'] is not None for l in losses) else None,
         'n_strategy': n_strategy, 'n_disc': n_disc,
         'n_strat_exit': n_strat_exit, 'n_disc_exit': n_disc_exit,
+        'time_in_market_pct': time_in_market_pct,
     }
 
 
@@ -248,17 +283,22 @@ def _usd(v, dp=2):
 
 
 def _stat_row(label, value_html, cls=""):
-    cls_attr = f' class="{cls}"' if cls else ''
+    val_cls = f"stat-value {cls}".strip() if cls else "stat-value"
     return (f'<tr><td class="stat-label">{label}</td>'
-            f'<td class="stat-value"{cls_attr}>{value_html}</td></tr>')
+            f'<td class="{val_cls}">{value_html}</td></tr>')
 
 
 def _render_stats_html(s: dict, n_total: int) -> str:
     if s is None:
         return '<p class="no-data-msg">No closed trades yet.</p>'
-    pf_str     = "∞" if s['profit_factor'] == float('inf') else f"{s['profit_factor']:.2f}"
+    pf_val     = s['profit_factor']
+    pf_str     = "∞" if pf_val == float('inf') else f"{pf_val:.2f}"
+    pf_cls     = 'stat-pos' if pf_val >= 1 else 'stat-neg'
     dd_str     = f"${s['max_dd']:,.2f}" if s['max_dd'] < 0 else "—"
-    rf_str     = f"{s['recovery_factor']:.2f}" if s['recovery_factor'] is not None else "—"
+    rf_val     = s['recovery_factor']
+    rf_str     = f"{rf_val:.2f}" if rf_val is not None else "—"
+    rf_cls     = ('stat-pos' if rf_val is not None and rf_val >= 1
+                  else 'stat-neg' if rf_val is not None else '')
     streak_cls = 'stat-pos' if s['cur_result'] == 'W' else 'stat-neg'
     streak_str = (f"<span class='{streak_cls}'>{s['cur_streak']} "
                   f"{'win' if s['cur_result']=='W' else 'loss'}"
@@ -266,23 +306,27 @@ def _render_stats_html(s: dict, n_total: int) -> str:
     lw = s['largest_win'];  ll = s['largest_loss']
     lw_str = f"${lw['actual_pnl_usd']:,.0f} ({lw['symbol']}, {lw['exit_date']})" if lw else "—"
     ll_str = f"${ll['actual_pnl_usd']:,.0f} ({ll['symbol']}, {ll['exit_date']})" if ll else "—"
+    wr_cls = 'stat-pos' if s['win_rate'] >= 50 else 'stat-neg'
+    ar_cls = 'stat-pos' if s['avg_ret_pct'] >= 0 else 'stat-neg'
+    ex_cls = 'stat-pos' if s['expectancy'] >= 0 else 'stat-neg'
     rows = "".join([
         _stat_row("Total trades",           f"{n_total}"),
-        _stat_row("Win rate",               f"{s['win_rate']:.1f}%"),
-        _stat_row("Profit factor",          pf_str),
+        _stat_row("Win rate",               f"{s['win_rate']:.1f}%",          wr_cls),
+        _stat_row("Profit factor",          pf_str,                            pf_cls),
         _stat_row("Total P&L",              _usd(s['total_pnl']),
                   'stat-pos' if s['total_pnl'] >= 0 else 'stat-neg'),
-        _stat_row("Avg return / trade",     _pct(s['avg_ret_pct'])),
-        _stat_row("Avg win",                _pct(s['avg_win_pct'])),
-        _stat_row("Avg loss",               _pct(s['avg_loss_pct'])),
-        _stat_row("Largest win",            lw_str),
-        _stat_row("Largest loss",           ll_str),
-        _stat_row("Max consecutive wins",   str(s['max_win_streak'])),
-        _stat_row("Max consecutive losses", str(s['max_loss_streak'])),
+        _stat_row("Avg return / trade",     _pct(s['avg_ret_pct']),            ar_cls),
+        _stat_row("Avg win",                _pct(s['avg_win_pct']),            'stat-pos'),
+        _stat_row("Avg loss",               _pct(s['avg_loss_pct']),           'stat-neg'),
+        _stat_row("Largest win",            lw_str,                            'stat-pos'),
+        _stat_row("Largest loss",           ll_str,                            'stat-neg'),
+        _stat_row("Max consecutive wins",   str(s['max_win_streak']),          'stat-pos'),
+        _stat_row("Max consecutive losses", str(s['max_loss_streak']),         'stat-neg'),
         _stat_row("Current streak",         streak_str),
-        _stat_row("Expectancy / trade",     _usd(s['expectancy'])),
-        _stat_row("Max drawdown (P&amp;L)", dd_str),
-        _stat_row("Recovery factor",        rf_str),
+        _stat_row("Expectancy / trade",     _usd(s['expectancy']),             ex_cls),
+        _stat_row("Max drawdown (P&amp;L)", dd_str,
+                  'stat-neg' if s['max_dd'] < 0 else ''),
+        _stat_row("Recovery factor",        rf_str,                            rf_cls),
     ])
     return f'<table class="stats-table">{rows}</table>'
 
@@ -293,15 +337,21 @@ def _render_hold_html(s: dict) -> str:
     mae_all = f"{s['avg_mae_all']:.2f}%"    if s['avg_mae_all']    is not None else "—"
     mae_w   = f"{s['avg_mae_wins']:.2f}%"   if s['avg_mae_wins']   is not None else "—"
     mae_l   = f"{s['avg_mae_losses']:.2f}%" if s['avg_mae_losses'] is not None else "—"
+    mae_all_cls = 'stat-neg' if s['avg_mae_all']    is not None else ''
+    mae_w_cls   = 'stat-neg' if s['avg_mae_wins']   is not None else ''
+    mae_l_cls   = 'stat-neg' if s['avg_mae_losses'] is not None else ''
+    tim = s.get('time_in_market_pct')
+    tim_str = f"{tim:.1f}%" if tim is not None else "—"
     n   = s['n']
     pct = lambda v: f"{v / n * 100:.0f}%" if n > 0 else "—"
     rows = "".join([
         _stat_row("Avg holding days (all)",    f"{s['avg_days_all']:.1f}"),
         _stat_row("Avg holding days (wins)",   f"{s['avg_days_wins']:.1f}"),
         _stat_row("Avg holding days (losses)", f"{s['avg_days_losses']:.1f}"),
-        _stat_row("Avg MAE (all)",             mae_all),
-        _stat_row("Avg MAE (wins)",            mae_w),
-        _stat_row("Avg MAE (losses)",          mae_l),
+        _stat_row("Time in market",            tim_str),
+        _stat_row("Avg MAE (all)",             mae_all,  mae_all_cls),
+        _stat_row("Avg MAE (wins)",            mae_w,    mae_w_cls),
+        _stat_row("Avg MAE (losses)",          mae_l,    mae_l_cls),
         _stat_row("Strategy entries",          f"{s['n_strategy']} ({pct(s['n_strategy'])})"),
         _stat_row("Discretionary entries",     f"{s['n_disc']} ({pct(s['n_disc'])})"),
         _stat_row("Strategy exits",            f"{s['n_strat_exit']} ({pct(s['n_strat_exit'])})"),
@@ -314,18 +364,27 @@ def _render_exec_html(e: dict, pairs: list) -> str:
     if e is None:
         return '<p class="no-data-msg">No closed trades yet.</p>'
     b = e['best'];  w = e['worst']
+    # Slippage: negative = favourable (bought below close), positive = adverse
+    es_cls = 'stat-pos' if e['avg_entry_slip'] <= 0 else 'stat-neg'
+    xs_cls = 'stat-pos' if e['avg_exit_slip']  <= 0 else 'stat-neg'
+    ps_cls = ('stat-pos' if e['avg_pnl_strat'] is not None and e['avg_pnl_strat'] >= 0
+              else 'stat-neg' if e['avg_pnl_strat'] is not None else '')
+    pd_cls = ('stat-pos' if e['avg_pnl_disc']  is not None and e['avg_pnl_disc']  >= 0
+              else 'stat-neg' if e['avg_pnl_disc']  is not None else '')
     rows = "".join([
-        _stat_row("Avg entry slippage",          f"{e['avg_entry_slip']:+.2f}%"),
-        _stat_row("Avg exit slippage",           f"{e['avg_exit_slip']:+.2f}%"),
-        _stat_row("Total slippage cost",         f"${e['total_slip_cost']:,.2f}"),
+        _stat_row("Avg entry slippage",          f"{e['avg_entry_slip']:+.2f}%",  es_cls),
+        _stat_row("Avg exit slippage",           f"{e['avg_exit_slip']:+.2f}%",   xs_cls),
+        _stat_row("Total slippage cost",         f"${e['total_slip_cost']:,.2f}", 'stat-neg'),
         _stat_row("Best execution trade",
-                  f"{b['position_id']}, {b['entry_slippage_pct']:+.2f}%" if b else "—"),
+                  f"{b['entry_slippage_pct']:+.2f}% ({b['symbol']}, {b['entry_date']})" if b else "—",
+                  'stat-pos'),
         _stat_row("Worst execution trade",
-                  f"{w['position_id']}, {w['entry_slippage_pct']:+.2f}%" if w else "—"),
+                  f"{w['entry_slippage_pct']:+.2f}% ({w['symbol']}, {w['entry_date']})" if w else "—",
+                  'stat-neg'),
         _stat_row("Avg P&amp;L — strategy exit",
-                  _usd(e['avg_pnl_strat']) if e['avg_pnl_strat'] is not None else "—"),
+                  _usd(e['avg_pnl_strat']) if e['avg_pnl_strat'] is not None else "—", ps_cls),
         _stat_row("Avg P&amp;L — discretionary",
-                  _usd(e['avg_pnl_disc'])  if e['avg_pnl_disc']  is not None else "—"),
+                  _usd(e['avg_pnl_disc'])  if e['avg_pnl_disc']  is not None else "—", pd_cls),
     ])
     return f'<table class="stats-table">{rows}</table>'
 
@@ -449,6 +508,23 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                             unsafe_allow_html=True)
                 continue
 
+            # ── Wallet analysis (trade + holding + execution stats) ───────────
+            if tab_closed:
+                s = _compute_stats(tab_closed)
+                e = _compute_exec_stats(tab_closed)
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.markdown("**Trade statistics**")
+                    st.markdown(_render_stats_html(s, len(tab_closed)),
+                                unsafe_allow_html=True)
+                with col_b:
+                    st.markdown("**Holding & entry/exit mix**")
+                    st.markdown(_render_hold_html(s), unsafe_allow_html=True)
+                with col_c:
+                    st.markdown("**Execution detail**")
+                    st.markdown(_render_exec_html(e, tab_closed), unsafe_allow_html=True)
+                st.divider()
+
             # ── Open positions ────────────────────────────────────────────────
             if tab_open:
                 st.caption(f"{len(tab_open)} open position{'s' if len(tab_open)!=1 else ''}")
@@ -524,7 +600,8 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                     row['Exit date']   = p['exit_date']
                     row['Days']        = p['holding_days']
                     row['Size ($)']    = size_display
-                    row['Return %']    = p['actual_return_pct']
+                    # Net return (after round-trip costs) — consistent with P&L ($)
+                    row['Return %']    = p.get('actual_net_return_pct', p['actual_return_pct'])
                     row['P&L ($)']     = p['actual_pnl_usd']
                     row['MAE %']       = p.get('mae_pct')
                     row['Entry type']  = entry_type_disp
@@ -630,9 +707,19 @@ def render_strategy_tab(
 
     all_trades, all_pairs = _load_single(data_dir)
 
+    cfg      = load_config(data_dir)
+    cost_pct = float(cfg.get('trading_cost_pct', 0.0))
+
     coin_sel, _, filt_closed, filt_open = _render_filters_and_compute(
         f"{prefix}_strat", all_trades, all_pairs
     )
+
+    if cost_pct > 0:
+        st.caption(
+            f"P&L figures include trading costs: "
+            f"**{cost_pct * 100:.3f}%** per leg · "
+            f"**{cost_pct * 2 * 100:.3f}%** round-trip"
+        )
 
     strat_closed = [p for p in filt_closed if (p.get('strategy') or '') in strategy_keys]
     strat_open   = [t for t in filt_open   if (t.get('strategy') or '') in strategy_keys]
@@ -674,6 +761,12 @@ def render_fund_tab(
     dirs_tuple = tuple(sorted(dashboard_dirs.items()))
     all_trades, all_pairs = _load_all(dirs_tuple)
 
+    # Collect trading cost config per strategy (for the cost note)
+    _cost_pcts = {
+        name: float(load_config(data_dir).get('trading_cost_pct', 0.0))
+        for name, data_dir in dirs_tuple
+    }
+
     # Reserve header slot so metrics float above the filter widgets
     _hdr = st.container()
     coin_sel, filt_trades, filt_closed, filt_open = _render_filters_and_compute(
@@ -705,7 +798,41 @@ def render_fund_tab(
                if _avg_win is not None and _avg_loss is not None and _avg_loss != 0
                else None)
         m6.metric("Avg win / loss", f"{_wl:.2f}x" if _wl is not None else "—")
+        _nonzero = {n: v for n, v in _cost_pcts.items() if v > 0}
+        if _nonzero:
+            _unique = set(_nonzero.values())
+            if len(_unique) == 1:
+                _c = next(iter(_unique))
+                st.caption(
+                    f"P&L figures include trading costs: "
+                    f"**{_c * 100:.3f}%** per leg · "
+                    f"**{_c * 2 * 100:.3f}%** round-trip"
+                )
+            else:
+                _parts = [f"{n}: {v * 100:.3f}%" for n, v in _nonzero.items()]
+                st.caption(
+                    "P&L includes per-leg trading costs — " + ", ".join(_parts)
+                )
         st.markdown("---")
+
+    # ── Fund analysis ─────────────────────────────────────────────────────────
+    # Full stats across all wallets for the current date-range + coin filter.
+    if filt_closed:
+        st.markdown("#### Fund analysis")
+        s_fund = _compute_stats(filt_closed)
+        e_fund = _compute_exec_stats(filt_closed)
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.markdown("**Trade statistics**")
+            st.markdown(_render_stats_html(s_fund, len(filt_closed)),
+                        unsafe_allow_html=True)
+        with col_b:
+            st.markdown("**Holding & entry/exit mix**")
+            st.markdown(_render_hold_html(s_fund), unsafe_allow_html=True)
+        with col_c:
+            st.markdown("**Execution detail**")
+            st.markdown(_render_exec_html(e_fund, filt_closed), unsafe_allow_html=True)
+        st.divider()
 
     # ── Flat log table ────────────────────────────────────────────────────────
     sorted_closed = sorted(filt_closed, key=lambda x: x['entry_date'] or date.today())
@@ -731,7 +858,8 @@ def render_fund_tab(
             'Exit date':   p['exit_date'],
             'Days':        p['holding_days'],
             'Size ($)':    size_display,
-            'Return %':    p['actual_return_pct'],
+            # Net return (after round-trip costs) — consistent with P&L ($)
+            'Return %':    p.get('actual_net_return_pct', p['actual_return_pct']),
             'P&L ($)':     p['actual_pnl_usd'],
             'Entry type':  entry_type_disp,
             'Exit reason': exit_reason_disp,

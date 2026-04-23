@@ -26,6 +26,9 @@ DASHBOARD_DIRS = {
     "BB Breakout": os.path.join(_LT_DIR, "dashboards", "bbbreakout"),
 }
 
+# Order matters — fund tab sees this dict in insertion order
+FUND_DIRS = DASHBOARD_DIRS   # same mapping, explicit alias for clarity
+
 # ── Sidebar: single refresh button for the whole page ────────────────────────
 with st.sidebar:
     st.markdown("### Controls")
@@ -33,13 +36,20 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
+# ── Page header ───────────────────────────────────────────────────────────────
+st.markdown("""
+<h1 style="font-size:35px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">
+  Portfolio
+</h1>
+""", unsafe_allow_html=True)
+
 # ── Strategy tabs ─────────────────────────────────────────────────────────────
 tab_fund, tab_momentum, tab_statarb, tab_bb = st.tabs(
     ["Fund", "Momentum", "Stat Arb", "BB Breakout"]
 )
 
 with tab_fund:
-    render_fund_portfolio(DASHBOARD_DIRS, prefix="fund")
+    render_fund_portfolio(FUND_DIRS, prefix="fund")
 
 with tab_momentum:
     render_strategy_portfolio(

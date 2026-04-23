@@ -582,8 +582,14 @@ def plot_portfolio_oos(
     benchmark   : {'BTC': oos_df} or multi-coin dict for B&H benchmark.
                   None = equal-weight B&H of show_coins.
                   Single coin e.g. {'BTC': btc_df} = BTC B&H only.
-    cost        : already paid per-coin, keep 0.0 unless you want to add
-                  a portfolio-level rebalancing cost
+    cost        : per-leg trading cost fraction applied at each position
+                  change (entry and exit separately), so effective
+                  round-trip cost = 2 × cost.
+                  e.g. cost=0.001 → 0.1% per leg → 0.2% round-trip.
+                  Defaults to 0.0 because per-coin costs are typically
+                  already embedded via walk_forward / _run_backtest.
+                  Only set non-zero here to add a portfolio-level
+                  rebalancing cost on top.
     """
     import sys, os
     # resolve backtester so backtest() is importable from here
@@ -603,9 +609,11 @@ def plot_portfolio_oos(
 
     # ── per-coin bar returns ──────────────────────────────────────────────────
     def _strat_ret(df):
-        r          = df['Close'].pct_change().fillna(0)
-        pos        = df['position'].shift(1).fillna(0)      if 'position'      in df.columns else pd.Series(1,   index=df.index)
-        size       = df['position_size'].shift(1).fillna(0) if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
+        r    = df['Close'].pct_change().fillna(0)
+        pos  = df['position'].shift(1).fillna(0)      if 'position'      in df.columns else pd.Series(1,   index=df.index)
+        size = df['position_size'].shift(1).fillna(0) if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
+        # cost is per-leg: fires once on entry (0→1) and once on exit (1→0),
+        # so total deduction per round-trip = 2 × cost. ✓ 2-way.
         trade_cost = df['position'].diff().abs().fillna(0) * cost if 'position' in df.columns else pd.Series(0.0, index=df.index)
         return r * pos * size - trade_cost
 
@@ -759,3 +767,120 @@ def plot_portfolio_oos(
             print(f'  {yr:<6} {s["trades"]:>7} {s["win_rate"]*100:>9.1f}% {pf_s} {awl_s}')
 
     return metrics
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Closed-Trade (realized) equity curve
+# ──────────────────────────────────────────────────────────────────────────────
+
+def plot_closed_trade_equity(
+    position_dfs: dict,
+    weights:      dict  = None,
+    cost:         float = 0.001,
+    bar_returns:  dict  = None,
+    show:         bool  = True,
+    save_html:    str   = None,
+):
+    """
+    Step-function equity curve that only moves on **trade exits** — realized P&L,
+    no intra-trade mark-to-market.  Read alongside the full MTM chart, not instead of it.
+
+    Parameters
+    ----------
+    position_dfs : {label: df}
+        Each df must have a ``'position'`` column for entry/exit detection.
+        Bar returns are resolved in this priority order:
+          1. ``bar_returns[label]`` if supplied
+          2. ``df['net_returns']`` if the column exists  (stat-arb pkls)
+          3. Recomputed via  ``Close.pct_change() * pos.shift(1) * size.shift(1) - cost * |pos.diff()|``
+             (momentum pkls that carry Close / position / position_size)
+    weights     : {label: float}  — auto-normalised; None = equal weight
+    cost        : per-side transaction cost used only in path 3 above
+    bar_returns : {label: pd.Series}  — optional pre-computed per-bar returns (path 1)
+    show        : render Plotly chart inline
+    save_html   : optional file path to write chart HTML
+
+    Returns
+    -------
+    closed_eq : pd.Series  indexed by exit timestamps, starting at 1.0
+    """
+    if not position_dfs:
+        print('  [closed-trade] no sleeves supplied — skipping.')
+        return pd.Series([1.0])
+
+    # normalise weights
+    n = len(position_dfs)
+    w = {k: v / sum(weights.values()) for k, v in weights.items()} \
+        if weights else {k: 1 / n for k in position_dfs}
+
+    def _bar(label, df):
+        if bar_returns is not None and label in bar_returns:
+            return bar_returns[label]
+        if 'net_returns' in df.columns:
+            return df['net_returns'].fillna(0)
+        r    = df['Close'].pct_change().fillna(0)
+        pos  = df['position'].shift(1).fillna(0)
+        size = df['position_size'].shift(1).fillna(0) if 'position_size' in df.columns \
+               else pd.Series(1.0, index=df.index)
+        to   = df['position'].diff().abs().fillna(0)
+        return r * pos * size - cost * to
+
+    trades = []
+    for label, df in position_dfs.items():
+        pos  = df['position'].fillna(0)
+        prev = pos.shift(1).fillna(0)
+        entry = (prev == 0) & (pos != 0)
+        exit_ = (prev != 0) & ((pos == 0) | (pos != prev))
+        if pos.iloc[0] != 0:
+            entry.iloc[0] = True
+
+        bar     = _bar(label, df)
+        entries = list(df.index[entry])
+        exits   = list(df.index[exit_])
+        wt      = w.get(label, 0)
+
+        for e in entries:
+            nxt = [x for x in exits if x > e]
+            if not nxt:
+                break
+            x = nxt[0]
+            trades.append((x, wt * ((1 + bar.loc[e:x]).prod() - 1)))
+
+    if not trades:
+        closed_eq = pd.Series([1.0])
+    else:
+        all_times = sorted({t for t, _ in trades})
+        deltas    = pd.Series(0.0, index=pd.Index(all_times))
+        for t, r in trades:
+            deltas.loc[t] += r
+        _start    = min(df.index[0] for df in position_dfs.values())
+        closed_eq = pd.concat([pd.Series([1.0], index=[_start]), (1 + deltas).cumprod()])
+
+    realized = (closed_eq.iloc[-1] - 1) * 100 if len(closed_eq) else 0.0
+    print(f'  {len(trades)} trade exits  |  realized return: {realized:.2f}%')
+    print('  Hides intra-trade MTM drawdowns — read alongside the MTM chart above.')
+
+    if show or save_html:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=closed_eq.index, y=closed_eq.values,
+            mode='lines', line_shape='hv',
+            name='Closed-trade equity',
+            line=dict(width=2, color=_BLUE),
+            hovertemplate='<b>Realized equity</b><br>%{x}<br>%{y:.4f}x<extra></extra>',
+        ))
+        fig.update_layout(
+            title=f'<b>Closed-Trade Equity</b>  —  realized P&L only  ({len(trades)} exits)',
+            xaxis_title='Date',
+            yaxis_title='Equity (1.0 = start)',
+            template=_TEMPLATE,
+            height=420,
+            hovermode='x unified',
+        )
+        if save_html:
+            fig.write_html(save_html)
+            print(f'✓ Saved closed-trade chart → {save_html}')
+        if show:
+            fig.show()
+
+    return closed_eq

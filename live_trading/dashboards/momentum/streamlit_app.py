@@ -52,6 +52,8 @@ from shared.data_loader import (
     build_trade_pairs,
 )
 from config   import ACTIVE_ASSETS, EXECUTION_HOUR, CAPITAL, COIN_WEIGHTS
+import config as _cfg_mod
+TRADING_COST_PCT = getattr(_cfg_mod, 'TRADING_COST_PCT', 0.0)
 from optimise import ASSET_CONFIG
 
 _PID_RE = re.compile(r'^\w+_\d{8}_\d{3}$')
@@ -543,7 +545,10 @@ for _pid0, _pos0 in _open.items():
     _sz0  = _pos0.get('size_usd') or (get_coin_capital(_sym0) * _lev0)
     _total_size_usd += _sz0
     if _lp0 and _ep0:
-        _pnl0                = (_lp0 - _ep0) / _ep0 * _sz0
+        # Deduct round-trip cost (entry leg already paid + estimated exit leg)
+        # so unrealized P&L is consistent with how closed trades report P&L.
+        _cost0               = _sz0 * TRADING_COST_PCT * 2
+        _pnl0                = (_lp0 - _ep0) / _ep0 * _sz0 - _cost0
         _unrealized_pnl_usd += _pnl0
         _total_pos_value    += _sz0 + _pnl0
         _total_has_live      = True
@@ -635,16 +640,21 @@ else:
 
         _tot_size_usd_r += size_usd
         if live_price and entry_price:
-            price_return_pct   = (live_price - entry_price) / entry_price * 100
-            unrealised_pnl_usd = (live_price - entry_price) / entry_price * size_usd
+            # Gross price move (for context — how much has the price moved)
+            _gross_pnl         = (live_price - entry_price) / entry_price * size_usd
+            # Net P&L: deduct round-trip cost (entry leg paid + estimated exit leg)
+            # Consistent with how closed trades report P&L in the journal.
+            _trade_cost        = size_usd * TRADING_COST_PCT * 2
+            unrealised_pnl_usd = _gross_pnl - _trade_cost
+            net_return_pct     = unrealised_pnl_usd / size_usd * 100
             position_value     = size_usd + unrealised_pnl_usd
             _tot_pnl_usd_r    += unrealised_pnl_usd
             _tot_pos_val_r    += position_value
             _tot_has_live_r    = True
-            pnl_cls    = 'entry-t' if price_return_pct >= 0 else 'entry-f'
-            pnl_sign   = '+' if price_return_pct >= 0 else ''
+            pnl_cls    = 'entry-t' if unrealised_pnl_usd >= 0 else 'entry-f'
+            pnl_sign   = '+' if net_return_pct >= 0 else ''
             live_td    = f'<td>{live_price:,.2f}</td>'
-            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{price_return_pct:.2f}%</td>'
+            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.2f}%</td>'
             pnl_usd_td = f'<td class="{pnl_cls}">{pnl_sign}{unrealised_pnl_usd:,.0f}</td>'
             pos_val_td = f'<td>{position_value:,.0f}</td>'
         else:

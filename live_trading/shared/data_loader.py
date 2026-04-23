@@ -162,10 +162,11 @@ def load_config(data_dir: str) -> dict:
     """Return dashboard config as a plain dict."""
     cfg = _load_config(data_dir)
     return {
-        'capital':        cfg.CAPITAL,
-        'active_assets':  cfg.ACTIVE_ASSETS,
-        'coin_weights':   cfg.COIN_WEIGHTS,
-        'execution_hour': cfg.EXECUTION_HOUR,
+        'capital':           cfg.CAPITAL,
+        'active_assets':     cfg.ACTIVE_ASSETS,
+        'coin_weights':      cfg.COIN_WEIGHTS,
+        'execution_hour':    cfg.EXECUTION_HOUR,
+        'trading_cost_pct':  getattr(cfg, 'TRADING_COST_PCT', 0.0),
     }
 
 
@@ -273,7 +274,9 @@ def build_trade_pairs(data_dir: str) -> dict:
           "open":   list of unmatched ENTRY dicts (open positions)
         }
     """
-    trades = load_trades(data_dir)
+    trades    = load_trades(data_dir)
+    _cfg      = _load_config(data_dir)
+    cost_pct  = getattr(_cfg, 'TRADING_COST_PCT', 0.0)  # fraction per leg
 
     from collections import defaultdict
     entries_by_sym: dict = defaultdict(list)
@@ -337,6 +340,20 @@ def build_trade_pairs(data_dir: str) -> dict:
                 act_pnl_usd  = act_size_usd  * (act_ret_pct  / 100)
                 theo_pnl_usd = theo_size_usd * (theo_ret_pct / 100)
 
+                # ── Trading costs (round-trip: entry leg + exit leg) ─────────
+                # cost_pct is per-leg (e.g. 0.001 = 0.1%); multiply by 2 for
+                # the full round trip. Set TRADING_COST_PCT = 0.0 in config.py
+                # to disable until the platform fee schedule is known.
+                act_cost_usd  = act_size_usd  * cost_pct * 2
+                theo_cost_usd = theo_size_usd * cost_pct * 2
+                act_pnl_usd   -= act_cost_usd
+                theo_pnl_usd  -= theo_cost_usd
+
+                # Net return % — P&L as a fraction of position size, after costs.
+                # Differs from act_ret_pct (gross price move) when costs > 0.
+                act_net_ret_pct  = act_pnl_usd  / act_size_usd  * 100 if act_size_usd  else 0.0
+                theo_net_ret_pct = theo_pnl_usd / theo_size_usd * 100 if theo_size_usd else 0.0
+
                 # ── Slippage vs prior-day close ──────────────────────────────
                 entry_slip = (
                     (act_entry - eff_entry_close) / eff_entry_close * 100
@@ -392,11 +409,14 @@ def build_trade_pairs(data_dir: str) -> dict:
                     'size_usd':               act_size_usd,
                     'actual_size_usd':        act_size_usd,
                     'theoretical_size_usd':   theo_size_usd,
-                    'pnl_usd':                pnl_usd,
-                    'actual_pnl_usd':         act_pnl_usd,
-                    'actual_return_pct':      act_ret_pct,
-                    'theoretical_return_pct': theo_ret_pct,
-                    'theoretical_pnl_usd':    theo_pnl_usd,
+                    'pnl_usd':                    pnl_usd,
+                    'actual_pnl_usd':             act_pnl_usd,       # net of costs
+                    'actual_return_pct':           act_ret_pct,       # gross price move (no costs)
+                    'actual_net_return_pct':       act_net_ret_pct,   # net of round-trip costs
+                    'theoretical_return_pct':      theo_ret_pct,      # gross
+                    'theoretical_net_return_pct':  theo_net_ret_pct,  # net of costs
+                    'theoretical_pnl_usd':         theo_pnl_usd,      # net of costs
+                    'cost_usd':                    act_cost_usd,
                     'mae_pct':                mae_pct,
                     'exit_reason':            ex.get('exit_reason') or '—',
                     'signal_snapshot':        signal_snapshot,
@@ -434,7 +454,11 @@ def _equity_df_from_closed(closed: list,
             continue
         if d not in pnl_by_date:
             pnl_by_date[d] = {'actual_pnl': 0.0, 'theoretical_pnl': 0.0}
-        pnl_by_date[d]['actual_pnl']      += p['pnl_usd']
+        # Use actual execution-price P&L so the equity curve matches the trade log.
+        # pnl_usd (close-to-close) is unreliable for legacy records where
+        # entry_close is null — mixing execution prices with close prices
+        # overstates gains/losses significantly.
+        pnl_by_date[d]['actual_pnl']      += p['actual_pnl_usd']
         pnl_by_date[d]['theoretical_pnl'] += p['theoretical_pnl_usd']
 
     rows = []
@@ -500,14 +524,17 @@ def build_coin_equity_curves(data_dir: str) -> dict:
     for p in closed:
         by_symbol[p['symbol']].append(p)
 
+    today  = date.today()
     result = {}
     for symbol, sym_closed in by_symbol.items():
         entry_dates = [p['entry_date'] for p in sym_closed if p['entry_date']]
         exit_dates  = [p['exit_date']  for p in sym_closed if p['exit_date']]
         if not entry_dates or not exit_dates:
             continue
+        # Extend to today so coins with no recent trades show a flat tail
+        # rather than ending abruptly at their last exit date.
         result[symbol] = _equity_df_from_closed(
-            sym_closed, min(entry_dates), max(exit_dates)
+            sym_closed, min(entry_dates), today
         )
 
     return result
@@ -516,25 +543,32 @@ def build_coin_equity_curves(data_dir: str) -> dict:
 # ── Capital deployment builder ────────────────────────────────────────────────
 
 @_cache_data
-def build_capital_deployment(data_dir: str) -> pd.DataFrame:
+def build_capital_deployment(data_dir: str, coins=None) -> pd.DataFrame:
     """
     Daily capital deployment series.
 
     Uses size_usd frozen in the ENTRY record; positions without a stored
     size_usd (legacy records) are excluded to preserve snapshot integrity.
 
+    coins: optional list of symbols to include. None = all coins.
     Columns: date | deployed_usd | deployment_pct
     """
     trades    = load_trades(data_dir)
     positions = load_positions(data_dir)
     capital   = float(_load_config(data_dir).CAPITAL)
+    _coins    = set(coins) if coins is not None else None
 
     windows = []
     for t in trades:
         if t['action'] != 'ENTRY' or t.get('size_usd') is None:
             continue
 
-        pid        = t['position_id']
+        pid    = t['position_id']
+        symbol = _pid_to_symbol(pid)
+
+        if _coins is not None and symbol not in _coins:
+            continue
+
         entry_date = t['date']
         size_usd   = float(t['size_usd'])
 

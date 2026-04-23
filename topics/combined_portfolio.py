@@ -31,10 +31,12 @@ MOMENTUM_SELECTION = {
     'ETH_wf2':  ('wf2', 'ETH'),
     'SOL_wf2':  ('wf2', 'SOL'),
     'XRP_wf2':  ('wf2', 'XRP'),
+    'AVAX_wf2':  ('wf2',  'AVAX'),
     'BTC_bb':   ('bb',  'BTC'),
     'ETH_bb':   ('bb',  'ETH'),
     'AVAX_bb':  ('bb',  'AVAX'),
-    'LINK_bb':  ('bb',  'LINK'),
+    'ADA_bb':  ('bb',  'ADA'),
+    'NEAR_bb':  ('bb',  'NEAR'),
 }
 MOMENTUM_COST  = 0.001   # 10bps — matches portfolio_master
 STATARB_COST   = 0.001   # already baked into pkl net_returns; kept for reference
@@ -66,10 +68,12 @@ if not sa_dfs:
 print(f'Stat arb loaded:  {list(sa_dfs.keys())}')
 
 # ── load momentum pkls ────────────────────────────────────────────────────────
+# pkls always live in <strategy_folder>/oos/ — never in the strategy root
 mom_raw = {}
 for tag, folder in MOMENTUM_STRATEGIES.items():
-    path = os.path.join(MOM_ROOT, folder)
+    path = os.path.join(MOM_ROOT, folder, 'oos')
     if not os.path.isdir(path):
+        print(f'  [skip] {tag}: oos/ not found — {path}')
         continue
     for fname in os.listdir(path):
         if fname.endswith('_oos.pkl'):
@@ -79,12 +83,15 @@ for tag, folder in MOMENTUM_STRATEGIES.items():
 mom_dfs, missing = {}, []
 for label, (tag, coin) in MOMENTUM_SELECTION.items():
     if tag not in mom_raw or coin not in mom_raw[tag]:
-        missing.append(label)
+        missing.append(f'{label} ({tag}:{coin})')
     else:
         mom_dfs[label] = mom_raw[tag][coin]
 
 if missing:
     print(f'  [missing momentum sleeves]: {missing}')
+if not mom_dfs:
+    print('ERROR: no momentum sleeves loaded — check MOMENTUM_STRATEGIES and MOMENTUM_SELECTION.')
+    sys.exit(1)
 print(f'Momentum loaded:  {list(mom_dfs.keys())}')
 
 # ── stat arb weights (inverse vol, in-market returns) ─────────────────────────
@@ -115,26 +122,38 @@ mom_w       = {s: 1 / (n_strats * tag_counts[MOMENTUM_SELECTION[s][0]]) for s in
 
 print(f'\nMomentum weights  (equal within strategy, equal across strategies):')
 for s in mom_sleeves:
-    print(f'  {s:<12}  w={mom_w[s]*100:.1f}%')
+    df_s = mom_dfs[s]
+    n_days = max((df_s.index[-1] - df_s.index[0]).days, 1)
+    freq   = 'hourly' if len(df_s) / n_days > 1.5 else 'daily'
+    print(f'  {s:<12}  w={mom_w[s]*100:.1f}%  {freq}  '
+          f'{str(df_s.index[0].date())} → {str(df_s.index[-1].date())}')
 
 # ── stat arb portfolio returns ────────────────────────────────────────────────
-sa_equity = {k: (1 + sa_dfs[k]['net_returns'].fillna(0)).cumprod() for k in sa_pairs}
-sa_eq_df  = pd.concat(sa_equity, axis=1).ffill().fillna(1.0)
-sa_ret    = sa_eq_df.pct_change().fillna(0)
-sa_port   = sum(sa_ret[k] * sa_w[k] for k in sa_pairs)
+# Direct bar-return concat + fillna(0) — same as wf_visualizer, avoids ffill
+# drift on equity curves when sleeves have different start dates.
+sa_aligned = pd.concat(
+    [sa_dfs[k]['net_returns'].fillna(0).rename(k) for k in sa_pairs],
+    axis=1,
+).fillna(0)
+sa_port = sum(sa_aligned[k] * sa_w[k] for k in sa_pairs)
 
 # ── momentum portfolio returns ────────────────────────────────────────────────
+# Exact replica of wf_visualizer._strat_ret so results match portfolio_master
+# when SELECTION and weights are identical.
+# Hourly bb pkls and daily wf2 pkls are aligned on a union index — bar returns
+# for missing timestamps are 0, which is correct (flat position = 0 return).
 def _mom_nr(df):
-    pos  = df['position'].fillna(0)
+    pos  = df['position'].shift(1).fillna(0)
     size = df['position_size'].shift(1).fillna(0) if 'position_size' in df.columns else pd.Series(1.0, index=df.index)
     ret  = df['Close'].pct_change().fillna(0)
-    to   = pos.diff().abs().fillna(0)
-    return ret * pos.shift(1).fillna(0) * size - MOMENTUM_COST * to
+    to   = df['position'].diff().abs().fillna(0)
+    return ret * pos * size - MOMENTUM_COST * to
 
-mom_equity = {s: (1 + _mom_nr(mom_dfs[s])).cumprod() for s in mom_sleeves}
-mom_eq_df  = pd.concat(mom_equity, axis=1).ffill().fillna(1.0)
-mom_ret    = mom_eq_df.pct_change().fillna(0)
-mom_port   = sum(mom_ret[s] * mom_w[s] for s in mom_sleeves)
+mom_aligned = pd.concat(
+    [_mom_nr(mom_dfs[s]).rename(s) for s in mom_sleeves],
+    axis=1,
+).fillna(0)
+mom_port = sum(mom_aligned[s] * mom_w[s] for s in mom_sleeves)
 
 # ── combine strategies ────────────────────────────────────────────────────────
 sw_total = sum(STRATEGY_WEIGHTS.values())
