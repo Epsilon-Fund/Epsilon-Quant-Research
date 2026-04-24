@@ -73,7 +73,13 @@ with tab_momentum:
     )
 
 with tab_statarb:
-    st.info("Stat Arb — no trades yet")
+    render_strategy_tab(
+        data_dir=DASHBOARD_DIRS["Stat Arb"],
+        prefix="statarb",
+        strategy_keys=["stat_arb_spread"],
+        display_name="Stat Arb",
+        show_strategy_col=True,
+    )
 
 with tab_bb:
     st.info("BB Breakout — no trades yet")

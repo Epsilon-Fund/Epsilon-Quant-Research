@@ -25,7 +25,11 @@ if _INFRA_DATA not in sys.path:
     sys.path.insert(0, _INFRA_DATA)
 
 from shared.cache_manager import update_all_caches, is_cache_fresh
-from dashboards.momentum.config import ACTIVE_ASSETS
+from dashboards.momentum.config import ACTIVE_ASSETS as _MOM_ASSETS
+from dashboards.statarb.optimise import ASSET_CONFIG as _SA_CONFIG
+
+_SA_SYMBOLS   = sorted({sym for a in _SA_CONFIG for sym in (a['symbol_y'], a['symbol_x'])})
+ACTIVE_ASSETS = sorted(set(_MOM_ASSETS) | set(_SA_SYMBOLS))
 
 if __name__ == '__main__':
     started = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')

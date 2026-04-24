@@ -1,0 +1,62 @@
+{
+  "FILSNX": {
+    "symbol_y": "FILUSDT",
+    "symbol_x": "SNXUSDT",
+    "strategy": "stat_arb_spread",
+    "optimised_on": "2026-04-24",
+    "fixed_param_keys": ["entry", "stop_z", "z_lookback"],
+    "params": {
+      "lookback": 78,
+      "z_lookback": 85,
+      "entry": 1.8136,
+      "exit_z": 0.62,
+      "stop_z": 4.647,
+      "max_holding": 12
+    }
+  },
+  "ATOMARB": {
+    "symbol_y": "ATOMUSDT",
+    "symbol_x": "ARBUSDT",
+    "strategy": "stat_arb_spread",
+    "optimised_on": "2026-04-24",
+    "fixed_param_keys": ["z_lookback", "entry", "stop_z", "lookback", "exit_z"],
+    "params": {
+      "lookback": 114,
+      "z_lookback": 82,
+      "entry": 1.7528,
+      "exit_z": 0.6867,
+      "stop_z": 4.4448,
+      "max_holding": 36
+    }
+  },
+  "LINKTRX": {
+    "symbol_y": "LINKUSDT",
+    "symbol_x": "TRXUSDT",
+    "strategy": "stat_arb_spread",
+    "optimised_on": "2026-04-24",
+    "fixed_param_keys": ["stop_z", "max_holding", "lookback", "entry"],
+    "params": {
+      "lookback": 110,
+      "z_lookback": 68,
+      "entry": 1.9137,
+      "exit_z": 0.97,
+      "stop_z": 4.0385,
+      "max_holding": 6
+    }
+  },
+  "LTCAPT": {
+    "symbol_y": "LTCUSDT",
+    "symbol_x": "APTUSDT",
+    "strategy": "stat_arb_spread",
+    "optimised_on": "2026-04-24",
+    "fixed_param_keys": ["stop_z", "lookback", "entry", "exit_z"],
+    "params": {
+      "lookback": 73,
+      "z_lookback": 55,
+      "entry": 2.6184,
+      "exit_z": 1.099,
+      "stop_z": 4.2325,
+      "max_holding": 10
+    }
+  }
+}

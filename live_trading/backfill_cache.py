@@ -50,7 +50,12 @@ from shared.cache_manager import (
     _ensure_dirs,
     _CACHE_ROOT,
 )
-from dashboards.momentum.config import ACTIVE_ASSETS
+from dashboards.momentum.config import ACTIVE_ASSETS as _MOM_ASSETS
+from dashboards.statarb.optimise import ASSET_CONFIG as _SA_CONFIG
+
+# Aggregate all unique symbols across strategies
+_SA_SYMBOLS = sorted({sym for a in _SA_CONFIG for sym in (a['symbol_y'], a['symbol_x'])})
+ACTIVE_ASSETS = sorted(set(_MOM_ASSETS) | set(_SA_SYMBOLS))
 
 
 def backfill_symbol(symbol: str, start_date: str, end_date: str) -> tuple[int, int]:

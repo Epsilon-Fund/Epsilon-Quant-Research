@@ -59,7 +59,11 @@ with tab_momentum:
     )
 
 with tab_statarb:
-    st.info("No trades yet")
+    render_strategy_portfolio(
+        data_dir=DASHBOARD_DIRS["Stat Arb"],
+        prefix="statarb",
+        strategy_name="Stat Arb",
+    )
 
 with tab_bb:
     st.info("No trades yet")

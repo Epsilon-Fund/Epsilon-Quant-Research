@@ -1226,15 +1226,9 @@ def _dash_or(v, fmt_fn):
     return '—' if v is None else fmt_fn(v)
 
 with st.expander("STOP LOSS DETAILS"):
-    with st.expander("Explanation"):
-        st.markdown("""
-**S1 Entry Stop:**
-  - **Stop** = Swing_Hi_Stp − (ATR_Stp × Mult × Scale)
-  - Multiplier path: ent_normal / ent_caution / ent_both
-
-**S2 Trailing Ratchet:**
-  - **Stop can only move up, never down**, using OS multiplier
-  - Stop = max(prev, new)
+    st.markdown("""
+**S1 Entry Stop:** Stop = Swing_Hi_Stp − (ATR_Stp × Mult × Scale) · path: ent_normal / ent_caution / ent_both
+**S2 Trailing Ratchet:** Stop can only move up — Stop = max(prev, new) using OS multiplier
 """)
     n        = len(coin_rows)
     col_w    = f'calc((100% - 180px) / {n})'

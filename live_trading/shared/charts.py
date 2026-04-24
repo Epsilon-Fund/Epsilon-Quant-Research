@@ -46,7 +46,7 @@ def _empty_fig(title: str) -> go.Figure:
 
 def _base_layout(fig: go.Figure, title: str, xaxis_title='', yaxis_title='') -> None:
     fig.update_layout(
-        title=dict(text=title, font=dict(size=14, weight=700)),
+        title=dict(text=title, font=dict(size=14)),
         xaxis_title=xaxis_title,
         yaxis_title=yaxis_title,
         paper_bgcolor='white',
@@ -235,7 +235,7 @@ def _portfolio_layout(fig: go.Figure, title: str,
                       xaxis_title='', yaxis_title='') -> None:
     """Base layout for all portfolio-page charts."""
     fig.update_layout(
-        title=dict(text=title, font=dict(size=14, weight=700)),
+        title=dict(text=title, font=dict(size=14)),
         xaxis_title=xaxis_title,
         yaxis_title=yaxis_title,
         paper_bgcolor='white',
@@ -645,7 +645,7 @@ def correlation_heatmap(corr_matrix: pd.DataFrame, title: str = '') -> go.Figure
 
     n = len(labels)
     fig.update_layout(
-        title=dict(text=title or 'Strategy Correlation', font=dict(size=14, weight=700)),
+        title=dict(text=title or 'Strategy Correlation', font=dict(size=14)),
         paper_bgcolor='white',
         plot_bgcolor='white',
         font=dict(family='system-ui, sans-serif', size=12, color='#334155'),

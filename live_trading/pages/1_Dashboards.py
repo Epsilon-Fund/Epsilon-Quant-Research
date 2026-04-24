@@ -26,6 +26,7 @@ st.markdown("""
 
 # ── Paths to strategy entry points ────────────────────────────────────────────
 _MOMENTUM_APP = os.path.join(_LT_DIR, 'dashboards', 'momentum', 'streamlit_app.py')
+_STATARB_APP  = os.path.join(_LT_DIR, 'dashboards', 'statarb',  'streamlit_app.py')
 
 
 def _exec_page(path: str, extra: dict = None) -> None:
@@ -40,6 +41,29 @@ def _exec_page(path: str, extra: dict = None) -> None:
     import streamlit as _st
     _orig_spc = _st.set_page_config
     _st.set_page_config = lambda *a, **kw: None
+
+    # Each strategy dashboard directory contains files with the same bare names
+    # (dashboard.py, strategies.py, config.py, optimise.py).  Without careful
+    # path management each exec'd tab can import a sibling's module from the
+    # Python module cache or from an earlier sys.path entry.
+    #
+    # Fix: strip all sibling dashboard dirs from sys.path and put this page's
+    # dir at position 0, then clear bare-name module entries from sys.modules.
+    page_dir       = os.path.dirname(os.path.abspath(path))
+    dashboards_root = os.path.normcase(os.path.dirname(page_dir))
+
+    sys.path[:] = [
+        p for p in sys.path
+        if os.path.normcase(os.path.dirname(os.path.abspath(p))) != dashboards_root
+        or os.path.normcase(os.path.abspath(p)) == os.path.normcase(page_dir)
+    ]
+    if page_dir in sys.path:
+        sys.path.remove(page_dir)
+    sys.path.insert(0, page_dir)
+
+    for _mod in ('strategies', 'dashboard', 'config', 'optimise'):
+        sys.modules.pop(_mod, None)
+
     try:
         source = open(path, encoding='utf-8').read()
         ns = {'__file__': path, '__builtins__': __builtins__}
@@ -60,7 +84,7 @@ with tab_momentum:
     _exec_page(_MOMENTUM_APP, extra={'_SUPPRESS_H1': True})
 
 with tab_statarb:
-    st.info("Stat Arb — not yet configured")
+    _exec_page(_STATARB_APP, extra={'_SUPPRESS_H1': True})
 
 with tab_bb:
     st.info("BB Breakout — not yet configured")
