@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "timestamp": "2026-04-25T11:33:23",
+    "date": "2026-04-25",
+    "position_id": "LINKTRX_20260425_001",
+    "action": "ENTRY",
+    "strategy": "stat_arb_spread",
+    "theoretical_price": 1.0,
+    "actual_price": 1.0,
+    "slippage_pct": 0.0,
+    "actual_leverage": 1.0,
+    "theoretical_leverage": 1.0,
+    "theoretical_stop": null,
+    "discretion_note": "",
+    "direction": "short",
+    "entry_type": "Strategy",
+    "entry_y_price": 9.4,
+    "entry_x_price": 0.3236,
+    "signal_snapshot": {
+      "z": 1.9707095533987131,
+      "spread": -0.06796223866207907,
+      "beta": 0.36878941749185223,
+      "close_y": 9.38,
+      "close_x": 0.3243,
+      "decision": "ENTRY_SHORT"
+    },
+    "coin_capital": 25000.0,
+    "size_usd": 25000.0,
+    "capital_total": 100000,
+    "coin_weight": 0.25
+  }
+]
