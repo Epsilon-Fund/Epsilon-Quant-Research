@@ -194,6 +194,23 @@ def sweep_top_level(
     return rows
 
 
+def _to_daily(s: pd.Series) -> pd.Series:
+    """
+    Compound sub-daily bar returns to one return per calendar day.
+
+    Needed when mixing hourly and daily sleeves: pandas index-union alignment
+    would otherwise introduce NaN at non-midnight hourly timestamps for daily
+    series, causing those bars to be treated as 0-return and suppressing the
+    contribution of hourly strategies by up to 24×.
+    """
+    if len(s) < 2:
+        return s
+    n_days = max((s.index[-1] - s.index[0]).days, 1)
+    if len(s) / n_days <= 1.5:
+        return s  # already daily (or sparser) — no resampling needed
+    return (1 + s).resample('D').prod().sub(1).dropna()
+
+
 def sweep_momentum_strategy(
     mom_dfs: dict,
     mom_selection: dict,
@@ -237,7 +254,7 @@ def sweep_momentum_strategy(
     for msw_raw in strat_weights_grid:
         mw      = _build_mom_w(msw_raw)
         all_ret = sum(
-            mom_bar_returns(mom_dfs[s], cost) * mw[s]
+            _to_daily(mom_bar_returns(mom_dfs[s], cost)) * mw[s]
             for s in mom_dfs
         )
         df_bt = pd.DataFrame(
