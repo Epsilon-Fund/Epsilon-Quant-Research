@@ -152,6 +152,22 @@ def build_sleeve_weights(
 #  4. Weight sweeps
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _equity_to_daily_returns(equity: pd.Series) -> pd.Series:
+    """
+    Convert an equity curve to daily returns, compounding any sub-daily bars.
+
+    Needed when one bucket equity curve is hourly (momentum with bb sleeves)
+    and another is daily (stat arb). Mixing them raw causes the daily bucket's
+    returns to appear only at midnight on an hourly index, compressing its
+    Sharpe to ~25% of the true daily value.
+    """
+    r = equity.pct_change().fillna(0)
+    n_days = max((equity.index[-1] - equity.index[0]).days, 1)
+    if len(equity) / n_days > 1.5:
+        return (1 + r).resample('D').prod().sub(1).dropna()
+    return r
+
+
 def sweep_top_level(
     sa_equity: pd.Series,
     mom_equity: pd.Series,
@@ -168,9 +184,14 @@ def sweep_top_level(
     """
     from engine import backtest
 
-    all_idx = sa_equity.index.union(mom_equity.index)
-    sa_r    = sa_equity.pct_change().fillna(0).reindex(all_idx).fillna(0)
-    mo_r    = mom_equity.pct_change().fillna(0).reindex(all_idx).fillna(0)
+    # Normalise both curves to daily returns before combining — avoids the
+    # hourly/daily alignment issue where SA daily returns are diluted across
+    # 24 hourly slots, compressing SA Sharpe to ~25% of its true value.
+    sa_r    = _equity_to_daily_returns(sa_equity)
+    mo_r    = _equity_to_daily_returns(mom_equity)
+    all_idx = sa_r.index.union(mo_r.index)
+    sa_r    = sa_r.reindex(all_idx).fillna(0)
+    mo_r    = mo_r.reindex(all_idx).fillna(0)
 
     rows = []
     for sa_pct in range(0, 101, step):
