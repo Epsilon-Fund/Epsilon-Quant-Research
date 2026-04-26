@@ -450,12 +450,12 @@ with st.sidebar:
     if st.button("↻ Refresh data"):
         st.cache_data.clear()
         st.rerun()
-    st.caption("Data auto-refreshes every minute.")
+    st.caption("Data auto-refreshes every 5 minutes.")
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=60, show_spinner="Fetching market data…")
+@st.cache_data(ttl=300, show_spinner="Fetching market data…")
 def load_all():
     """
     Cache only the expensive Binance API calls and signal computation.
@@ -507,6 +507,13 @@ if not coin_rows:
 # Single fresh read used by decisions, header portfolio summary, and trade forms.
 _positions_now           = load_positions(DATA_DIR)
 _positions_for_decisions = _positions_now
+
+# Refresh coin_capital OUTSIDE the load_all cache so the decisions table reflects
+# the latest realised_capital.json the moment a trade closes (otherwise the cached
+# coin_capital could lag by up to TTL=60s after an EXIT updates realised capital).
+for _c in coin_rows:
+    _c['coin_capital'] = get_coin_capital(_c['symbol'])
+
 for _c in coin_rows:
     _open_pos = get_open_positions(_c['symbol'], _positions_for_decisions)
     _c['sig'].update(

@@ -27,11 +27,13 @@ _CSS = """
       max-width: 100% !important;
   }
 
-  /* Remove horizontal padding that Streamlit injects inside tab panels so
-     content inside tabs fills the same full width as standalone pages. */
+  /* Remove padding that Streamlit injects inside tab panels so content
+     fills the same full width as standalone pages, and metric headers
+     sit flush at the top matching the fund tab. */
   [data-baseweb="tab-panel"] {
-      padding-left: 0 !important;
-      padding-right: 0 !important;
+      padding-left: 2rem !important;
+      padding-right: 2rem !important;
+      padding-top: 1rem !important;
   }
 
   /* Expander header typography — compact hint style */

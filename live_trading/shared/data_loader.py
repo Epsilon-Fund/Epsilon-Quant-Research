@@ -160,24 +160,45 @@ def load_live_params(data_dir: str) -> dict:
 
 def load_realised_capital(data_dir: str) -> float:
     """
-    Return the current realised capital from realised_capital.json.
+    Return the current realised capital, ALWAYS derived from trades.json.
 
-    Falls back to config CAPITAL if the file is missing, empty, or zero
-    so that a fresh install or missing file never returns 0 / None.
+    realised_capital = config CAPITAL + sum of every closed trade's P&L.
+
+    Computing this from trade history (rather than reading a separately-
+    maintained realised_capital.json) means the value can never drift from
+    the actual closed-trade record — including for trades that pre-date
+    the realised-capital tracking system, or trades pulled in via a git
+    merge of trades.json.
+
+    Falls back to config CAPITAL if trades.json is unreadable or empty.
+    Never returns 0 or None.
     """
-    path = os.path.join(data_dir, 'realised_capital.json')
-    data = _read_json(path, {})
-    val  = data.get('realised_capital')
-    if val is not None and float(val) > 0:
-        return float(val)
-    return float(_load_config(data_dir).CAPITAL)
+    try:
+        capital = float(_load_config(data_dir).CAPITAL)
+    except Exception:
+        capital = 100_000.0
+    try:
+        pairs      = build_trade_pairs(data_dir)
+        closed_pnl = sum(p['actual_pnl_usd'] for p in pairs.get('closed', []))
+        return capital + closed_pnl
+    except Exception:
+        return capital
 
 
 def update_realised_capital(data_dir: str, pnl_usd: float, trade_id) -> float:
     """
-    Add pnl_usd to realised_capital.json and return the new value.
+    Audit-log helper: write the post-exit realised capital to
+    realised_capital.json so we have a per-trade running record.
 
-    Called once per EXIT trade — never on ENTRY.
+    The file is now only a log — `load_realised_capital` derives the live
+    value from trades.json, so this write is no longer load-bearing for
+    sizing or display.
+
+    Note on timing: `load_realised_capital` reads from a CACHED
+    build_trade_pairs() at this point in the call sequence (the cache is
+    cleared later by invalidate_trade_caches()), so the value it returns
+    here is the pre-write total — adding pnl_usd produces the post-write
+    total without re-reading trades.json.
     """
     old_capital = load_realised_capital(data_dir)
     new_capital = old_capital + pnl_usd
@@ -186,6 +207,7 @@ def update_realised_capital(data_dir: str, pnl_usd: float, trade_id) -> float:
         'realised_capital': new_capital,
         'last_updated':     date.today().isoformat(),
         'last_trade_id':    trade_id,
+        'last_pnl_usd':     pnl_usd,
     })
     return new_capital
 
@@ -202,6 +224,7 @@ def invalidate_trade_caches() -> None:
     cache and forces a full Binance/parquet re-read on the next render.
     """
     try:
+        build_trade_pairs.clear()
         build_equity_curve.clear()
         build_capital_deployment.clear()
     except Exception:
@@ -316,6 +339,7 @@ def compute_mae(position_id: str, symbol: str, entry_date, exit_date,
 
 # ── Trade pair builder ────────────────────────────────────────────────────────
 
+@_cache_data
 def build_trade_pairs(data_dir: str) -> dict:
     """
     Match ENTRY and EXIT trades chronologically by symbol.

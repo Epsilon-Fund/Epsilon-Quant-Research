@@ -9,7 +9,7 @@ to retrieve every ticker in one REST call, instead of one call per symbol.
 import streamlit as st
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_all_live_prices() -> dict:
     """
     Return a {symbol: price} dict containing every Binance spot ticker.

@@ -288,7 +288,7 @@ def _stat_row(label, value_html, cls=""):
             f'<td class="{val_cls}">{value_html}</td></tr>')
 
 
-def _render_stats_html(s: dict, n_total: int) -> str:
+def _render_stats_html(s: dict, n_total: int, skip_summary: bool = False) -> str:
     if s is None:
         return '<p class="no-data-msg">No closed trades yet.</p>'
     pf_val     = s['profit_factor']
@@ -309,12 +309,14 @@ def _render_stats_html(s: dict, n_total: int) -> str:
     wr_cls = 'stat-pos' if s['win_rate'] >= 50 else 'stat-neg'
     ar_cls = 'stat-pos' if s['avg_ret_pct'] >= 0 else 'stat-neg'
     ex_cls = 'stat-pos' if s['expectancy'] >= 0 else 'stat-neg'
-    rows = "".join([
+    summary_rows = [] if skip_summary else [
         _stat_row("Total trades",           f"{n_total}"),
         _stat_row("Win rate",               f"{s['win_rate']:.1f}%",          wr_cls),
         _stat_row("Profit factor",          pf_str,                            pf_cls),
         _stat_row("Total P&L",              _usd(s['total_pnl']),
                   'stat-pos' if s['total_pnl'] >= 0 else 'stat-neg'),
+    ]
+    rows = "".join(summary_rows + [
         _stat_row("Avg return / trade",     _pct(s['avg_ret_pct']),            ar_cls),
         _stat_row("Avg win",                _pct(s['avg_win_pct']),            'stat-pos'),
         _stat_row("Avg loss",               _pct(s['avg_loss_pct']),           'stat-neg'),
@@ -470,7 +472,8 @@ def _render_filters_and_compute(tab_key: str, all_trades: list, all_pairs: dict)
 
 def _render_coin_tabs(strat_closed: list, strat_open: list,
                       coin_sel: list, tab_prefix: str, prefix: str,
-                      show_strategy_col: bool, data_dir: str):
+                      show_strategy_col: bool, data_dir: str,
+                      skip_summary_stats: bool = False):
     """
     Render 'All coins' + per-coin sub-tabs with open positions,
     trade performance table, and execution detail table.
@@ -515,7 +518,8 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                 col_a, col_b, col_c = st.columns(3)
                 with col_a:
                     st.markdown("**Trade statistics**")
-                    st.markdown(_render_stats_html(s, len(tab_closed)),
+                    st.markdown(_render_stats_html(s, len(tab_closed),
+                                                   skip_summary=skip_summary_stats),
                                 unsafe_allow_html=True)
                 with col_b:
                     st.markdown("**Holding & entry/exit mix**")
@@ -710,16 +714,12 @@ def render_strategy_tab(
     cfg      = load_config(data_dir)
     cost_pct = float(cfg.get('trading_cost_pct', 0.0))
 
+    # Reserve header slot — filled after filters so metrics reflect the filter
+    _hdr = st.container()
+
     coin_sel, _, filt_closed, filt_open = _render_filters_and_compute(
         f"{prefix}_strat", all_trades, all_pairs
     )
-
-    if cost_pct > 0:
-        st.caption(
-            f"P&L figures include trading costs: "
-            f"**{cost_pct * 100:.3f}%** per leg · "
-            f"**{cost_pct * 2 * 100:.3f}%** round-trip"
-        )
 
     strat_closed = [p for p in filt_closed if (p.get('strategy') or '') in strategy_keys]
     strat_open   = [t for t in filt_open   if (t.get('strategy') or '') in strategy_keys]
@@ -731,6 +731,39 @@ def render_strategy_tab(
         )
         return
 
+    # ── Strategy-level header metrics (rendered into reserved slot above filters)
+    _total_rpnl  = sum(p['actual_pnl_usd'] for p in strat_closed)
+    _wins        = [p for p in strat_closed if p['actual_pnl_usd'] > 0]
+    _losses      = [p for p in strat_closed if p['actual_pnl_usd'] <= 0]
+    _win_rate    = len(_wins) / len(strat_closed) * 100 if strat_closed else None
+    _sum_wins    = sum(p['actual_pnl_usd'] for p in _wins)
+    _sum_losses  = abs(sum(p['actual_pnl_usd'] for p in _losses)) if _losses else 0
+    _pf          = _sum_wins / _sum_losses if _sum_losses > 0 else None
+    _avg_win     = _sum_wins / len(_wins) if _wins else None
+    _avg_loss    = (sum(p['actual_pnl_usd'] for p in _losses) / len(_losses)
+                    if _losses else None)
+    _wl          = (_avg_win / abs(_avg_loss)
+                    if _avg_win is not None and _avg_loss is not None and _avg_loss != 0
+                    else None)
+    _pnl_sign    = (f"+${_total_rpnl:,.2f}" if _total_rpnl >= 0
+                    else f"-${abs(_total_rpnl):,.2f}")
+
+    with _hdr:
+        m1, m2, m3, m4, m5, m6 = st.columns(6)
+        m1.metric("Closed trades",  len(strat_closed))
+        m2.metric("Open positions", len(strat_open))
+        m3.metric("Total P&L",      _pnl_sign)
+        m4.metric("Win rate",       f"{_win_rate:.1f}%" if _win_rate is not None else "—")
+        m5.metric("Profit factor",  f"{_pf:.2f}" if _pf is not None else "—")
+        m6.metric("Avg win / loss", f"{_wl:.2f}x" if _wl is not None else "—")
+        if cost_pct > 0:
+            st.caption(
+                f"P&L figures include trading costs: "
+                f"**{cost_pct * 100:.3f}%** per leg · "
+                f"**{cost_pct * 2 * 100:.3f}%** round-trip"
+            )
+        st.markdown("---")
+
     _render_coin_tabs(
         strat_closed=strat_closed,
         strat_open=strat_open,
@@ -739,6 +772,7 @@ def render_strategy_tab(
         prefix=prefix,
         show_strategy_col=show_strategy_col,
         data_dir=data_dir,
+        skip_summary_stats=True,
     )
 
 
@@ -755,8 +789,6 @@ def render_fund_tab(
                      e.g. {"Momentum": ".../dashboards/momentum"}
     prefix         : unique string prepended to all Streamlit widget keys
     """
-    apply_styles()
-
     # _load_all requires a hashable arg
     dirs_tuple = tuple(sorted(dashboard_dirs.items()))
     all_trades, all_pairs = _load_all(dirs_tuple)
@@ -824,7 +856,7 @@ def render_fund_tab(
         col_a, col_b, col_c = st.columns(3)
         with col_a:
             st.markdown("**Trade statistics**")
-            st.markdown(_render_stats_html(s_fund, len(filt_closed)),
+            st.markdown(_render_stats_html(s_fund, len(filt_closed), skip_summary=True),
                         unsafe_allow_html=True)
         with col_b:
             st.markdown("**Holding & entry/exit mix**")
