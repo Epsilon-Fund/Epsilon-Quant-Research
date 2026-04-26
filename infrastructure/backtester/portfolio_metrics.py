@@ -3,20 +3,25 @@ portfolio_metrics.py
 ====================
 Shared helpers for combined-portfolio analysis notebooks.
 
-Covers the three cross-cutting concerns that appear in both
+Covers the cross-cutting concerns that appear in both
 epsilon_portfolio.ipynb and combined_portfolio.py:
 
   1. PKL loading      — numpy-compat unpickler
   2. Return building  — unified sleeve schema, momentum bar returns
   3. Weighting        — normalisation, stat-arb inverse-vol, momentum 3-level
+  4. Weight sweeps    — top-level bucket split, momentum strategy split
 
 Public API
 ----------
   load_pkl(path)                               → pd.DataFrame
   mom_bar_returns(df, cost)                    → pd.Series
   wrap_as_sleeve(bar_returns)                  → pd.DataFrame
+  sleeve_freq(df)                              → 'hourly' | 'daily'
   norm_weights(d)                              → dict
   sa_inverse_vol_weights(dfs, method, window)  → dict
+  build_momentum_weights(mom_dfs, mom_sel,
+                         strat_weights,
+                         coin_weights)         → dict
   build_sleeve_weights(sa_dfs, sa_w,
                        mom_dfs, mom_w,
                        strategy_weights)       → dict
@@ -94,6 +99,12 @@ def wrap_as_sleeve(bar_returns: pd.Series) -> pd.DataFrame:
     )
 
 
+def sleeve_freq(df: pd.DataFrame) -> str:
+    """Return 'hourly' or 'daily' based on bar density relative to calendar days."""
+    n_days = max((df.index[-1] - df.index[0]).days, 1)
+    return 'hourly' if len(df) / n_days > 1.5 else 'daily'
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  3. Weighting
 # ══════════════════════════════════════════════════════════════════════════════
@@ -125,6 +136,37 @@ def sa_inverse_vol_weights(
     vols = {k: _vol(dfs[k]) for k in dfs}
     inv  = {k: 1 / v if v > 0 else 0.0 for k, v in vols.items()}
     return norm_weights(inv)
+
+
+def build_momentum_weights(
+    mom_dfs: dict,
+    mom_selection: dict,
+    strat_weights: dict | None = None,
+    coin_weights: dict | None = None,
+) -> dict:
+    """
+    Build flat {sleeve_label: weight} for the momentum bucket.
+
+    strat_weights : {tag: weight} across strategies. None = equal across tags.
+    coin_weights  : {tag: {coin: weight}} within each strategy. None = equal within tag.
+
+    All inputs are auto-normalised — values only need to be proportional.
+    Returns weights that sum to 1.0 across all sleeves in mom_dfs.
+    """
+    tags = {mom_selection[s][0] for s in mom_dfs}
+    msw  = norm_weights(strat_weights or {t: 1 for t in tags})
+    out  = {}
+    for tag in tags:
+        sleeves = [s for s in mom_dfs if mom_selection[s][0] == tag]
+        cw      = (coin_weights or {}).get(tag)
+        if cw is None:
+            cw_n = {mom_selection[s][1]: 1 / len(sleeves) for s in sleeves}
+        else:
+            cw_n = norm_weights({mom_selection[s][1]: cw.get(mom_selection[s][1], 0)
+                                 for s in sleeves})
+        for s in sleeves:
+            out[s] = msw.get(tag, 0) * cw_n[mom_selection[s][1]]
+    return out
 
 
 def build_sleeve_weights(
@@ -215,23 +257,6 @@ def sweep_top_level(
     return rows
 
 
-def _to_daily(s: pd.Series) -> pd.Series:
-    """
-    Compound sub-daily bar returns to one return per calendar day.
-
-    Needed when mixing hourly and daily sleeves: pandas index-union alignment
-    would otherwise introduce NaN at non-midnight hourly timestamps for daily
-    series, causing those bars to be treated as 0-return and suppressing the
-    contribution of hourly strategies by up to 24×.
-    """
-    if len(s) < 2:
-        return s
-    n_days = max((s.index[-1] - s.index[0]).days, 1)
-    if len(s) / n_days <= 1.5:
-        return s  # already daily (or sparser) — no resampling needed
-    return (1 + s).resample('D').prod().sub(1).dropna()
-
-
 def sweep_momentum_strategy(
     mom_dfs: dict,
     mom_selection: dict,
@@ -255,25 +280,9 @@ def sweep_momentum_strategy(
     """
     from engine import backtest
 
-    def _build_mom_w(msw_raw):
-        msw    = norm_weights(msw_raw)
-        tags   = {mom_selection[s][0] for s in mom_dfs}
-        result = {}
-        for tag in tags:
-            sleeves = [s for s in mom_dfs if mom_selection[s][0] == tag]
-            cw      = (coin_weights or {}).get(tag)
-            if cw is None:
-                cw_n = {mom_selection[s][1]: 1 / len(sleeves) for s in sleeves}
-            else:
-                cw_n = norm_weights({mom_selection[s][1]: cw.get(mom_selection[s][1], 0)
-                                     for s in sleeves})
-            for s in sleeves:
-                result[s] = msw.get(tag, 0) * cw_n[mom_selection[s][1]]
-        return result
-
     rows = []
     for msw_raw in strat_weights_grid:
-        mw      = _build_mom_w(msw_raw)
+        mw      = build_momentum_weights(mom_dfs, mom_selection, msw_raw, coin_weights)
         # Use pd.concat + fillna(0) to align mixed hourly/daily series — same
         # approach as plot_portfolio_oos so sweep numbers are directly comparable.
         aligned = pd.concat(
