@@ -52,7 +52,9 @@ from shared.data_loader import (
     build_trade_pairs,
     load_realised_capital,
     update_realised_capital,
+    invalidate_trade_caches,
 )
+from shared.binance_utils import get_live_prices as _shared_live_prices
 from config   import ACTIVE_ASSETS, EXECUTION_HOUR, CAPITAL, COIN_WEIGHTS
 import config as _cfg_mod
 TRADING_COST_PCT = getattr(_cfg_mod, 'TRADING_COST_PCT', 0.0)
@@ -448,12 +450,12 @@ with st.sidebar:
     if st.button("↻ Refresh data"):
         st.cache_data.clear()
         st.rerun()
-    st.caption("Data auto-refreshes every 5 minutes.")
+    st.caption("Data auto-refreshes every minute.")
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=300, show_spinner="Fetching market data…")
+@st.cache_data(ttl=60, show_spinner="Fetching market data…")
 def load_all():
     """
     Cache only the expensive Binance API calls and signal computation.
@@ -484,10 +486,14 @@ def load_all():
     return coin_rows, signal_date
 
 
-@st.cache_data(ttl=60, show_spinner=False)
 def load_live_prices(symbols: tuple):
-    """Fetch current market price for each symbol. Cached for 60 s."""
-    return {sym: fetch_live_price(sym) for sym in symbols}
+    """
+    Look up current market prices for the requested symbols.
+
+    Backed by shared.binance_utils.fetch_all_live_prices() — a single
+    batched REST call shared across all dashboards, cached 120 s.
+    """
+    return _shared_live_prices(symbols)
 
 
 coin_rows, signal_date = load_all()
@@ -498,7 +504,9 @@ if not coin_rows:
 
 # Apply decisions OUTSIDE the cache so positions.json is read fresh every render.
 # st.cache_data returns deserialized copies, so mutating coin_rows here is safe.
-_positions_for_decisions = load_positions(DATA_DIR)
+# Single fresh read used by decisions, header portfolio summary, and trade forms.
+_positions_now           = load_positions(DATA_DIR)
+_positions_for_decisions = _positions_now
 for _c in coin_rows:
     _open_pos = get_open_positions(_c['symbol'], _positions_for_decisions)
     _c['sig'].update(
@@ -519,8 +527,7 @@ def fmt(v):
 
 
 # ── Load positions + live prices early (needed for header portfolio summary) ──
-
-_positions_now   = load_positions(DATA_DIR)   # fresh read — not cached
+# _positions_now was already read once near the top of this render.
 _open            = {pid: p for pid, p in _positions_now.items() if p.get('in_position')}
 _coin_sig_by_sym = {c['symbol']: c['sig'] for c in coin_rows}
 
@@ -780,7 +787,7 @@ else:
                 if st.button(f"✓ Confirm stop {_sym}: {_pend:,.2f}",
                              key=f"conf_stop_{_pid}"):
                     _confirm_stop(_pid)
-                    st.cache_data.clear()
+                    invalidate_trade_caches()
                     st.rerun()
 
 
@@ -852,7 +859,7 @@ st.markdown(f"""
 
 st.markdown("#### TRADE LOG")
 
-_positions_for_forms = load_positions(DATA_DIR)   # fresh read
+_positions_for_forms = _positions_now   # reuse the single render-time read
 _form_cols = st.columns(len(coin_rows))
 
 for _fi, _c in enumerate(coin_rows):
@@ -1106,7 +1113,7 @@ for _fi, _c in enumerate(coin_rows):
                         coin_capital=_snap_coin_cap,
                         size_usd=_snap_size_usd,
                     )
-            st.cache_data.clear()
+            invalidate_trade_caches()
             st.rerun()
 
 

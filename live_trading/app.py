@@ -60,6 +60,35 @@ DASHBOARD_DIRS = {
 }
 
 
+# ── One-time in-process Streamlit-cache warm-up ──────────────────────────────
+# `_warm_cache` above fills the on-disk parquet cache.  This second pass primes
+# Streamlit's in-memory caches that PERSIST across tab/page switches:
+#   • fetch_all_live_prices  (one batched ticker call covers every coin)
+#   • build_equity_curve / build_capital_deployment  (used by pages 2 & 3)
+# Per-dashboard `@st.cache_data` on fetch_ohlcv etc. does NOT persist across
+# `_exec_page` re-imports, so it isn't worth pre-warming here.
+@st.cache_resource(show_spinner=False)
+def _prewarm_session():
+    try:
+        from shared.binance_utils import fetch_all_live_prices
+        fetch_all_live_prices()
+    except Exception as e:
+        print(f"prewarm: live prices skipped — {e}")
+    try:
+        from shared.data_loader import build_equity_curve, build_capital_deployment
+        for _data_dir in DASHBOARD_DIRS.values():
+            try:
+                build_equity_curve(_data_dir)
+                build_capital_deployment(_data_dir)
+            except Exception as e:
+                print(f"prewarm: {os.path.basename(_data_dir)} skipped — {e}")
+    except Exception as e:
+        print(f"prewarm: equity-curve module skipped — {e}")
+    return True
+
+_prewarm_session()
+
+
 @st.cache_data(ttl=120, show_spinner=False)
 def _load_summary(dirs_tuple: tuple) -> dict:
     """Aggregate key metrics across all dashboard directories."""

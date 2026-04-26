@@ -14,7 +14,18 @@ _CSS = """
 
   /* Page background */
   .stApp            { background-color: #f8f8f7 !important; }
-  .block-container  { background-color: #f8f8f7 !important; padding-top: 5rem; padding-bottom: 2rem; }
+  /* Force wide layout via CSS so the page never reverts to Streamlit's
+     centered ~46rem max-width on auto-refresh / rerun, even if
+     set_page_config(layout="wide") fails to re-apply for any reason. */
+  .block-container,
+  [data-testid="stMainBlockContainer"] {
+      background-color: #f8f8f7 !important;
+      padding-top: 5rem !important;
+      padding-bottom: 2rem !important;
+      padding-left: 2rem !important;
+      padding-right: 2rem !important;
+      max-width: 100% !important;
+  }
 
   /* Remove horizontal padding that Streamlit injects inside tab panels so
      content inside tabs fills the same full width as standalone pages. */

@@ -190,6 +190,37 @@ def update_realised_capital(data_dir: str, pnl_usd: float, trade_id) -> float:
     return new_capital
 
 
+def invalidate_trade_caches() -> None:
+    """
+    Clear ONLY caches whose values depend on trades.json / positions.json /
+    realised_capital.json.  Market-data, signal, and live-price caches are
+    left alone — they don't change when a trade is logged, and rebuilding
+    them is expensive.
+
+    Call this after writing a trade (or confirming a stop) instead of the
+    blanket st.cache_data.clear() — that one also wipes the market-data
+    cache and forces a full Binance/parquet re-read on the next render.
+    """
+    try:
+        build_equity_curve.clear()
+        build_capital_deployment.clear()
+    except Exception:
+        pass
+    # Component-level caches imported lazily to avoid circular imports.
+    try:
+        from shared.portfolio_components import _load_portfolio, _load_fund_data
+        _load_portfolio.clear()
+        _load_fund_data.clear()
+    except Exception:
+        pass
+    try:
+        from shared.trade_log_components import _load_single, _load_all
+        _load_single.clear()
+        _load_all.clear()
+    except Exception:
+        pass
+
+
 def load_config(data_dir: str) -> dict:
     """Return dashboard config as a plain dict."""
     cfg = _load_config(data_dir)
