@@ -253,10 +253,13 @@ def sweep_momentum_strategy(
     rows = []
     for msw_raw in strat_weights_grid:
         mw      = _build_mom_w(msw_raw)
-        all_ret = sum(
-            _to_daily(mom_bar_returns(mom_dfs[s], cost)) * mw[s]
-            for s in mom_dfs
-        )
+        # Use pd.concat + fillna(0) to align mixed hourly/daily series — same
+        # approach as plot_portfolio_oos so sweep numbers are directly comparable.
+        aligned = pd.concat(
+            [mom_bar_returns(mom_dfs[s], cost).rename(s) for s in mom_dfs],
+            axis=1,
+        ).fillna(0)
+        all_ret = sum(aligned[s] * mw[s] for s in mom_dfs)
         df_bt = pd.DataFrame(
             {'strategy_returns': all_ret, 'position': 1},
             index=all_ret.index,
