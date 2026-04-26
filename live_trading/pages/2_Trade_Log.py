@@ -82,4 +82,10 @@ with tab_statarb:
     )
 
 with tab_bb:
-    st.info("BB Breakout — no trades yet")
+    render_strategy_tab(
+        data_dir=DASHBOARD_DIRS["BB Breakout"],
+        prefix="bb",
+        strategy_keys=["bb_breakout"],
+        display_name="BB Breakout",
+        show_strategy_col=True,
+    )

@@ -42,7 +42,11 @@ from dashboard import (
     load_live_params,
     load_positions,
 )
-from shared.data_loader import build_trade_pairs
+from shared.data_loader import (
+    build_trade_pairs,
+    load_realised_capital,
+    update_realised_capital,
+)
 from config import ACTIVE_ASSETS, EXECUTION_HOUR, CAPITAL, COIN_WEIGHTS
 import config as _cfg_mod
 TRADING_COST_PCT = getattr(_cfg_mod, 'TRADING_COST_PCT', 0.001)
@@ -109,7 +113,7 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         record['signal_snapshot'] = signal_snapshot
         record['coin_capital']    = round(pair_capital, 4) if pair_capital  else None
         record['size_usd']        = round(size_usd, 4)     if size_usd      else None
-        record['capital_total']   = CAPITAL
+        record['capital_total']   = load_realised_capital(DATA_DIR)
         record['coin_weight']     = pair_weight
     if action == 'EXIT':
         record['exit_type']     = 'full'
@@ -349,6 +353,10 @@ _live_prices = load_live_prices(_all_syms) if _all_syms else {}
 _trade_pairs      = build_trade_pairs(DATA_DIR)
 _realized_pnl_usd = sum(p['actual_pnl_usd'] for p in _trade_pairs.get('closed', []))
 
+# Realised capital — updated after every EXIT; drives all sizing going forward
+_realised_capital = load_realised_capital(DATA_DIR)
+_capital_delta    = _realised_capital - CAPITAL
+
 # Unrealized P&L across all open positions
 _total_size_usd     = 0.0
 _unrealized_pnl_usd = 0.0
@@ -412,6 +420,14 @@ _pnl_pct       = _total_pnl_usd / CAPITAL * 100 if CAPITAL else 0.0
 _pnl_cls       = 'entry-t' if _pnl_pct >= 0 else 'entry-f'
 _pnl_sign      = '+' if _pnl_pct >= 0 else ''
 
+_delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
+_delta_sign  = '+' if _capital_delta >= 0 else ''
+_cap_cell    = (
+    f'${_realised_capital:,.2f}'
+    f'<br><span style="font-size:10px;color:{_delta_color}">'
+    f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
+)
+
 st.markdown(f"""
 <div class="dashboard-card">
   <table class="dash-table">
@@ -419,7 +435,7 @@ st.markdown(f"""
       <th>Capital</th><th>Invested</th><th>Portfolio value</th><th>Total P&amp;L</th>
     </tr></thead>
     <tbody><tr>
-      <td>${CAPITAL:,}</td>
+      <td>{_cap_cell}</td>
       <td>${_total_size_usd:,.0f}</td>
       <td>${_port_val:,.0f}{_port_val_note}</td>
       <td class="{_pnl_cls}">{_pnl_sign}{_pnl_pct:.2f}%</td>
@@ -542,7 +558,7 @@ else:
 # ── Decisions ─────────────────────────────────────────────────────────────────
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on current config: ${CAPITAL:,} total capital")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
 
 _dec_rows_html = ''
 for r in pair_rows:
@@ -550,7 +566,7 @@ for r in pair_rows:
     d        = sig['decision']
     pair_key = r['pair_key']
 
-    alloc_note  = f"{r['pair_capital']:,.0f} alloc ({r['pair_weight']*100:.0f}% of {CAPITAL:,})"
+    alloc_note  = f"{r['pair_capital']:,.0f} alloc ({r['pair_weight']*100:.0f}% of ${_realised_capital:,.0f})"
     z_str       = f"{sig['z']:.3f}"    if sig.get('z')      is not None else '—'
     spread_str  = f"{sig['spread']:.4f}" if sig.get('spread') is not None else '—'
     size_str    = f"${sig['size_usd']:,.0f}" if sig.get('size_usd') is not None else '—'
@@ -781,6 +797,13 @@ for _fi, _r in enumerate(pair_rows):
                         exit_x_price=_price_x,
                     )
                     _write_position_exit(_pid_to_exit, _spread_pnl, _disc)
+
+                    # ── Update realised capital with exit P&L ─────────────────
+                    _pnl_usd_exit = _spread_pnl * _size_st
+                    _old_rc = load_realised_capital(DATA_DIR)
+                    _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
+                    print(f"Capital updated: ${_old_rc:.2f} → ${_new_rc:.2f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
 
                 elif not _is_exit_final:
                     _dir_k    = st.session_state.get(f'sa_dir_{_pk}', 'Long spread')

@@ -50,6 +50,8 @@ from shared.data_loader import (
     load_trades,
     load_live_params,
     build_trade_pairs,
+    load_realised_capital,
+    update_realised_capital,
 )
 from config   import ACTIVE_ASSETS, EXECUTION_HOUR, CAPITAL, COIN_WEIGHTS
 import config as _cfg_mod
@@ -531,6 +533,10 @@ _live_prices = load_live_prices(_all_syms) if _all_syms else {}
 _trade_pairs      = build_trade_pairs(DATA_DIR)
 _realized_pnl_usd = sum(p['actual_pnl_usd'] for p in _trade_pairs.get('closed', []))
 
+# Realised capital — updated after every EXIT; drives all sizing going forward
+_realised_capital = load_realised_capital(DATA_DIR)
+_capital_delta    = _realised_capital - CAPITAL
+
 # Unrealized P&L: open positions marked to live prices
 _total_size_usd    = 0.0
 _unrealized_pnl_usd = 0.0
@@ -595,6 +601,14 @@ _pnl_sign   = '+' if _pnl_pct >= 0 else ''
 _pnl_str    = f"{_pnl_sign}{_pnl_pct:.2f}%"
 _pnl_td_cls = f' class="{_pnl_cls}"'
 
+_delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
+_delta_sign  = '+' if _capital_delta >= 0 else ''
+_cap_cell    = (
+    f'${_realised_capital:,.2f}'
+    f'<br><span style="font-size:10px;color:{_delta_color}">'
+    f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
+)
+
 st.markdown(f"""
 <div class="dashboard-card">
   <table class="dash-table">
@@ -602,7 +616,7 @@ st.markdown(f"""
       <th>Capital</th><th>Invested</th><th>Portfolio value</th><th>Total P&amp;L</th>
     </tr></thead>
     <tbody><tr>
-      <td>${CAPITAL:,}</td>
+      <td>{_cap_cell}</td>
       <td>${_total_size_usd:,.0f}</td>
       <td>{_port_val_str}</td>
       <td{_pnl_td_cls}>{_pnl_str}</td>
@@ -777,7 +791,7 @@ for c in coin_rows:
     sig = c['sig']
     d   = sig['decision']
 
-    alloc_note = f"{c['coin_capital']:,.0f} alloc ({c['coin_weight']*100:.0f}% of {CAPITAL:,})"
+    alloc_note = f"{c['coin_capital']:,.0f} alloc ({c['coin_weight']*100:.0f}% of ${_realised_capital:,.0f})"
     badge      = f'<span class="badge badge-{d}">{d}</span>'
 
     lev = sig.get('leverage_multiplier')
@@ -818,7 +832,7 @@ for c in coin_rows:
     </tr>"""
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on current config: ${CAPITAL:,} total capital")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
 st.markdown(f"""
 <div class="dashboard-card">
   <table class="dash-table">
@@ -1033,6 +1047,20 @@ for _fi, _c in enumerate(coin_rows):
                         _write_position_exit(_pid_to_exit, _price, _disc)
                     else:
                         _write_position_partial_exit(_pid_to_exit, _exit_amount, _price, _disc)
+                    # ── Update realised capital with exit P&L ─────────────────
+                    _exited_pos   = _open_for_sym.get(_pid_to_exit, {})
+                    _entry_p      = _exited_pos.get('entry_price', 0)
+                    _full_sz_usd  = (_exited_pos.get('size_usd')
+                                     or get_coin_capital(_sym) * _held_lev)
+                    _frac_closed  = _exit_amount / _held_lev if _held_lev > 0 else 1.0
+                    _pnl_usd_exit = (
+                        (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
+                        if _entry_p > 0 else 0.0
+                    )
+                    _old_rc = load_realised_capital(DATA_DIR)
+                    _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
+                    print(f"Capital updated: ${_old_rc:.2f} → ${_new_rc:.2f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
                 elif not _is_exit_final:
                     # Generate new FIFO position_id
                     _positions_fresh = load_positions(DATA_DIR)
@@ -1069,7 +1097,7 @@ for _fi, _c in enumerate(coin_rows):
                         entry_type=st.session_state.get(f'entry_type_{_sym}', 'Strategy'),
                         coin_capital=_snap_coin_cap,
                         size_usd=_snap_size_usd,
-                        capital_total=CAPITAL,
+                        capital_total=load_realised_capital(DATA_DIR),
                         coin_weight=_snap_weight,
                     )
                     _write_position_entry(

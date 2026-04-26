@@ -25,8 +25,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Paths to strategy entry points ────────────────────────────────────────────
-_MOMENTUM_APP = os.path.join(_LT_DIR, 'dashboards', 'momentum', 'streamlit_app.py')
-_STATARB_APP  = os.path.join(_LT_DIR, 'dashboards', 'statarb',  'streamlit_app.py')
+_MOMENTUM_APP   = os.path.join(_LT_DIR, 'dashboards', 'momentum',   'streamlit_app.py')
+_STATARB_APP    = os.path.join(_LT_DIR, 'dashboards', 'statarb',   'streamlit_app.py')
+_BBBREAKOUT_APP = os.path.join(_LT_DIR, 'dashboards', 'bbbreakout', 'streamlit_app.py')
 
 
 def _exec_page(path: str, extra: dict = None) -> None:
@@ -87,4 +88,4 @@ with tab_statarb:
     _exec_page(_STATARB_APP, extra={'_SUPPRESS_H1': True})
 
 with tab_bb:
-    st.info("BB Breakout — not yet configured")
+    _exec_page(_BBBREAKOUT_APP, extra={'_SUPPRESS_H1': True})

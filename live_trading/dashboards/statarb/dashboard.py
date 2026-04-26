@@ -253,8 +253,18 @@ def apply_decision(sig: dict, open_positions: dict, pair_capital: float) -> dict
 #  Capital allocation
 # ══════════════════════════════════════════════════════════════════════════════
 
-def get_pair_capital(pair_key: str) -> float:
-    """Dollar capital allocated to this pair."""
+def get_pair_capital(pair_key: str, data_dir=None) -> float:
+    """
+    Dollar capital allocated to this pair.
+
+    Uses realised_capital (updated after every EXIT) rather than the static
+    config CAPITAL.  Deployed positions are never subtracted — every open
+    position for the same pair always sees the full realised allocation.
+    """
+    if data_dir is None:
+        data_dir = _DASHBOARD_DIR
+    from shared.data_loader import load_realised_capital
+    realised = load_realised_capital(data_dir)
     if pair_key in COIN_WEIGHTS:
         weight = COIN_WEIGHTS[pair_key]
     else:
@@ -262,7 +272,7 @@ def get_pair_capital(pair_key: str) -> float:
         remaining    = 1.0 - allocated
         n_unweighted = sum(1 for a in ACTIVE_ASSETS if a not in COIN_WEIGHTS)
         weight       = remaining / n_unweighted if n_unweighted > 0 else 0.0
-    return CAPITAL * weight
+    return realised * weight
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -296,6 +306,9 @@ def run_dashboard(pair_keys: list, live_params: dict, positions: dict) -> dict:
     apply_decision() is NOT called here — decisions must stay outside any
     cache in streamlit_app.py so positions.json changes take effect immediately.
     """
+    from shared.data_loader import load_realised_capital
+    _realised = load_realised_capital(_DASHBOARD_DIR)
+
     pair_rows   = []
     signal_date = None
 
@@ -316,8 +329,8 @@ def run_dashboard(pair_keys: list, live_params: dict, positions: dict) -> dict:
         exec_y     = get_execution_price(hourly_y, signal_date, EXECUTION_HOUR)
         exec_x     = get_execution_price(hourly_x, signal_date, EXECUTION_HOUR)
 
-        pair_cap    = get_pair_capital(pair_key)
-        pair_weight = COIN_WEIGHTS.get(pair_key, pair_cap / CAPITAL)
+        pair_cap    = get_pair_capital(pair_key, _DASHBOARD_DIR)
+        pair_weight = COIN_WEIGHTS.get(pair_key, pair_cap / _realised if _realised > 0 else 0.0)
 
         pair_rows.append({
             'pair_key':     pair_key,

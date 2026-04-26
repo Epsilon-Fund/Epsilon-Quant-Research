@@ -364,16 +364,26 @@ def apply_decision(sig, open_positions, exec_price, capital):
 #  Capital allocation
 # ══════════════════════════════════════════════════════════════════════════════
 
-def get_coin_capital(symbol):
-    """Return the dollar capital allocated to this coin (uses local config.py)."""
+def get_coin_capital(symbol, data_dir=None):
+    """
+    Return the dollar capital allocated to this coin.
+
+    Uses realised_capital (updated after every EXIT) rather than the static
+    config CAPITAL.  Deployed positions are never subtracted — both open
+    positions for the same coin always see the same full realised allocation.
+    """
+    if data_dir is None:
+        data_dir = _DASHBOARD_DIR
+    from shared.data_loader import load_realised_capital
+    realised = load_realised_capital(data_dir)
     if symbol in COIN_WEIGHTS:
         weight = COIN_WEIGHTS[symbol]
     else:
-        allocated     = sum(COIN_WEIGHTS.values())
-        remaining     = 1.0 - allocated
-        n_unweighted  = sum(1 for a in ACTIVE_ASSETS if a not in COIN_WEIGHTS)
-        weight        = remaining / n_unweighted if n_unweighted > 0 else 0.0
-    return CAPITAL * weight
+        allocated    = sum(COIN_WEIGHTS.values())
+        remaining    = 1.0 - allocated
+        n_unweighted = sum(1 for a in ACTIVE_ASSETS if a not in COIN_WEIGHTS)
+        weight       = remaining / n_unweighted if n_unweighted > 0 else 0.0
+    return realised * weight
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -409,6 +419,9 @@ def run_dashboard(coin_symbols, live_params, positions):
     any cache in streamlit_app.py because positions.json changes when trades
     are logged and must be read fresh every render.
     """
+    from shared.data_loader import load_realised_capital
+    _realised = load_realised_capital(_DASHBOARD_DIR)
+
     coin_rows   = []
     signal_date = None
 
@@ -426,7 +439,7 @@ def run_dashboard(coin_symbols, live_params, positions):
         hourly_df  = fetch_hourly_recent(symbol, days=3)
         exec_price = get_execution_price(hourly_df, signal_date, EXECUTION_HOUR)
 
-        coin_cap = get_coin_capital(symbol)
+        coin_cap = get_coin_capital(symbol, _DASHBOARD_DIR)
 
         coin_rows.append({
             'symbol':       symbol,
@@ -437,7 +450,7 @@ def run_dashboard(coin_symbols, live_params, positions):
             'fixed_keys':   fixed_keys,
             'optimised_on': lp_entry.get('optimised_on', 'unknown'),
             'coin_capital': coin_cap,
-            'coin_weight':  COIN_WEIGHTS.get(symbol, coin_cap / CAPITAL),
+            'coin_weight':  COIN_WEIGHTS.get(symbol, coin_cap / _realised if _realised > 0 else 0.0),
         })
 
     return {

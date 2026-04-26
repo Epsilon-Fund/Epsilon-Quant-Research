@@ -158,6 +158,38 @@ def load_live_params(data_dir: str) -> dict:
     return _read_json(os.path.join(data_dir, 'live_params.json'), {})
 
 
+def load_realised_capital(data_dir: str) -> float:
+    """
+    Return the current realised capital from realised_capital.json.
+
+    Falls back to config CAPITAL if the file is missing, empty, or zero
+    so that a fresh install or missing file never returns 0 / None.
+    """
+    path = os.path.join(data_dir, 'realised_capital.json')
+    data = _read_json(path, {})
+    val  = data.get('realised_capital')
+    if val is not None and float(val) > 0:
+        return float(val)
+    return float(_load_config(data_dir).CAPITAL)
+
+
+def update_realised_capital(data_dir: str, pnl_usd: float, trade_id) -> float:
+    """
+    Add pnl_usd to realised_capital.json and return the new value.
+
+    Called once per EXIT trade — never on ENTRY.
+    """
+    old_capital = load_realised_capital(data_dir)
+    new_capital = old_capital + pnl_usd
+    path = os.path.join(data_dir, 'realised_capital.json')
+    _save_json(path, {
+        'realised_capital': new_capital,
+        'last_updated':     date.today().isoformat(),
+        'last_trade_id':    trade_id,
+    })
+    return new_capital
+
+
 def load_config(data_dir: str) -> dict:
     """Return dashboard config as a plain dict."""
     cfg = _load_config(data_dir)

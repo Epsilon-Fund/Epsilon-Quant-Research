@@ -66,4 +66,8 @@ with tab_statarb:
     )
 
 with tab_bb:
-    st.info("No trades yet")
+    render_strategy_portfolio(
+        data_dir=DASHBOARD_DIRS["BB Breakout"],
+        prefix="bb",
+        strategy_name="BB Breakout",
+    )

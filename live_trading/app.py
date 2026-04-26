@@ -41,10 +41,11 @@ apply_styles()
 def _warm_cache():
     try:
         from shared.cache_manager import update_all_caches
-        from dashboards.momentum.config import ACTIVE_ASSETS as _mom
-        from dashboards.statarb.optimise import ASSET_CONFIG as _sa_cfg
+        from dashboards.momentum.config   import ACTIVE_ASSETS as _mom
+        from dashboards.bbbreakout.config import ACTIVE_ASSETS as _bb
+        from dashboards.statarb.optimise  import ASSET_CONFIG  as _sa_cfg
         _sa = [sym for a in _sa_cfg for sym in (a['symbol_y'], a['symbol_x'])]
-        update_all_caches(sorted(set(_mom) | set(_sa)))
+        update_all_caches(sorted(set(_mom) | set(_sa) | set(_bb)))
     except Exception as e:
         st.warning(f"Cache update skipped: {e}")
     return True
