@@ -541,7 +541,26 @@ else:
 
 # ── Decisions ─────────────────────────────────────────────────────────────────
 
-st.markdown("#### DECISIONS")
+_col_title, _col_help = st.columns([1, 6])
+with _col_title:
+    st.markdown("#### DECISIONS")
+with _col_help:
+    with st.expander("Explanation"):
+        st.markdown("""
+**ENTRY_LONG** — spread is too low (Y cheap vs X). Buy Y leg, Sell X leg. Expect spread to rise back to mean.
+
+**ENTRY_SHORT** — spread is too high (Y expensive vs X). Sell Y leg, Buy X leg. Expect spread to fall back to mean.
+
+**EXIT** — spread has mean-reverted. |z| dropped below `exit_z`. Close both legs and take profit.
+
+**STOP** — spread moved further against you. |z| exceeded `stop_z`. Cut the position immediately.
+
+**HOLD** — position open, spread hasn't reverted yet. Do nothing.
+
+**FLAT** — no position open and no signal. Do nothing.
+
+**Execution:** Signal is based on yesterday's close. Execute at the 8am UTC open price the following morning (T+1).
+""")
 st.caption(f"Sizes based on current config: ${CAPITAL:,} total capital")
 
 _dec_rows_html = ''
@@ -823,7 +842,26 @@ for _fi, _r in enumerate(pair_rows):
 
 # ── Signal Conditions ─────────────────────────────────────────────────────────
 
-st.markdown("#### SIGNAL CONDITIONS")
+_col_title2, _col_help2 = st.columns([1, 6])
+with _col_title2:
+    st.markdown("#### SIGNAL CONDITIONS")
+with _col_help2:
+    with st.expander("Explanation"):
+        st.markdown("""
+**Beta (β)** — the hedge ratio from rolling OLS regression. How many units of X to trade per unit of Y. Keeps the spread market-neutral.
+
+**Spread** — the current log-spread: `ln(Y) − (α + β·ln(X))`. Zero = pairs are at their historical mean relationship.
+
+**Z-score** — how many standard deviations the spread is from its rolling mean. The core signal driver.
+
+**|z| > ENTRY** — z-score has crossed the entry threshold → a new position is triggered.
+
+**|z| < EXIT** — z-score has reverted close to zero → the position should be closed for profit.
+
+**|z| > STOP** — z-score has moved far against you → the position should be cut immediately.
+
+**HELD / MAX** — days the position has been open vs the maximum holding period. When HELD ≥ MAX the strategy exits regardless of z-score.
+""")
 
 _cond_rows_html = ''
 for r in pair_rows:
