@@ -32,6 +32,9 @@ Public API
   sweep_momentum_strategy(mom_dfs, mom_sel,
                           strat_weights_grid,
                           coin_weights, cost)  → list[dict]
+  realized_sized_equity(sleeve_raw_dfs,
+                        mom_labels, weights,
+                        cost)                  → pd.Series
 """
 
 from __future__ import annotations

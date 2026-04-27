@@ -3,10 +3,10 @@ Trade Log page — one tab per strategy, all rendering via shared components.
 
 Tab layout
 ----------
-Fund        → render_fund_tab()   aggregated cross-strategy flat log
-Momentum    → render_strategy_tab() momentum-specific coin/performance view
-Stat Arb    → stub
-BB Breakout → stub
+Fund        -> render_fund_tab()   aggregated cross-strategy flat log
+Momentum    -> render_strategy_tab() momentum-specific coin/performance view
+Stat Arb    -> stub
+BB Breakout -> stub
 
 There is exactly ONE path to momentum trade data on this page: the Momentum
 tab. The Fund tab shows the aggregated cross-strategy view only.

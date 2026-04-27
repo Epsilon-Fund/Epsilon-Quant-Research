@@ -6,17 +6,17 @@ All trade logging is done in streamlit_app.py.
 
 Exported public API
 -------------------
-  run_dashboard(pair_keys, live_params, positions) → dict
-  fetch_pair_data(symbol_y, symbol_x, lookback_bars) → DataFrame
-  fetch_hourly_recent(symbol, days)                  → DataFrame
-  fetch_live_price(symbol)                           → float | None
-  compute_pair_signal(pair_df, params, strategy)     → dict
-  apply_decision(sig, open_positions, pair_capital)  → dict
-  get_open_positions(pair_key, positions)            → dict
-  get_pair_capital(pair_key)                         → float
-  get_execution_price(hourly_df, signal_date, hour)  → float | None
-  load_live_params()                                 → dict
-  load_positions()                                   → dict
+  run_dashboard(pair_keys, live_params, positions) -> dict
+  fetch_pair_data(symbol_y, symbol_x, lookback_bars) -> DataFrame
+  fetch_hourly_recent(symbol, days)                  -> DataFrame
+  fetch_live_price(symbol)                           -> float | None
+  compute_pair_signal(pair_df, params, strategy)     -> dict
+  apply_decision(sig, open_positions, pair_capital)  -> dict
+  get_open_positions(pair_key, positions)            -> dict
+  get_pair_capital(pair_key)                         -> float
+  get_execution_price(hourly_df, signal_date, hour)  -> float | None
+  load_live_params()                                 -> dict
+  load_positions()                                   -> dict
 """
 
 import os
@@ -160,13 +160,15 @@ def compute_pair_signal(pair_df: pd.DataFrame, params: dict, strategy_name: str)
         return float(v) if v is not None and not pd.isna(v) else None
 
     return {
-        'z':        _safe(last['z']),
-        'spread':   _safe(last['spread']),
-        'beta':     _safe(last['beta']),
-        'close_y':  float(last['Close_Y']),
-        'close_x':  float(last['Close_X']),
-        'last_pos': int(last['position']),
-        'params':   params,
+        'z':           _safe(last['z']),
+        'spread':      _safe(last['spread']),
+        'spread_mean': _safe(last['spread_mean']),
+        'spread_std':  _safe(last['spread_std']),
+        'beta':        _safe(last['beta']),
+        'close_y':     float(last['Close_Y']),
+        'close_x':     float(last['Close_X']),
+        'last_pos':    int(last['position']),
+        'params':      params,
     }
 
 
@@ -185,11 +187,11 @@ def get_open_positions(pair_key: str, positions: dict) -> dict:
 def apply_decision(sig: dict, open_positions: dict, pair_capital: float) -> dict:
     """
     Apply stat arb decision rules:
-      - Flat + |z| > entry  → ENTRY_LONG or ENTRY_SHORT
-      - In position + |z| > stop_z → STOP
-      - In position + bars_held >= max_holding → EXIT
-      - In position + |z| < exit_z → EXIT
-      - Otherwise in position → HOLD
+      - Flat + |z| > entry  -> ENTRY_LONG or ENTRY_SHORT
+      - In position + |z| > stop_z -> STOP
+      - In position + bars_held >= max_holding -> EXIT
+      - In position + |z| < exit_z -> EXIT
+      - Otherwise in position -> HOLD
     """
     z      = sig.get('z')
     params = sig['params']
@@ -214,11 +216,11 @@ def apply_decision(sig: dict, open_positions: dict, pair_capital: float) -> dict
         if z > entry_z:
             return {**base, 'decision': 'ENTRY_SHORT', 'direction': 'short',
                     'exit_reason': None,
-                    'entry_reason': f'z={z:.2f} > entry_z={entry_z:.2f} → short spread'}
+                    'entry_reason': f'z={z:.2f} > entry_z={entry_z:.2f} -> short spread'}
         if z < -entry_z:
             return {**base, 'decision': 'ENTRY_LONG', 'direction': 'long',
                     'exit_reason': None,
-                    'entry_reason': f'z={z:.2f} < -entry_z={-entry_z:.2f} → long spread'}
+                    'entry_reason': f'z={z:.2f} < -entry_z={-entry_z:.2f} -> long spread'}
         return {**base, 'decision': 'FLAT', 'size_usd': None,
                 'direction': None, 'exit_reason': None}
 

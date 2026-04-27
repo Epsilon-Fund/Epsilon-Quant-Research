@@ -636,7 +636,7 @@ else:
         if conf_stop is not None:
             if _needs_confirm:
                 stop_td = (f'<td>{_fmt_price(conf_stop)}'
-                           f'<br><span class="stop-up">→ {_fmt_price(pending_stop)}</span></td>')
+                           f'<br><span class="stop-up">-> {_fmt_price(pending_stop)}</span></td>')
             else:
                 stop_td = f'<td>{_fmt_price(conf_stop)}</td>'
         elif pending_stop is not None:
@@ -660,7 +660,7 @@ else:
             else:
                 _tp_for_display = (entry_price + _tp_dist) if pos_dir == 'long' else (entry_price - _tp_dist)
         elif _stored_tp is None:
-            # Entered in strong-bull regime → no TP, ride the trail.
+            # Entered in strong-bull regime -> no TP, ride the trail.
             _tp_for_display = None
         else:
             _tp_for_display = float(_stored_tp)
@@ -1051,7 +1051,7 @@ for _fi, _c in enumerate(coin_rows):
                     )
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} → ${_new_rc:.2f} "
+                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
                           f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
                 elif not _is_exit_final:
                     _positions_fresh = load_positions(DATA_DIR)
@@ -1284,7 +1284,7 @@ watching the 1H timeframe.
 **C1 — Persistent Volatility Breakout**
 - Two consecutive 4H candles must be *Big* (range above the
   `breakout_pct` percentile of the last `breakout_lookback` 4H bars)
-- Both green → long setup; both red → short setup
+- Both green -> long setup; both red -> short setup
 
 **C2 — BB Expansion**
 - Current 4H BB width > rolling mean over `bb_exp_window` 4H bars
@@ -1500,7 +1500,7 @@ st.markdown(f"""
 #
 # Per-coin breakdown of stop-loss math, regime detection, and the regime-aware
 # take-profit target.  Mirrors the section structure of momentum's
-# EXIT DETAILS table (Inputs → Stop → Take profit → Regime).
+# EXIT DETAILS table (Inputs -> Stop -> Take profit -> Regime).
 
 with st.expander("EXIT DETAILS"):
     st.markdown("""

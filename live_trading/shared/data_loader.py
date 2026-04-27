@@ -41,7 +41,7 @@ _FIFO_PID_RE = re.compile(r'^([A-Z0-9]+)_\d{8}_\d{3}$')
 
 
 def _pid_to_symbol(pid: str) -> str:
-    """Extract symbol from a FIFO position_id ('BTCUSDT_20260415_001' → 'BTCUSDT').
+    """Extract symbol from a FIFO position_id ('BTCUSDT_20260415_001' -> 'BTCUSDT').
     If pid is already a plain symbol returns it unchanged."""
     m = _FIFO_PID_RE.match(pid)
     return m.group(1) if m else pid
@@ -644,7 +644,7 @@ def _add_execution_pnl(
             )
 
         except Exception as e:
-            print(f"  exec_pnl {symbol} ({entry_date}→{exit_date}): {e}")
+            print(f"  exec_pnl {symbol} ({entry_date}->{exit_date}): {e}")
             p['exec_approx'] = True
             n_approx += 1
 
@@ -688,7 +688,7 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
     """
     Daily step-function equity curve from closed trade pairs.
 
-    Date range: min(entry_date) → max(exit_date) across all closed pairs.
+    Date range: min(entry_date) -> max(exit_date) across all closed pairs.
     Derived entirely from trades data — never uses date.today().
 
     Columns: date | actual_pnl | theoretical_pnl |

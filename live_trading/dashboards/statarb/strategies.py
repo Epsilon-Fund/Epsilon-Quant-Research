@@ -1,5 +1,5 @@
 """
-Stat arb pairs strategy: rolling OLS spread → z-score → mean-reversion signals.
+Stat arb pairs strategy: rolling OLS spread -> z-score -> mean-reversion signals.
 
 Exported: STRATEGY_REGISTRY
 """

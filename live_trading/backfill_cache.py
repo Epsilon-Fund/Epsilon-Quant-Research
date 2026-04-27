@@ -69,7 +69,7 @@ def backfill_symbol(symbol: str, start_date: str, end_date: str) -> tuple[int, i
 
     # ── Daily ─────────────────────────────────────────────────────────────────
     d_path = _daily_path(symbol)
-    print(f'  {symbol} daily:  fetching {start_date} → {end_date}…', end=' ', flush=True)
+    print(f'  {symbol} daily:  fetching {start_date} -> {end_date}…', end=' ', flush=True)
     try:
         new_daily = _fetch_daily_binance(symbol, start_date, end_date)
         if not new_daily.empty:
@@ -98,7 +98,7 @@ def backfill_symbol(symbol: str, start_date: str, end_date: str) -> tuple[int, i
     hourly_end = (
         datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=2)
     ).strftime('%Y-%m-%d')
-    print(f'  {symbol} hourly: fetching {start_date} → {hourly_end}…', end=' ', flush=True)
+    print(f'  {symbol} hourly: fetching {start_date} -> {hourly_end}…', end=' ', flush=True)
     try:
         new_hourly = _fetch_hourly_binance(symbol, start_date, hourly_end)
         if not new_hourly.empty:
@@ -147,7 +147,7 @@ def main():
         sys.exit(1)
 
     print(f'\n── Backfilling OHLCV cache ──────────────────────────────────────────')
-    print(f'   Range  : {start_date} → {end_date}')
+    print(f'   Range  : {start_date} -> {end_date}')
     print(f'   Symbols: {ACTIVE_ASSETS}')
     print(f'   Output : {_CACHE_ROOT}')
     print()

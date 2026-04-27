@@ -116,7 +116,7 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     h1_trend_ma = h1["close"].rolling(int(params["trend_ma_period"])).mean()
     h1_pos_size = (params["risk_per_trade"] / (h1_atr / h1["close"])).clip(0.1, params["max_leverage"])
 
-    # Align 4H → 1H (shift(1) = use previous closed 4H bar)
+    # Align 4H -> 1H (shift(1) = use previous closed 4H bar)
     h4_adx_1h      = h4_adx.shift(1).reindex(h1.index,      method="ffill").fillna(0.0)
     h4_plus_di_1h  = h4_plus_di.shift(1).reindex(h1.index,  method="ffill").fillna(0.0)
     h4_minus_di_1h = h4_minus_di.shift(1).reindex(h1.index, method="ffill").fillna(0.0)
@@ -128,7 +128,7 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     # backtest, which only reads position / position_size / stop_loss.
     def _bool_align(s: pd.Series) -> pd.Series:
         # Reindex a 4H bool series onto the 1H index after shift(1), with
-        # NaN→False, then cast back to bool.  Using .where(...) avoids
+        # NaN->False, then cast back to bool.  Using .where(...) avoids
         # pandas' object-dtype downcasting FutureWarning from .fillna().
         aligned = s.shift(1).reindex(h1.index, method="ffill")
         return aligned.where(aligned.notna(), False).astype(bool)
