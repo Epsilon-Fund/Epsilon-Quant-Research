@@ -1,5 +1,6 @@
 {
-  "realised_capital": 100000,
-  "last_updated": "2026-04-26",
-  "last_trade_id": null
+  "realised_capital": 100000.0,
+  "last_updated": "2026-04-27",
+  "last_trade_id": "BTCUSDT_20260427_001",
+  "last_pnl_usd": -0.0
 }

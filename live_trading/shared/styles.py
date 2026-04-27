@@ -67,6 +67,15 @@ _CSS = """
   }
   .section-note { font-size: 11px; color: #888780; }
 
+  /* Sub-section heading (one rank below #### markdown headers).
+     Use for sub-tables grouped under a parent section heading. */
+  .sub-section-label {
+      font-size: 15px !important; font-weight: 600;
+      color: #444441;
+      margin-top: 12px; margin-bottom: 8px;
+      letter-spacing: -0.005em;
+  }
+
   /* Base table */
   table { font-size: 13px !important; }
   .dash-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }

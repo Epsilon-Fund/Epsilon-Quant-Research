@@ -164,15 +164,22 @@ def _get_full_daily_cache(symbol: str) -> pd.DataFrame | None:
     _ensure_dirs()
     path = _daily_path(symbol)
 
+    # Use UTC date so the freshness check is correct regardless of the local
+    # system timezone.  The cache is only considered fresh when it already
+    # contains today's (UTC) bar, which guarantees that yesterday's bar was
+    # written *after* it fully closed at 23:59:59 UTC and therefore carries
+    # its correct final close price, not a stale mid-day value.
+    _today_utc = datetime.utcnow().date()
+
     if path.exists():
         cached = _read_parquet(path)
         if cached is not None and not cached.empty:
             last_date = _last_bar_date(cached)
-            if last_date and last_date >= _yesterday():
-                return cached   # already fresh
+            if last_date and last_date >= _today_utc:
+                return cached   # has today's bar → yesterday is fully closed
 
             # Incremental update: fetch only the missing window
-            days_needed = (date.today() - last_date).days + 2
+            days_needed = (_today_utc - last_date).days + 2
             print(f'  {symbol} daily: stale by {days_needed - 2}d — fetching delta…')
             try:
                 new_bars = _fetch_daily_binance(symbol, f'{days_needed} days ago UTC')

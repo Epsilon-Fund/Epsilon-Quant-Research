@@ -853,7 +853,7 @@ st.markdown(f"""
     <thead><tr>
       <th>Asset</th><th>Decision</th>
       <th class="r">Size (leverage)</th><th class="r">Size ($)</th>
-      <th class="r">Stop ($)</th><th class="r">Last Close ($)</th>
+      <th class="r">Stop ($)</th><th class="r">Last Daily Close ($)</th>
       <th class="r">Today's {EXECUTION_HOUR}h ($)</th><th class="r">Live ($)</th>
     </tr></thead>
     <tbody>{rows_html}</tbody>

@@ -122,6 +122,21 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     h4_long_1h  = (h4_long.shift(1).reindex(h1.index,  method="ffill") == True)  # noqa: E712
     h4_short_1h = (h4_short.shift(1).reindex(h1.index, method="ffill") == True)  # noqa: E712
 
+    # Per-condition 4H series aligned to 1H — exposed on the result df so the
+    # dashboard can display each setup condition individually. No effect on the
+    # backtest, which only reads position / position_size / stop_loss.
+    def _bool_align(s: pd.Series) -> pd.Series:
+        # Reindex a 4H bool series onto the 1H index after shift(1), with
+        # NaN→False, then cast back to bool.  Using .where(...) avoids
+        # pandas' object-dtype downcasting FutureWarning from .fillna().
+        aligned = s.shift(1).reindex(h1.index, method="ffill")
+        return aligned.where(aligned.notna(), False).astype(bool)
+
+    h4_two_big_green_1h = _bool_align(two_big_green)
+    h4_two_big_red_1h   = _bool_align(two_big_red)
+    h4_bb_exp_1h        = _bool_align(bb_exp)
+    h4_slope_norm_1h    = h4_slope_norm.shift(1).reindex(h1.index, method="ffill").fillna(0.0)
+
     long_setup_fires  = h4_long_1h  & ~(h4_long_1h.shift(1)  == True)  # noqa: E712
     short_setup_fires = h4_short_1h & ~(h4_short_1h.shift(1) == True)  # noqa: E712
 
@@ -150,126 +165,158 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     position_size = np.ones(n)
     stop_loss     = np.zeros(n)
 
+    # Per-bar snapshots of the state machine — captured every iteration via
+    # try/finally so that `continue` branches still record the post-bar state.
+    # Used by the dashboard; ignored by the backtest.
+    setup_active_arr = np.zeros(n, dtype=bool)
+    setup_dir_arr    = np.zeros(n, dtype=np.int8)
+    bars_since_arr   = np.zeros(n, dtype=np.int32)
+
     setup_active    = False; setup_direction = 0; bars_since = 0
     in_trade        = False; trade_direction = 0; trade_stop = 0.0
     trade_tp        = 0.0;   trade_size      = 1.0
 
     for i in range(1, n):
+        try:
+            # 1. Trade management
+            if in_trade:
+                close = close_arr[i]
+                h1_at = atr_arr[i]
+                if not np.isnan(h1_at):
+                    if trade_direction == 1:
+                        trade_stop = max(trade_stop, close - trail_mult * h1_at)
+                    else:
+                        trade_stop = min(trade_stop, close + trail_mult * h1_at)
 
-        # 1. Trade management
-        if in_trade:
-            close = close_arr[i]
-            h1_at = atr_arr[i]
-            if not np.isnan(h1_at):
-                if trade_direction == 1:
-                    trade_stop = max(trade_stop, close - trail_mult * h1_at)
-                else:
-                    trade_stop = min(trade_stop, close + trail_mult * h1_at)
-
-            stop_hit = (
-                (trade_direction ==  1 and trade_stop > 0 and close <= trade_stop) or
-                (trade_direction == -1 and trade_stop > 0 and close >= trade_stop)
-            )
-            tp_hit = (
-                (trade_direction ==  1 and trade_tp > 0 and close >= trade_tp) or
-                (trade_direction == -1 and trade_tp > 0 and close <= trade_tp)
-            )
-
-            if stop_hit or tp_hit:
-                in_trade = False
-            else:
-                position[i]      = trade_direction
-                position_size[i] = trade_size
-            continue
-
-        # 2. Setup detection
-        if not setup_active:
-            if long_fire[i]:
-                setup_active    = True
-                setup_direction = 1
-                bars_since      = 0
-            elif short_fire[i]:
-                trend_ma_i = trend_ma_arr[i]
-                adx_i      = adx_arr[i]
-                plus_di_i  = plus_di_arr[i]
-                minus_di_i = minus_di_arr[i]
-                above_ma   = not np.isnan(trend_ma_i) and close_arr[i] > trend_ma_i
-                bull_trend = adx_i > params["adx_strong"] and plus_di_i > minus_di_i
-                if not above_ma and not bull_trend:
-                    setup_active    = True
-                    setup_direction = -1
-                    bars_since      = 0
-
-        if not setup_active:
-            continue
-
-        # 3. Expiry checks
-        bars_since += 1
-        close  = close_arr[i]
-        s_ma   = sma_arr[i]
-        h1_rng = range_arr[i]
-        h1_at  = atr_arr[i]
-
-        if np.isnan(s_ma) or np.isnan(h1_at) or s_ma == 0:
-            continue
-        if bars_since > max_1h_bars:
-            setup_active = False
-            continue
-        if h1_rng > pullback_atr_mult * h1_at:
-            setup_active = False
-            continue
-        if setup_direction == 1:
-            if close < s_ma - (s_ma * overshoot_bps / 10000):
-                setup_active = False
-                continue
-        else:
-            if close > s_ma + (s_ma * overshoot_bps / 10000):
-                setup_active = False
-                continue
-
-        # 4. Entry
-        bps_from_sma = abs(close - s_ma) / s_ma * 10000
-        in_zone      = bps_from_sma <= entry_zone_bps
-        momentum_ok  = (
-            (setup_direction ==  1 and close > close_arr[i - 1]) or
-            (setup_direction == -1 and close < close_arr[i - 1])
-        )
-
-        if in_zone and momentum_ok:
-            sz    = pos_size_arr[i] if not np.isnan(pos_size_arr[i]) else 1.0
-            h1_at = atr_arr[i]
-
-            if not np.isnan(h1_at):
-                stop_dist = trail_mult * h1_at
-                sl_val    = (close - stop_dist) if setup_direction == 1 else (close + stop_dist)
-                ts_val    = sl_val
-                in_strong_bull = (
-                    not np.isnan(trend_ma_arr[i])
-                    and close > trend_ma_arr[i]
-                    and adx_arr[i] > params["adx_strong"]
-                    and plus_di_arr[i] > minus_di_arr[i]
+                stop_hit = (
+                    (trade_direction ==  1 and trade_stop > 0 and close <= trade_stop) or
+                    (trade_direction == -1 and trade_stop > 0 and close >= trade_stop)
                 )
-                if in_strong_bull or np.isnan(trend_ma_arr[i]):
-                    tp_val = 0.0
-                else:
-                    tp_val = (close + 6 * stop_dist) if setup_direction == 1 else (close - 6 * stop_dist)
-            else:
-                sl_val = 0.0; ts_val = 0.0; tp_val = 0.0
+                tp_hit = (
+                    (trade_direction ==  1 and trade_tp > 0 and close >= trade_tp) or
+                    (trade_direction == -1 and trade_tp > 0 and close <= trade_tp)
+                )
 
-            position[i]      = setup_direction
-            position_size[i] = sz
-            stop_loss[i]     = sl_val
-            in_trade         = True
-            trade_direction  = setup_direction
-            trade_stop       = ts_val
-            trade_tp         = tp_val
-            trade_size       = sz
-            setup_active     = False
+                if stop_hit or tp_hit:
+                    in_trade = False
+                else:
+                    position[i]      = trade_direction
+                    position_size[i] = trade_size
+                    # Expose the current ratcheted trail stop on every HOLD
+                    # bar — backtest ignores this, but the dashboard reads
+                    # it via compute_signals to display the live stop.
+                    stop_loss[i]     = trade_stop
+                continue
+
+            # 2. Setup detection
+            if not setup_active:
+                if long_fire[i]:
+                    setup_active    = True
+                    setup_direction = 1
+                    bars_since      = 0
+                elif short_fire[i]:
+                    trend_ma_i = trend_ma_arr[i]
+                    adx_i      = adx_arr[i]
+                    plus_di_i  = plus_di_arr[i]
+                    minus_di_i = minus_di_arr[i]
+                    above_ma   = not np.isnan(trend_ma_i) and close_arr[i] > trend_ma_i
+                    bull_trend = adx_i > params["adx_strong"] and plus_di_i > minus_di_i
+                    if not above_ma and not bull_trend:
+                        setup_active    = True
+                        setup_direction = -1
+                        bars_since      = 0
+
+            if not setup_active:
+                continue
+
+            # 3. Expiry checks
+            bars_since += 1
+            close  = close_arr[i]
+            s_ma   = sma_arr[i]
+            h1_rng = range_arr[i]
+            h1_at  = atr_arr[i]
+
+            if np.isnan(s_ma) or np.isnan(h1_at) or s_ma == 0:
+                continue
+            if bars_since > max_1h_bars:
+                setup_active = False
+                continue
+            if h1_rng > pullback_atr_mult * h1_at:
+                setup_active = False
+                continue
+            if setup_direction == 1:
+                if close < s_ma - (s_ma * overshoot_bps / 10000):
+                    setup_active = False
+                    continue
+            else:
+                if close > s_ma + (s_ma * overshoot_bps / 10000):
+                    setup_active = False
+                    continue
+
+            # 4. Entry
+            bps_from_sma = abs(close - s_ma) / s_ma * 10000
+            in_zone      = bps_from_sma <= entry_zone_bps
+            momentum_ok  = (
+                (setup_direction ==  1 and close > close_arr[i - 1]) or
+                (setup_direction == -1 and close < close_arr[i - 1])
+            )
+
+            if in_zone and momentum_ok:
+                sz    = pos_size_arr[i] if not np.isnan(pos_size_arr[i]) else 1.0
+                h1_at = atr_arr[i]
+
+                if not np.isnan(h1_at):
+                    stop_dist = trail_mult * h1_at
+                    sl_val    = (close - stop_dist) if setup_direction == 1 else (close + stop_dist)
+                    ts_val    = sl_val
+                    in_strong_bull = (
+                        not np.isnan(trend_ma_arr[i])
+                        and close > trend_ma_arr[i]
+                        and adx_arr[i] > params["adx_strong"]
+                        and plus_di_arr[i] > minus_di_arr[i]
+                    )
+                    if in_strong_bull or np.isnan(trend_ma_arr[i]):
+                        tp_val = 0.0
+                    else:
+                        tp_val = (close + 6 * stop_dist) if setup_direction == 1 else (close - 6 * stop_dist)
+                else:
+                    sl_val = 0.0; ts_val = 0.0; tp_val = 0.0
+
+                position[i]      = setup_direction
+                position_size[i] = sz
+                stop_loss[i]     = sl_val
+                in_trade         = True
+                trade_direction  = setup_direction
+                trade_stop       = ts_val
+                trade_tp         = tp_val
+                trade_size       = sz
+                setup_active     = False
+
+        finally:
+            setup_active_arr[i] = setup_active
+            setup_dir_arr[i]    = setup_direction
+            bars_since_arr[i]   = bars_since
 
     df["SMA"]           = h1_sma.to_numpy()
     df["position"]      = position
     df["position_size"] = position_size
     df["stop_loss"]     = stop_loss
+    # Inspection columns for the dashboard — backtest doesn't read these.
+    df["h4_two_big_green"]   = h4_two_big_green_1h.astype(bool).to_numpy()
+    df["h4_two_big_red"]     = h4_two_big_red_1h.astype(bool).to_numpy()
+    df["h4_bb_exp"]          = h4_bb_exp_1h.astype(bool).to_numpy()
+    df["h4_slope_norm"]      = h4_slope_norm_1h.to_numpy()
+    df["h4_long_setup"]      = h4_long_1h.astype(bool).to_numpy()
+    df["h4_short_setup_raw"] = h4_short_1h.astype(bool).to_numpy()
+    df["h4_adx"]             = h4_adx_1h.to_numpy()
+    df["h4_plus_di"]         = h4_plus_di_1h.to_numpy()
+    df["h4_minus_di"]        = h4_minus_di_1h.to_numpy()
+    df["h1_atr"]             = h1_atr.to_numpy()
+    df["h1_range"]           = h1_range.to_numpy()
+    df["h1_trend_ma"]        = h1_trend_ma.to_numpy()
+    df["setup_active"]       = setup_active_arr
+    df["setup_direction"]    = setup_dir_arr
+    df["bars_since"]         = bars_since_arr
     return df, ["SMA"]
 
 

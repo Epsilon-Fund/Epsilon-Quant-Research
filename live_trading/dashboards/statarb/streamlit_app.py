@@ -584,6 +584,8 @@ for r in pair_rows:
     z_str       = f"{sig['z']:.3f}"    if sig.get('z')      is not None else '—'
     spread_str  = f"{sig['spread']:.4f}" if sig.get('spread') is not None else '—'
     size_str    = f"${sig['size_usd']:,.0f}" if sig.get('size_usd') is not None else '—'
+    close_y_html = f"{sig['close_y']:,.4f}" if sig.get('close_y') is not None else '—'
+    close_x_html = f"{sig['close_x']:,.4f}" if sig.get('close_x') is not None else '—'
     exec_y_html = (f"{r['exec_y']:,.4f}" if r['exec_y'] is not None
                    else '<span style="color:#888780">pending</span>')
     exec_x_html = (f"{r['exec_x']:,.4f}" if r['exec_x'] is not None
@@ -604,6 +606,8 @@ for r in pair_rows:
       <td>{z_str}</td>
       <td>{spread_str}</td>
       <td>{size_str}</td>
+      <td>{close_y_html}</td>
+      <td>{close_x_html}</td>
       <td>{exec_y_html}</td>
       <td>{exec_x_html}</td>
       <td>{ly_html}</td>
@@ -616,6 +620,7 @@ st.markdown(f"""
     <thead><tr>
       <th>Pair</th><th>Decision</th>
       <th>z-score</th><th>Spread</th><th>Size ($)</th>
+      <th class="r">Last Daily Close Y ($)</th><th class="r">Last Daily Close X ($)</th>
       <th>Exec Y ({EXECUTION_HOUR}h)</th><th>Exec X ({EXECUTION_HOUR}h)</th>
       <th>Live Y</th><th>Live X</th>
     </tr></thead>

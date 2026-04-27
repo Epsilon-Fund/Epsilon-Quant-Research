@@ -160,7 +160,8 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
 
 def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
                           theoretical_stop, strategy, discretion_note, direction='long',
-                          coin_capital=None, size_usd=None):
+                          coin_capital=None, size_usd=None,
+                          take_profit=None, regime_at_entry=None):
     positions = _load_json(POSITIONS_PATH, {})
     positions[position_id] = {
         'position_id':         position_id,
@@ -179,6 +180,8 @@ def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
         'discretion_note':     discretion_note,
         'coin_capital':        coin_capital,
         'size_usd':            size_usd,
+        'take_profit':         take_profit,        # None ⇒ trail-only (strong-bull at entry)
+        'regime_at_entry':     regime_at_entry,    # 'strong_bull' or 'chop_bear'
     }
     _save_json(POSITIONS_PATH, positions)
 
@@ -642,6 +645,50 @@ else:
         else:
             stop_td = '<td style="color:#888780">—</td>'
 
+        # Take-profit cell — stored at entry-time in positions.json.
+        # Falls back to a live derivation (current ATR + entry price) for
+        # legacy positions that pre-date the take_profit field.
+        _stored_tp     = pos.get('take_profit')
+        _entry_regime  = pos.get('regime_at_entry')   # 'strong_bull' / 'chop_bear' / None
+        _regime_now    = bool(coin_sig.get('regime_strong_bull', False))
+
+        if _stored_tp is None and _entry_regime is None:
+            # Legacy position — derive from current state as a best-effort.
+            _tp_dist = coin_sig.get('tp_distance')
+            if _regime_now or _tp_dist is None:
+                _tp_for_display = None
+            else:
+                _tp_for_display = (entry_price + _tp_dist) if pos_dir == 'long' else (entry_price - _tp_dist)
+        elif _stored_tp is None:
+            # Entered in strong-bull regime → no TP, ride the trail.
+            _tp_for_display = None
+        else:
+            _tp_for_display = float(_stored_tp)
+
+        if _tp_for_display is None:
+            tp_td = ('<td><span style="color:#888780">—</span>'
+                     '<br><span style="font-size:10px;color:#888780">trail only</span></td>')
+        else:
+            if live_price and live_price > 0:
+                _tp_move = ((_tp_for_display - live_price) / live_price * 100
+                            if pos_dir == 'long'
+                            else (live_price - _tp_for_display) / live_price * 100)
+                _tp_sign = '+' if _tp_move >= 0 else ''
+                tp_sub   = f'{_tp_sign}{_tp_move:.2f}% to TP'
+            else:
+                tp_sub = '6 × stop dist'
+            tp_td = (f'<td>{_fmt_price(_tp_for_display)}'
+                     f'<br><span style="font-size:10px;color:#888780">{tp_sub}</span></td>')
+
+        # Regime badge cell — shows the CURRENT regime (live), not the
+        # entry-time regime.  Useful for management decisions like "we
+        # entered in chop, regime is now strong-bull, consider holding".
+        if _regime_now:
+            regime_td = '<td><span class="badge badge-LONG">STRONG BULL</span></td>'
+        else:
+            regime_td = ('<td><span class="badge" style="background:#f1efe8;color:#5F5E5A">'
+                         'CHOP / BEAR</span></td>')
+
         try:
             days_held = (_date.today() - _date.fromisoformat(pos['entry_date'])).days
         except Exception:
@@ -656,6 +703,8 @@ else:
           <td>{_fmt_price(entry_price)}</td>
           {live_td}
           {stop_td}
+          {tp_td}
+          {regime_td}
           <td>{leverage_multiplier:.2f}x</td>
           <td>{size_usd:,.0f}</td>
           {pnl_pct_td}
@@ -677,7 +726,8 @@ else:
 
     _total_row = f"""
         <tr class="row-total">
-          <td>Total</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+          <td>Total</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+          <td>—</td><td>—</td><td>—</td><td>—</td>
           <td>{_tot_size_usd_r:,.0f}</td>
           {_tot_pnl_pct_td}{_tot_pnl_usd_td}{_tot_pos_td}
         </tr>"""
@@ -687,7 +737,8 @@ else:
   <table class="dash-table">
     <thead><tr>
       <th>Symbol</th><th>Dir</th><th>Entry date</th><th>Days</th>
-      <th>Entry ($)</th><th>Live ($)</th><th>Stop ($)</th>
+      <th>Entry ($)</th><th>Live ($)</th>
+      <th>Stop ($)</th><th>TP ($)</th><th>Regime</th>
       <th>Leverage</th><th>Size ($)</th>
       <th>P&amp;L (%)</th><th>P&amp;L ($)</th><th>Position ($)</th>
     </tr></thead>
@@ -895,8 +946,8 @@ for _fi, _c in enumerate(coin_rows):
                 )
                 _price = st.number_input(
                     'Actual price',
-                    value=float(round(_default_price, 6)),
-                    format='%.6f',
+                    value=float(round(_default_price, 2)),
+                    format='%.2f',
                     key=f'bb_price_{_sym}',
                 )
                 _exit_lev = None
@@ -918,8 +969,8 @@ for _fi, _c in enumerate(coin_rows):
                 )
                 _price = st.number_input(
                     'Actual price',
-                    value=float(round(_default_price, 6)),
-                    format='%.6f',
+                    value=float(round(_default_price, 2)),
+                    format='%.2f',
                     key=f'bb_price_{_sym}',
                 )
                 _direction = None
@@ -935,7 +986,21 @@ for _fi, _c in enumerate(coin_rows):
         if _submitted:
             _action_final  = st.session_state.get(_action_key, 'ENTRY')
             _is_exit_final = (_action_final == 'EXIT')
-            _theo_stop     = _sig.get('stop', 0.0)
+
+            # The strategy only writes a non-zero `stop` on entry-fire / HOLD
+            # bars.  For discretionary entries (which fire on any bar) and
+            # trade-log defaults, derive the theoretical stop from the user's
+            # actual entry price and the live trail distance.
+            _trail_dist = _sig.get('trail_dist', 0.0) or 0.0
+            if _is_exit_final:
+                _theo_stop = _sig.get('stop', 0.0) or 0.0
+            else:
+                _dir_for_stop = (_direction or 'Long').lower()
+                if _trail_dist > 0 and _price > 0:
+                    _theo_stop = ((_price - _trail_dist) if _dir_for_stop == 'long'
+                                  else (_price + _trail_dist))
+                else:
+                    _theo_stop = 0.0
 
             if _is_exit_final:
                 _exit_amount   = _exit_lev if _exit_lev is not None else _held_lev
@@ -1025,98 +1090,192 @@ for _fi, _c in enumerate(coin_rows):
                         capital_total=load_realised_capital(DATA_DIR),
                         coin_weight=_snap_weight,
                     )
+                    # Compute and persist take-profit at entry time (regime-
+                    # aware): no TP if currently in strong-bull regime, else
+                    # 6× stop distance from the user's entry price.
+                    _regime_at_entry = bool(_sig.get('regime_strong_bull', False))
+                    _stop_dist       = abs(_price - _theo_stop) if _theo_stop else 0.0
+                    if _regime_at_entry or _stop_dist <= 0:
+                        _tp_at_entry  = None
+                        _regime_label = 'strong_bull'
+                    else:
+                        _tp_at_entry  = (_price + 6 * _stop_dist) if _dir_val == 'long' \
+                                        else (_price - 6 * _stop_dist)
+                        _regime_label = 'chop_bear'
+
                     _write_position_entry(
                         _new_pid, _sym, _price, _size, _theo_stop,
                         _strategy, _disc, direction=_dir_val,
                         coin_capital=_snap_coin_cap,
                         size_usd=_snap_size_usd,
+                        take_profit=_tp_at_entry,
+                        regime_at_entry=_regime_label,
                     )
             invalidate_trade_caches()
             st.rerun()
 
 
 # ── Section 2: Entry Conditions ───────────────────────────────────────────────
+#
+# Split into two tables that mirror the strategy's two-stage state machine:
+#   1. Stage 1 — Engine Room (4H setup arms the trade)
+#   2. Stage 2 — Buy the Dip (1H trigger fires + spoilers that drop the watch)
 
-rows_html = ''
+import math
+
+
+def _fv(v, dp=4):
+    """Format a float; '—' for NaN/None."""
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return '—'
+    return f'{v:,.{dp}f}'
+
+
+def _bool_td(flag):
+    """Coloured TRUE / FALSE cell — matches momentum's _bg_box."""
+    cls = 'entry-t' if flag else 'entry-f'
+    return f'<td class="c {cls}">{"TRUE" if flag else "FALSE"}</td>'
+
+
+def _pass_td(passed, label_ok='OK', label_bad='VIOLATED'):
+    """Coloured pass/fail cell with custom labels."""
+    cls = 'entry-t' if passed else 'entry-f'
+    return f'<td class="c {cls}">{label_ok if passed else label_bad}</td>'
+
+
+def _muted_td(text='—', cls='c'):
+    return f'<td class="{cls}" style="color:#888780">{escape(str(text))}</td>'
+
+
+def _value_threshold_td(value, threshold, passed, value_fmt, threshold_prefix='≤'):
+    """
+    Right-aligned cell rendering "value / ≤ threshold" with green/red tint
+    on the value depending on `passed`.  Used for in-zone / pullback / etc.
+    """
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return _muted_td()
+    val_cls   = 'stat-pos' if passed else 'stat-neg'
+    val_color = '#3B6D11' if passed else '#A32D2D'
+    return (
+        f'<td class="r" style="color:{val_color};font-weight:600">'
+        f'{value_fmt.format(value)} '
+        f'<span style="font-size:10px;color:#888780;font-weight:400">'
+        f'/ {threshold_prefix} {value_fmt.format(threshold)}</span></td>'
+    )
+
+
+# ── Section 2 header ──────────────────────────────────────────────────────────
+
+st.markdown("#### ENTRY CONDITIONS")
+
+
+# ── Table 1: 4H Engine Room ───────────────────────────────────────────────────
+
+engine_rows_html = ''
 for c in coin_rows:
     sig = c['sig']
 
-    close     = sig['close']
-    bb_upper  = sig.get('bb_upper', float('nan'))
-    bb_mid    = sig.get('bb_mid',   float('nan'))
-    bb_lower  = sig.get('bb_lower', float('nan'))
-    bb_width  = sig.get('bb_width', float('nan'))
-    sma       = sig.get('sma',      float('nan'))
+    h4_dir = sig.get('h4_dir', 'mixed')
+    if sig.get('h4_two_big_green'):
+        dir_label = 'Both green'
+    elif sig.get('h4_two_big_red'):
+        dir_label = 'Both red'
+    else:
+        dir_label = 'Mixed'
 
-    import math
-    def _fv(v, dp=4):
-        return f'{v:,.{dp}f}' if not math.isnan(v) else '—'
+    # C1 — two big same-direction
+    c1_pass = bool(sig.get('c1_two_big_same_dir', False))
+    c1_td   = (f'<td class="c {"entry-t" if c1_pass else "entry-f"}">'
+               f'{"TRUE" if c1_pass else "FALSE"}'
+               f'<br><span style="font-size:10px;font-weight:400">{dir_label}</span></td>')
 
-    # Price position relative to BB bands
-    if not math.isnan(bb_upper) and not math.isnan(bb_lower) and not math.isnan(close):
-        if close >= bb_upper:
-            band_pos_td = '<td class="c bb-band-above">above upper</td>'
-        elif close <= bb_lower:
-            band_pos_td = '<td class="c bb-band-below">below lower</td>'
+    # C2 — BB expansion
+    c2_pass = bool(sig.get('c2_bb_expanding', False))
+    c2_td   = _bool_td(c2_pass)
+
+    # C3 — slope OK (with slope value as sub-text)
+    c3_pass     = bool(sig.get('c3_slope_ok', False))
+    slope_norm  = sig.get('h4_slope_norm', 0.0)
+    slope_eps   = sig.get('slope_epsilon', 0.0)
+    slope_text  = f'{slope_norm:+.5f}'
+    eps_text    = f'±{slope_eps:.5f}'
+    c3_td = (f'<td class="c {"entry-t" if c3_pass else "entry-f"}">'
+             f'{"TRUE" if c3_pass else "FALSE"}'
+             f'<br><span style="font-size:10px;font-weight:400">{slope_text} (ε {eps_text})</span></td>')
+
+    # 4H ADX value (informational; relevant for the bull-regime short veto)
+    adx_val   = sig.get('h4_adx', 0.0)
+    plus_di   = sig.get('h4_plus_di', 0.0)
+    minus_di  = sig.get('h4_minus_di', 0.0)
+    adx_td    = (f'<td class="r">{adx_val:.2f}'
+                 f'<br><span style="font-size:10px;color:#888780">+DI {plus_di:.2f} '
+                 f'/ −DI {minus_di:.2f}</span></td>')
+
+    # Bull-regime veto — only matters for shorts.  For longs / mixed, show muted "—".
+    bull_veto = bool(sig.get('bull_veto_active', False))
+    if h4_dir == 'short':
+        # When direction is short: TRUE = vetoes the short = caution colour
+        if bull_veto:
+            veto_td = '<td class="c caution">VETOES SHORT</td>'
         else:
-            _pct = (close - bb_lower) / (bb_upper - bb_lower) * 100 if (bb_upper - bb_lower) > 0 else 50
-            band_pos_td = f'<td class="c bb-band-mid">{_pct:.0f}% in band</td>'
+            veto_td = '<td class="c entry-t">CLEAR</td>'
     else:
-        band_pos_td = '<td class="c">—</td>'
+        veto_td = _muted_td('n/a (long dir)')
 
-    # SMA proximity
-    if not math.isnan(sma) and sma > 0:
-        sma_bps = abs(close - sma) / sma * 10000
-        sma_td  = f'<td class="r">{_fv(sma)} <span style="font-size:10px;color:#888780">({sma_bps:.0f} bps)</span></td>'
+    # Setup-would-arm column — based on the LAST 4H bar's conditions
+    if c1_pass and c2_pass and c3_pass:
+        if h4_dir == 'long':
+            setup_td = '<td class="c entry-t">ARMS LONG</td>'
+        elif h4_dir == 'short' and not bull_veto:
+            setup_td = '<td class="c entry-t">ARMS SHORT</td>'
+        elif h4_dir == 'short' and bull_veto:
+            setup_td = '<td class="c caution">SHORT VETOED</td>'
+        else:
+            setup_td = _muted_td('—')
     else:
-        sma_td = f'<td class="r">{_fv(sma)}</td>'
+        setup_td = _muted_td('—')
 
-    entry_cls_l = 'entry-t' if sig.get('entry_long')  else 'entry-f'
-    entry_cls_s = 'entry-t' if sig.get('entry_short') else 'entry-f'
-
-    _pos_val = sig.get('position', 0)
-    if _pos_val == 1:
-        pos_td = '<td class="c entry-t">LONG</td>'
-    elif _pos_val == -1:
-        pos_td = '<td class="c entry-f">SHORT</td>'
-    else:
-        pos_td = '<td class="c" style="color:#888780">FLAT</td>'
-
-    rows_html += f"""
+    engine_rows_html += f"""
     <tr>
       <td class="asset-name">{escape(c['symbol'])}</td>
-      <td class="r">{_fv(bb_upper)}</td>
-      <td class="r">{_fv(bb_mid)}</td>
-      <td class="r">{_fv(bb_lower)}</td>
-      <td class="r">{_fv(bb_width, 4)}</td>
-      {band_pos_td}
-      {sma_td}
-      <td class="r">{_fv(close)}</td>
-      <td class="c {entry_cls_l}">{"TRUE" if sig.get("entry_long") else "FALSE"}</td>
-      <td class="c {entry_cls_s}">{"TRUE" if sig.get("entry_short") else "FALSE"}</td>
-      {pos_td}
+      {c1_td}
+      {c2_td}
+      {c3_td}
+      {adx_td}
+      {veto_td}
+      {setup_td}
     </tr>"""
 
 col_title, col_help = st.columns([1, 6])
 with col_title:
-    st.markdown("#### ENTRY CONDITIONS")
+    st.markdown('<div class="sub-section-label">4H Setup</div>', unsafe_allow_html=True)
 with col_help:
     with st.expander("Explanation"):
         st.markdown("""
-**BB Bands** — Computed on 1H close prices over `bb_period` bars.
+The 4H timeframe acts as the **"Engine Room"** that filters for high-conviction
+momentum.  All three conditions below must align before the strategy starts
+watching the 1H timeframe.
 
-**Band position** — Where the close sits relative to the bands:
-- *above upper*: price has broken above upper band
-- *below lower*: price has broken below lower band
-- *n% in band*: how far price sits between lower and upper
+**C1 — Persistent Volatility Breakout**
+- Two consecutive 4H candles must be *Big* (range above the
+  `breakout_pct` percentile of the last `breakout_lookback` 4H bars)
+- Both green → long setup; both red → short setup
 
-**SMA** — 1H moving average used as the pullback entry anchor.
-A signal fires when price pulls back within `entry_zone_bps` of this SMA
-after a two-candle 4H breakout, and momentum resumes in the breakout direction.
+**C2 — BB Expansion**
+- Current 4H BB width > rolling mean over `bb_exp_window` 4H bars
+- Filters out late-stage compressions and arms only during volatility
+  expansions
 
-**Entry Long / Entry Short** — True when the strategy state machine entered on the last bar.
+**C3 — Scale-Invariant Slope**
+- 4H SMA slope must be in the trade direction within `slope_epsilon`
+- Slope is normalised by price so the threshold is consistent across regimes
 
-**Position** — Current state: LONG / SHORT / FLAT (from the 1H state machine).
+**Bull-regime short filter** — A short setup is rejected if the 1H close
+is above the macro trend MA OR ADX > `adx_strong` with +DI > −DI.
+Don't fade strong bulls.
+
+**After exit** — A position must fully re-arm (two new big 4H candles)
+before the strategy re-enters.  Prevents revenge trading.
 """)
 
 st.markdown(f"""
@@ -1124,28 +1283,170 @@ st.markdown(f"""
   <table class="dash-table dash-table-labeled">
     <thead><tr>
       <th>Asset</th>
-      <th class="r">BB Upper ($)</th><th class="r">BB Mid ($)</th><th class="r">BB Lower ($)</th>
-      <th class="r">BB Width</th><th class="c">Band position</th>
-      <th class="r">SMA ($)</th><th class="r">Close ($)</th>
-      <th class="c">Entry Long</th><th class="c">Entry Short</th>
-      <th class="c">Position</th>
+      <th class="c">C1: 2 Big Same Dir</th>
+      <th class="c">C2: BB Expanding</th>
+      <th class="c">C3: Slope OK</th>
+      <th class="r">4H ADX</th>
+      <th class="c">Bull veto (shorts)</th>
+      <th class="c">Setup (last 4H bar)</th>
     </tr></thead>
-    <tbody>{rows_html}</tbody>
+    <tbody>{engine_rows_html}</tbody>
   </table>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ── Section 3: Stop details ───────────────────────────────────────────────────
+# ── Table 2: 1H Buy the Dip + Spoilers ────────────────────────────────────────
 
-with st.expander("STOP LOSS DETAILS"):
+dip_rows_html = ''
+for c in coin_rows:
+    sig = c['sig']
+
+    state_badge = sig.get('state_badge', 'IDLE')
+    setup_active = bool(sig.get('setup_active', False))
+    in_position  = sig.get('position', 0) != 0
+
+    # State badge cell
+    if state_badge.startswith('ARMED LONG'):
+        state_td = '<td class="c entry-t">ARMED LONG</td>'
+    elif state_badge.startswith('ARMED SHORT'):
+        state_td = '<td class="c entry-t">ARMED SHORT</td>'
+    elif state_badge == 'IN POSITION LONG':
+        state_td = '<td class="c entry-t">IN POSITION LONG</td>'
+    elif state_badge == 'IN POSITION SHORT':
+        state_td = '<td class="c entry-f">IN POSITION SHORT</td>'
+    else:
+        state_td = _muted_td('IDLE')
+
+    # Bars-to-expiry column — only meaningful when armed (not in a trade).
+    if setup_active and not in_position:
+        bars_left = int(sig.get('bars_until_expiry') or 0)
+        max_bars  = int(sig.get('max_1h_bars',     0))
+        # amber if less than 25% of window remains, green otherwise
+        ratio   = bars_left / max_bars if max_bars > 0 else 0
+        if ratio <= 0.25:
+            cell_color = '#854F0B'   # amber — running out
+        else:
+            cell_color = '#3B6D11'   # green — plenty
+        expiry_td = (f'<td class="r" style="color:{cell_color};font-weight:600">'
+                     f'{bars_left}h '
+                     f'<span style="font-size:10px;color:#888780;font-weight:400">'
+                     f'/ {max_bars}h</span></td>')
+    else:
+        expiry_td = _muted_td()
+
+    # Δ SMA / entry zone
+    if setup_active and not in_position:
+        zone_td = _value_threshold_td(
+            sig.get('dist_sma_bps'), sig.get('entry_zone_bps', 0.0),
+            bool(sig.get('in_zone', False)), '{:.0f} bps')
+    else:
+        zone_td = _muted_td()
+
+    # Pullback range vs ATR
+    if setup_active and not in_position:
+        pull_td = _value_threshold_td(
+            sig.get('pullback_ratio'), sig.get('pullback_atr_mult', 0.0),
+            bool(sig.get('pullback_ok', False)), '{:.2f}×')
+    else:
+        pull_td = _muted_td()
+
+    # Overshoot status
+    if setup_active and not in_position:
+        if sig.get('overshoot_active'):
+            overshoot_td = '<td class="c entry-f">OVERSHOT</td>'
+        else:
+            overshoot_td = '<td class="c entry-t">OK</td>'
+    else:
+        overshoot_td = _muted_td()
+
+    # Momentum
+    if setup_active and not in_position:
+        momentum_td = _bool_td(bool(sig.get('momentum_ok', False)))
+    else:
+        momentum_td = _muted_td()
+
+    # Final entry trigger
+    if setup_active and not in_position:
+        entry_td = _bool_td(bool(sig.get('entry_fires', False)))
+    else:
+        entry_td = _muted_td()
+
+    dip_rows_html += f"""
+    <tr>
+      <td class="asset-name">{escape(c['symbol'])}</td>
+      {state_td}
+      {expiry_td}
+      {zone_td}
+      {pull_td}
+      {overshoot_td}
+      {momentum_td}
+      {entry_td}
+    </tr>"""
+
+col_title, col_help = st.columns([1, 6])
+with col_title:
+    st.markdown('<div class="sub-section-label">1H Setup</div>', unsafe_allow_html=True)
+with col_help:
     with st.expander("Explanation"):
         st.markdown("""
-**Trailing ratchet stop** — Initialised at `trail_atr_mult × ATR_1H` from entry price.
-Ratchets in favour only (up for longs, down for shorts) on every bar.
-In strong-bull regime (price > trend MA, ADX strong, +DI > -DI): no TP — trailing stop only.
-Otherwise: 6:1 fixed TP from entry.
+Once the 4H Engine Room arms a setup, the strategy switches to the 1H
+timeframe and waits for the perfect pullback.  The watch lasts up to
+`max_1h_bars` 1H candles.
+
+**Entry conditions (both must hold)**
+- **P1 — Entry zone:** \\|close − 1H SMA\\| ≤ `entry_zone_bps`
+- **P2 — Momentum resumption:** long ⇒ close > prev close;
+  short ⇒ close < prev close
+
+**Spoilers (any one drops the armed setup)**
+- **E1 — Time decay:** more than `max_1h_bars` 1H bars elapse with no entry
+- **E2 — Volatility spike:** 1H range > `pullback_atr_mult` × ATR
+  (the pullback was too violent — likely a continuation, not a dip)
+- **E3 — Structural break:** close overshoots the 1H SMA by more than
+  `overshoot_bps` (price has gone through the level we wanted to buy)
+
+**State** — `IDLE` (no 4H setup) · `ARMED LONG/SHORT` (watching 1H) ·
+`IN POSITION LONG/SHORT` (already entered).  Spoiler / entry columns are
+greyed when no setup is armed.
 """)
+
+st.markdown(f"""
+<div class="dashboard-card">
+  <table class="dash-table dash-table-labeled">
+    <thead><tr>
+      <th>Asset</th>
+      <th class="c">State</th>
+      <th class="r">Bars to expiry</th>
+      <th class="r">Δ SMA <span style="font-weight:400;font-size:10px;color:#888780">(P1)</span></th>
+      <th class="r">Pullback range/ATR <span style="font-weight:400;font-size:10px;color:#888780">(E2)</span></th>
+      <th class="c">Overshoot <span style="font-weight:400;font-size:10px;color:#888780">(E3)</span></th>
+      <th class="c">Momentum <span style="font-weight:400;font-size:10px;color:#888780">(P2)</span></th>
+      <th class="c">Entry fires</th>
+    </tr></thead>
+    <tbody>{dip_rows_html}</tbody>
+  </table>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ── Section 3: Exit details ───────────────────────────────────────────────────
+#
+# Per-coin breakdown of stop-loss math, regime detection, and the regime-aware
+# take-profit target.  Mirrors the section structure of momentum's
+# EXIT DETAILS table (Inputs → Stop → Take profit → Regime).
+
+with st.expander("EXIT DETAILS"):
+    st.markdown("""
+**Trailing ratchet stop** — Initial stop = entry ± `trail_atr_mult` × ATR_1H.
+Ratchets in favour only on every closed 1H bar — never moves backward.
+
+**Regime-aware take-profit**
+- *Strong-bull regime* (close > 1H trend MA AND 4H ADX > `adx_strong` AND +DI > −DI): no TP, ride the trail.
+- *Chop / Bear regime*: fixed 6:1 reward-to-risk from entry (TP = entry ± 6 × stop distance).
+""")
+    import math as _math
+
     n        = len(coin_rows)
     col_w    = f'calc((100% - 180px) / {n})'
     coin_ths = ''.join(
@@ -1163,29 +1464,161 @@ Otherwise: 6:1 fixed TP from entry.
     def _divider(label):
         return f'<tr class="divider-row"><td colspan="{n+1}">{escape(label)}</td></tr>'
 
-    import math as _math
+    def _fnum(v, dp=2, suffix=''):
+        if v is None or (isinstance(v, float) and _math.isnan(v)):
+            return '—'
+        return f'{v:,.{dp}f}{suffix}'
 
-    def _stop_cell(c):
-        s = c['sig'].get('stop', 0.0)
-        return _fmt_price(s) if s and not _math.isnan(s) else '—'
+    def _bool_cell(passed):
+        # Green TRUE / red FALSE — matches momentum's _bg_box pattern.
+        cls = 'entry-t' if passed else 'entry-f'
+        return f'<span class="{cls}" style="padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600">{"TRUE" if passed else "FALSE"}</span>'
 
-    def _trail_mult_cell(c):
-        v = c['all_params'].get('trail_atr_mult')
-        return fmt(v)
+    def _regime_badge(strong_bull):
+        if strong_bull:
+            return '<span class="badge badge-LONG">STRONG BULL</span>'
+        return '<span class="badge" style="background:#f1efe8;color:#5F5E5A">CHOP / BEAR</span>'
+
+    # Per-coin pre-derived cell strings, used by the row helpers below.
+    def _entry_price_for(c):
+        # If we hold an open position on this coin, use its entry price for
+        # the TP target; otherwise fall back to the current close (i.e. "what
+        # would TP look like if we entered now").
+        sym  = c['symbol']
+        for _pid, _pos in _open.items():
+            if _pos.get('symbol', _pid) == sym and _pos.get('in_position'):
+                return float(_pos['entry_price']), _pos.get('direction', 'long'), True
+        return float(c['sig'].get('close', 0.0)), 'long', False
+
+    # Build all the per-section cell lists in one pass to keep the table assembly readable.
+    inputs_atr        = []
+    inputs_close      = []
+    inputs_trail_mult = []
+    inputs_trend_ma   = []
+
+    stop_trail_dist   = []
+    stop_current      = []
+    stop_dist_close   = []
+    stop_ratcheted    = []
+
+    tp_regime         = []
+    tp_target         = []
+    tp_dist_close     = []
+    tp_rr             = []
+
+    reg_close_vs_ma   = []
+    reg_adx           = []
+    reg_di            = []
 
     upd_yes = '<span class="upd-yes">↑ Yes</span>'
     upd_no  = '<span class="upd-no">No</span>'
-    upd_tds = ''.join(
-        f'<td style="text-align:right;padding-right:24px">'
-        f'{upd_yes if c["sig"].get("stop_updated") else upd_no}</td>'
-        for c in coin_rows
-    )
 
-    rows_html_stop = (
-        _divider('Trailing stop') +
-        _row('trail_atr_mult',   [_trail_mult_cell(c) for c in coin_rows]) +
-        _row('Current stop ($)', [_stop_cell(c)       for c in coin_rows]) +
-        f'<tr><td class="field-label">Ratcheted this bar</td>{upd_tds}</tr>'
+    for c in coin_rows:
+        sig = c['sig']
+        h1_atr        = sig.get('h1_atr',         float('nan'))
+        close_v       = sig.get('close',          float('nan'))
+        trend_ma      = sig.get('h1_trend_ma',    float('nan'))
+        trail_mult    = sig.get('trail_atr_mult', 0.0)
+        trail_dist    = sig.get('trail_dist',     float('nan'))
+        tp_dist       = sig.get('tp_distance')
+        cur_stop      = sig.get('stop',           0.0) or 0.0
+        regime_bull   = bool(sig.get('regime_strong_bull', False))
+        adx_v         = sig.get('h4_adx',     0.0)
+        plus_di       = sig.get('h4_plus_di', 0.0)
+        minus_di      = sig.get('h4_minus_di',0.0)
+        adx_strong_t  = sig.get('adx_strong', 0.0)
+
+        # Inputs
+        inputs_atr.append(_fnum(h1_atr, 2))
+        inputs_close.append(_fmt_price(close_v))
+        inputs_trail_mult.append(_fnum(trail_mult, 2, '×'))
+        inputs_trend_ma.append(_fmt_price(trend_ma) if not _math.isnan(trend_ma) else '—')
+
+        # Stop block
+        stop_trail_dist.append(_fnum(trail_dist, 2))
+        if cur_stop and not _math.isnan(cur_stop):
+            stop_current.append(_fmt_price(cur_stop))
+        else:
+            stop_current.append('—')
+        if cur_stop and not _math.isnan(cur_stop) and not _math.isnan(close_v) and close_v > 0:
+            sd_pct = abs(close_v - cur_stop) / close_v * 100
+            stop_dist_close.append(f'{sd_pct:.2f}%')
+        else:
+            stop_dist_close.append('—')
+        stop_ratcheted.append(upd_yes if sig.get('stop_updated') else upd_no)
+
+        # Take profit block
+        tp_regime.append(_regime_badge(regime_bull))
+        entry_p, dirn, has_pos = _entry_price_for(c)
+        if regime_bull or tp_dist is None:
+            tp_target.append('<span style="color:#888780">trail only</span>')
+            tp_dist_close.append('—')
+            tp_rr.append('<span style="color:#888780">n/a</span>')
+        else:
+            tp_t = entry_p + tp_dist if dirn == 'long' else entry_p - tp_dist
+            tp_target.append(
+                _fmt_price(tp_t) +
+                (' <span style="font-size:10px;color:#888780">'
+                 '(entry + 6× stop dist)</span>' if has_pos else '')
+            )
+            if not _math.isnan(close_v) and close_v > 0:
+                tp_pct = (tp_t - close_v) / close_v * 100 if dirn == 'long' \
+                         else (close_v - tp_t) / close_v * 100
+                sign = '+' if tp_pct >= 0 else ''
+                tp_dist_close.append(f'{sign}{tp_pct:.2f}%')
+            else:
+                tp_dist_close.append('—')
+            tp_rr.append('6 : 1')
+
+        # Regime breakdown — collapse each check to a single ratio.
+        # Pass = ratio > 1.0 (green); fail = ratio ≤ 1.0 (red).
+        def _ratio_cell(ratio):
+            if ratio is None or (isinstance(ratio, float) and _math.isnan(ratio)):
+                return '<span style="color:#888780">—</span>'
+            cls = 'stat-pos' if ratio > 1.0 else 'stat-neg'
+            return f'<span class="{cls}" style="font-weight:600">{ratio:.2f}</span>'
+
+        # close / 1H trend MA
+        if not _math.isnan(trend_ma) and trend_ma != 0:
+            reg_close_vs_ma.append(_ratio_cell(close_v / trend_ma))
+        else:
+            reg_close_vs_ma.append(_ratio_cell(None))
+
+        # 4H ADX / adx_strong threshold
+        if adx_strong_t > 0:
+            reg_adx.append(_ratio_cell(adx_v / adx_strong_t))
+        else:
+            reg_adx.append(_ratio_cell(None))
+
+        # +DI / −DI
+        if minus_di > 0:
+            reg_di.append(_ratio_cell(plus_di / minus_di))
+        else:
+            reg_di.append(_ratio_cell(None))
+
+    rows_html_exit = (
+        _divider('Inputs') +
+        _row('Close ($)',           inputs_close)      +
+        _row('1H ATR ($)',          inputs_atr)        +
+        _row('trail_atr_mult',      inputs_trail_mult) +
+        _row('1H trend MA ($)',     inputs_trend_ma)   +
+
+        _divider('Stop loss') +
+        _row('Stop distance ($)',   stop_trail_dist)   +
+        _row('Current stop ($)',    stop_current)      +
+        _row('% from close',        stop_dist_close)   +
+        _row('Ratcheted this bar',  stop_ratcheted)    +
+
+        _divider('Take profit') +
+        _row('Regime',              tp_regime)         +
+        _row('TP target ($)',       tp_target)         +
+        _row('% from close',        tp_dist_close)     +
+        _row('Reward : risk',       tp_rr)             +
+
+        _divider('Regime checks (all ratios must be > 1.00 for STRONG BULL)') +
+        _row('Close / 1H trend MA', reg_close_vs_ma)   +
+        _row('4H ADX / adx_strong', reg_adx)           +
+        _row('+DI / −DI',           reg_di)
     )
 
     coin_cols = ''.join(f'<col style="width:{col_w}">' for _ in coin_rows)
@@ -1199,7 +1632,7 @@ Otherwise: 6:1 fixed TP from entry.
     <thead><tr>
       <th style="text-align:left">Field</th>{coin_ths}
     </tr></thead>
-    <tbody>{rows_html_stop}</tbody>
+    <tbody>{rows_html_exit}</tbody>
   </table>
   </div>
 </div>

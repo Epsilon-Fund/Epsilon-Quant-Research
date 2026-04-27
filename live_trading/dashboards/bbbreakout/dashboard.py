@@ -197,8 +197,16 @@ def compute_signals(hourly_df, params, strategy_name):
     last             = result_df.iloc[-1]
     prev             = result_df.iloc[-2] if len(result_df) > 1 else last
 
+    def _f(v):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return float('nan')
+        return float('nan') if pd.isna(f) else f
+
     close         = float(last['Close'])
-    sma           = float(last['SMA'])   if not pd.isna(last['SMA'])           else float('nan')
+    prev_close    = float(prev['Close'])
+    sma           = _f(last['SMA'])
     position      = int(last['position'])
     position_size = float(last['position_size'])
     stop          = float(last['stop_loss'])
@@ -219,8 +227,134 @@ def compute_signals(hourly_df, params, strategy_name):
     in_long       = (position == 1)
     in_short      = (position == -1)
 
+    # ── 4H Engine Room conditions (last completed 4H bar) ─────────────────────
+    h4_two_big_green = bool(last.get('h4_two_big_green', False))
+    h4_two_big_red   = bool(last.get('h4_two_big_red',   False))
+    h4_bb_exp        = bool(last.get('h4_bb_exp',        False))
+    h4_slope_norm    = _f(last.get('h4_slope_norm', 0.0))
+    h4_adx           = _f(last.get('h4_adx',        0.0))
+    h4_plus_di       = _f(last.get('h4_plus_di',    0.0))
+    h4_minus_di      = _f(last.get('h4_minus_di',   0.0))
+    h4_long_setup    = bool(last.get('h4_long_setup',      False))
+    h4_short_raw     = bool(last.get('h4_short_setup_raw', False))
+
+    # Per-condition booleans (Engine Room rules, README's Conditions 1/2/3)
+    slope_eps = float(params.get('slope_epsilon', 0.0))
+    adx_strong_threshold = float(params.get('adx_strong', 0.0))
+
+    # Same-direction check is "two big green OR two big red"
+    c1_two_big_same_dir = h4_two_big_green or h4_two_big_red
+    if h4_two_big_green:
+        h4_dir = 'long'
+    elif h4_two_big_red:
+        h4_dir = 'short'
+    else:
+        h4_dir = 'mixed'
+    c2_bb_expanding = h4_bb_exp
+    # Slope condition is direction-aware: long needs slope_norm >= -eps,
+    # short needs slope_norm <= +eps.  Show the rule for whichever direction
+    # the two-big candles point at; if neither, evaluate against both.
+    if h4_dir == 'long':
+        c3_slope_ok = h4_slope_norm >= -slope_eps
+    elif h4_dir == 'short':
+        c3_slope_ok = h4_slope_norm <=  slope_eps
+    else:
+        c3_slope_ok = (-slope_eps <= h4_slope_norm <= slope_eps) or False
+
+    # 1H reference indicators read once and used by both the regime block
+    # below and the spoiler block further down.
+    h1_trend_ma = _f(last.get('h1_trend_ma', float('nan')))
+    h1_atr      = _f(last.get('h1_atr',      float('nan')))
+    h1_range    = _f(last.get('h1_range',    float('nan')))
+
+    # Bull-market short veto (broad OR — used at entry time for short-arming)
+    above_trend  = (not pd.isna(h1_trend_ma)) and close > h1_trend_ma
+    bull_trend   = (h4_adx > adx_strong_threshold) and (h4_plus_di > h4_minus_di)
+    bull_veto_active = above_trend or bull_trend
+
+    # Strong-bull *regime* (strict AND — the strategy uses this at entry time
+    # to decide whether to skip the take-profit and ride the trailing stop).
+    regime_strong_bull = bool(
+        (not pd.isna(h1_trend_ma))
+        and close > h1_trend_ma
+        and h4_adx > adx_strong_threshold
+        and h4_plus_di > h4_minus_di
+    )
+
+    # Stop / TP distances (live, derived from current 1H ATR — useful as a
+    # "what would the strategy do now" reference for managing open positions).
+    trail_atr_mult = float(params.get('trail_atr_mult', 0.0))
+    if not pd.isna(h1_atr) and h1_atr > 0:
+        trail_dist = trail_atr_mult * h1_atr
+        tp_distance = None if regime_strong_bull else 6.0 * trail_dist
+    else:
+        trail_dist  = float('nan')
+        tp_distance = None
+
+    # ── 1H Buy-the-Dip state + spoilers ───────────────────────────────────────
+    setup_active    = bool(last.get('setup_active',    False))
+    setup_direction = int(last.get('setup_direction',  0))
+    bars_since      = int(last.get('bars_since',       0))
+
+    max_1h_bars        = int(params['max_1h_bars'])
+    pullback_atr_mult  = float(params['pullback_atr_mult'])
+    entry_zone_bps     = float(params['entry_zone_bps'])
+    overshoot_bps      = float(params['overshoot_bps'])
+
+    bars_until_expiry = max(max_1h_bars - bars_since, 0) if setup_active else None
+
+    # Distance from SMA (bps), clamped to None if SMA is NaN
+    if not pd.isna(sma) and sma > 0:
+        dist_sma_bps = abs(close - sma) / sma * 10000
+        in_zone      = dist_sma_bps <= entry_zone_bps
+    else:
+        dist_sma_bps = float('nan')
+        in_zone      = False
+
+    # 1H pullback: range vs ATR multiple (h1_atr / h1_range read above)
+    if not pd.isna(h1_atr) and h1_atr > 0:
+        pullback_ratio = h1_range / h1_atr
+        pullback_ok    = pullback_ratio <= pullback_atr_mult
+    else:
+        pullback_ratio = float('nan')
+        pullback_ok    = False
+
+    # Overshoot check (direction-aware; only meaningful when armed)
+    overshoot_active = False
+    if setup_active and not pd.isna(sma) and sma > 0:
+        overshoot_amount = (close - sma) / sma * 10000   # signed bps
+        if setup_direction == 1:
+            overshoot_active = overshoot_amount < -overshoot_bps
+        elif setup_direction == -1:
+            overshoot_active = overshoot_amount >  overshoot_bps
+
+    # Momentum check (close vs prev close, direction-aware)
+    if setup_direction == 1:
+        momentum_ok = close > prev_close
+    elif setup_direction == -1:
+        momentum_ok = close < prev_close
+    else:
+        momentum_ok = False
+
+    # Final P1 + P2 trigger (matches the strategy's entry condition)
+    entry_fires = bool(setup_active and in_zone and momentum_ok
+                       and pullback_ok and not overshoot_active)
+
+    # State badge for the dashboard (single source of truth)
+    if in_long:
+        state_badge = 'IN POSITION LONG'
+    elif in_short:
+        state_badge = 'IN POSITION SHORT'
+    elif setup_active and setup_direction == 1:
+        state_badge = 'ARMED LONG'
+    elif setup_active and setup_direction == -1:
+        state_badge = 'ARMED SHORT'
+    else:
+        state_badge = 'IDLE'
+
     return {
         'close':               close,
+        'prev_close':          prev_close,
         'sma':                 sma,
         'bb_mid':              bb_mid,
         'bb_upper':            bb_upper,
@@ -234,6 +368,50 @@ def compute_signals(hourly_df, params, strategy_name):
         'in_short':            in_short,
         'stop':                stop,
         'leverage_multiplier': position_size,
+
+        # ── 4H Engine Room ────────────────────────────────────────────────────
+        'h4_two_big_green':    h4_two_big_green,
+        'h4_two_big_red':      h4_two_big_red,
+        'h4_dir':              h4_dir,                 # 'long' / 'short' / 'mixed'
+        'c1_two_big_same_dir': c1_two_big_same_dir,
+        'c2_bb_expanding':     c2_bb_expanding,
+        'c3_slope_ok':         c3_slope_ok,
+        'h4_slope_norm':       h4_slope_norm,
+        'h4_adx':              h4_adx,
+        'h4_plus_di':          h4_plus_di,
+        'h4_minus_di':         h4_minus_di,
+        'h4_long_setup':       h4_long_setup,
+        'h4_short_setup_raw':  h4_short_raw,
+        'bull_veto_active':    bull_veto_active,
+        'h1_trend_ma':         h1_trend_ma,
+
+        # ── 1H Buy-the-Dip + spoilers ─────────────────────────────────────────
+        'setup_active':        setup_active,
+        'setup_direction':     setup_direction,
+        'bars_since':          bars_since,
+        'max_1h_bars':         max_1h_bars,
+        'bars_until_expiry':   bars_until_expiry,
+        'dist_sma_bps':        dist_sma_bps,
+        'entry_zone_bps':      entry_zone_bps,
+        'in_zone':             in_zone,
+        'h1_atr':              h1_atr,
+        'h1_range':            h1_range,
+        'pullback_ratio':      pullback_ratio,
+        'pullback_atr_mult':   pullback_atr_mult,
+        'pullback_ok':         pullback_ok,
+        'overshoot_bps':       overshoot_bps,
+        'overshoot_active':    overshoot_active,
+        'momentum_ok':         momentum_ok,
+        'entry_fires':         entry_fires,
+        'state_badge':         state_badge,
+        'slope_epsilon':       slope_eps,
+        'adx_strong':          adx_strong_threshold,
+
+        # ── Exit details (stop + regime-aware take-profit) ────────────────────
+        'regime_strong_bull':  regime_strong_bull,
+        'trail_atr_mult':      trail_atr_mult,
+        'trail_dist':          trail_dist,
+        'tp_distance':         tp_distance,
     }
 
 
@@ -258,32 +436,46 @@ def apply_decision(sig, open_positions, exec_price, capital):
     """
     Apply BB Breakout decision rules.
 
-    The strategy state machine determines position on every bar, so the
-    signal's `position` field is the single source of truth:
+    The dashboard's decision is driven by **exit conditions** evaluated against
+    the user's actual open positions (positions.json), not by the strategy's
+    internal state machine.  This makes the dashboard work correctly for both
+    strategy-fired and discretionary trades — the strategy's `position` flag
+    only reflects its own auto-trading state and would say `0` for any
+    discretionary trade the user opened manually.
 
-      position != 0 and no open position  → ENTRY  (long if +1, short if -1)
-      position == 0 and open position     → EXIT
-      position != 0 and open position     → HOLD   (stop updated to sig['stop'])
-      position == 0 and no open position  → FLAT
+    Decision matrix (in_position = positions.json has an open position):
+      not in_position, sig['position'] != 0  → ENTRY  (strategy's auto-fire)
+      not in_position, sig['position'] == 0  → FLAT
+      in_position, stop hit                  → EXIT   (binding stop reached)
+      in_position, take-profit hit           → EXIT   (TP reached)
+      in_position, neither                   → HOLD   (with ratchet suggestion)
 
-    open_positions: dict of {position_id: pos} from get_open_positions().
+    A "discretionary" position with no stop set yet falls through to HOLD
+    because there's no binding-stop to compare against.
     """
-    in_position       = bool(open_positions)
-    primary           = next(iter(open_positions.values()), None)
-    position_signal   = sig['position']
-    close             = sig['close']
-    current_stop      = sig['stop']
-    leverage_mult     = sig['leverage_multiplier']
+    in_position     = bool(open_positions)
+    primary         = next(iter(open_positions.values()), None)
+    position_signal = sig['position']
+    close           = sig['close']
+    leverage_mult   = sig['leverage_multiplier']
+    trail_dist      = sig.get('trail_dist', 0.0) or 0.0
 
-    # ── ENTRY ─────────────────────────────────────────────────────────────────
+    # ── ENTRY (strategy auto-fire) ────────────────────────────────────────────
     if not in_position and position_signal != 0:
         price_for_units = exec_price if exec_price is not None else close
         size_usd        = leverage_mult * capital
         size_units      = size_usd / price_for_units if price_for_units else None
+        # Theoretical entry stop derived from close ± trail_dist (the strategy
+        # only writes a non-zero stop_loss on the entry bar itself, so this
+        # gives a stable value for both entry-bar and form-default usage).
+        if trail_dist > 0:
+            theo_stop = (close - trail_dist) if position_signal == 1 else (close + trail_dist)
+        else:
+            theo_stop = sig.get('stop', 0.0) or 0.0
         return {
             'decision':            'ENTRY',
             'direction':           position_signal,   # +1 long, -1 short
-            'current_stop':        current_stop,
+            'current_stop':        theo_stop,
             'stop_updated':        False,
             'leverage_multiplier': leverage_mult,
             'size_usd':            size_usd,
@@ -302,37 +494,69 @@ def apply_decision(sig, open_positions, exec_price, capital):
             'size_units':          None,
         }
 
-    # ── In position branch ────────────────────────────────────────────────────
+    # ── In position: evaluate exit conditions ────────────────────────────────
     confirmed_stop_raw = primary.get('current_stop')
+    pending_stop_raw   = primary.get('pending_stop')
     confirmed_stop     = float(confirmed_stop_raw) if confirmed_stop_raw is not None else None
-    trade_direction    = primary.get('direction', 1)
+    pending_stop       = float(pending_stop_raw)   if pending_stop_raw   is not None else None
+    # Binding stop = confirmed stop if set, else pending (better than nothing
+    # for risk display before the user clicks "Confirm").
+    binding_stop       = confirmed_stop if confirmed_stop is not None else pending_stop
+    trade_direction    = primary.get('direction', 'long')
+    trade_dir_int      = 1 if trade_direction == 'long' else -1
     stored_lev         = primary.get('leverage_multiplier') or primary.get('size_pct', 0)
-    size_usd           = stored_lev * capital
+    size_usd           = primary.get('size_usd') or (stored_lev * capital)
+    take_profit_raw    = primary.get('take_profit')
+    take_profit        = float(take_profit_raw) if take_profit_raw is not None else None
 
-    # ── EXIT — strategy state machine exited the trade ────────────────────────
-    if position_signal == 0:
-        print(f"  [EXIT trigger] strategy position=0  confirmed_stop={confirmed_stop}")
+    # Stop hit?  Need a binding stop to compare against — discretionary
+    # positions without a confirmed stop yet skip this check.
+    stop_hit = False
+    if binding_stop is not None and binding_stop > 0:
+        if trade_dir_int == 1 and close <= binding_stop:
+            stop_hit = True
+        elif trade_dir_int == -1 and close >= binding_stop:
+            stop_hit = True
+
+    # TP hit?  Only relevant when a TP was set at entry (chop/bear regime).
+    tp_hit = False
+    if take_profit is not None and take_profit > 0:
+        if trade_dir_int == 1 and close >= take_profit:
+            tp_hit = True
+        elif trade_dir_int == -1 and close <= take_profit:
+            tp_hit = True
+
+    if stop_hit or tp_hit:
+        reason = 'stop' if stop_hit else 'take_profit'
+        print(f"  [EXIT trigger] reason={reason}  close={close:.4f} "
+              f"binding_stop={binding_stop} take_profit={take_profit}")
         return {
             'decision':            'EXIT',
-            'direction':           trade_direction,
-            'current_stop':        confirmed_stop,
+            'direction':           trade_dir_int,
+            'current_stop':        binding_stop,
             'stop_updated':        False,
+            'exit_reason':         reason,
             'leverage_multiplier': stored_lev,
             'size_usd':            size_usd,
             'size_units':          None,
         }
 
-    # ── HOLD — ratchet trailing stop from strategy ────────────────────────────
-    old_stop    = confirmed_stop if confirmed_stop else 0.0
-    new_stop    = current_stop   # strategy already ratcheted this bar
-    stop_updated = (
-        (trade_direction ==  1 and new_stop > old_stop) or
-        (trade_direction == -1 and new_stop < old_stop and old_stop != 0.0)
-    )
+    # ── HOLD — neither stop nor TP hit; suggest a fresh ratchet level ────────
+    if trail_dist > 0:
+        suggested_stop = (close - trail_dist) if trade_dir_int == 1 else (close + trail_dist)
+    else:
+        suggested_stop = sig.get('stop', 0.0) or 0.0
+
+    old_stop = binding_stop if binding_stop is not None else 0.0
+    if trade_dir_int == 1:
+        stop_updated = suggested_stop > old_stop
+    else:
+        stop_updated = suggested_stop < old_stop and old_stop != 0.0
+
     return {
         'decision':            'HOLD',
-        'direction':           trade_direction,
-        'current_stop':        new_stop,
+        'direction':           trade_dir_int,
+        'current_stop':        suggested_stop,
         'stop_updated':        stop_updated,
         'old_stop':            old_stop,
         'leverage_multiplier': stored_lev,
