@@ -100,7 +100,8 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     big           = h4_range > brk_threshold
     two_big_green = big & big.shift(1) & h4_green & h4_green.shift(1)
     two_big_red   = big & big.shift(1) & h4_red   & h4_red.shift(1)
-    bb_exp        = h4_bw > h4_bw.rolling(params["bb_exp_window"]).mean()
+    h4_bw_mean    = h4_bw.rolling(params["bb_exp_window"]).mean()
+    bb_exp        = h4_bw > h4_bw_mean
     h4_slope_norm = h4_slope / h4["close"].replace(0, np.nan)
     slope_eps     = params["slope_epsilon"]
     h4_long  = two_big_green & bb_exp & (h4_slope_norm >= -slope_eps)
@@ -136,6 +137,13 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     h4_two_big_red_1h   = _bool_align(two_big_red)
     h4_bb_exp_1h        = _bool_align(bb_exp)
     h4_slope_norm_1h    = h4_slope_norm.shift(1).reindex(h1.index, method="ffill").fillna(0.0)
+    # Raw 4H indicator values used by the dashboard to display ratios so the
+    # user can see WHY each entry condition is TRUE/FALSE.  Same shift(1)
+    # alignment as the boolean condition series above.
+    h4_range_1h        = h4_range.shift(1).reindex(h1.index,    method="ffill").fillna(0.0)
+    h4_brk_thresh_1h   = brk_threshold.shift(1).reindex(h1.index, method="ffill").fillna(0.0)
+    h4_bw_1h           = h4_bw.shift(1).reindex(h1.index,        method="ffill").fillna(0.0)
+    h4_bw_mean_1h      = h4_bw_mean.shift(1).reindex(h1.index,   method="ffill").fillna(0.0)
 
     long_setup_fires  = h4_long_1h  & ~(h4_long_1h.shift(1)  == True)  # noqa: E712
     short_setup_fires = h4_short_1h & ~(h4_short_1h.shift(1) == True)  # noqa: E712
@@ -306,6 +314,10 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     df["h4_two_big_red"]     = h4_two_big_red_1h.astype(bool).to_numpy()
     df["h4_bb_exp"]          = h4_bb_exp_1h.astype(bool).to_numpy()
     df["h4_slope_norm"]      = h4_slope_norm_1h.to_numpy()
+    df["h4_range"]           = h4_range_1h.to_numpy()
+    df["h4_brk_threshold"]   = h4_brk_thresh_1h.to_numpy()
+    df["h4_bb_width"]        = h4_bw_1h.to_numpy()
+    df["h4_bb_width_mean"]   = h4_bw_mean_1h.to_numpy()
     df["h4_long_setup"]      = h4_long_1h.astype(bool).to_numpy()
     df["h4_short_setup_raw"] = h4_short_1h.astype(bool).to_numpy()
     df["h4_adx"]             = h4_adx_1h.to_numpy()

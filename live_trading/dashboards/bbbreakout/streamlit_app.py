@@ -1183,33 +1183,50 @@ for c in coin_rows:
     else:
         dir_label = 'Mixed'
 
-    # C1 — two big same-direction
-    c1_pass = bool(sig.get('c1_two_big_same_dir', False))
-    c1_td   = (f'<td class="c {"entry-t" if c1_pass else "entry-f"}">'
-               f'{"TRUE" if c1_pass else "FALSE"}'
-               f'<br><span style="font-size:10px;font-weight:400">{dir_label}</span></td>')
+    # ── Plain numeric cell (no green/red tint — matches momentum's pattern) ──
+    def _num_td(v, fmt='{:.2f}'):
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            return '<td class="r" style="color:#888780">—</td>'
+        return f'<td class="r">{fmt.format(v)}</td>'
+
+    # C1 — two big same-direction (TRUE/FALSE coloured; direction shown
+    # inline only when the condition fires, so the cell stays narrow).
+    c1_pass     = bool(sig.get('c1_two_big_same_dir', False))
+    c1_ratio_td = _num_td(sig.get('c1_range_ratio'))
+    if c1_pass:
+        _dir_word = 'long' if h4_dir == 'long' else 'short'
+        c1_td = (f'<td class="c entry-t">TRUE'
+                 f' <span style="font-size:10px;font-weight:400">({_dir_word})</span></td>')
+    else:
+        c1_td = '<td class="c entry-f">FALSE</td>'
 
     # C2 — BB expansion
-    c2_pass = bool(sig.get('c2_bb_expanding', False))
-    c2_td   = _bool_td(c2_pass)
+    c2_pass     = bool(sig.get('c2_bb_expanding', False))
+    c2_ratio_td = _num_td(sig.get('c2_bb_ratio'))
+    c2_td       = _bool_td(c2_pass)
 
-    # C3 — slope OK (with slope value as sub-text)
+    # C3 — slope OK (signed ratio; sign matters but no colour on the number)
     c3_pass     = bool(sig.get('c3_slope_ok', False))
-    slope_norm  = sig.get('h4_slope_norm', 0.0)
-    slope_eps   = sig.get('slope_epsilon', 0.0)
-    slope_text  = f'{slope_norm:+.5f}'
-    eps_text    = f'±{slope_eps:.5f}'
-    c3_td = (f'<td class="c {"entry-t" if c3_pass else "entry-f"}">'
-             f'{"TRUE" if c3_pass else "FALSE"}'
-             f'<br><span style="font-size:10px;font-weight:400">{slope_text} (ε {eps_text})</span></td>')
+    c3_ratio_td = _num_td(sig.get('c3_slope_ratio'), fmt='{:+.2f}')
+    c3_td       = _bool_td(c3_pass)
 
-    # 4H ADX value (informational; relevant for the bull-regime short veto)
-    adx_val   = sig.get('h4_adx', 0.0)
-    plus_di   = sig.get('h4_plus_di', 0.0)
-    minus_di  = sig.get('h4_minus_di', 0.0)
-    adx_td    = (f'<td class="r">{adx_val:.2f}'
-                 f'<br><span style="font-size:10px;color:#888780">+DI {plus_di:.2f} '
-                 f'/ −DI {minus_di:.2f}</span></td>')
+    # 4H ADX — momentum-style trio: value | threshold | boolean leg.
+    adx_val      = sig.get('h4_adx',     0.0)
+    adx_thresh   = sig.get('adx_strong', 0.0)
+    adx_strong_p = bool(sig.get('adx_strong_pass', False))
+    adx_td        = _num_td(adx_val)
+    adx_thresh_td = _num_td(adx_thresh)
+    adx_pass_td   = _bool_td(adx_strong_p)
+
+    # Directional bias — +DI / −DI raw values + a "+DI > −DI" boolean.
+    # Together with ADX-strong, this leg is what forms "strong bull regime"
+    # (used to veto shorts and skip take-profit).
+    plus_di    = sig.get('h4_plus_di',  0.0)
+    minus_di   = sig.get('h4_minus_di', 0.0)
+    di_bull    = bool(sig.get('plus_di_dominant', False))
+    plus_di_td  = _num_td(plus_di)
+    minus_di_td = _num_td(minus_di)
+    di_pass_td  = _bool_td(di_bull)
 
     # Bull-regime veto — only matters for shorts.  For longs / mixed, show muted "—".
     bull_veto = bool(sig.get('bull_veto_active', False))
@@ -1238,10 +1255,18 @@ for c in coin_rows:
     engine_rows_html += f"""
     <tr>
       <td class="asset-name">{escape(c['symbol'])}</td>
+      {c1_ratio_td}
       {c1_td}
+      {c2_ratio_td}
       {c2_td}
+      {c3_ratio_td}
       {c3_td}
       {adx_td}
+      {adx_thresh_td}
+      {adx_pass_td}
+      {plus_di_td}
+      {minus_di_td}
+      {di_pass_td}
       {veto_td}
       {setup_td}
     </tr>"""
@@ -1280,18 +1305,28 @@ before the strategy re-enters.  Prevents revenge trading.
 
 st.markdown(f"""
 <div class="dashboard-card">
-  <table class="dash-table dash-table-labeled">
+  <div class="table-scroll">
+  <table class="dash-table dash-table-labeled" style="width:auto;min-width:100%;white-space:nowrap">
     <thead><tr>
       <th>Asset</th>
+      <th class="r">Range / thresh</th>
       <th class="c">C1: 2 Big Same Dir</th>
+      <th class="r">BB / mean</th>
       <th class="c">C2: BB Expanding</th>
+      <th class="r">Slope / ε</th>
       <th class="c">C3: Slope OK</th>
       <th class="r">4H ADX</th>
-      <th class="c">Bull veto (shorts)</th>
-      <th class="c">Setup (last 4H bar)</th>
+      <th class="r">adx_strong</th>
+      <th class="c">ADX strong</th>
+      <th class="r">+DI</th>
+      <th class="r">−DI</th>
+      <th class="c">+DI > −DI</th>
+      <th class="c">Bull veto</th>
+      <th class="c">Setup</th>
     </tr></thead>
     <tbody>{engine_rows_html}</tbody>
   </table>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1335,23 +1370,42 @@ for c in coin_rows:
     else:
         expiry_td = _muted_td()
 
-    # Δ SMA / entry zone
+    # ── Plain numeric cell helper (no colour — matches momentum's pattern) ──
+    def _plain_num(v, fmt='{:.2f}'):
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            return _muted_td()
+        return f'<td class="r">{fmt.format(v)}</td>'
+
+    # Δ SMA / entry zone — plain "X bps / ≤ Y bps", momentum-style.
     if setup_active and not in_position:
-        zone_td = _value_threshold_td(
-            sig.get('dist_sma_bps'), sig.get('entry_zone_bps', 0.0),
-            bool(sig.get('in_zone', False)), '{:.0f} bps')
+        _v = sig.get('dist_sma_bps'); _t = sig.get('entry_zone_bps', 0.0)
+        if _v is None or (isinstance(_v, float) and math.isnan(_v)):
+            zone_td = _muted_td()
+        else:
+            zone_td = (f'<td class="r">{_v:.0f} bps '
+                       f'<span style="font-size:10px;color:#888780">/ ≤ {_t:.0f}</span></td>')
     else:
         zone_td = _muted_td()
 
-    # Pullback range vs ATR
+    # Pullback range vs ATR — plain "X× / ≤ Y×".
     if setup_active and not in_position:
-        pull_td = _value_threshold_td(
-            sig.get('pullback_ratio'), sig.get('pullback_atr_mult', 0.0),
-            bool(sig.get('pullback_ok', False)), '{:.2f}×')
+        _v = sig.get('pullback_ratio'); _t = sig.get('pullback_atr_mult', 0.0)
+        if _v is None or (isinstance(_v, float) and math.isnan(_v)):
+            pull_td = _muted_td()
+        else:
+            pull_td = (f'<td class="r">{_v:.2f}× '
+                       f'<span style="font-size:10px;color:#888780">/ ≤ {_t:.2f}×</span></td>')
     else:
         pull_td = _muted_td()
 
-    # Overshoot status
+    # Close − SMA (signed bps) — plain numeric, the Overshoot boolean
+    # column next to it is what colours the pass/fail verdict.
+    if setup_active and not in_position:
+        sma_off_td = _plain_num(sig.get('sma_offset_bps'), fmt='{:+.0f} bps')
+    else:
+        sma_off_td = _muted_td()
+
+    # Overshoot status (boolean cell — coloured)
     if setup_active and not in_position:
         if sig.get('overshoot_active'):
             overshoot_td = '<td class="c entry-f">OVERSHOT</td>'
@@ -1360,7 +1414,13 @@ for c in coin_rows:
     else:
         overshoot_td = _muted_td()
 
-    # Momentum
+    # Δ close % vs prev close — plain numeric
+    if setup_active and not in_position:
+        mom_pct_td = _plain_num(sig.get('momentum_pct'), fmt='{:+.2f}%')
+    else:
+        mom_pct_td = _muted_td()
+
+    # Momentum boolean (matches the strategy's own check)
     if setup_active and not in_position:
         momentum_td = _bool_td(bool(sig.get('momentum_ok', False)))
     else:
@@ -1379,7 +1439,9 @@ for c in coin_rows:
       {expiry_td}
       {zone_td}
       {pull_td}
+      {sma_off_td}
       {overshoot_td}
+      {mom_pct_td}
       {momentum_td}
       {entry_td}
     </tr>"""
@@ -1413,19 +1475,23 @@ greyed when no setup is armed.
 
 st.markdown(f"""
 <div class="dashboard-card">
-  <table class="dash-table dash-table-labeled">
+  <div class="table-scroll">
+  <table class="dash-table dash-table-labeled" style="width:auto;min-width:100%;white-space:nowrap">
     <thead><tr>
       <th>Asset</th>
       <th class="c">State</th>
-      <th class="r">Bars to expiry</th>
+      <th class="r">Bars left</th>
       <th class="r">Δ SMA <span style="font-weight:400;font-size:10px;color:#888780">(P1)</span></th>
-      <th class="r">Pullback range/ATR <span style="font-weight:400;font-size:10px;color:#888780">(E2)</span></th>
+      <th class="r">Pullback / ATR <span style="font-weight:400;font-size:10px;color:#888780">(E2)</span></th>
+      <th class="r">Close − SMA</th>
       <th class="c">Overshoot <span style="font-weight:400;font-size:10px;color:#888780">(E3)</span></th>
+      <th class="r">Δ close %</th>
       <th class="c">Momentum <span style="font-weight:400;font-size:10px;color:#888780">(P2)</span></th>
       <th class="c">Entry fires</th>
     </tr></thead>
     <tbody>{dip_rows_html}</tbody>
   </table>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 

@@ -238,9 +238,32 @@ def compute_signals(hourly_df, params, strategy_name):
     h4_long_setup    = bool(last.get('h4_long_setup',      False))
     h4_short_raw     = bool(last.get('h4_short_setup_raw', False))
 
+    # Raw 4H indicator values for the dashboard's ratio columns
+    h4_range         = _f(last.get('h4_range',         0.0))
+    h4_brk_threshold = _f(last.get('h4_brk_threshold', 0.0))
+    h4_bb_width      = _f(last.get('h4_bb_width',      0.0))
+    h4_bb_width_mean = _f(last.get('h4_bb_width_mean', 0.0))
+
     # Per-condition booleans (Engine Room rules, README's Conditions 1/2/3)
     slope_eps = float(params.get('slope_epsilon', 0.0))
     adx_strong_threshold = float(params.get('adx_strong', 0.0))
+
+    # Ratios used by the dashboard to surface WHY each Engine Room condition
+    # is TRUE/FALSE — same idea as momentum's Close/EMA, ADX, ADX threshold.
+    c1_range_ratio = (h4_range / h4_brk_threshold
+                      if h4_brk_threshold and not pd.isna(h4_brk_threshold) and h4_brk_threshold > 0
+                      else float('nan'))
+    c2_bb_ratio    = (h4_bb_width / h4_bb_width_mean
+                      if h4_bb_width_mean and not pd.isna(h4_bb_width_mean) and h4_bb_width_mean > 0
+                      else float('nan'))
+    # Slope ratio: slope_norm / slope_eps (signed).
+    #   • Long passes when ratio ≥ −1   (slope_norm ≥ −eps)
+    #   • Short passes when ratio ≤ +1  (slope_norm ≤ +eps)
+    c3_slope_ratio = (h4_slope_norm / slope_eps
+                      if slope_eps and slope_eps != 0 else float('nan'))
+    adx_strong_ratio = (h4_adx / adx_strong_threshold
+                        if adx_strong_threshold and adx_strong_threshold > 0
+                        else float('nan'))
 
     # Same-direction check is "two big green OR two big red"
     c1_two_big_same_dir = h4_two_big_green or h4_two_big_red
@@ -268,9 +291,11 @@ def compute_signals(hourly_df, params, strategy_name):
     h1_range    = _f(last.get('h1_range',    float('nan')))
 
     # Bull-market short veto (broad OR — used at entry time for short-arming)
-    above_trend  = (not pd.isna(h1_trend_ma)) and close > h1_trend_ma
-    bull_trend   = (h4_adx > adx_strong_threshold) and (h4_plus_di > h4_minus_di)
-    bull_veto_active = above_trend or bull_trend
+    above_trend       = (not pd.isna(h1_trend_ma)) and close > h1_trend_ma
+    adx_strong_pass   = h4_adx > adx_strong_threshold
+    plus_di_dominant  = h4_plus_di > h4_minus_di
+    bull_trend        = adx_strong_pass and plus_di_dominant
+    bull_veto_active  = above_trend or bull_trend
 
     # Strong-bull *regime* (strict AND — the strategy uses this at entry time
     # to decide whether to skip the take-profit and ride the trailing stop).
@@ -319,14 +344,27 @@ def compute_signals(hourly_df, params, strategy_name):
         pullback_ratio = float('nan')
         pullback_ok    = False
 
+    # Signed close-vs-SMA offset in bps — used by the overshoot check below
+    # AND surfaced to the dashboard so the user can see HOW close to / past
+    # the spoiler threshold the price is.
+    if not pd.isna(sma) and sma > 0:
+        sma_offset_bps = (close - sma) / sma * 10000   # signed bps
+    else:
+        sma_offset_bps = float('nan')
+
     # Overshoot check (direction-aware; only meaningful when armed)
     overshoot_active = False
-    if setup_active and not pd.isna(sma) and sma > 0:
-        overshoot_amount = (close - sma) / sma * 10000   # signed bps
+    if setup_active and not pd.isna(sma_offset_bps):
         if setup_direction == 1:
-            overshoot_active = overshoot_amount < -overshoot_bps
+            overshoot_active = sma_offset_bps < -overshoot_bps
         elif setup_direction == -1:
-            overshoot_active = overshoot_amount >  overshoot_bps
+            overshoot_active = sma_offset_bps >  overshoot_bps
+
+    # Momentum % change vs prev close — signed
+    if prev_close > 0:
+        momentum_pct = (close - prev_close) / prev_close * 100
+    else:
+        momentum_pct = float('nan')
 
     # Momentum check (close vs prev close, direction-aware)
     if setup_direction == 1:
@@ -335,6 +373,8 @@ def compute_signals(hourly_df, params, strategy_name):
         momentum_ok = close < prev_close
     else:
         momentum_ok = False
+    # Signed bps move (a different lens on momentum_pct above)
+    momentum_bps = momentum_pct * 100 if not pd.isna(momentum_pct) else float('nan')
 
     # Final P1 + P2 trigger (matches the strategy's entry condition)
     entry_fires = bool(setup_active and in_zone and momentum_ok
@@ -383,7 +423,18 @@ def compute_signals(hourly_df, params, strategy_name):
         'h4_long_setup':       h4_long_setup,
         'h4_short_setup_raw':  h4_short_raw,
         'bull_veto_active':    bull_veto_active,
+        'adx_strong_pass':     adx_strong_pass,    # h4_adx > adx_strong
+        'plus_di_dominant':    plus_di_dominant,   # +DI > −DI
         'h1_trend_ma':         h1_trend_ma,
+        # Raw 4H indicator values + ratios for dashboard display
+        'h4_range':            h4_range,
+        'h4_brk_threshold':    h4_brk_threshold,
+        'h4_bb_width':         h4_bb_width,
+        'h4_bb_width_mean':    h4_bb_width_mean,
+        'c1_range_ratio':      c1_range_ratio,         # >1 ⇒ "big" 4H bar
+        'c2_bb_ratio':         c2_bb_ratio,            # >1 ⇒ BB expanding
+        'c3_slope_ratio':      c3_slope_ratio,         # signed; pass depends on direction
+        'adx_strong_ratio':    adx_strong_ratio,       # 4H ADX / adx_strong threshold
 
         # ── 1H Buy-the-Dip + spoilers ─────────────────────────────────────────
         'setup_active':        setup_active,
@@ -401,7 +452,10 @@ def compute_signals(hourly_df, params, strategy_name):
         'pullback_ok':         pullback_ok,
         'overshoot_bps':       overshoot_bps,
         'overshoot_active':    overshoot_active,
+        'sma_offset_bps':      sma_offset_bps,    # signed close-vs-SMA in bps
         'momentum_ok':         momentum_ok,
+        'momentum_pct':        momentum_pct,      # signed % vs prev close
+        'momentum_bps':        momentum_bps,
         'entry_fires':         entry_fires,
         'state_badge':         state_badge,
         'slope_epsilon':       slope_eps,
