@@ -160,13 +160,15 @@ def compute_pair_signal(pair_df: pd.DataFrame, params: dict, strategy_name: str)
         return float(v) if v is not None and not pd.isna(v) else None
 
     return {
-        'z':        _safe(last['z']),
-        'spread':   _safe(last['spread']),
-        'beta':     _safe(last['beta']),
-        'close_y':  float(last['Close_Y']),
-        'close_x':  float(last['Close_X']),
-        'last_pos': int(last['position']),
-        'params':   params,
+        'z':           _safe(last['z']),
+        'spread':      _safe(last['spread']),
+        'spread_mean': _safe(last['spread_mean']),
+        'spread_std':  _safe(last['spread_std']),
+        'beta':        _safe(last['beta']),
+        'close_y':     float(last['Close_Y']),
+        'close_x':     float(last['Close_X']),
+        'last_pos':    int(last['position']),
+        'params':      params,
     }
 
 

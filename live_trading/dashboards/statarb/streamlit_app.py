@@ -865,7 +865,38 @@ for _fi, _r in enumerate(pair_rows):
 
 # ── Signal Conditions ─────────────────────────────────────────────────────────
 
-st.markdown("#### SIGNAL CONDITIONS")
+col_title, col_help = st.columns([1, 6])
+with col_title:
+    st.markdown("#### SIGNAL CONDITIONS")
+with col_help:
+    with st.expander("Explanation"):
+        st.markdown("""
+**How the signal is built**
+
+**Step 1 — Hedge ratio (β)**
+Rolling OLS regression of log prices over a `lookback` window:
+`log_Y = α + β × log_X`
+β is how many units of X hedge one unit of Y. Shifted 1 bar forward to avoid lookahead bias.
+
+**Step 2 — Spread**
+`spread = log_Y − β × log_X`
+The stationary residual of the cointegrated pair. When the pair is in equilibrium this hovers around its rolling mean.
+
+**Step 3 — Z-score**
+`z = (spread − rolling_mean) / rolling_std`
+Normalised over a `z_lookback` window — decoupled from the OLS window so hedge-ratio stability and signal responsiveness can be tuned independently.
+
+**Entry / Exit rules**
+
+| Condition | Action |
+|---|---|
+| `z > +entry_z` | **ENTRY SHORT** — spread overvalued; short Y, long X×β |
+| `z < −entry_z` | **ENTRY LONG** — spread undervalued; long Y, short X×β |
+| `\|z\| < exit_z` | **EXIT** — spread reverted to mean, take profit |
+| `\|z\| > stop_z` | **STOP** — spread diverging, relationship may be breaking down |
+| days held ≥ `max_holding` | **EXIT** — time-based exit, avoid stale positions |
+""")
+
 
 _cond_rows_html = ''
 for r in pair_rows:
@@ -925,6 +956,79 @@ st.markdown(f"""
     </tr></thead>
     <tbody>{_cond_rows_html}</tbody>
   </table>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ── Spread Details ────────────────────────────────────────────────────────────
+
+with st.expander("SPREAD DETAILS"):
+    st.markdown("""
+**S1 Spread construction:** `spread = log(Close_Y) − β × log(Close_X)` · β from rolling OLS over `lookback` bars
+**S2 Z-score normalisation:** `z = (spread − mean) / std` · rolling over `z_lookback` bars
+**S3 Thresholds:** Entry at `±entry_z` · Exit at `±exit_z` · Stop at `±stop_z`
+""")
+    _n  = len(pair_rows)
+    _cw = f'calc((100% - 180px) / {_n})'
+
+    _pair_ths_sd = ''.join(
+        f'<th style="text-align:right;padding-right:24px">{escape(r["pair_key"])}'
+        f'<br><span style="font-size:10px;font-weight:400;text-transform:none;'
+        f'letter-spacing:0;color:#888780">'
+        f'{escape(r["symbol_y"])} / {escape(r["symbol_x"])}</span></th>'
+        for r in pair_rows
+    )
+
+    def _sd_row(label, cells):
+        tds = ''.join(
+            f'<td style="text-align:right;padding-right:24px">{cell}</td>'
+            for cell in cells
+        )
+        return f'<tr><td class="field-label">{escape(label)}</td>{tds}</tr>'
+
+    def _sd_divider(label):
+        return f'<tr class="divider-row"><td colspan="{_n+1}">{escape(label)}</td></tr>'
+
+    def _fmt4(v):
+        return f'{v:.4f}' if v is not None else '—'
+
+    def _fmt3(v):
+        return f'{v:.3f}' if v is not None else '—'
+
+    def _fmti(v):
+        return str(int(v)) if v is not None else '—'
+
+    _sd_html = (
+        _sd_divider('Hedge ratio') +
+        _sd_row('OLS lookback (bars)',  [_fmti(r['all_params'].get('lookback'))   for r in pair_rows]) +
+        _sd_row('β (current)',          [_fmt3(r['sig'].get('beta'))               for r in pair_rows]) +
+        _sd_divider('Spread') +
+        _sd_row('z lookback (bars)',    [_fmti(r['all_params'].get('z_lookback'))  for r in pair_rows]) +
+        _sd_row('Spread (current)',     [_fmt4(r['sig'].get('spread'))             for r in pair_rows]) +
+        _sd_row('Rolling mean',         [_fmt4(r['sig'].get('spread_mean'))        for r in pair_rows]) +
+        _sd_row('Rolling std',          [_fmt4(r['sig'].get('spread_std'))         for r in pair_rows]) +
+        _sd_row('Z-score (current)',    [_fmt3(r['sig'].get('z'))                  for r in pair_rows]) +
+        _sd_divider('Thresholds') +
+        _sd_row('Entry |z| >',          [_fmt3(r['all_params'].get('entry'))       for r in pair_rows]) +
+        _sd_row('Exit  |z| <',          [_fmt3(r['all_params'].get('exit_z'))      for r in pair_rows]) +
+        _sd_row('Stop  |z| >',          [_fmt3(r['all_params'].get('stop_z'))      for r in pair_rows]) +
+        _sd_row('Max holding (days)',   [_fmti(r['all_params'].get('max_holding')) for r in pair_rows])
+    )
+
+    _pair_cols_sd = ''.join(f'<col style="width:{_cw}">' for _ in pair_rows)
+    _colgroup_sd  = f'<col style="width:180px">{_pair_cols_sd}'
+
+    st.markdown(f"""
+<div class="dashboard-card">
+  <div class="table-scroll">
+  <table class="dash-table" style="table-layout:fixed;width:100%">
+    <colgroup>{_colgroup_sd}</colgroup>
+    <thead><tr>
+      <th style="text-align:left">Metric</th>{_pair_ths_sd}
+    </tr></thead>
+    <tbody>{_sd_html}</tbody>
+  </table>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
