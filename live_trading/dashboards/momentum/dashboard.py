@@ -6,17 +6,17 @@ All trade logging is done in streamlit_app.py.
 
 Exported public API
 -------------------
-  run_dashboard(coin_symbols, live_params, positions) → dict
-  fetch_ohlcv(symbol, warmup_bars)     → DataFrame
-  fetch_hourly_recent(symbol, days)    → DataFrame
-  fetch_live_price(symbol)             → float | None
-  compute_signals(df, params, strategy)→ dict
-  apply_decision(sig, open_positions, exec_price, capital) → dict
-  get_open_positions(symbol, positions)→ dict
-  get_execution_price(hourly_df, signal_date, hour_utc)    → float | None
-  get_coin_capital(symbol)             → float
-  load_live_params()                   → dict
-  load_positions()                     → dict
+  run_dashboard(coin_symbols, live_params, positions) -> dict
+  fetch_ohlcv(symbol, warmup_bars)     -> DataFrame
+  fetch_hourly_recent(symbol, days)    -> DataFrame
+  fetch_live_price(symbol)             -> float | None
+  compute_signals(df, params, strategy)-> dict
+  apply_decision(sig, open_positions, exec_price, capital) -> dict
+  get_open_positions(symbol, positions)-> dict
+  get_execution_price(hourly_df, signal_date, hour_utc)    -> float | None
+  get_coin_capital(symbol)             -> float
+  load_live_params()                   -> dict
+  load_positions()                     -> dict
 """
 
 import os
@@ -85,7 +85,7 @@ def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
             'Run backfill_cache.py first.'
         )
 
-    # Strip incomplete bar: open timestamp < 24 h ago → bar not yet closed
+    # Strip incomplete bar: open timestamp < 24 h ago -> bar not yet closed
     cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(hours=24)
     last_utc_naive = (
         df.index[-1].tz_convert('UTC').tz_localize(None)

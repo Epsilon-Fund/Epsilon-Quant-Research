@@ -2,19 +2,19 @@
 optimise.py — Walk-forward optimisation for one or all stat arb pairs.
 
 Usage:
-    python optimise.py                    → runs all pairs in ASSET_CONFIG
-    python optimise.py --pair FILSNX      → runs FIL/SNX only
-    python optimise.py --verify           → print config table and exit
+    python optimise.py                    -> runs all pairs in ASSET_CONFIG
+    python optimise.py --pair FILSNX      -> runs FIL/SNX only
+    python optimise.py --verify           -> print config table and exit
 
 After running, the result is written to live_params.json.
 Pairs in ACTIVE_ASSETS are processed; add a pair key to ACTIVE_ASSETS in
 config.py to activate it in the dashboard after optimising.
 
 Param sources — consensus values from walk-forward notebooks:
-  FILSNX  → topics/statistical-arbitrage/strategies/testing/Fil&SNX.ipynb
-  ATOMARB → topics/statistical-arbitrage/strategies/testing/ATOM&ARB.ipynb
-  LINKTRX → topics/statistical-arbitrage/strategies/testing/LINK&TRX.ipynb
-  LTCAPT  → topics/statistical-arbitrage/strategies/testing/LTC&APT.ipynb
+  FILSNX  -> topics/statistical-arbitrage/strategies/testing/Fil&SNX.ipynb
+  ATOMARB -> topics/statistical-arbitrage/strategies/testing/ATOM&ARB.ipynb
+  LINKTRX -> topics/statistical-arbitrage/strategies/testing/LINK&TRX.ipynb
+  LTCAPT  -> topics/statistical-arbitrage/strategies/testing/LTC&APT.ipynb
 """
 
 import argparse
@@ -237,11 +237,11 @@ def optimise_pair(asset: dict, get_binance_client, get_data, backtest_fn,
     df_x = _fetch_strip(symbol_x)
 
     df_raw = _merge_pair(df_y, df_x)
-    print(f"  Merged: {df_raw.index[0].date()} → {df_raw.index[-1].date()}  ({len(df_raw)} bars)")
+    print(f"  Merged: {df_raw.index[0].date()} -> {df_raw.index[-1].date()}  ({len(df_raw)} bars)")
 
     df = df_raw.iloc[INDICATOR_WARMUP:].copy()
     print(f"  After warmup ({INDICATOR_WARMUP} bars): {len(df)} bars  "
-          f"({df.index[0].date()} → {df.index[-1].date()})")
+          f"({df.index[0].date()} -> {df.index[-1].date()})")
 
     free_params = [k for k in param_defs if k not in fixed_params]
     print(f"  Free ({len(free_params)}): {free_params}")

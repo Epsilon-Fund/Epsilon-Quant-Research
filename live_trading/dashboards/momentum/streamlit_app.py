@@ -109,7 +109,7 @@ def _migrate_positions():
     _save_json(POSITIONS_PATH, migrated)
     print(f"[positions migration] migrated {len(log)} entr{'y' if len(log)==1 else 'ies'}:")
     for old, new in log:
-        print(f"  {old}  →  {new}")
+        print(f"  {old}  ->  {new}")
 
 
 # ── File write helpers ────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ def _write_pending_stop(position_id, new_stop):
 
 
 def _confirm_stop(position_id):
-    """Promote pending_stop → current_stop, making it binding for EXIT decisions."""
+    """Promote pending_stop -> current_stop, making it binding for EXIT decisions."""
     positions = _load_json(POSITIONS_PATH, {})
     if position_id in positions:
         pending = positions[position_id].get('pending_stop')
@@ -719,7 +719,7 @@ else:
             if _needs_confirm:
                 # Confirmed stop exists; ratchet proposes a higher one
                 stop_td = (f'<td>{conf_stop:,.2f}'
-                           f'<br><span class="stop-up">→ {pending_stop:,.2f}</span></td>')
+                           f'<br><span class="stop-up">-> {pending_stop:,.2f}</span></td>')
             else:
                 stop_td = f'<td>{conf_stop:,.2f}</td>'
         elif pending_stop is not None:
@@ -909,7 +909,7 @@ for _fi, _c in enumerate(coin_rows):
             unsafe_allow_html=True,
         )
 
-        # ── Action toggle (outside form → live rerender) ──────────────────────
+        # ── Action toggle (outside form -> live rerender) ──────────────────────
         _action_key     = f'action_radio_{_sym}'
         _action_options = ['ENTRY', 'EXIT'] if _has_position else ['ENTRY']
         _action_default = 1 if (_has_position and _decision in ('HOLD', 'EXIT')) else 0
@@ -923,7 +923,7 @@ for _fi, _c in enumerate(coin_rows):
         )
         _is_exit = (_action_radio == 'EXIT')
 
-        # ── Position selectbox for EXIT (outside form → rerender updates leverage max) ──
+        # ── Position selectbox for EXIT (outside form -> rerender updates leverage max) ──
         _selected_pid = None
         _selected_pos = {}
         if _is_exit:
@@ -1073,7 +1073,7 @@ for _fi, _c in enumerate(coin_rows):
                     )
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} → ${_new_rc:.2f} "
+                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
                           f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
                 elif not _is_exit_final:
                     # Generate new FIFO position_id

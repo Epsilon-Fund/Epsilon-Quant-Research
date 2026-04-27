@@ -2,9 +2,9 @@
 optimise.py — Walk-forward optimisation for one or all assets.
 
 Usage:
-    python optimise.py              → runs all assets in ASSET_CONFIG
-    python optimise.py --asset BTC  → runs BTCUSDT only
-    python optimise.py --asset ETH  → runs ETHUSDT only
+    python optimise.py              -> runs all assets in ASSET_CONFIG
+    python optimise.py --asset BTC  -> runs BTCUSDT only
+    python optimise.py --asset ETH  -> runs ETHUSDT only
 
 After running, add the coin to ACTIVE_ASSETS in config.py to activate it
 in the dashboard.
@@ -387,13 +387,13 @@ def optimise_asset(asset: dict, get_binance_client, get_data, backtest_fn,
     if last_utc_naive > cutoff:
         df_raw = df_raw.iloc[:-1]
     print(f"  [optimise] {symbol}  cutoff={cutoff}  last_utc_naive={last_utc_naive}  "
-          f"len {before} → {len(df_raw)}  {'(stripped)' if len(df_raw) < before else '(no strip)'}")
+          f"len {before} -> {len(df_raw)}  {'(stripped)' if len(df_raw) < before else '(no strip)'}")
 
     df = df_raw.iloc[INDICATOR_WARMUP:].copy()
 
-    print(f"Raw bars: {len(df_raw)}  ({df_raw.index[0].date()} → {df_raw.index[-1].date()})")
+    print(f"Raw bars: {len(df_raw)}  ({df_raw.index[0].date()} -> {df_raw.index[-1].date()})")
     print(f"After warmup drop ({INDICATOR_WARMUP} bars): {len(df)} bars  "
-          f"({df.index[0].date()} → {df.index[-1].date()})")
+          f"({df.index[0].date()} -> {df.index[-1].date()})")
 
     free_params = [k for k in param_defs if k not in fixed_params]
     print(f"Free params ({len(free_params)}): {free_params}")

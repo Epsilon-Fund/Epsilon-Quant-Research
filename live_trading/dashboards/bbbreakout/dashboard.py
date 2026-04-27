@@ -9,17 +9,17 @@ fetch_ohlcv() therefore reads from the hourly cache rather than the daily cache.
 
 Exported public API
 -------------------
-  run_dashboard(coin_symbols, live_params, positions) → dict
-  fetch_ohlcv(symbol, warmup_bars)                    → DataFrame  (hourly)
-  fetch_hourly_recent(symbol, days)                   → DataFrame
-  fetch_live_price(symbol)                            → float | None
-  compute_signals(df, params, strategy)               → dict
-  apply_decision(sig, open_positions, exec_price, capital) → dict
-  get_open_positions(symbol, positions)               → dict
-  get_execution_price(hourly_df, signal_date, hour_utc)   → float | None
-  get_coin_capital(symbol)                            → float
-  load_live_params()                                  → dict
-  load_positions()                                    → dict
+  run_dashboard(coin_symbols, live_params, positions) -> dict
+  fetch_ohlcv(symbol, warmup_bars)                    -> DataFrame  (hourly)
+  fetch_hourly_recent(symbol, days)                   -> DataFrame
+  fetch_live_price(symbol)                            -> float | None
+  compute_signals(df, params, strategy)               -> dict
+  apply_decision(sig, open_positions, exec_price, capital) -> dict
+  get_open_positions(symbol, positions)               -> dict
+  get_execution_price(hourly_df, signal_date, hour_utc)   -> float | None
+  get_coin_capital(symbol)                            -> float
+  load_live_params()                                  -> dict
+  load_positions()                                    -> dict
 """
 
 import os
@@ -93,7 +93,7 @@ def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
             'Run backfill_cache.py first.'
         )
 
-    # Strip incomplete bar: open timestamp < 1 h ago → bar not yet closed
+    # Strip incomplete bar: open timestamp < 1 h ago -> bar not yet closed
     cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(hours=1)
     last_utc_naive = (
         df.index[-1].tz_convert('UTC').tz_localize(None)
@@ -444,11 +444,11 @@ def apply_decision(sig, open_positions, exec_price, capital):
     discretionary trade the user opened manually.
 
     Decision matrix (in_position = positions.json has an open position):
-      not in_position, sig['position'] != 0  → ENTRY  (strategy's auto-fire)
-      not in_position, sig['position'] == 0  → FLAT
-      in_position, stop hit                  → EXIT   (binding stop reached)
-      in_position, take-profit hit           → EXIT   (TP reached)
-      in_position, neither                   → HOLD   (with ratchet suggestion)
+      not in_position, sig['position'] != 0  -> ENTRY  (strategy's auto-fire)
+      not in_position, sig['position'] == 0  -> FLAT
+      in_position, stop hit                  -> EXIT   (binding stop reached)
+      in_position, take-profit hit           -> EXIT   (TP reached)
+      in_position, neither                   -> HOLD   (with ratchet suggestion)
 
     A "discretionary" position with no stop set yet falls through to HOLD
     because there's no binding-stop to compare against.

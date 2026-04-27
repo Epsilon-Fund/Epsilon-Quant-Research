@@ -2,9 +2,9 @@
 optimise.py — Final-fit optimisation for BB Breakout assets.
 
 Usage:
-    python optimise.py              → optimises all assets in ASSET_CONFIG
-    python optimise.py --asset BTC  → optimises BTCUSDT only
-    python optimise.py --verify     → prints config table and exits
+    python optimise.py              -> optimises all assets in ASSET_CONFIG
+    python optimise.py --asset BTC  -> optimises BTCUSDT only
+    python optimise.py --verify     -> prints config table and exits
 
 Data source: live_trading/cache/hourly/ (updated automatically).
 Run from the live_trading/ directory or anywhere — path setup handles it.
@@ -124,7 +124,7 @@ def optimise_asset(asset: dict, backtest_fn, optuna, WF_CONFIG, INDICATOR_WARMUP
         print(f"ERROR: no hourly data for {symbol}. Run backfill_cache.py first.")
         return None
 
-    # Strip incomplete bar: open timestamp < 1 h ago → bar not yet closed
+    # Strip incomplete bar: open timestamp < 1 h ago -> bar not yet closed
     cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(hours=1)
     last_utc_naive = (
         df_raw.index[-1].tz_convert('UTC').tz_localize(None)
@@ -143,7 +143,7 @@ def optimise_asset(asset: dict, backtest_fn, optuna, WF_CONFIG, INDICATOR_WARMUP
     df = df_raw.copy()
 
     print(f"  Using {len(df)} bars  "
-          f"({df.index[0].date()} → {df.index[-1].date()})")
+          f"({df.index[0].date()} -> {df.index[-1].date()})")
 
     free_params = [k for k in param_defs if k not in fixed_params]
     print(f"  Free params  ({len(free_params)}): {free_params}")

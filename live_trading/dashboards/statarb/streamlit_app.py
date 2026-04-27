@@ -666,7 +666,7 @@ for _fi, _r in enumerate(pair_rows):
             unsafe_allow_html=True,
         )
 
-        # Action toggle (outside form → live rerender)
+        # Action toggle (outside form -> live rerender)
         _action_key  = f'sa_action_{_pk}'
         _action_opts = ['ENTRY', 'EXIT'] if _has_position else ['ENTRY']
         _def_idx     = 1 if (_has_position and _d in ('HOLD', 'EXIT', 'STOP')) else 0
@@ -821,7 +821,7 @@ for _fi, _r in enumerate(pair_rows):
                     _pnl_usd_exit = _spread_pnl * _size_st
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} → ${_new_rc:.2f} "
+                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
                           f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
 
                 elif not _is_exit_final:

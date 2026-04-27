@@ -176,7 +176,7 @@ def _get_full_daily_cache(symbol: str) -> pd.DataFrame | None:
         if cached is not None and not cached.empty:
             last_date = _last_bar_date(cached)
             if last_date and last_date >= _today_utc:
-                return cached   # has today's bar → yesterday is fully closed
+                return cached   # has today's bar -> yesterday is fully closed
 
             # Incremental update: fetch only the missing window
             days_needed = (_today_utc - last_date).days + 2
@@ -185,7 +185,7 @@ def _get_full_daily_cache(symbol: str) -> pd.DataFrame | None:
                 new_bars = _fetch_daily_binance(symbol, f'{days_needed} days ago UTC')
                 if not new_bars.empty:
                     merged = _merge_and_save(cached, new_bars, path)
-                    print(f'  {symbol} daily: +{len(new_bars)} bars → {len(merged)} total')
+                    print(f'  {symbol} daily: +{len(new_bars)} bars -> {len(merged)} total')
                     return merged
                 return cached
             except Exception as e:
@@ -198,7 +198,7 @@ def _get_full_daily_cache(symbol: str) -> pd.DataFrame | None:
         df = _fetch_daily_binance(symbol, f'{_DAILY_LOOKBACK} days ago UTC')
         if not df.empty:
             _write_parquet(df, path)
-            print(f'  {symbol} daily: {len(df)} bars saved → {path.name}')
+            print(f'  {symbol} daily: {len(df)} bars saved -> {path.name}')
         return df if not df.empty else None
     except Exception as e:
         print(f'  {symbol} daily full fetch failed: {e}')
@@ -279,9 +279,9 @@ def get_hourly_ohlcv(
     (signal fires on close of day T, execution at HH:00 UTC on day T+1).
 
     Cache strategy:
-    1. Cache exists and fully covers the requested range → slice and return.
-    2. Cache exists but has a gap → fetch only the missing portion and merge.
-    3. No cache → fetch the full requested range from Binance and save.
+    1. Cache exists and fully covers the requested range -> slice and return.
+    2. Cache exists but has a gap -> fetch only the missing portion and merge.
+    3. No cache -> fetch the full requested range from Binance and save.
     """
     _ensure_dirs()
     path = _hourly_path(symbol)
@@ -313,7 +313,7 @@ def get_hourly_ohlcv(
                     tail = _fetch_hourly_binance(symbol, f'{days_needed} days ago UTC')
                     if not tail.empty:
                         cached = _merge_and_save(cached, tail, path)
-                        print(f'  {symbol} hourly: +{len(tail)} tail bars → {len(cached)} total')
+                        print(f'  {symbol} hourly: +{len(tail)} tail bars -> {len(cached)} total')
                 except Exception as e:
                     print(f'  {symbol} hourly tail fetch failed: {e}')
 
@@ -327,14 +327,14 @@ def get_hourly_ohlcv(
                     )
                     if not head.empty:
                         cached = _merge_and_save(head, cached, path)
-                        print(f'  {symbol} hourly: +{len(head)} head bars → {len(cached)} total')
+                        print(f'  {symbol} hourly: +{len(head)} head bars -> {len(cached)} total')
                 except Exception as e:
                     print(f'  {symbol} hourly head fetch failed: {e}')
 
             return _slice_hourly(cached, fetch_start, fetch_end)
 
     # No cache — fetch full requested range from scratch
-    print(f'  {symbol} hourly: no cache — fetching {fetch_start} → {fetch_end} from Binance…')
+    print(f'  {symbol} hourly: no cache — fetching {fetch_start} -> {fetch_end} from Binance…')
     try:
         df = _fetch_hourly_binance(
             symbol,
@@ -343,7 +343,7 @@ def get_hourly_ohlcv(
         )
         if not df.empty:
             _write_parquet(df, path)
-            print(f'  {symbol} hourly: {len(df)} bars saved → {path.name}')
+            print(f'  {symbol} hourly: {len(df)} bars saved -> {path.name}')
         return _slice_hourly(df, fetch_start, fetch_end)
     except Exception as e:
         print(f'  {symbol} hourly fetch failed: {e}')
@@ -387,7 +387,7 @@ def update_all_caches(symbols: list) -> None:
             after = len(df) if df is not None else 0
             added = after - before
             total_new_daily += max(added, 0)
-            print(f'    daily  — updated (+{added} bars → {after} total, last: {_last_bar_date(df)})')
+            print(f'    daily  — updated (+{added} bars -> {after} total, last: {_last_bar_date(df)})')
 
         # ── Hourly ────────────────────────────────────────────────────────────
         h_path = _hourly_path(symbol)
@@ -412,7 +412,7 @@ def update_all_caches(symbols: list) -> None:
                     merged = _merge_and_save(cached, new_bars, h_path)
                     added  = len(merged) - before_h
                     total_new_hourly += max(added, 0)
-                    print(f'    hourly — updated (+{added} bars → {len(merged)} total)')
+                    print(f'    hourly — updated (+{added} bars -> {len(merged)} total)')
                 else:
                     print(f'    hourly — no new bars from Binance')
             except Exception as e:

@@ -785,7 +785,7 @@ def render_fund_tab(
 
     Parameters
     ----------
-    dashboard_dirs : mapping of display-name → absolute data_dir path,
+    dashboard_dirs : mapping of display-name -> absolute data_dir path,
                      e.g. {"Momentum": ".../dashboards/momentum"}
     prefix         : unique string prepended to all Streamlit widget keys
     """

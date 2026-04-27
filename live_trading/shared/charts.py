@@ -412,11 +412,11 @@ def coin_equity_chart(coin_curves_dict: dict,
     Multi-line cumulative P&L (or % return) per coin, with optional combined
     portfolio line.
 
-    normalised=False → Y axis in USD cumulative P&L.
-    normalised=True  → Y axis as % return on allocated coin capital
+    normalised=False -> Y axis in USD cumulative P&L.
+    normalised=True  -> Y axis as % return on allocated coin capital
                        (actual_cumulative / coin_capital * 100).
                        coin_capitals dict {symbol: float} must be supplied.
-    show_combined    → overlay a thick dashed line summing all shown coins:
+    show_combined    -> overlay a thick dashed line summing all shown coins:
                        total P&L in USD mode, blended % return in normalised mode.
     """
     fig = go.Figure()
@@ -545,7 +545,7 @@ def fund_equity_chart(strategy_curves_dict: dict,
     if normalised and total_capital > 0:
         # Portfolio value = capital + cumulative P&L, then index to 100.
         # combined_sum starts at 0 (no trades closed yet), so day-1 value
-        # is exactly total_capital → index = 100.0 ✓
+        # is exactly total_capital -> index = 100.0 ✓
         portfolio_value = total_capital + combined_sum
         y_plot      = portfolio_value / total_capital * 100
         hover_tmpl  = '%{x|%b %d, %Y}<br>Fund: %{y:.2f}<extra></extra>'

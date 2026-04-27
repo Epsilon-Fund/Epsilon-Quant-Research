@@ -35,8 +35,8 @@ def _exec_page(path: str, extra: dict = None) -> None:
     Execute a standalone Streamlit page file inside the current render context.
 
     Patches applied for the duration of the exec:
-      1. st.set_page_config → no-op  (already called by app.py)
-      2. __file__ → target path  (so path setup inside exec'd file is correct)
+      1. st.set_page_config -> no-op  (already called by app.py)
+      2. __file__ -> target path  (so path setup inside exec'd file is correct)
     extra: optional dict merged into the exec namespace (e.g. _SUPPRESS_H1=True).
     """
     import streamlit as _st
