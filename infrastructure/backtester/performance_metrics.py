@@ -234,6 +234,81 @@ def calculate_calmar_ratio(total_return, max_drawdown, periods_per_year, n_perio
     return annualised_return / abs(max_drawdown)
 
 
+def build_realized_equity_curve(position, position_size, raw_returns, cost):
+    """
+    Build an equity curve using realized-sizing (matches portfolio_metrics.build_realized_equity).
+
+    At each trade entry the notional is fixed as:
+        entry_notional = position_size_at_entry × realized_equity
+
+    where realized_equity is updated only when trades CLOSE.  Unrealized gains
+    from open positions never inflate the notional of subsequent entries.
+
+    Parameters
+    ----------
+    position      : pd.Series  effective position (already shift(1)-lagged by caller).
+                               Represents the position held DURING each bar.
+    position_size : pd.Series  effective size     (already shift(1)-lagged).
+    raw_returns   : pd.Series  raw per-bar undirected instrument returns
+                               (e.g. Close.pct_change()).  For precomputed strategy
+                               returns that already carry direction, pass the signed
+                               series and ensure position_size=1 to avoid re-scaling.
+    cost          : float      cost fraction per unit of |position.diff()|.
+
+    Returns
+    -------
+    pd.Series  equity curve starting near 1.0, indexed like raw_returns.
+    """
+    pos  = position.fillna(0).values.astype(float)
+    size = position_size.fillna(0).values.astype(float)
+    raw  = raw_returns.fillna(0).values.astype(float)
+    idx  = raw_returns.index
+
+    n              = len(pos)
+    realized       = 1.0
+    entry_notional = 0.0
+    cum_mult       = 1.0      # signed cumulative mult since entry: accounts for direction
+    prev_pos       = 0.0
+    equity         = np.empty(n)
+
+    for i in range(n):
+        curr_pos = pos[i]   # position held DURING bar i (eff_pos, already shifted)
+        sz       = size[i]  # position size held during bar i (already shifted)
+        r        = raw[i]   # raw undirected bar return
+
+        # ── 1. Exit: position closed or flipped ─────────────────────────────
+        # Runs before earning so closing-bar return is NOT added to realized P&L.
+        if prev_pos != 0.0 and (curr_pos == 0.0 or curr_pos != prev_pos):
+            realized      += entry_notional * (cum_mult - 1.0)
+            entry_notional = 0.0
+            cum_mult       = 1.0
+
+        # ── 2. Trade cost: applied at every position change ──────────────────
+        pos_chg = abs(curr_pos - prev_pos)
+        if pos_chg > 0.0:
+            portfolio = realized + entry_notional * (cum_mult - 1.0)
+            realized -= pos_chg * cost * portfolio
+
+        # ── 3. Entry: size new notional against REALIZED equity only ─────────
+        if curr_pos != 0.0 and (prev_pos == 0.0 or curr_pos != prev_pos):
+            entry_notional = sz * realized
+            cum_mult       = 1.0
+
+        # ── 4. Earn bar i's return on the position held DURING this bar ──────
+        # curr_pos is the effective (shifted) position, so curr_pos != 0 means
+        # we ARE holding during bar i. np.sign applies direction: shorts gain
+        # when price falls (cum_mult drops below 1 when price rises).
+        if curr_pos != 0.0:
+            cum_mult *= (1.0 + np.sign(curr_pos) * r)
+
+        # ── 5. Record portfolio equity ────────────────────────────────────────
+        equity[i] = realized + entry_notional * (cum_mult - 1.0)
+        prev_pos  = curr_pos
+
+    eq = pd.Series(equity, index=idx)
+    return eq.ffill().fillna(1.0)
+
+
 def build_equity_curve(returns, return_type="arithmetic"):
     """
     return_type:

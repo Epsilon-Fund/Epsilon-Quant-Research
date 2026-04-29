@@ -10,13 +10,17 @@ Run:
     streamlit run live_trading/dashboards/momentum/streamlit_app.py
 """
 
+import hashlib
 import json
 import re
 import sys
 import os
+import time
 import webbrowser
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta, date
 from html import escape
+
+import pandas as pd
 
 # Open the browser once when the process starts.
 # The env-var guard ensures this runs exactly once — Streamlit reruns the script
@@ -41,6 +45,7 @@ import streamlit as st
 from dashboard import (
     run_dashboard,
     fetch_live_price,
+    fetch_live_prices,
     apply_decision,
     get_coin_capital,
     get_open_positions,
@@ -447,60 +452,76 @@ st.markdown("""
 
 with st.sidebar:
     st.markdown("### Controls")
-    if st.button("↻ Refresh data"):
+    if st.button("↻ Refresh data", key="momentum_refresh_data"):
         st.cache_data.clear()
+        st.session_state.pop("momentum_dashboard_data", None)
+        st.session_state.pop("momentum_dashboard_cache_key", None)
         st.rerun()
-    st.caption("Data auto-refreshes every 5 minutes.")
+    if st.button("↻ Refresh signals", key="momentum_refresh_signals"):
+        st.session_state.pop("momentum_dashboard_data", None)
+        st.session_state.pop("momentum_dashboard_cache_key", None)
+        st.rerun()
+    st.caption("Prices refresh every 30s. Signals refresh on new daily bar.")
 
 
-# ── Data loading ──────────────────────────────────────────────────────────────
+# ── Signal cache helpers ───────────────────────────────────────────────────────
 
-@st.cache_data(ttl=300, show_spinner="Fetching market data…")
-def load_all():
-    """
-    Cache only the expensive Binance API calls and signal computation.
-    Positions and decision logic are intentionally excluded — they must
-    recompute fresh every render so changes to positions.json take effect
-    immediately without waiting for the 5-minute cache expiry.
-    """
-    live_params = load_live_params(DATA_DIR)
-    if not live_params:
-        return [], None
+def _signal_cache_key(coin_symbols, live_params):
+    payload = json.dumps(
+        {"assets": sorted(coin_symbols), "params": live_params},
+        sort_keys=True, default=str
+    )
+    return hashlib.md5(payload.encode()).hexdigest()
 
-    active_set   = set(ACTIVE_ASSETS)
-    coin_symbols = [sym for sym in live_params if sym in active_set]
 
-    # run_dashboard() does all the expensive Binance calls + signal computation.
-    # apply_decision() is NOT called inside — it stays outside the cache below.
-    result = run_dashboard(coin_symbols, live_params, positions={})
+def _current_signal_date() -> str:
+    """Returns the date string of the most recently completed daily bar."""
+    now_utc = datetime.now(timezone.utc)
+    if now_utc.hour == 0 and now_utc.minute < 5:
+        return (now_utc - timedelta(days=2)).strftime('%Y-%m-%d')
+    return (now_utc - timedelta(days=1)).strftime('%Y-%m-%d')
 
-    coin_rows   = result['assets']
-    signal_date = result['signal_date']
 
-    # Use ASSET_CONFIG as the authoritative source for fixed params;
-    # run_dashboard() uses live_params.json's fixed_param_keys as a fallback,
-    # but ASSET_CONFIG takes precedence here.
-    for row in coin_rows:
-        row['fixed_keys'] = _ASSET_FIXED_KEYS.get(row['symbol'], row['fixed_keys'])
-
-    return coin_rows, signal_date
-
+# ── Data loading — session_state signal cache ─────────────────────────────────
 
 def load_live_prices(symbols: tuple):
     """
     Look up current market prices for the requested symbols.
 
     Backed by shared.binance_utils.fetch_all_live_prices() — a single
-    batched REST call shared across all dashboards, cached 120 s.
+    batched REST call shared across all dashboards, cached 300 s.
     """
     return _shared_live_prices(symbols)
 
 
-coin_rows, signal_date = load_all()
-
-if not coin_rows:
+_live_params_raw = load_live_params(DATA_DIR)
+if not _live_params_raw:
     st.error("live_params.json is empty — run `optimise.py` first.")
     st.stop()
+
+_active_set   = set(ACTIVE_ASSETS)
+_coin_symbols = [sym for sym in _live_params_raw if sym in _active_set]
+_cache_key    = _signal_cache_key(_coin_symbols, _live_params_raw)
+
+# Auto-refresh when a new daily bar is available
+_expected_signal_date = _current_signal_date()
+if st.session_state.get("momentum_signal_date") != _expected_signal_date:
+    st.session_state.pop("momentum_dashboard_data", None)
+    st.session_state.pop("momentum_dashboard_cache_key", None)
+
+if ("momentum_dashboard_data" not in st.session_state or
+        st.session_state.get("momentum_dashboard_cache_key") != _cache_key):
+    with st.spinner("Loading signals..."):
+        _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
+        _rows   = _result['assets']
+        _sdate  = _result['signal_date']
+        for _row in _rows:
+            _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
+        st.session_state.momentum_dashboard_data      = (_rows, _sdate)
+        st.session_state.momentum_dashboard_cache_key = _cache_key
+        st.session_state.momentum_signal_date         = _expected_signal_date
+
+coin_rows, signal_date = st.session_state.momentum_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is read fresh every render.
 # st.cache_data returns deserialized copies, so mutating coin_rows here is safe.
@@ -520,6 +541,77 @@ for _c in coin_rows:
         apply_decision(_c['sig'], _open_pos, _c['exec_price'], _c['coin_capital'])
     )
 
+# ── Auto-log theoretical trades ───────────────────────────────────────────────
+# Reads positions/trades fresh each render to guard against duplicate writes.
+# EXIT: fires even when exec_price is None (uses last close as fallback).
+# ENTRY: fires only once exec_price is available (T+1 bar is open).
+_auto_raw     = _load_json(TRADES_PATH, [])
+_auto_exited  = {t['position_id'] for t in _auto_raw if t.get('action') == 'EXIT'}
+_auto_pos_now = _load_json(POSITIONS_PATH, {})
+_auto_open_syms = {
+    p.get('symbol', pid) for pid, p in _auto_pos_now.items() if p.get('in_position')
+}
+_did_auto = False
+
+for _ac in coin_rows:
+    _asym   = _ac['symbol']
+    _asig   = _ac['sig']
+    _adec   = _asig['decision']
+    _aexec  = _ac['exec_price']
+    _atheo  = _aexec if _aexec is not None else _asig['close']
+    _astrat = _ac['strategy']
+
+    if _adec == 'EXIT':
+        _apos_file = _load_json(POSITIONS_PATH, {})
+        for _apid, _apos in list(_apos_file.items()):
+            if (
+                _apos.get('symbol', _apid) == _asym
+                and _apos.get('in_position')
+                and _apid not in _auto_exited
+            ):
+                _alev = float(_apos.get('leverage_multiplier') or _apos.get('size_pct') or 1.0)
+                _aep  = float(_apos.get('entry_price') or 0)
+                _asz  = float(_apos.get('size_usd') or (get_coin_capital(_asym) * _alev))
+                _write_trade(
+                    position_id=_apid, action='EXIT', strategy=_astrat,
+                    theoretical_price=_atheo, actual_price=_atheo,
+                    theoretical_leverage=_alev, actual_leverage=_alev,
+                    theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
+                    exit_type='full', exit_leverage=_alev,
+                    exit_close=_asig['close'], exit_reason='Strategy',
+                )
+                _write_position_exit(_apid, _atheo, '')
+                if _aep > 0:
+                    update_realised_capital(DATA_DIR, (_atheo - _aep) / _aep * _asz, _apid)
+                _auto_exited.add(_apid)
+                _did_auto = True
+
+    elif _adec == 'ENTRY' and _aexec is not None and _asym not in _auto_open_syms:
+        _alev = float(_asig.get('leverage_multiplier') or 0.0)
+        if _alev > 0:
+            _apos_fresh = _load_json(POSITIONS_PATH, {})
+            _anpid      = _next_position_id(_asym, _apos_fresh)
+            _acap       = get_coin_capital(_asym)
+            _asz        = _acap * _alev
+            _write_trade(
+                position_id=_anpid, action='ENTRY', strategy=_astrat,
+                theoretical_price=_aexec, actual_price=_aexec,
+                theoretical_leverage=_alev, actual_leverage=_alev,
+                theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
+                direction='long', entry_close=_asig['close'], entry_type='Strategy',
+                coin_capital=_acap, size_usd=_asz,
+                capital_total=load_realised_capital(DATA_DIR),
+            )
+            _write_position_entry(
+                _anpid, _asym, _aexec, _alev, _asig.get('theoretical_stop'),
+                _astrat, '', direction='long', coin_capital=_acap, size_usd=_asz,
+            )
+            _auto_open_syms.add(_asym)
+            _did_auto = True
+
+if _did_auto:
+    invalidate_trade_caches()
+
 generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
@@ -536,6 +628,7 @@ def fmt(v):
 # ── Load positions + live prices early (needed for header portfolio summary) ──
 # _positions_now was already read once near the top of this render.
 _open            = {pid: p for pid, p in _positions_now.items() if p.get('in_position')}
+st.session_state.momentum_open_positions = _open
 _coin_sig_by_sym = {c['symbol']: c['sig'] for c in coin_rows}
 
 # Fetch live prices for all active coins (positions + decisions)
@@ -640,38 +733,43 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# ── Active Positions ──────────────────────────────────────────────────────────
+# ── Active Positions — live-price fragment ────────────────────────────────────
 
-st.markdown("#### ACTIVE POSITIONS")
-if not _open:
-    st.markdown('<p style="font-size:12px;color:#888780;margin-bottom:14px">No open positions</p>',
-                unsafe_allow_html=True)
-else:
+@st.fragment(run_every=30)
+def _momentum_positions_fragment():
+    """Re-renders active positions HTML table with fresh live prices. No external calls besides fetch_live_prices."""
+    _t0 = time.time()
+    open_positions = st.session_state.get("momentum_open_positions", {})
+    if not open_positions:
+        st.markdown(
+            '<p style="font-size:12px;color:#888780;margin-bottom:14px">No open positions</p>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
+    live_prices = fetch_live_prices(symbols)
+    elapsed     = time.time() - _t0
+    print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
+
     from datetime import date as _date
-    _pos_rows        = ''
-    # Totals already computed above; re-accumulate per-row P&L for the total row display
-    _tot_size_usd_r  = 0.0
-    _tot_pnl_usd_r   = 0.0
-    _tot_pos_val_r   = 0.0
-    _tot_has_live_r  = False
+    _pos_rows       = ''
+    _tot_size_usd_r = 0.0
+    _tot_pnl_usd_r  = 0.0
+    _tot_pos_val_r  = 0.0
+    _tot_has_live_r = False
 
-    _confirm_items = []   # [(pid, pending_stop)] needing a confirm button
-
-    for pid, pos in _open.items():
+    for pid, pos in open_positions.items():
         _sym_for_pos = pos.get('symbol', pid)
-        live_price   = _live_prices.get(_sym_for_pos)
-        entry_price  = pos['entry_price']
+        live_price   = live_prices.get(_sym_for_pos)
+        entry_price  = pos.get('entry_price', 0) or 0
 
-        leverage_multiplier = (pos.get('leverage_multiplier') or pos.get('size_pct', 0))
-        # Use frozen size_usd from positions.json; fall back to live config for legacy entries
+        leverage_multiplier = pos.get('leverage_multiplier') or pos.get('size_pct', 0)
         size_usd = pos.get('size_usd') or (get_coin_capital(_sym_for_pos) * leverage_multiplier)
-
         _tot_size_usd_r += size_usd
+
         if live_price and entry_price:
-            # Gross price move (for context — how much has the price moved)
             _gross_pnl         = (live_price - entry_price) / entry_price * size_usd
-            # Net P&L: deduct round-trip cost (entry leg paid + estimated exit leg)
-            # Consistent with how closed trades report P&L in the journal.
             _trade_cost        = size_usd * TRADING_COST_PCT * 2
             unrealised_pnl_usd = _gross_pnl - _trade_cost
             net_return_pct     = unrealised_pnl_usd / size_usd * 100
@@ -692,38 +790,17 @@ else:
             pnl_usd_td = '<td>—</td>'
             pos_val_td = '<td>—</td>'
 
-        # ── Two-state stop ────────────────────────────────────────────────────
-        conf_stop    = pos.get('current_stop')          # binding — used for EXIT
-        pending_stop = pos.get('pending_stop')          # proposed — shown only
+        conf_stop    = pos.get('current_stop')
+        pending_stop = pos.get('pending_stop')
+        _needs_confirm = pending_stop is not None and pending_stop != conf_stop
 
-        # Auto-ratchet: update pending_stop if strategy suggests a higher stop.
-        # Never touches current_stop — confirm button does that.
-        coin_sig  = _coin_sig_by_sym.get(_sym_for_pos, {})
-        sugg_stop = (coin_sig.get('current_stop')
-                     if coin_sig.get('decision') == 'HOLD'
-                     else coin_sig.get('theoretical_stop'))
-        if sugg_stop is not None and sugg_stop > (conf_stop or 0) and sugg_stop != pending_stop:
-            pending_stop = sugg_stop
-            _write_pending_stop(pid, sugg_stop)
-
-        # Determine whether this position needs a confirm button
-        _needs_confirm = (
-            pending_stop is not None
-            and pending_stop != conf_stop
-        )
-        if _needs_confirm:
-            _confirm_items.append((pid, _sym_for_pos, pending_stop))
-
-        # Render stop cell
         if conf_stop is not None:
             if _needs_confirm:
-                # Confirmed stop exists; ratchet proposes a higher one
                 stop_td = (f'<td>{conf_stop:,.2f}'
                            f'<br><span class="stop-up">-> {pending_stop:,.2f}</span></td>')
             else:
                 stop_td = f'<td>{conf_stop:,.2f}</td>'
         elif pending_stop is not None:
-            # No confirmed stop yet — new position, day-of-entry
             stop_td = (f'<td><span style="color:#888780">{pending_stop:,.2f}</span>'
                        f'<br><span style="font-size:10px;color:#888780">unconfirmed</span></td>')
         else:
@@ -749,7 +826,6 @@ else:
           {pos_val_td}
         </tr>"""
 
-    # ── Total row ─────────────────────────────────────────────────────────────
     if _tot_has_live_r and _tot_size_usd_r > 0:
         _tot_pct        = _tot_pnl_usd_r / _tot_size_usd_r * 100
         _tot_cls        = 'entry-t' if _tot_pct >= 0 else 'entry-f'
@@ -786,16 +862,41 @@ else:
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Confirm stop buttons ──────────────────────────────────────────────────
-    if _confirm_items:
-        _conf_cols = st.columns(len(_confirm_items))
-        for _col, (_pid, _sym, _pend) in zip(_conf_cols, _confirm_items):
-            with _col:
-                if st.button(f"✓ Confirm stop {_sym}: {_pend:,.2f}",
-                             key=f"conf_stop_{_pid}"):
-                    _confirm_stop(_pid)
-                    invalidate_trade_caches()
-                    st.rerun()
+
+# ── Active Positions ──────────────────────────────────────────────────────────
+
+st.markdown("#### ACTIVE POSITIONS")
+# Auto-ratchet: propose higher stops based on latest signal (writes positions.json).
+# Never modifies current_stop — confirm buttons do that.
+_confirm_items = []
+for pid, pos in _open.items():
+    _sym_for_pos = pos.get('symbol', pid)
+    conf_stop    = pos.get('current_stop')
+    pending_stop = pos.get('pending_stop')
+    coin_sig     = _coin_sig_by_sym.get(_sym_for_pos, {})
+    sugg_stop    = (coin_sig.get('current_stop')
+                    if coin_sig.get('decision') == 'HOLD'
+                    else coin_sig.get('theoretical_stop'))
+    if sugg_stop is not None and sugg_stop > (conf_stop or 0) and sugg_stop != pending_stop:
+        pending_stop = sugg_stop
+        _write_pending_stop(pid, sugg_stop)
+    _needs_confirm = pending_stop is not None and pending_stop != conf_stop
+    if _needs_confirm:
+        _confirm_items.append((pid, _sym_for_pos, pending_stop))
+
+# Live-price table — rerenders every 30s independently of the rest of the page
+_momentum_positions_fragment()
+
+# Confirm stop buttons — outside fragment so they trigger full page reruns
+if _confirm_items:
+    _conf_cols = st.columns(len(_confirm_items))
+    for _col, (_pid, _sym, _pend) in zip(_conf_cols, _confirm_items):
+        with _col:
+            if st.button(f"✓ Confirm stop {_sym}: {_pend:,.2f}",
+                         key=f"conf_stop_{_pid}"):
+                _confirm_stop(_pid)
+                invalidate_trade_caches()
+                st.rerun()
 
 
 # ── Section 1: Decisions ──────────────────────────────────────────────────────

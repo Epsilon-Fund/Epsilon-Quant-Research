@@ -34,7 +34,69 @@ _FONT_MONO  = 'monospace'
 _TEMPLATE   = 'plotly_white'
 
 
-# ── internal helper ────────────────────────────────────────────────────────────
+# ── internal helpers ───────────────────────────────────────────────────────────
+
+def _infer_ppy(index):
+    """Estimate periods-per-year from a DatetimeIndex."""
+    if len(index) < 2:
+        return 252
+    deltas = pd.Series(index.to_list()).diff().dropna()
+    median_days = deltas.median().days if hasattr(deltas.median(), 'days') else float(deltas.median()) / 86_400_000_000_000
+    if median_days <= 1.5:
+        return 252
+    if median_days <= 8:
+        return 52
+    if median_days <= 35:
+        return 12
+    return 252
+
+
+def _yearly_metrics_from_curve(curve, ppy=252):
+    """
+    Compute per-year return, Sharpe, and max DD from an equity curve Series.
+    Returns three dicts keyed by integer year.
+    """
+    if curve is None or len(curve) < 2:
+        return {}, {}, {}
+    returns = curve.pct_change().dropna()
+    yr_ret, yr_sh, yr_dd = {}, {}, {}
+    for y in sorted(returns.index.year.unique()):
+        yr_r = returns[returns.index.year == y]
+        c_yr = curve[curve.index.year == y]
+        if len(yr_r) < 2 or len(c_yr) < 2:
+            continue
+        yr_ret[y] = float((c_yr.iloc[-1] - c_yr.iloc[0]) / c_yr.iloc[0])
+        yr_sh[y]  = float(yr_r.mean() / yr_r.std() * np.sqrt(ppy)) if yr_r.std() > 0 else 0.0
+        run_max   = c_yr.cummax()
+        yr_dd[y]  = float(((c_yr - run_max) / run_max).min())
+    return yr_ret, yr_sh, yr_dd
+
+
+def _aggregate_trade_stats(cpcv_results):
+    """
+    Aggregate n_trades, win_rate, and profit_factor across all OOS group
+    evaluations in split_results.  win_rate is weighted by trade count.
+    profit_factor is the simple mean of per-group values (best approximation
+    without access to raw trade PnL).
+    Returns (total_trades, win_rate, profit_factor) — nan when unavailable.
+    """
+    total_trades = 0
+    weighted_wr  = 0.0
+    pf_vals      = []
+    for sr in cpcv_results.get('split_results', []):
+        for gr in sr.get('group_results', {}).values():
+            m = (gr or {}).get('metrics') or {}
+            nt = m.get('n_trades') or 0
+            if nt > 0:
+                total_trades += nt
+                weighted_wr  += nt * (m.get('win_rate') or 0.0)
+            pf = m.get('profit_factor')
+            if pf is not None and np.isfinite(pf):
+                pf_vals.append(pf)
+    win_rate      = weighted_wr / total_trades if total_trades > 0 else float('nan')
+    profit_factor = float(np.mean(pf_vals)) if pf_vals else float('nan')
+    return total_trades, win_rate, profit_factor
+
 
 def _split_oos_sharpes(cpcv_results):
     """Return per-split OOS Sharpe as a float array (mean across k test groups)."""
@@ -56,13 +118,21 @@ def _split_oos_sharpes(cpcv_results):
 def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
                             show=True, save_html=None):
     """
-    All CPCV path equity curves on one chart.
+    CPCV path equity curves with a drawdown panel below — matching the layout
+    and annotation style of infrastructure/backtester/visualizer.py.
 
-    - Each path: semi-transparent blue line.
-    - Mean path: bold amber line.
-    - Envelope: shaded band between min and max path equity at every bar.
-    - Group boundaries: vertical dashed lines with group labels.
-    - If wf_sharpe is provided: annotation box comparing WF vs CPCV mean ± std.
+    Row 1 (equity, 70 %):
+      - Min–max envelope band, all individual paths (semi-transparent), mean path.
+      - Group boundary dotted vlines with G1…GN labels.
+      - Annotation boxes: Portfolio Performance, Yearly Returns, Yearly Sharpe,
+        OOS Trade Stats (aggregated across all group evaluations).
+
+    Row 2 (drawdown of mean path, 30 %):
+      - Red filled drawdown of the mean equity curve.
+      - Yearly Max DD box (top-right).
+
+    All statistics are computed from the mean path equity curve or aggregated
+    across split group results — no single-path cherry-picking.
     """
     paths   = cpcv_results['paths']
     bounds  = cpcv_results['group_boundaries']
@@ -74,7 +144,7 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
         print('[plot_path_equity_curves] No valid equity curves — nothing to plot.')
         return None
 
-    # align all curves to a common sorted index
+    # ── align all curves to a common sorted index ─────────────────────────────
     common_idx = valid[0]['equity_curve'].index
     for p in valid[1:]:
         common_idx = common_idx.union(p['equity_curve'].index)
@@ -91,9 +161,37 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
     x_fwd = list(common_idx)
     x_rev = list(common_idx[::-1])
 
-    fig = go.Figure()
+    # ── annotation stats: sourced from path distribution (matches histogram) ────
+    path_sharpes = [p['sharpe']       for p in valid if p.get('sharpe')       is not None]
+    path_calmars = [p['calmar']       for p in valid if p.get('calmar')       is not None]
+    path_maxdds  = [p['max_dd']       for p in valid if p.get('max_dd')       is not None]
+    path_rets    = [p['total_return'] for p in valid if p.get('total_return') is not None]
+    sharpe  = float(np.mean(path_sharpes)) if path_sharpes else 0.0
+    calmar  = float(np.mean(path_calmars)) if path_calmars else 0.0
+    max_dd  = float(np.mean(path_maxdds))  if path_maxdds  else 0.0
+    tot_ret = float(np.mean(path_rets))    if path_rets    else 0.0
 
-    # ── envelope band ─────────────────────────────────────────────────────────
+    # CAGR from mean equity curve — for display alongside total return
+    n_years = (common_idx[-1] - common_idx[0]).days / 365.25
+    cagr    = float((1 + tot_ret) ** (1.0 / n_years) - 1.0) if n_years > 0 else 0.0
+
+    # ── mean-path curve (for drawdown panel and yearly breakdowns only) ────────
+    ppy      = _infer_ppy(common_idx)
+    run_max  = mean_curve.cummax()
+    dd_pct   = (mean_curve - run_max) / run_max          # fractional, negative
+
+    yr_ret, yr_sh, yr_dd = _yearly_metrics_from_curve(mean_curve, ppy)
+    total_trades, win_rate, profit_factor = _aggregate_trade_stats(cpcv_results)
+
+    # ── 2-row subplot ─────────────────────────────────────────────────────────
+    fig = make_subplots(
+        rows=2, cols=1,
+        row_heights=[0.70, 0.30],
+        vertical_spacing=0.06,
+        shared_xaxes=True,
+    )
+
+    # ── Row 1: envelope band ──────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
         x=x_fwd + x_rev,
         y=list(max_curve.values) + list(min_curve.values[::-1]),
@@ -102,31 +200,45 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
         line=dict(color='rgba(0,0,0,0)'),
         name='Min–Max Envelope',
         hoverinfo='skip',
-    ))
+    ), row=1, col=1)
 
-    # ── individual paths ──────────────────────────────────────────────────────
+    # ── Row 1: individual paths ───────────────────────────────────────────────
     for i, p in enumerate(valid):
-        curve = aligned[p['path_id']]
         fig.add_trace(go.Scatter(
-            x=x_fwd, y=curve.values,
+            x=x_fwd, y=aligned[p['path_id']].values,
             mode='lines',
             line=dict(color=_BLUE, width=0.7),
             opacity=0.20,
             name='Paths',
             showlegend=(i == 0),
             hoverinfo='skip',
-        ))
+        ), row=1, col=1)
 
-    # ── mean path ─────────────────────────────────────────────────────────────
+    # ── Row 1: mean path ──────────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
         x=x_fwd, y=mean_curve.values,
         mode='lines',
         line=dict(color=_AMBER, width=2.5),
         name='Mean Path',
         hovertemplate='<b>Mean Path</b><br>%{x}<br>Equity: %{y:.4f}<extra></extra>',
-    ))
+    ), row=1, col=1)
 
-    # ── group boundary lines + labels ─────────────────────────────────────────
+    # ── Row 2: mean path drawdown ─────────────────────────────────────────────
+    fig.add_trace(go.Scatter(
+        x=x_fwd, y=(dd_pct.values * 100),
+        mode='lines',
+        name='Drawdown',
+        fill='tozeroy',
+        fillcolor=_RED_FILL,
+        line=dict(color=_RED, width=1),
+        hovertemplate='<b>Drawdown</b><br>%{x}<br>%{y:.2f}%<extra></extra>',
+        showlegend=False,
+    ), row=2, col=1)
+
+    fig.add_hline(y=0, line_dash='dash', line_color='#94a3b8',
+                  line_width=1, row=2, col=1)
+
+    # ── group boundary vlines + labels (span full height, label on row 1) ────
     for i, (start, _) in enumerate(bounds):
         fig.add_vline(
             x=str(start),
@@ -135,49 +247,131 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
             line_width=1.5,
         )
         fig.add_annotation(
-            x=str(start), y=1.0, yref='paper',
-            text=f'G{i}',
+            x=str(start), xref='x',
+            y=1.0,         yref='y domain',
+            text=f'G{i+1}',
             showarrow=False,
             font=dict(size=9, color=_GREY, family=_FONT_MONO),
             xanchor='left', yanchor='bottom',
+            row=1, col=1,
         )
 
-    # ── WF Sharpe comparison annotation ──────────────────────────────────────
+    # ── annotation box 1: Portfolio Performance (top-left, row 1) ────────────
+    date_start = pd.Timestamp(common_idx[0]).strftime('%Y-%m-%d')
+    date_end   = pd.Timestamp(common_idx[-1]).strftime('%Y-%m-%d')
+    perf_lines = [
+        '<b>Portfolio Performance</b>',
+        f'Period:        <b>{date_start} → {date_end}</b>',
+        f'CAGR:          <b>{cagr*100:.2f}%</b>',
+        f'Total Return:  <b>{tot_ret*100:.2f}%</b>',
+        f'Sharpe Ratio:  <b>{sharpe:.2f}</b>',
+        f'Max Drawdown:  <b>{max_dd*100:.2f}%</b>',
+        f'Calmar Ratio:  <b>{calmar:.2f}</b>',
+        f'N Paths:       <b>{len(valid)}</b>',
+    ]
     if wf_sharpe is not None:
-        valid_sh = [p['sharpe'] for p in valid if p['sharpe'] is not None]
-        mean_sh  = float(np.mean(valid_sh)) if valid_sh else float('nan')
-        std_sh   = float(np.std(valid_sh))  if valid_sh else float('nan')
-        ann = (
-            f'<b>Sharpe Comparison</b><br>'
-            f'WF Sharpe:   <b>{wf_sharpe:.2f}</b><br>'
-            f'CPCV Mean:   <b>{mean_sh:.2f}</b><br>'
-            f'CPCV ±Std:   <b>{std_sh:.2f}</b>'
+        perf_lines.append(f'WF Sharpe:     <b>{wf_sharpe:.2f}</b>')
+    fig.add_annotation(
+        xref='x domain', yref='y domain',
+        x=0.01, y=0.99, xanchor='left', yanchor='top',
+        text='<br>'.join(perf_lines),
+        showarrow=False,
+        font=dict(size=10, family=_FONT_MONO),
+        align='left',
+        bgcolor=_BG_BOX, bordercolor=_BORDER, borderwidth=1, borderpad=8,
+        row=1, col=1,
+    )
+
+    # ── annotation box 2: Yearly Returns (mid-left, row 1) ───────────────────
+    if yr_ret:
+        yr_ret_txt = '<b>Yearly Returns</b><br>' + '<br>'.join(
+            f'{y}:  <b>{r*100:+.2f}%</b>' for y, r in sorted(yr_ret.items())
         )
         fig.add_annotation(
-            xref='paper', yref='paper',
-            x=0.01, y=0.99, xanchor='left', yanchor='top',
-            text=ann, showarrow=False,
+            xref='x domain', yref='y domain',
+            x=0.01, y=0.60, xanchor='left', yanchor='top',
+            text=yr_ret_txt,
+            showarrow=False,
+            font=dict(size=9, family=_FONT_MONO),
+            align='left',
+            bgcolor=_BG_BOX, bordercolor=_BORDER, borderwidth=1, borderpad=8,
+            row=1, col=1,
+        )
+
+    # ── annotation box 3: Yearly Sharpe (mid, row 1) ─────────────────────────
+    if yr_sh:
+        yr_sh_txt = '<b>Yearly Sharpe</b><br>' + '<br>'.join(
+            f'{y}:  <b>{s:.2f}</b>' for y, s in sorted(yr_sh.items())
+        )
+        fig.add_annotation(
+            xref='x domain', yref='y domain',
+            x=0.22, y=0.60, xanchor='left', yanchor='top',
+            text=yr_sh_txt,
+            showarrow=False,
+            font=dict(size=9, family=_FONT_MONO),
+            align='left',
+            bgcolor=_BG_BOX, bordercolor=_BORDER, borderwidth=1, borderpad=8,
+            row=1, col=1,
+        )
+
+    # ── annotation box 4: Trade Stats (low-left, row 1) ──────────────────────
+    if total_trades > 0:
+        trade_lines = [
+            '<b>OOS Trade Stats</b>',
+            f'Total Trades:  <b>{total_trades}</b>',
+            f'Win Rate:      <b>{win_rate*100:.2f}%</b>',
+        ]
+        if np.isfinite(profit_factor):
+            trade_lines.append(f'Profit Factor: <b>{profit_factor:.2f}</b>')
+        fig.add_annotation(
+            xref='x domain', yref='y domain',
+            x=0.01, y=0.32, xanchor='left', yanchor='top',
+            text='<br>'.join(trade_lines),
+            showarrow=False,
             font=dict(size=10, family=_FONT_MONO),
             align='left',
             bgcolor=_BG_BOX, bordercolor=_BORDER, borderwidth=1, borderpad=8,
+            row=1, col=1,
         )
 
+    # ── annotation box 5: Yearly Max DD (top-right, row 2) ───────────────────
+    if yr_dd:
+        yr_dd_txt = '<b>Yearly Max DD</b><br>' + '<br>'.join(
+            f'{y}:  <b>{d*100:.2f}%</b>' for y, d in sorted(yr_dd.items())
+        )
+        fig.add_annotation(
+            xref='x2 domain', yref='y2 domain',
+            x=0.99, y=0.98, xanchor='right', yanchor='top',
+            text=yr_dd_txt,
+            showarrow=False,
+            font=dict(size=9, family=_FONT_MONO),
+            align='left',
+            bgcolor=_BG_BOX, bordercolor=_BORDER, borderwidth=1, borderpad=8,
+            row=2, col=1,
+        )
+
+    # ── layout ────────────────────────────────────────────────────────────────
     plot_title = title or (
         f'<b>CPCV Path Equity Curves</b>'
         f'  —  {len(valid)} paths  (N={N}, k={k})'
     )
     fig.update_layout(
-        height=600,
+        height=900,
         template=_TEMPLATE,
         title=dict(text=plot_title, font=dict(size=22, color='#1E293B'),
                    x=0.5, xanchor='center'),
         legend=dict(yanchor='top', y=0.99, xanchor='right', x=0.99,
                     bgcolor=_BG_BOX, bordercolor=_BORDER, borderwidth=1),
-        xaxis=dict(title='Date', showgrid=True, gridwidth=1, gridcolor=_GRID),
-        yaxis=dict(title='Equity (1.0 = start)', showgrid=True,
-                   gridwidth=1, gridcolor=_GRID),
         hovermode='x unified',
     )
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor=_GRID,
+                     dtick='M12', tickformat='%Y', row=1, col=1)
+    fig.update_xaxes(title_text='Date', showgrid=True, gridwidth=1,
+                     gridcolor=_GRID, dtick='M12', tickformat='%Y', row=2, col=1)
+    fig.update_yaxes(title_text='Equity (1.0 = start)', showgrid=True,
+                     gridwidth=1, gridcolor=_GRID, row=1, col=1)
+    fig.update_yaxes(title_text='Drawdown (%)', showgrid=True,
+                     gridwidth=1, gridcolor=_GRID, row=2, col=1)
 
     if save_html:
         fig.write_html(save_html)
@@ -607,7 +801,7 @@ def plot_split_performance_heatmap(cpcv_results, show=True, save_html=None):
         i, j   = (gi, gj) if gi < gj else (gj, gi)
         z[i, j] = split_sh[sr['split_id']]
 
-    labels = [f'G{i}' for i in range(N)]
+    labels = [f'G{i+1}' for i in range(N)]
 
     text = []
     for i in range(N):
@@ -692,11 +886,12 @@ def plot_tercile_comparison(cpcv_results, analysis, show=True, save_html=None):
         return None
 
     oos_sharpes = _split_oos_sharpes(cpcv_results)
-    n_splits    = len(cpcv_results['split_results'])
-    n_tercile   = max(1, n_splits // 3)
     valid_mask  = ~np.isnan(oos_sharpes)
+    n_valid     = int(valid_mask.sum())
+    # Use valid-split count so each tercile is exactly 1/3 of successful splits.
+    n_tercile   = max(1, n_valid // 3)
 
-    if valid_mask.sum() < 3:
+    if n_valid < 3:
         print('[plot_tercile_comparison] Fewer than 3 valid splits — cannot split terciles.')
         return None
 

@@ -119,6 +119,11 @@ def _normalize_trade(t: dict) -> dict:
         'slippage_pct':         float(t.get('slippage_pct', 0)),
         'theoretical_stop':     t.get('theoretical_stop'),
         'discretion_note':      t.get('discretion_note'),
+        # Trade direction — 'long' / 'short'.  Defaults to 'long' for legacy
+        # records and long-only strategies (momentum).  Critical for PnL sign
+        # in build_trade_pairs() — a missing direction silently turns a
+        # losing short into a winning one.
+        'direction':            (t.get('direction') or 'long'),
         # ── new fields (null for legacy records) ──────────────────────────────
         'entry_close':          t.get('entry_close'),
         'exit_close':           t.get('exit_close'),
@@ -409,14 +414,20 @@ def build_trade_pairs(data_dir: str) -> dict:
                 has_close_data  = (entry.get('entry_close') is not None
                                    and ex.get('exit_close') is not None)
 
+                # Direction sign: long profits when price rises, short profits
+                # when it falls.  Defaults to 'long' for legacy records and for
+                # long-only strategies (momentum) — neutral, no behaviour change.
+                direction = (entry.get('direction') or 'long').lower()
+                dir_sign  = 1 if direction == 'long' else -1
+
                 close_to_close_pct = (
-                    (eff_exit_close / eff_entry_close - 1) * 100
+                    (eff_exit_close / eff_entry_close - 1) * 100 * dir_sign
                     if eff_entry_close else 0.0
                 )
 
                 pnl_usd      = act_size_usd * (close_to_close_pct / 100)
-                act_ret_pct  = (act_exit  / act_entry  - 1) * 100 if act_entry  else 0.0
-                theo_ret_pct = (theo_exit / theo_entry - 1) * 100 if theo_entry else 0.0
+                act_ret_pct  = ((act_exit  / act_entry  - 1) * 100 * dir_sign) if act_entry  else 0.0
+                theo_ret_pct = ((theo_exit / theo_entry - 1) * 100 * dir_sign) if theo_entry else 0.0
                 act_pnl_usd  = act_size_usd  * (act_ret_pct  / 100)
                 theo_pnl_usd = theo_size_usd * (theo_ret_pct / 100)
 
@@ -468,6 +479,7 @@ def build_trade_pairs(data_dir: str) -> dict:
                     'position_id':            entry['position_id'],
                     'symbol':                 sym,
                     'strategy':               entry['strategy'],
+                    'direction':              direction,
                     'entry_date':             entry['date'],
                     'exit_date':              ex['date'],
                     'holding_days':           holding_days,
@@ -708,7 +720,7 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
         return pd.DataFrame(columns=_EQUITY_COLS)
 
     start_date = min(entry_dates)
-    end_date   = max(exit_dates)
+    end_date   = max(max(exit_dates), date.today())
 
     print(f"build_equity_curve: start_date={start_date}  end_date={end_date}")
 

@@ -18,8 +18,6 @@ Exported public API
   get_open_positions(symbol, positions)               -> dict
   get_execution_price(hourly_df, signal_date, hour_utc)   -> float | None
   get_coin_capital(symbol)                            -> float
-  load_live_params()                                  -> dict
-  load_positions()                                    -> dict
 """
 
 import os
@@ -53,12 +51,11 @@ POSITIONS_PATH   = os.path.join(_DASHBOARD_DIR, 'positions.json')
 #  Data fetching
 # ══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=60)
-def fetch_live_price(symbol):
+def fetch_live_price(symbol: str):
     """
     Fetch the current market price for a single symbol via the ticker endpoint.
     Very lightweight — one REST call, no OHLCV data fetched.
-    Returns a float, or None on error.
+    Returns a float, or None on error.  Not cached — always returns fresh data.
     """
     try:
         client = get_binance_client()
@@ -67,6 +64,17 @@ def fetch_live_price(symbol):
     except Exception as e:
         print(f"  fetch_live_price({symbol}) failed: {e}")
         return None
+
+
+def fetch_live_prices(symbols: list) -> dict:
+    """
+    Fetch live prices for multiple symbols.  Not cached — always returns fresh data.
+    Returns dict keyed by symbol; symbols that fail are omitted.
+    """
+    return {
+        s: p for s in symbols
+        if (p := fetch_live_price(s)) is not None
+    }
 
 
 def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
@@ -239,10 +247,24 @@ def compute_signals(hourly_df, params, strategy_name):
     h4_short_raw     = bool(last.get('h4_short_setup_raw', False))
 
     # Raw 4H indicator values for the dashboard's ratio columns
-    h4_range         = _f(last.get('h4_range',         0.0))
-    h4_brk_threshold = _f(last.get('h4_brk_threshold', 0.0))
-    h4_bb_width      = _f(last.get('h4_bb_width',      0.0))
-    h4_bb_width_mean = _f(last.get('h4_bb_width_mean', 0.0))
+    h4_range              = _f(last.get('h4_range',              0.0))
+    h4_brk_threshold      = _f(last.get('h4_brk_threshold',      0.0))
+    h4_bb_width           = _f(last.get('h4_bb_width',           0.0))
+    h4_bb_width_mean      = _f(last.get('h4_bb_width_mean',      0.0))
+    h4_range_prev         = _f(last.get('h4_range_prev',         0.0))
+    h4_brk_threshold_prev = _f(last.get('h4_brk_threshold_prev', 0.0))
+    h4_curr_green         = bool(last.get('h4_curr_green', False))
+    h4_curr_red           = bool(last.get('h4_curr_red',   False))
+    h4_prev_green         = bool(last.get('h4_prev_green', False))
+    h4_prev_red           = bool(last.get('h4_prev_red',   False))
+    h4_prev2_green        = bool(last.get('h4_prev2_green', False))
+    h4_prev2_red          = bool(last.get('h4_prev2_red',   False))
+
+    def _dir_label(green, red):
+        return 'green' if green else 'red' if red else 'doji'
+    h4_curr_dir  = _dir_label(h4_curr_green,  h4_curr_red)
+    h4_prev_dir  = _dir_label(h4_prev_green,  h4_prev_red)
+    h4_prev2_dir = _dir_label(h4_prev2_green, h4_prev2_red)
 
     # Per-condition booleans (Engine Room rules, README's Conditions 1/2/3)
     slope_eps = float(params.get('slope_epsilon', 0.0))
@@ -253,6 +275,9 @@ def compute_signals(hourly_df, params, strategy_name):
     c1_range_ratio = (h4_range / h4_brk_threshold
                       if h4_brk_threshold and not pd.isna(h4_brk_threshold) and h4_brk_threshold > 0
                       else float('nan'))
+    c1_range_ratio_prev = (h4_range_prev / h4_brk_threshold_prev
+                           if h4_brk_threshold_prev and not pd.isna(h4_brk_threshold_prev) and h4_brk_threshold_prev > 0
+                           else float('nan'))
     c2_bb_ratio    = (h4_bb_width / h4_bb_width_mean
                       if h4_bb_width_mean and not pd.isna(h4_bb_width_mean) and h4_bb_width_mean > 0
                       else float('nan'))
@@ -267,12 +292,21 @@ def compute_signals(hourly_df, params, strategy_name):
 
     # Same-direction check is "two big green OR two big red"
     c1_two_big_same_dir = h4_two_big_green or h4_two_big_red
-    if h4_two_big_green:
+
+    # h4_dir is *forward-looking*: inferred from ONLY the last 4H candle's
+    # colour.  This makes C3 (slope) and the Bull-veto display answer
+    # "if the next bar continues this candle's direction, would the slope
+    # leg qualify?" — letting the user spot a single-candle pivot before
+    # the second bar prints.  C1 still independently requires both bars
+    # big AND same colour (`c1_two_big_same_dir`), so the Setup badge
+    # ("ARMS LONG"/"ARMS SHORT") only fires on real C1 firings.  Strategy
+    # logic in strategies.py is unaffected; this change is display-only.
+    if h4_curr_green:
         h4_dir = 'long'
-    elif h4_two_big_red:
+    elif h4_curr_red:
         h4_dir = 'short'
     else:
-        h4_dir = 'mixed'
+        h4_dir = 'mixed'   # doji — neither green nor red
     c2_bb_expanding = h4_bb_exp
     # Slope condition is direction-aware: long needs slope_norm >= -eps,
     # short needs slope_norm <= +eps.  Show the rule for whichever direction
@@ -315,6 +349,20 @@ def compute_signals(hourly_df, params, strategy_name):
     else:
         trail_dist  = float('nan')
         tp_distance = None
+
+    # Prospective leverage — "what would the strategy size at if it entered
+    # right now".  Mirrors the strategy's per-bar formula:
+    #   leverage = clip(risk_per_trade / (ATR / close), 0.1, max_leverage)
+    # Stored on its own key so it survives apply_decision()'s FLAT branch
+    # (which overwrites `leverage_multiplier` with None) and can drive the
+    # Decisions table's simulated / armed rows.
+    risk_per_trade = float(params.get('risk_per_trade', 0.03))
+    max_leverage   = float(params.get('max_leverage',   2.5))
+    if (not pd.isna(h1_atr)) and h1_atr > 0 and close > 0:
+        _raw_lev = risk_per_trade / (h1_atr / close)
+        prospective_leverage = max(0.1, min(max_leverage, _raw_lev))
+    else:
+        prospective_leverage = 1.0
 
     # ── 1H Buy-the-Dip state + spoilers ───────────────────────────────────────
     setup_active    = bool(last.get('setup_active',    False))
@@ -427,14 +475,20 @@ def compute_signals(hourly_df, params, strategy_name):
         'plus_di_dominant':    plus_di_dominant,   # +DI > −DI
         'h1_trend_ma':         h1_trend_ma,
         # Raw 4H indicator values + ratios for dashboard display
-        'h4_range':            h4_range,
-        'h4_brk_threshold':    h4_brk_threshold,
-        'h4_bb_width':         h4_bb_width,
-        'h4_bb_width_mean':    h4_bb_width_mean,
-        'c1_range_ratio':      c1_range_ratio,         # >1 ⇒ "big" 4H bar
-        'c2_bb_ratio':         c2_bb_ratio,            # >1 ⇒ BB expanding
-        'c3_slope_ratio':      c3_slope_ratio,         # signed; pass depends on direction
-        'adx_strong_ratio':    adx_strong_ratio,       # 4H ADX / adx_strong threshold
+        'h4_range':              h4_range,
+        'h4_brk_threshold':      h4_brk_threshold,
+        'h4_bb_width':           h4_bb_width,
+        'h4_bb_width_mean':      h4_bb_width_mean,
+        'h4_range_prev':         h4_range_prev,
+        'h4_brk_threshold_prev': h4_brk_threshold_prev,
+        'h4_curr_dir':           h4_curr_dir,            # 'green' / 'red' / 'doji'
+        'h4_prev_dir':           h4_prev_dir,
+        'h4_prev2_dir':          h4_prev2_dir,           # bar two before last (display only)
+        'c1_range_ratio':        c1_range_ratio,         # >1 ⇒ "big" 4H bar (current)
+        'c1_range_ratio_prev':   c1_range_ratio_prev,    # >1 ⇒ prior 4H bar was big
+        'c2_bb_ratio':           c2_bb_ratio,            # >1 ⇒ BB expanding
+        'c3_slope_ratio':        c3_slope_ratio,         # signed; pass depends on direction
+        'adx_strong_ratio':      adx_strong_ratio,       # 4H ADX / adx_strong threshold
 
         # ── 1H Buy-the-Dip + spoilers ─────────────────────────────────────────
         'setup_active':        setup_active,
@@ -462,10 +516,11 @@ def compute_signals(hourly_df, params, strategy_name):
         'adx_strong':          adx_strong_threshold,
 
         # ── Exit details (stop + regime-aware take-profit) ────────────────────
-        'regime_strong_bull':  regime_strong_bull,
-        'trail_atr_mult':      trail_atr_mult,
-        'trail_dist':          trail_dist,
-        'tp_distance':         tp_distance,
+        'regime_strong_bull':   regime_strong_bull,
+        'trail_atr_mult':       trail_atr_mult,
+        'trail_dist':           trail_dist,
+        'tp_distance':          tp_distance,
+        'prospective_leverage': prospective_leverage,
     }
 
 
@@ -646,26 +701,6 @@ def get_coin_capital(symbol, data_dir=None):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  File I/O
-# ══════════════════════════════════════════════════════════════════════════════
-
-@st.cache_data(ttl=3600)
-def load_live_params():
-    """Load live_params.json. Returns {} if file is missing or empty."""
-    if not os.path.exists(LIVE_PARAMS_PATH):
-        return {}
-    with open(LIVE_PARAMS_PATH) as f:
-        return json.load(f)
-
-
-def load_positions():
-    """Load positions.json. Returns {} if file is missing or empty."""
-    if not os.path.exists(POSITIONS_PATH):
-        return {}
-    with open(POSITIONS_PATH) as f:
-        return json.load(f)
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  Top-level pipeline
 # ══════════════════════════════════════════════════════════════════════════════

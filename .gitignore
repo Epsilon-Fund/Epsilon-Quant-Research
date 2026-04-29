@@ -62,3 +62,16 @@ htmlcov/
 # OS Files
 Thumbs.db
 .DS_Store
+
+# Large CPCV simulation files (exceed GitHub 100MB limit)
+portfolio_cpcv_paths.pkl
+
+# Live trading — runtime data files (never commit live state)
+**/trades.json
+**/positions.json
+**/realised_capital.json
+**/mae_cache.json
+**/cache/
+cache/
+.streamlit/secrets.toml
+secrets.toml

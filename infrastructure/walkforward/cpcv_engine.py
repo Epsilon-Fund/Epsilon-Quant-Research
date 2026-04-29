@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.abspath(_THIS_DIR))
 sys.path.insert(0, os.path.abspath(_BACKTESTER))
 
 from engine import backtest
+from performance_metrics import build_realized_equity_curve
 from wf_engine import (
     _default_score,
     _default_reject,
@@ -39,41 +40,59 @@ except ImportError:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _group_metrics(m):
-    """Extract the 6 OOS metrics from a backtest result dict."""
+    """Extract OOS metrics from a backtest result dict."""
     if m is None:
         return dict(sharpe=None, calmar=None, max_dd=None,
-                    total_return=None, n_trades=None, win_rate=None)
+                    total_return=None, n_trades=None, win_rate=None,
+                    profit_factor=None)
     return {
-        'sharpe':       m['sharpe_ratio'],
-        'calmar':       _calmar(m),
-        'max_dd':       m['max_drawdown'],
-        'total_return': m['total_return'],
-        'n_trades':     m['num_trades'],
-        'win_rate':     m['win_rate'],
+        'sharpe':        m['sharpe_ratio'],
+        'calmar':        _calmar(m),
+        'max_dd':        m['max_drawdown'],
+        'total_return':  m['total_return'],
+        'n_trades':      m['num_trades'],
+        'win_rate':      m['win_rate'],
+        'profit_factor': m.get('profit_factor'),
     }
 
 
 def _compute_equity_curve(strategy_df, cost):
     """
-    Compute a net-return equity curve from a strategy DataFrame.
-    Replicates the essential return logic of backtester/engine.py so that
-    path stitching can produce an equity Series without calling show_plot.
+    Compute an equity curve from a strategy DataFrame using realized-sizing.
+
+    Entry notional = position_size × realized_equity (closed-trade equity only),
+    matching the model in portfolio_metrics.build_realized_equity and engine.py.
+    position_size is now respected (previously this function ignored it entirely).
+
+    For single-asset strategies (Close available, no precomputed strategy_returns):
+      uses build_realized_equity_curve with undirected Close.pct_change().
+    For precomputed/pairs returns (strategy_returns column present):
+      falls back to standard MTM compounding (returns are already directional).
     """
-    df = strategy_df.copy()
+    df      = strategy_df.copy()
     eff_pos = df['position'].shift(1).fillna(0)
+    eff_sz  = (df['position_size'].shift(1).fillna(0)
+               if 'position_size' in df.columns
+               else pd.Series(1.0, index=df.index))
 
     if 'strategy_returns' in df.columns:
-        raw = df['strategy_returns']
+        # Precomputed / pairs: direction already baked in — use standard compounding
+        raw        = df['strategy_returns']
+        pos_change = df['position'].diff().abs()
+        net_ret    = eff_pos * raw - pos_change * cost
+        return (1 + net_ret.fillna(0)).cumprod()
+
     elif 'Close' in df.columns:
-        raw = df['Close'].pct_change()
+        # Single-asset: use realized sizing with undirected bar returns
+        return build_realized_equity_curve(
+            position      = eff_pos,
+            position_size = eff_sz,
+            raw_returns   = df['Close'].pct_change().fillna(0),
+            cost          = cost,
+        )
+
     else:
         return pd.Series(1.0, index=df.index)
-
-    strat_ret  = eff_pos * raw
-    pos_change = df['position'].diff().abs()
-    trade_cost = pos_change * cost
-    net_ret    = strat_ret - trade_cost
-    return (1 + net_ret.fillna(0)).cumprod()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -264,7 +283,7 @@ def run_cpcv(
         print(f'CPCV: N={N}  k={k}  splits={n_splits}  paths={n_paths}  '
               f'trials={n_trials}  burnin={burnin}  purge={purge_bars}')
         for i, (s, e) in enumerate(groups):
-            print(f'  Group {i}: [{df.index[s].date()} → {df.index[e-1].date()}]'
+            print(f'  Group {i+1}: [{df.index[s].date()} → {df.index[e-1].date()}]'
                   f'  ({e - s} bars)')
         if fixed_params:
             print(f'\nFixed ({len(fixed_params)}): {list(fixed_params.keys())}')
@@ -523,12 +542,14 @@ def cpcv_parameter_analysis(cpcv_results):
             [[1.0]], index=free_params, columns=free_params)
 
     # ── tercile_comparison ────────────────────────────────────────────────────
-    n_splits  = len(split_results)
-    n_tercile = max(1, n_splits // 3)
     valid_mask = ~np.isnan(oos_sharpes)
+    n_valid    = int(valid_mask.sum())
+    # Use valid-split count (not total splits) so each tercile is exactly 1/3
+    # of the splits that actually produced a Sharpe — not inflated by failures.
+    n_tercile  = max(1, n_valid // 3)
 
     tercile_comparison = {}
-    if valid_mask.sum() >= 3:
+    if n_valid >= 3:
         valid_idx   = np.where(valid_mask)[0]
         sorted_pos  = np.argsort(oos_sharpes[valid_idx])
         top_idx     = valid_idx[sorted_pos[-n_tercile:]]
@@ -873,7 +894,7 @@ def cpcv_summary(
 
     def _highlight_rows(rank_label, pr):
         assignments  = sorted(pr['split_assignments'], key=lambda x: x[0])
-        assign_str   = '  '.join(f'g{g}→s{sid}' for g, sid in assignments)
+        assign_str   = '  '.join(f'g{g+1}→s{sid+1}' for g, sid in assignments)
         metrics_line = (
             f'{rank_label:>{W_RANK}} '
             f'{_fmt(pr["sharpe"]):>{W_SHARPE}} '
@@ -908,7 +929,7 @@ def cpcv_summary(
         print(f"{'═' * TOTAL0}")
         print('\n  Group date ranges:')
         for i, (start, end) in enumerate(bounds):
-            print(f'    g{i}  {start.date()} → {end.date()}')
+            print(f'    g{i+1}  {start.date()} → {end.date()}')
 
     # ── Section 1: path distribution percentile table ─────────────────────────
     if show_distribution:
@@ -983,7 +1004,7 @@ def cpcv_summary(
             f'{"─" * W_SPLITS}'
         )
         for pr in paths:
-            split_ids  = sorted({sid for _, sid in pr['split_assignments']})
+            split_ids  = sorted({sid + 1 for _, sid in pr['split_assignments']})
             splits_str = str(split_ids)[:W_SPLITS]
             print(
                 f'{pr["path_id"] + 1:>{W_PATH}} '
@@ -1055,9 +1076,9 @@ def cpcv_summary(
             tr  = sorted(all_groups - set(tg))
             t_s = bounds[tg[0]][0].date()
             t_e = bounds[tg[-1]][1].date()
-            test_str  = ','.join(f'g{g}' for g in tg)
-            train_str = ','.join(f'g{g}' for g in tr)
-            print(f"  s{sid:<{W_SID}}  {test_str:<{W_TEST}}  "
+            test_str  = ','.join(f'g{g+1}' for g in tg)
+            train_str = ','.join(f'g{g+1}' for g in tr)
+            print(f"  s{sid+1:<{W_SID}}  {test_str:<{W_TEST}}  "
                   f"{str(t_s) + ' → ' + str(t_e):<{W_DATE}}  {train_str}")
 
     # ── Section 5: confidence intervals ──────────────────────────────────────
@@ -1072,14 +1093,14 @@ def cpcv_summary(
 
 def cpcv_print_param_suggestions(cpcv_results, analysis):
     """
-    Print a copy-pasteable PARAM_DEFS / FIXED_PARAMS block from
-    cpcv_parameter_analysis consensus_ranges, then print the raw
-    consensus_ranges table for reference.
+    Print the consensus_ranges table, then two focused copy-pasteable blocks:
 
-    Action rules (from cpcv_parameter_analysis):
-      'fix at X'           → param moves to FIXED_PARAMS at its median value
-      'narrow to IQR'      → param stays in PARAM_DEFS with Q25–Q75 range
-      'keep current range' → param stays in PARAM_DEFS with unchanged range
+      PARAM_DEFS (narrowed)  — only params whose action is 'narrow to IQR',
+                               using Q25/Q75 as the new range.
+      FIXED_PARAMS           — params whose action starts with 'fix at' (newly
+                               converged) plus any params already in fixed_params.
+
+    Params with 'keep current range' are omitted — their existing lines are fine.
     """
     param_defs   = cpcv_results.get('param_defs', {})
     fixed_params = cpcv_results.get('fixed_params', {})
@@ -1089,8 +1110,8 @@ def cpcv_print_param_suggestions(cpcv_results, analysis):
     print(cr.to_string())
     print()
 
-    new_ranges = {}   # param → (type_str, lo, hi)
-    new_fixed  = {}   # param → (type_str, value)
+    narrowed = {}   # param → (type_str, lo, hi)   — only 'narrow to IQR'
+    to_fix   = {}   # param → (type_str, value)     — 'fix at X' from free params
 
     for p in cr.index:
         action = cr.loc[p, 'action']
@@ -1099,39 +1120,44 @@ def cpcv_print_param_suggestions(cpcv_results, analysis):
         if action.startswith('fix at'):
             med = float(ds.loc[p, 'median']) if p in ds.index else 0.0
             val = int(round(med)) if ptype == 'int' else med
-            new_fixed[p] = (ptype, val)
+            to_fix[p] = (ptype, val)
         elif action == 'narrow to IQR':
             lo = float(cr.loc[p, 'recommended_low'])
             hi = float(cr.loc[p, 'recommended_high'])
             if ptype == 'int':
                 lo, hi = int(round(lo)), int(round(hi))
-            new_ranges[p] = (ptype, lo, hi)
-        else:
-            lo = float(cr.loc[p, 'current_low'])
-            hi = float(cr.loc[p, 'current_high'])
-            if ptype == 'int':
-                lo, hi = int(round(lo)), int(round(hi))
-            new_ranges[p] = (ptype, lo, hi)
+            narrowed[p] = (ptype, lo, hi)
 
     def _vfmt(v, ptype):
         return str(int(round(v))) if ptype == 'int' else f'{float(v):.4g}'
 
-    if new_ranges:
-        max_k = max(len(p) for p in new_ranges)
-        pad   = max_k + 3   # for quotes + colon
-        print('PARAM_DEFS = {')
-        for p, (ptype, lo, hi) in new_ranges.items():
+    # ── narrowed PARAM_DEFS lines ─────────────────────────────────────────────
+    if narrowed:
+        max_k = max(len(p) for p in narrowed)
+        pad   = max_k + 3
+        print('# PARAM_DEFS — replace these lines (narrowed to IQR):')
+        for p, (ptype, lo, hi) in narrowed.items():
             key_s  = f"'{p}':"
             type_s = f"'{ptype}',"
             print(f"    {key_s:<{pad}}  ({type_s:<9} {_vfmt(lo, ptype):>6},  {_vfmt(hi, ptype):>6}),")
-        print('}')
+    else:
+        print('# PARAM_DEFS — no ranges narrowed.')
 
-    if new_fixed:
-        max_k = max(len(p) for p in new_fixed)
+    # ── FIXED_PARAMS block (newly converged + already fixed) ─────────────────
+    all_fixed = {}
+    for p, v in fixed_params.items():
+        ptype = param_defs[p][0] if p in param_defs else 'float'
+        all_fixed[p] = (ptype, v)
+    for p, tv in to_fix.items():
+        all_fixed[p] = tv   # newly converged overrides if somehow duplicated
+
+    if all_fixed:
+        max_k = max(len(p) for p in all_fixed)
         pad   = max_k + 3
         print()
-        print('FIXED_PARAMS = {')
-        for p, (ptype, val) in new_fixed.items():
+        print('# FIXED_PARAMS:')
+        for p, (ptype, val) in all_fixed.items():
             key_s = f"'{p}':"
             print(f"    {key_s:<{pad}}  {_vfmt(val, ptype)},")
-        print('}')
+    else:
+        print('# FIXED_PARAMS — none.')

@@ -145,6 +145,29 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     h4_bw_1h           = h4_bw.shift(1).reindex(h1.index,        method="ffill").fillna(0.0)
     h4_bw_mean_1h      = h4_bw_mean.shift(1).reindex(h1.index,   method="ffill").fillna(0.0)
 
+    # Prior 4H bar (one before "last completed") — used so the dashboard can
+    # show *both* candles' range-vs-threshold and direction, since C1 needs
+    # BOTH bars big AND same colour.  shift(2) on the 4H series.
+    def _bool_align_prev(s: pd.Series) -> pd.Series:
+        aligned = s.shift(2).reindex(h1.index, method="ffill")
+        return aligned.where(aligned.notna(), False).astype(bool)
+
+    # Bar two before last (shift(3)) — display only, for a wider "Bars"
+    # context column showing the last three 4H candles.  Strategy logic
+    # only uses the last two bars; this third bar isn't fed into anything.
+    def _bool_align_prev2(s: pd.Series) -> pd.Series:
+        aligned = s.shift(3).reindex(h1.index, method="ffill")
+        return aligned.where(aligned.notna(), False).astype(bool)
+
+    h4_range_prev_1h        = h4_range.shift(2).reindex(h1.index,    method="ffill").fillna(0.0)
+    h4_brk_thresh_prev_1h   = brk_threshold.shift(2).reindex(h1.index, method="ffill").fillna(0.0)
+    h4_curr_green_1h        = _bool_align(h4_green)
+    h4_curr_red_1h          = _bool_align(h4_red)
+    h4_prev_green_1h        = _bool_align_prev(h4_green)
+    h4_prev_red_1h          = _bool_align_prev(h4_red)
+    h4_prev2_green_1h       = _bool_align_prev2(h4_green)
+    h4_prev2_red_1h         = _bool_align_prev2(h4_red)
+
     long_setup_fires  = h4_long_1h  & ~(h4_long_1h.shift(1)  == True)  # noqa: E712
     short_setup_fires = h4_short_1h & ~(h4_short_1h.shift(1) == True)  # noqa: E712
 
@@ -314,10 +337,18 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     df["h4_two_big_red"]     = h4_two_big_red_1h.astype(bool).to_numpy()
     df["h4_bb_exp"]          = h4_bb_exp_1h.astype(bool).to_numpy()
     df["h4_slope_norm"]      = h4_slope_norm_1h.to_numpy()
-    df["h4_range"]           = h4_range_1h.to_numpy()
-    df["h4_brk_threshold"]   = h4_brk_thresh_1h.to_numpy()
-    df["h4_bb_width"]        = h4_bw_1h.to_numpy()
-    df["h4_bb_width_mean"]   = h4_bw_mean_1h.to_numpy()
+    df["h4_range"]               = h4_range_1h.to_numpy()
+    df["h4_brk_threshold"]       = h4_brk_thresh_1h.to_numpy()
+    df["h4_bb_width"]            = h4_bw_1h.to_numpy()
+    df["h4_bb_width_mean"]       = h4_bw_mean_1h.to_numpy()
+    df["h4_range_prev"]          = h4_range_prev_1h.to_numpy()
+    df["h4_brk_threshold_prev"]  = h4_brk_thresh_prev_1h.to_numpy()
+    df["h4_curr_green"]          = h4_curr_green_1h.astype(bool).to_numpy()
+    df["h4_curr_red"]            = h4_curr_red_1h.astype(bool).to_numpy()
+    df["h4_prev_green"]          = h4_prev_green_1h.astype(bool).to_numpy()
+    df["h4_prev_red"]            = h4_prev_red_1h.astype(bool).to_numpy()
+    df["h4_prev2_green"]         = h4_prev2_green_1h.astype(bool).to_numpy()
+    df["h4_prev2_red"]           = h4_prev2_red_1h.astype(bool).to_numpy()
     df["h4_long_setup"]      = h4_long_1h.astype(bool).to_numpy()
     df["h4_short_setup_raw"] = h4_short_1h.astype(bool).to_numpy()
     df["h4_adx"]             = h4_adx_1h.to_numpy()

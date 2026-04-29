@@ -15,8 +15,6 @@ Exported public API
   get_open_positions(symbol, positions)-> dict
   get_execution_price(hourly_df, signal_date, hour_utc)    -> float | None
   get_coin_capital(symbol)             -> float
-  load_live_params()                   -> dict
-  load_positions()                     -> dict
 """
 
 import os
@@ -49,12 +47,11 @@ POSITIONS_PATH   = os.path.join(_DASHBOARD_DIR, 'positions.json')
 #  Data fetching
 # ══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=60)
-def fetch_live_price(symbol):
+def fetch_live_price(symbol: str):
     """
     Fetch the current market price for a single symbol via the ticker endpoint.
     Very lightweight — one REST call, no OHLCV data fetched.
-    Returns a float, or None on error.
+    Returns a float, or None on error.  Not cached — always returns fresh data.
     """
     try:
         client = get_binance_client()
@@ -63,6 +60,17 @@ def fetch_live_price(symbol):
     except Exception as e:
         print(f"  fetch_live_price({symbol}) failed: {e}")
         return None
+
+
+def fetch_live_prices(symbols: list) -> dict:
+    """
+    Fetch live prices for multiple symbols.  Not cached — always returns fresh data.
+    Returns dict keyed by symbol; symbols that fail are omitted.
+    """
+    return {
+        s: p for s in symbols
+        if (p := fetch_live_price(s)) is not None
+    }
 
 
 def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):
@@ -387,26 +395,6 @@ def get_coin_capital(symbol, data_dir=None):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  File I/O  (reads from this dashboard's own directory)
-# ══════════════════════════════════════════════════════════════════════════════
-
-@st.cache_data(ttl=3600)
-def load_live_params():
-    """Load live_params.json. Returns {} if file is missing or empty."""
-    if not os.path.exists(LIVE_PARAMS_PATH):
-        return {}
-    with open(LIVE_PARAMS_PATH) as f:
-        return json.load(f)
-
-
-def load_positions():
-    """Load positions.json. Returns {} if file is missing or empty."""
-    if not os.path.exists(POSITIONS_PATH):
-        return {}
-    with open(POSITIONS_PATH) as f:
-        return json.load(f)
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  Top-level pipeline
 # ══════════════════════════════════════════════════════════════════════════════

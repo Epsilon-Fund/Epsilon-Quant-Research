@@ -1,6 +1,6 @@
 import pandas as pd
 
-from performance_metrics import calculate_all_metrics
+from performance_metrics import calculate_all_metrics, build_realized_equity_curve
 from visualizer import plot_results, plot_trades_on_price
 
 """ 
@@ -51,22 +51,41 @@ def backtest(data, cost=0.0, show_plot=True, save_html=None, show_trades=False, 
             benchmark_data = None
 
     # apply position sizing and 1-bar shift
-    if 'position_size' in df.columns:
-        df['effective_position'] = (df['position'] * df['position_size']).shift(1)
-    else:
-        df['effective_position'] = df['position'].shift(1)
+    eff_pos  = df['position'].shift(1).fillna(0)
+    eff_size = (df['position_size'].shift(1).fillna(0)
+                if 'position_size' in df.columns
+                else pd.Series(1.0, index=df.index))
 
-    df['strategy_returns'] = df['effective_position'] * raw_strategy_returns
+    df['effective_position'] = eff_pos * eff_size
 
-    # costs based on position changes
+    # costs based on position changes (used for trade annotation / pairs cost)
     df['position_change'] = df['position'].diff().abs()
-    df['trade_cost'] = df['position_change'] * cost
+    df['trade_cost']      = df['position_change'] * cost
 
-    df['net_returns'] = df['strategy_returns'] - df['trade_cost']
+    if not use_precomputed:
+        # ── realized sizing (single-asset strategies) ─────────────────────────
+        # Entry notional = position_size × realized_equity (closed-trade equity only).
+        # Unrealized gains do not inflate the notional of subsequent entries.
+        # raw_returns here are undirected (Close.pct_change); direction is applied
+        # inside build_realized_equity_curve via sign(position).
+        equity_curve = build_realized_equity_curve(
+            position      = eff_pos,
+            position_size = eff_size,
+            raw_returns   = raw_strategy_returns,
+            cost          = cost,
+        )
+        df['net_returns'] = equity_curve.pct_change().fillna(0.0)
+    else:
+        # ── pairs / precomputed returns ───────────────────────────────────────
+        # raw_strategy_returns is already directional (direction baked in by the
+        # strategy).  Apply position gating and cost via standard MTM compounding.
+        df['strategy_returns'] = eff_pos * raw_strategy_returns
+        df['net_returns']      = df['strategy_returns'] - df['trade_cost']
+        equity_curve           = (1 + df['net_returns'].fillna(0)).cumprod()
 
     # make a synthetic Close if missing (needed for trade logging + plots)
     if 'Close' not in df.columns:
-        df['Close'] = (1 + df['net_returns'].fillna(0)).cumprod()
+        df['Close'] = equity_curve
 
     metrics = calculate_all_metrics(
         data=df,
