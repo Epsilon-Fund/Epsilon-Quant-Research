@@ -52,19 +52,19 @@ LIVE_PARAMS_PATH = os.path.join(_DASHBOARD_DIR, 'live_params.json')
 
 ASSET_CONFIG = [
     # ── ETHUSDT  (momentum_swing) ─────────────────────────────────────────────
-    # Source: momentumETH_wf.ipynb
+    # Source: topics/momentum/strategies/momentum_cpcv/ETH.ipynb
     {
         "symbol":   "ETHUSDT",
         "strategy": "momentum_swing",
-        "lookback": 2150,
+        "lookback": 2200,
         "param_defs": {
-            'ema_span':              ('int',   5,    40),
+            'ema_span':              ('int',   28,   30),
             'swing_caution':         ('int',   3,    14),
             'swing_stop':            ('int',   3,    10),
-            'atr_caution':           ('int',   10,   30),
+            'atr_caution':           ('int',   19,   25),
             'atr_stop':              ('int',   24,   30),
             'atr_size':              ('int',   3,    14),
-            'adx_override':          ('int',   40,   80),
+            'adx_override':          ('int',   42,   58),
             'stop_atr_scale':        ('float', 0.5,  2.0),
             'risk_per_trade':        ('float', 0.005, 0.05),
             'max_leverage':          ('float', 1.0,  3.0),
@@ -78,39 +78,38 @@ ASSET_CONFIG = [
             'obv_lookback':          ('int',   24,   30),
         },
         "fixed_params": {
-            'risk_per_trade':        0.045,
-            'max_leverage':          2.6,
-            'ema_span':              28,
-            'stop_mult_pos_caution': 0.5,
-            'obv_lookback':          28,
-            'obv_ma_period':         20,
-            'swing_caution':         5,
+            'risk_per_trade': 0.045,
+            'max_leverage':   2.6,
+            'atr_stop':       27,
+            'vol_ma_period':  37,
+            'obv_ma_period':  20,
+            'obv_lookback':   28,
         },
     },
 
     # ── SOLUSDT  (momentum_swing) ─────────────────────────────────────────────
-    # Source: momentumSOL_wf.ipynb
+    # Source: topics/momentum/strategies/momentum_cpcv/SOL.ipynb
     {
         "symbol":   "SOLUSDT",
         "strategy": "momentum_swing",
-        "lookback": 2150,
+        "lookback": 2200,
         "param_defs": {
-            'ema_span':              ('int',   23,   40),
-            'swing_caution':         ('int',   3,    14),
-            'swing_stop':            ('int',   3,    10),
+            'ema_span':              ('int',   29,   36),
+            'swing_caution':         ('int',   8,    10),
+            'swing_stop':            ('int',   7,    10),
             'atr_caution':           ('int',   26,   35),
             'atr_stop':              ('int',   10,   30),
-            'atr_size':              ('int',   3,    14),
-            'adx_override':          ('int',   40,   80),
-            'stop_atr_scale':        ('float', 1,    1.3),
+            'atr_size':              ('int',   12,   14),
+            'adx_override':          ('int',   43,   54),
+            'stop_atr_scale':        ('float', 1.0,  1.3),
             'risk_per_trade':        ('float', 0.005, 0.05),
             'max_leverage':          ('float', 1.0,  3.0),
             'stop_mult_pos_caution': ('float', 0.1,  0.9),
-            'stop_mult_pos_normal':  ('float', 1,    1.5),
-            'stop_mult_ent_both':    ('float', 1,    2.5),
+            'stop_mult_pos_normal':  ('float', 1.14, 1.42),
+            'stop_mult_ent_both':    ('float', 1.41, 1.83),
             'stop_mult_ent_caution': ('float', 0.1,  0.9),
-            'stop_mult_ent_normal':  ('float', 1,    1.5),
-            'vol_ma_period':         ('int',   19,   40),
+            'stop_mult_ent_normal':  ('float', 1.17, 1.44),
+            'vol_ma_period':         ('int',   19,   21),
             'obv_ma_period':         ('int',   29,   34),
             'obv_lookback':          ('int',   10,   30),
         },
@@ -118,6 +117,11 @@ ASSET_CONFIG = [
             'risk_per_trade': 0.046,
             'max_leverage':   3,
             'stop_atr_scale': 1.261,
+            'atr_caution':    31,
+            'obv_ma_period':  31,
+            'ema_span':       33,
+            'adx_override':   43,
+            'vol_ma_period':  19,
         },
     },
 
@@ -154,84 +158,81 @@ ASSET_CONFIG = [
     },
 
     # ── ADAUSDT  (momentum_swing) ─────────────────────────────────────────────
-    # Source: momentumADA_wf.ipynb
+    # Source: topics/momentum/strategies/momentum_cpcv/ADA.ipynb
     {
         "symbol":   "ADAUSDT",
         "strategy": "momentum_swing",
-        "lookback": 2150,
+        "lookback": 2200,
         "param_defs": {
-            'ema_span':              ('int',   16,   40),
+            'ema_span':              ('int',   30,   34),
             'swing_caution':         ('int',   3,    14),
             'swing_stop':            ('int',   3,    10),
             'atr_caution':           ('int',   10,   30),
-            'atr_stop':              ('int',   10,   22),
+            'atr_stop':              ('int',   24,   30),
             'atr_size':              ('int',   3,    14),
-            'adx_override':          ('int',   40,   80),
+            'adx_override':          ('int',   46,   53),
             'stop_atr_scale':        ('float', 0.5,  2.0),
             'risk_per_trade':        ('float', 0.005, 0.05),
             'max_leverage':          ('float', 1.0,  3.0),
-            'stop_mult_pos_caution': ('float', 0.4,  0.9),
+            'stop_mult_pos_caution': ('float', 0.6,  0.83),
             'stop_mult_pos_normal':  ('float', 0.8,  2.0),
-            'stop_mult_ent_both':    ('float', 0.5,  2.5),
+            'stop_mult_ent_both':    ('float', 1.6,  2.3),
             'stop_mult_ent_caution': ('float', 0.1,  0.9),
             'stop_mult_ent_normal':  ('float', 0.5,  1.5),
-            'vol_ma_period':         ('int',   10,   40),
-            'obv_ma_period':         ('int',   10,   40),
-            'obv_lookback':          ('int',   10,   30),
+            'vol_ma_period':         ('int',   35,   40),
+            'obv_ma_period':         ('int',   18,   24),
+            'obv_lookback':          ('int',   24,   30),
         },
         "fixed_params": {
-            'risk_per_trade':        0.0457,
-            'max_leverage':          2.5,
-            'atr_caution':           22,
-            'stop_atr_scale':        1.8709,
-            'stop_mult_pos_caution': 0.6945,
-            'ema_span':              32,
-            'adx_override':          50,
+            'risk_per_trade': 0.045,
+            'max_leverage':   2.8,
+            'atr_stop':       28,
+            'vol_ma_period':  40,
+            'obv_ma_period':  22,
+            'obv_lookback':   25,
         },
     },
 
     # ── XRPUSDT  (momentum_swing) ─────────────────────────────────────────────
-    # Source: momentumXRP_wf.ipynb
+    # Source: topics/momentum/strategies/momentum_cpcv/XRP.ipynb
     {
         "symbol":   "XRPUSDT",
         "strategy": "momentum_swing",
-        "lookback": 2150,
+        "lookback": 2200,
         "param_defs": {
             'ema_span':              ('int',   5,    40),
             'swing_caution':         ('int',   3,    14),
             'swing_stop':            ('int',   3,    10),
             'atr_caution':           ('int',   10,   30),
             'atr_stop':              ('int',   10,   30),
-            'atr_size':              ('int',   3,    14),
-            'adx_override':          ('int',   40,   80),
-            'stop_atr_scale':        ('float', 0.5,  2.0),
+            'atr_size':              ('int',   10,   14),
+            'adx_override':          ('int',   41,   44),
+            'stop_atr_scale':        ('float', 1.3,  1.771),
             'risk_per_trade':        ('float', 0.005, 0.05),
             'max_leverage':          ('float', 1.0,  3.0),
             'stop_mult_pos_caution': ('float', 0.1,  0.9),
-            'stop_mult_pos_normal':  ('float', 1.5,  2.0),
+            'stop_mult_pos_normal':  ('float', 1.246, 1.64),
             'stop_mult_ent_both':    ('float', 0.5,  2.5),
             'stop_mult_ent_caution': ('float', 0.1,  0.9),
-            'stop_mult_ent_normal':  ('float', 0.5,  1.5),
-            'vol_ma_period':         ('int',   21,   40),
-            'obv_ma_period':         ('int',   10,   40),
+            'stop_mult_ent_normal':  ('float', 0.8378, 1.223),
+            'vol_ma_period':         ('int',   29,   34),
+            'obv_ma_period':         ('int',   23,   28),
             'obv_lookback':          ('int',   10,   30),
         },
         "fixed_params": {
-            'risk_per_trade': 0.046,
-            'max_leverage':   2.5,
-            'atr_caution':    12,
-            'swing_caution':  14,
-            'adx_override':   44,
-            'atr_size':       13,
+            'risk_per_trade':       0.045,
+            'max_leverage':         2.5,
+            'stop_mult_pos_normal': 1.476,
+            'vol_ma_period':        32,
         },
     },
 
     # ── AVAXUSDT  (momentum_no_vol) ───────────────────────────────────────────
-    # Source: momentumAVAX_wf.ipynb  (vol_ma lines commented out)
+    # Source: topics/momentum/strategies/momentum_cpcv/AVAX.ipynb
     {
         "symbol":   "AVAXUSDT",
         "strategy": "momentum_no_vol",
-        "lookback": 2150,
+        "lookback": 2200,
         "param_defs": {
             'ema_span':              ('int',   5,    40),
             'swing_caution':         ('int',   3,    14),
@@ -244,12 +245,12 @@ ASSET_CONFIG = [
             'risk_per_trade':        ('float', 0.005, 0.05),
             'max_leverage':          ('float', 1.0,  3.0),
             'stop_mult_pos_caution': ('float', 0.1,  0.9),
-            'stop_mult_pos_normal':  ('float', 0.8,  2.0),
-            'stop_mult_ent_both':    ('float', 0.5,  2.5),
+            'stop_mult_pos_normal':  ('float', 1.3,  1.8),
+            'stop_mult_ent_both':    ('float', 1.661, 2.249),
             'stop_mult_ent_caution': ('float', 0.1,  0.9),
-            'stop_mult_ent_normal':  ('float', 0.5,  1.5),
+            'stop_mult_ent_normal':  ('float', 1.031, 1.188),
             'obv_ma_period':         ('int',   10,   40),
-            'obv_lookback':          ('int',   10,   30),
+            'obv_lookback':          ('int',   18,   27),
         },
         "fixed_params": {
             'risk_per_trade':        0.048,
@@ -264,16 +265,16 @@ ASSET_CONFIG = [
     },
 
     # ── BTCUSDT  (momentum_no_vol) ────────────────────────────────────────────
-    # Source: momentumBTC_wf.ipynb
+    # Source: topics/momentum/strategies/momentum_cpcv/BTC.ipynb
     {
         "symbol":   "BTCUSDT",
         "strategy": "momentum_no_vol",
-        "lookback": 2150,
+        "lookback": 2200,
         "param_defs": {
             'ema_span':              ('int',   5,    40),
             'swing_caution':         ('int',   3,    14),
             'swing_stop':            ('int',   3,    10),
-            'atr_caution':           ('int',   10,   30),
+            'atr_caution':           ('int',   23,   27),
             'atr_stop':              ('int',   10,   30),
             'atr_size':              ('int',   3,    14),
             'adx_override':          ('int',   52,   65),
@@ -281,19 +282,20 @@ ASSET_CONFIG = [
             'risk_per_trade':        ('float', 0.005, 0.05),
             'max_leverage':          ('float', 1.0,  3.0),
             'stop_mult_pos_caution': ('float', 0.1,  0.6),
-            'stop_mult_pos_normal':  ('float', 0.8,  2.0),
-            'stop_mult_ent_both':    ('float', 1.0,  2.5),
+            'stop_mult_pos_normal':  ('float', 1.23, 1.809),
+            'stop_mult_ent_both':    ('float', 1.5,  2.0),
             'stop_mult_ent_caution': ('float', 0.1,  0.9),
             'stop_mult_ent_normal':  ('float', 0.5,  1.5),
-            'obv_ma_period':         ('int',   10,   40),
-            'obv_lookback':          ('int',   10,   30),
+            'obv_ma_period':         ('int',   32,   37),
+            'obv_lookback':          ('int',   12,   17),
         },
         "fixed_params": {
-            'risk_per_trade':       0.0426,
-            'max_leverage':         2.8325,
-            'stop_atr_scale':       1,
-            'stop_mult_pos_normal': 1,
-            'stop_mult_ent_normal': 1,
+            'risk_per_trade':     0.0426,
+            'max_leverage':       2.8325,
+            'atr_caution':        26,
+            'adx_override':       56,
+            'stop_mult_ent_both': 1.734,
+            'obv_ma_period':      34,
         },
     },
 ]
@@ -306,7 +308,7 @@ ASSET_CONFIG = [
 def _score(metrics):
     """Normalised composite: Sharpe 50% | Calmar 30% | Return 20%."""
     SHARPE_MAX = 2.5
-    CALMAR_MAX = 60.0
+    CALMAR_MAX = 10.0
     RETURN_MAX = 15.0
 
     calmar = (metrics['total_return'] / abs(metrics['max_drawdown'])

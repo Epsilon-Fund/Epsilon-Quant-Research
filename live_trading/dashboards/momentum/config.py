@@ -27,11 +27,12 @@ COIN_WEIGHTS = {
 
 # ── shared ───────────────────────────────────────────────────────────
 ACTIVE_ASSETS = [
-    "ETHUSDT",
-    "XRPUSDT",
-    "SOLUSDT",
+    "ADAUSDT",
+    "AVAXUSDT",
     "BTCUSDT",
-    "AVAXUSDT"
+    "ETHUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
 ]
 
 # Add coins here after running optimise.py --asset <symbol>
