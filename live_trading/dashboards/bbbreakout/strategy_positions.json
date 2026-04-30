@@ -1,0 +1,42 @@
+{
+  "BTCUSDT_20260430_001": {
+    "position_id": "BTCUSDT_20260430_001",
+    "symbol": "BTCUSDT",
+    "strategy": "bb_breakout",
+    "in_position": true,
+    "entry_date": "2026-04-30",
+    "entry_price": 75780.0,
+    "leverage_multiplier": 2.5,
+    "pending_stop": 77223.20616858924,
+    "current_stop": null,
+    "direction": "short",
+    "partial_exits": 0,
+    "exit_price": null,
+    "exit_date": null,
+    "discretion_note": "",
+    "coin_capital": 20000.0,
+    "size_usd": 50000.0,
+    "take_profit": null,
+    "regime_at_entry": null
+  },
+  "ADAUSDT_20260430_001": {
+    "position_id": "ADAUSDT_20260430_001",
+    "symbol": "ADAUSDT",
+    "strategy": "bb_breakout",
+    "in_position": true,
+    "entry_date": "2026-04-30",
+    "entry_price": 0.2446,
+    "leverage_multiplier": 2.5,
+    "pending_stop": 0.2521240280951677,
+    "current_stop": null,
+    "direction": "short",
+    "partial_exits": 0,
+    "exit_price": null,
+    "exit_date": null,
+    "discretion_note": "",
+    "coin_capital": 20000.0,
+    "size_usd": 50000.0,
+    "take_profit": null,
+    "regime_at_entry": null
+  }
+}

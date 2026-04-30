@@ -184,6 +184,10 @@ def plot_portfolio_equity_curves(portfolio_paths, ci_results=None, n_display=200
     max_dd  = float(np.mean(path_maxdds))  if path_maxdds  else 0.0
     tot_ret = float(np.mean(path_rets))    if path_rets    else 0.0
 
+    # CAGR from mean total return across paths + common date span
+    n_years = (common_idx[-1] - common_idx[0]).days / 365.25
+    cagr    = float((1 + tot_ret) ** (1.0 / n_years) - 1.0) if n_years > 0 else 0.0
+
     # ── mean-path curve stats (for drawdown panel and yearly breakdowns only) ──
     ppy       = _infer_ppy(common_idx)
     mean_rets = mean_series.pct_change().dropna()
@@ -269,8 +273,12 @@ def plot_portfolio_equity_curves(portfolio_paths, ci_results=None, n_display=200
                   line_width=1, row=2, col=1)
 
     # ── annotation box 1: Portfolio Performance (top-left, row 1) ────────────
+    date_start = pd.Timestamp(common_idx[0]).strftime('%Y-%m-%d')
+    date_end   = pd.Timestamp(common_idx[-1]).strftime('%Y-%m-%d')
     perf_lines = [
         '<b>Portfolio Performance</b>',
+        f'Period:        <b>{date_start} → {date_end}</b>',
+        f'CAGR:          <b>{cagr * 100:.2f}%</b>',
         f'Total Return:  <b>{tot_ret * 100:.2f}%</b>',
         f'Sharpe Ratio:  <b>{sharpe:.2f}</b>',
         f'Max Drawdown:  <b>{max_dd * 100:.2f}%</b>',

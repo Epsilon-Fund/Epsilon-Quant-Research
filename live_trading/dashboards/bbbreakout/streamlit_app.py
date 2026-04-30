@@ -35,6 +35,13 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
+# Shadow files: where the strategy's auto-fired ENTRY/EXIT events are
+# logged separately from the user's manual trades.  Active Positions on
+# the dashboard reads ONLY the manual files; the shadow files are used
+# by portfolio analytics so the strategy-optimal path is tracked
+# regardless of what the user actually traded.
+SHADOW_POSITIONS_PATH = os.path.join(DATA_DIR, 'strategy_positions.json')
+SHADOW_TRADES_PATH    = os.path.join(DATA_DIR, 'strategy_trades.json')
 
 import streamlit as st
 
@@ -129,7 +136,8 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
                  direction=None, exit_type=None, exit_leverage=None,
                  entry_close=None, exit_close=None, exit_reason=None, signal_snapshot=None,
                  entry_type=None,
-                 coin_capital=None, size_usd=None, capital_total=None, coin_weight=None):
+                 coin_capital=None, size_usd=None, capital_total=None, coin_weight=None,
+                 trades_path=None):
     slippage = (actual_price - theoretical_price) / theoretical_price * 100 if theoretical_price else 0.0
     entry = {
         'timestamp':            datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
@@ -159,16 +167,19 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         entry['exit_leverage'] = exit_leverage
         entry['exit_close']    = round(float(exit_close), 4) if exit_close is not None else None
         entry['exit_reason']   = exit_reason or 'Strategy'
-    trades = _load_json(TRADES_PATH, [])
+    _path = trades_path if trades_path is not None else TRADES_PATH
+    trades = _load_json(_path, [])
     trades.append(entry)
-    _save_json(TRADES_PATH, trades)
+    _save_json(_path, trades)
 
 
 def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
                           theoretical_stop, strategy, discretion_note, direction='long',
                           coin_capital=None, size_usd=None,
-                          take_profit=None, regime_at_entry=None):
-    positions = _load_json(POSITIONS_PATH, {})
+                          take_profit=None, regime_at_entry=None,
+                          positions_path=None):
+    _path = positions_path if positions_path is not None else POSITIONS_PATH
+    positions = _load_json(_path, {})
     positions[position_id] = {
         'position_id':         position_id,
         'symbol':              symbol,
@@ -189,17 +200,19 @@ def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
         'take_profit':         take_profit,        # None ⇒ trail-only (strong-bull at entry)
         'regime_at_entry':     regime_at_entry,    # 'strong_bull' or 'chop_bear'
     }
-    _save_json(POSITIONS_PATH, positions)
+    _save_json(_path, positions)
 
 
-def _write_position_exit(position_id, actual_price, discretion_note):
-    positions = _load_json(POSITIONS_PATH, {})
+def _write_position_exit(position_id, actual_price, discretion_note,
+                         positions_path=None):
+    _path = positions_path if positions_path is not None else POSITIONS_PATH
+    positions = _load_json(_path, {})
     if position_id in positions:
         positions[position_id]['in_position'] = False
         positions[position_id]['exit_price']  = actual_price
         positions[position_id]['exit_date']   = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         positions[position_id]['discretion_note'] = discretion_note
-    _save_json(POSITIONS_PATH, positions)
+    _save_json(_path, positions)
 
 
 def _write_position_partial_exit(position_id, exit_leverage, actual_price, discretion_note):
@@ -452,81 +465,86 @@ for _c in coin_rows:
         apply_decision(_c['sig'], _open_pos, _c['exec_price'], _c['coin_capital'])
     )
 
-# ── Auto-log theoretical trades ───────────────────────────────────────────────
-# Reads positions/trades fresh each render to guard against duplicate writes.
-# EXIT: fires even when exec_price is None (uses last close as fallback).
-# ENTRY: fires only once exec_price is available (T+1 bar is open).
-_auto_raw     = _load_json(TRADES_PATH, [])
-_auto_exited  = {t['position_id'] for t in _auto_raw if t.get('action') == 'EXIT'}
-_auto_pos_now = _load_json(POSITIONS_PATH, {})
-_auto_open_syms = {
-    p.get('symbol', pid) for pid, p in _auto_pos_now.items() if p.get('in_position')
-}
-_did_auto = False
+# ── Strategy-shadow tracker ──────────────────────────────────────────────────
+# Logs every entry / exit the strategy's state machine fires to a SEPARATE
+# pair of files (strategy_*.json), so the Active Positions table on the
+# dashboard stays manual-only.  Portfolio analytics can read the shadow
+# files later to track what the strategy-optimal portfolio would have
+# looked like, regardless of what the user actually traded.
+#
+# Sync rule: shadow position state mirrors `sig['position']` (the strategy
+# state machine).  This avoids the manual-aware `apply_decision` path
+# entirely — the shadow doesn't care whether a manual position exists.
+_shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
 
 for _ac in coin_rows:
-    _asym   = _ac['symbol']
-    _asig   = _ac['sig']
-    _adec   = _asig['decision']
-    _aexec  = _ac['exec_price']
-    _atheo  = _aexec if _aexec is not None else _asig['close']
-    _astrat = _ac['strategy']
+    _asym       = _ac['symbol']
+    _asig       = _ac['sig']
+    _aclose     = _asig.get('close')
+    _astrat     = _ac['strategy']
+    _astrat_pos = int(_asig.get('position', 0))     # +1 long / −1 short / 0 flat
+    _astop      = _asig.get('stop') or 0.0           # strategy's current trail level
 
-    if _adec == 'EXIT':
-        _apos_file = _load_json(POSITIONS_PATH, {})
-        for _apid, _apos in list(_apos_file.items()):
-            if (
-                _apos.get('symbol', _apid) == _asym
-                and _apos.get('in_position')
-                and _apid not in _auto_exited
-            ):
-                _alev = float(_apos.get('leverage_multiplier') or _apos.get('size_pct') or 1.0)
-                _aep  = float(_apos.get('entry_price') or 0)
-                _asz  = float(_apos.get('size_usd') or (get_coin_capital(_asym) * _alev))
-                _adir_pos = _apos.get('direction', 'long')
-                _adir_sign = 1 if _adir_pos == 'long' else -1
-                _write_trade(
-                    position_id=_apid, action='EXIT', strategy=_astrat,
-                    theoretical_price=_atheo, actual_price=_atheo,
-                    theoretical_leverage=_alev, actual_leverage=_alev,
-                    theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
-                    exit_type='full', exit_leverage=_alev,
-                    exit_close=_asig['close'], exit_reason='Strategy',
-                )
-                _write_position_exit(_apid, _atheo, '')
-                if _aep > 0:
-                    _araw_ret = (_atheo - _aep) / _aep * _adir_sign
-                    update_realised_capital(DATA_DIR, _araw_ret * _asz, _apid)
-                _auto_exited.add(_apid)
-                _did_auto = True
+    if _aclose is None:
+        continue
 
-    elif _adec == 'ENTRY' and _aexec is not None and _asym not in _auto_open_syms:
-        _alev = float(_asig.get('leverage_multiplier') or 0.0)
-        if _alev > 0:
-            _adir_int = _asig.get('direction', 1)
-            _adir = 'long' if (_adir_int == 1 or _adir_int == 'long') else 'short'
-            _apos_fresh = _load_json(POSITIONS_PATH, {})
-            _anpid      = _next_position_id(_asym, _apos_fresh)
-            _acap       = get_coin_capital(_asym)
-            _asz        = _acap * _alev
-            _write_trade(
-                position_id=_anpid, action='ENTRY', strategy=_astrat,
-                theoretical_price=_aexec, actual_price=_aexec,
-                theoretical_leverage=_alev, actual_leverage=_alev,
-                theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
-                direction=_adir, entry_close=_asig['close'], entry_type='Strategy',
-                coin_capital=_acap, size_usd=_asz,
-                capital_total=load_realised_capital(DATA_DIR),
-            )
-            _write_position_entry(
-                _anpid, _asym, _aexec, _alev, _asig.get('theoretical_stop'),
-                _astrat, '', direction=_adir, coin_capital=_acap, size_usd=_asz,
-            )
-            _auto_open_syms.add(_asym)
-            _did_auto = True
+    # Find any open shadow position for this coin (FIFO — at most one expected)
+    _shadow_pid = None
+    _shadow_rec = None
+    for pid, p in _shadow_pos.items():
+        if p.get('symbol', pid) == _asym and p.get('in_position'):
+            _shadow_pid = pid
+            _shadow_rec = p
+            break
 
-if _did_auto:
-    invalidate_trade_caches()
+    if _astrat_pos != 0 and _shadow_rec is None:
+        # ── Strategy entered a trade, shadow has no open position → fire ──
+        _adir = 'long' if _astrat_pos == 1 else 'short'
+        _alev = float(_asig.get('leverage_multiplier') or 1.0)
+        if _alev <= 0:
+            _alev = 1.0
+        _acap     = get_coin_capital(_asym)
+        _asz      = _acap * _alev
+        _new_pid  = _next_position_id(_asym, _shadow_pos)
+        _write_trade(
+            position_id=_new_pid, action='ENTRY', strategy=_astrat,
+            theoretical_price=_aclose, actual_price=_aclose,
+            theoretical_leverage=_alev, actual_leverage=_alev,
+            theoretical_stop=_astop, discretion_note='',
+            direction=_adir, entry_close=_aclose, entry_type='Strategy',
+            coin_capital=_acap, size_usd=_asz,
+            trades_path=SHADOW_TRADES_PATH,
+        )
+        _write_position_entry(
+            _new_pid, _asym, _aclose, _alev, _astop,
+            _astrat, '', direction=_adir,
+            coin_capital=_acap, size_usd=_asz,
+            positions_path=SHADOW_POSITIONS_PATH,
+        )
+        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
+
+    elif _astrat_pos == 0 and _shadow_rec is not None:
+        # ── Strategy exited (stop_hit / tp_hit / setup expiry) → close shadow ──
+        _alev = float(_shadow_rec.get('leverage_multiplier') or 1.0)
+        _write_trade(
+            position_id=_shadow_pid, action='EXIT', strategy=_astrat,
+            theoretical_price=_aclose, actual_price=_aclose,
+            theoretical_leverage=_alev, actual_leverage=_alev,
+            theoretical_stop=_astop, discretion_note='',
+            exit_type='full', exit_leverage=_alev,
+            exit_close=_aclose, exit_reason='Strategy',
+            trades_path=SHADOW_TRADES_PATH,
+        )
+        _write_position_exit(
+            _shadow_pid, _aclose, '',
+            positions_path=SHADOW_POSITIONS_PATH,
+        )
+        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
+
+# Note: we deliberately do NOT call update_realised_capital() here — the
+# shadow tracker must not move the user's real capital.  And we don't
+# call invalidate_trade_caches() either, because the manual trade caches
+# don't depend on the shadow files.
 
 generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 

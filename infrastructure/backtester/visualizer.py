@@ -114,9 +114,19 @@ def plot_drawdown(equity_curve, title="Portfolio Drawdown"):
 
 def format_metrics_annotation(metrics):
 
+    # ── CAGR from equity curve date span ─────────────────────────────────────
+    eq_idx  = metrics['equity_curve'].index
+    n_years = (eq_idx[-1] - eq_idx[0]).days / 365.25
+    tot_ret = metrics['total_return']
+    cagr    = float((1 + tot_ret) ** (1.0 / n_years) - 1.0) if n_years > 0 else 0.0
+    date_start = eq_idx[0].strftime('%Y-%m-%d')
+    date_end   = eq_idx[-1].strftime('%Y-%m-%d')
+
     main_text = f"""
 <b>Portfolio Performance</b><br>
-Total Return: <b>{metrics['total_return']*100:.2f}%</b><br>
+Period: <b>{date_start} → {date_end}</b><br>
+CAGR: <b>{cagr*100:.2f}%</b><br>
+Total Return: <b>{tot_ret*100:.2f}%</b><br>
 Sharpe Ratio: <b>{metrics['sharpe_ratio']:.2f}</b><br>
 Max Drawdown: <b>{metrics['max_drawdown']*100:.2f}%</b><br>
 Calmar Ratio: <b>{metrics['calmar_ratio']:.2f}</b><br>
