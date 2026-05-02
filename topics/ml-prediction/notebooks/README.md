@@ -7,7 +7,7 @@ A daily-bar machine learning strategy trained on 8 crypto assets that outputs a 
 ## Table of Contents
 
 1. [Core Idea](#1-core-idea)
-2. [XGBoost: How It Works](#2-xgboost-how-it-works)
+2. [XGBoost: How It Works](#2-xgboost-how-it-works) — tree formation, gradient boosting, subsampling, end-to-end example
 3. [Model Parameters](#3-model-parameters)
 4. [Probability Calibration](#4-probability-calibration)
 5. [Feature Set](#5-feature-set)
@@ -45,19 +45,30 @@ XGBoost (Extreme Gradient Boosting) is an ensemble of decision trees trained seq
 
 ### 2.1 Decision Trees (Base Learners)
 
-A single decision tree splits the feature space into rectangular regions using threshold rules:
+Each tree starts as a single node containing all training rows (~8,000 after pooling 8 coins). XGBoost then searches every feature and every possible threshold to find the split that reduces prediction error the most:
 
 ```
-If ret_7d > 0.04 AND funding_zscore < −1.5:
-    → predict class 1 (up)
-Else if spx_ret_1d < −0.02:
-    → predict class 0 (down)
-...
+"split on spx_ret_1d > 0.01?"   → compute Gain
+"split on spx_ret_1d > 0.02?"   → compute Gain
+"split on funding_zscore > -1.5?" → compute Gain
+... (every feature × every threshold)
 ```
 
-Each leaf of the tree stores a score. For a classification problem, the scores are converted to probabilities via the logistic function.
+The best split becomes the root. The process repeats independently inside each child node — best split for left group, best split for right group — until `max_depth=4` is reached. A finished tree looks like:
 
-A single shallow tree (max_depth=4) can only make 2⁴ = 16 distinct predictions — it is a **weak learner**: better than random but far from optimal. XGBoost's power comes from combining hundreds of such trees.
+```
+                    spx_ret_1d > 0.012?
+                   /                   \
+         YES (SPX up)               NO (SPX flat/down)
+        /                                  \
+funding_zscore < -0.8?               ret_7d < -0.04?
+  /            \                      /           \
+[leaf +0.6]  [leaf +0.1]        [leaf -0.5]   dxy_ret_1d < 0?
+                                              /           \
+                                        [leaf -0.1]  [leaf -0.3]
+```
+
+Each leaf stores a small score (positive = push toward UP, negative = push toward DOWN). A single tree is a **weak learner** — it makes at most 16 distinct predictions. XGBoost's power comes from summing 300 of them.
 
 ### 2.2 Gradient Boosting
 
@@ -69,29 +80,23 @@ Boosting builds an ensemble sequentially. Each tree is trained to correct the er
 
 **Update:** Add the new tree to the ensemble, scaled by the learning rate:
 
-```
-F_t(x) = F_{t-1}(x) + η × tree_t(x)
-```
+$$F_t(x) = F_{t-1}(x) + \eta \cdot h_t(x)$$
 
-where `η` is the learning rate (`learning_rate = 0.03` here). A small learning rate forces the model to take many small steps rather than a few large ones, reducing overfitting.
+where $\eta = 0.03$ is the learning rate. A small learning rate forces the model to take many small steps rather than a few large ones, reducing overfitting.
 
-After T trees, the ensemble prediction is the sum of all tree outputs. For binary classification:
+After $T$ trees, the ensemble prediction is the sum of all tree outputs converted to a probability:
 
-```
-p̂ = sigmoid( Σ_t η × tree_t(x) )
-```
+$$\hat{p} = \sigma\!\left(\sum_{t=1}^{T} \eta \cdot h_t(x)\right)$$
 
 ### 2.3 The Objective Function
 
 XGBoost minimises a regularised log-loss:
 
-```
-Objective = Σ_i L(y_i, ŷ_i)  +  Σ_t Ω(tree_t)
-```
+$$\mathcal{L} = \sum_i \ell(y_i, \hat{y}_i) + \sum_t \Omega(h_t)$$
 
 Where:
-- `L(y, ŷ) = −[y·log(ŷ) + (1−y)·log(1−ŷ)]` is the log-loss (cross-entropy)
-- `Ω(tree) = γ·T + ½λ·Σ_j w_j²` penalises tree complexity
+- $\ell(y, \hat{y}) = -\left[y \log \hat{y} + (1-y)\log(1-\hat{y})\right]$ is the log-loss (cross-entropy)
+- $\Omega(h) = \gamma T + \frac{1}{2}\lambda \sum_j w_j^2$ penalises tree complexity
 
 `T` is the number of leaves, `w_j` is the weight (score) at leaf `j`, `γ` controls the minimum gain required to make a split, and `λ` is the L2 penalty on leaf weights.
 
@@ -101,11 +106,9 @@ This means XGBoost is not just minimising prediction error — it is actively pe
 
 For each new tree, XGBoost finds the best split at each node by computing an **exact gain score** for every possible (feature, threshold) pair:
 
-```
-Gain = ½ [ G_L²/(H_L + λ) + G_R²/(H_R + λ) − G²/(H + λ) ] − γ
-```
+$$\text{Gain} = \frac{1}{2}\left[\frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{G^2}{H + \lambda}\right] - \gamma$$
 
-Where `G` and `H` are the sum of first and second-order gradient statistics for the samples in each child node. This closed-form gain is exact and fast to compute, which is why XGBoost scales well to large feature sets.
+Where $G$ and $H$ are the sum of first and second-order gradient statistics for the samples in each child node. This closed-form gain is exact and fast to compute, which is why XGBoost scales well to large feature sets.
 
 A split is only made if `Gain > 0` — i.e. the regularisation-penalised gain exceeds zero. This automatically prunes useless splits.
 
@@ -113,7 +116,7 @@ A split is only made if `Gain > 0` — i.e. the regularisation-penalised gain ex
 
 Two subsampling mechanisms reduce variance and prevent any single tree from overfitting:
 
-- **`subsample = 0.8`** — each tree is trained on a random 80% of the training rows. This introduces randomness that reduces the correlation between trees (similar in spirit to bagging), which lowers ensemble variance.
+- **`subsample = 0.8`** — before fitting each tree, randomly pick 80% of training rows from anywhere in the dataset (row 1, row 547, row 3201 — not consecutive, fully random). The other 20% are ignored for that tree, then a fresh random 80% is picked for the next tree. This means no two trees see exactly the same data, reducing correlation between them and lowering ensemble variance.
 
 - **`colsample_bytree = 0.8`** — each tree is fitted using a random 80% of the features. This prevents the most predictive features from dominating every tree and forces the ensemble to learn from the broader feature set. It is analogous to random feature selection in Random Forests.
 
@@ -123,7 +126,36 @@ Two subsampling mechanisms reduce variance and prevent any single tree from over
 
 - **`min_child_weight = 5`** — a split is only made if both resulting children contain at least 5 samples (weighted by the Hessian). This prevents the model from making splits that explain just 1–2 training examples, which would be pure noise. In a financial context where training rows are daily observations, this is an important guard against overfitting to individual market events.
 
-### 2.7 Why XGBoost Over Linear Models or Neural Networks
+### 2.7 From Score to Probability — A Concrete Example
+
+Tracing one row all the way through the model:
+
+Say today BTC has `spx_ret_1d = +0.02`, `funding_zscore = -0.9`, `ret_7d = +0.05`. The row passes through all 300 trees and lands in a leaf in each one. Each leaf returns a small score:
+
+```
+Tree   1 → leaf score  +0.60
+Tree   2 → leaf score  +0.30
+Tree   3 → leaf score  −0.10
+Tree   4 → leaf score  +0.40
+...
+Tree 300 → leaf score  +0.15
+```
+
+All scores are summed and multiplied by the learning rate:
+
+$$\text{raw score} = 0.03 \times (0.60 + 0.30 - 0.10 + 0.40 + \cdots + 0.15) = 0.03 \times 58.2 = 1.75$$
+
+This raw score (a plain number, can be anything) is converted to a probability via the sigmoid function:
+
+$$\hat{p} = \frac{1}{1 + e^{-1.75}} = 0.85$$
+
+The sigmoid maps any real number into 0–1: a large positive score → close to 1.0, large negative → close to 0.0, zero → 0.50.
+
+**But 0.85 is overconfident.** The isotonic calibrator adjusts it based on what actually happened in the validation set at that confidence level — say it maps 0.85 → **0.72**. Since 0.72 < τ = 0.80, no signal fires. If it had mapped to 0.83, a LONG signal would fire with confidence 0.83.
+
+---
+
+### 2.8 Why XGBoost Over Linear Models or Neural Networks
 
 | Model | Strength | Weakness |
 |-------|----------|---------|
@@ -273,13 +305,9 @@ US macro closes are lagged by 1 day to avoid lookahead (US markets close ~21:00 
 
 The label is a **binary next-day directional classification** with a deadband filter:
 
-```
-next_ret = log(close_{t+1} / close_t)
+$$r_{t+1} = \log\!\left(\frac{\text{close}_{t+1}}{\text{close}_t}\right)$$
 
-label = 1     if  next_ret >  +0.003  (+30 bps)
-label = 0     if  next_ret <  −0.003  (−30 bps)
-label = NaN   if  |next_ret| ≤ 0.003  (dropped)
-```
+$$\text{label} = \begin{cases} 1 & \text{if } r_{t+1} > +0.003 \\ 0 & \text{if } r_{t+1} < -0.003 \\ \text{NaN} & \text{if } |r_{t+1}| \leq 0.003 \end{cases}$$
 
 **Why a deadband?** Returns in the ±30 bps band are below transaction cost threshold and contain little exploitable signal — they are dominated by microstructure noise. Keeping these samples would dilute the signal-to-noise ratio of the training set. The deadband removes ~10–14% of rows per coin.
 
@@ -333,11 +361,7 @@ The `symbol` column is excluded from features — the model is not told which co
 
 ### Raw Signal
 
-```
-LONG  if calibrated_prob > 0.80  (τ = 0.80)
-SHORT if calibrated_prob < 0.20  (1 − τ)
-FLAT  if 0.20 ≤ prob ≤ 0.80
-```
+$$\text{signal} = \begin{cases} \text{LONG} & \text{if } \hat{p} > \tau \\ \text{SHORT} & \text{if } \hat{p} < 1 - \tau \\ \text{FLAT} & \text{otherwise} \end{cases} \qquad \tau = 0.80$$
 
 The threshold is symmetric — the flat zone absorbs all low-conviction outputs.
 
