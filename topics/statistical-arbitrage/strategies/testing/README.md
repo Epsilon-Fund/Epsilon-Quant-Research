@@ -38,10 +38,7 @@ All signals are generated on **daily UTC close** bars. The strategy is designed 
 
 Raw prices are converted to log prices before any calculations:
 
-```
-log_Y_t = log(Close_Y_t)
-log_X_t = log(Close_X_t)
-```
+$$\log Y_t = \log(\text{Close}_{Y,t}), \qquad \log X_t = \log(\text{Close}_{X,t})$$
 
 Log prices are used because they make returns additive, stabilise variance, and ensure the hedge ratio has a clean economic interpretation (percentage relationship rather than absolute price).
 
@@ -49,9 +46,7 @@ Log prices are used because they make returns additive, stabilise variance, and 
 
 The hedge ratio `β` defines how much of Asset X is needed to hedge one unit of Asset Y. It is estimated using **Ordinary Least Squares (OLS)** regression of log_Y on log_X over a rolling `lookback` window:
 
-```
-log_Y_t = α + β_t × log_X_t + ε_t
-```
+$$\log Y_t = \alpha + \beta_t \cdot \log X_t + \varepsilon_t$$
 
 OLS minimises the sum of squared residuals `ε` over the lookback window, producing the `β_t` that best explains log_Y using log_X at each point in time.
 
@@ -63,9 +58,7 @@ OLS minimises the sum of squared residuals `ε` over the lookback window, produc
 
 The spread is the residual of the hedged position:
 
-```
-spread_t = log_Y_t - β_t × log_X_t
-```
+$$s_t = \log Y_t - \beta_t \cdot \log X_t$$
 
 When the spread is near its historical mean, the pair is in equilibrium. When it deviates significantly, the strategy expects mean-reversion.
 
@@ -75,11 +68,9 @@ Note: `β_t` is shifted forward by 1 bar before computing the spread — this en
 
 The spread is normalised into a z-score over a separate rolling `z_lookback` window:
 
-```
-mean_t   = rolling_mean(spread, z_lookback)
-std_t    = rolling_std(spread, z_lookback)
-z_t      = (spread_t - mean_t) / std_t
-```
+$$\mu_t = \text{mean}(s_{t-n:t}), \qquad \sigma_t = \text{std}(s_{t-n:t}), \qquad n = z\_lookback$$
+
+$$z_t = \frac{s_t - \mu_t}{\sigma_t}$$
 
 The z-score expresses how many standard deviations the spread is from its recent mean. This is what the entry and exit thresholds are compared against. Using a separate `z_lookback` (shorter than `lookback`) allows the normalisation to adapt to recent volatility without destabilising the hedge ratio.
 
@@ -87,9 +78,7 @@ The z-score expresses how many standard deviations the spread is from its recent
 
 The per-bar return of the strategy (before position sizing and costs) is:
 
-```
-spread_return_t = ret_Y_t - β_t × ret_X_t
-```
+$$r^{\text{spread}}_t = r^Y_t - \beta_t \cdot r^X_t$$
 
 where `ret_Y` and `ret_X` are the log returns of each asset. This is the raw P&L of holding one unit long and `β` units short (or vice versa).
 
@@ -245,11 +234,7 @@ The window slides forward by `test_bars` at each step (non-overlapping OOS windo
 
 ### Objective Function (Composite Score)
 
-```
-score = 0.50 × clip(Sharpe / 2.5,  0, 1)
-      + 0.30 × clip(Calmar / 60.0, 0, 1)
-      + 0.20 × clip(Return / 15.0, 0, 1)
-```
+$$\text{score} = 0.50 \cdot \text{clip}\!\left(\frac{\text{Sharpe}}{2.5},\, 0, 1\right) + 0.30 \cdot \text{clip}\!\left(\frac{\text{Calmar}}{60},\, 0, 1\right) + 0.20 \cdot \text{clip}\!\left(\frac{\text{Return}}{15},\, 0, 1\right)$$
 
 Sharpe is weighted most heavily as the primary quality measure. Calmar captures risk-adjusted return relative to drawdown. Return provides a small push towards profitable parameter sets when Sharpe is indeterminate (e.g. very few trades).
 
@@ -268,9 +253,7 @@ Some notebooks apply custom tighter filters (e.g. FIL/SNX uses min_trades=8, win
 
 ### Walk-Forward Efficiency (WFE)
 
-```
-WFE = OOS Sharpe (avg across folds) / IS Sharpe (avg across folds)
-```
+$$\text{WFE} = \frac{\overline{\text{Sharpe}}_{\text{OOS}}}{\overline{\text{Sharpe}}_{\text{IS}}}$$
 
 WFE measures how much of the in-sample edge transfers to out-of-sample. A WFE above 0.70 is considered good — it means the strategy is not overfitting significantly to the training data. A WFE below 0.50 is a warning sign.
 
@@ -346,10 +329,9 @@ Reports the median, standard deviation, and coefficient of variation (CV = std /
 
 Pairs are weighted inversely to their volatility so that each pair contributes roughly equal risk to the portfolio. Volatility is measured using **in-market returns only** — days where the pair has an open position:
 
-```
-vol(k)    = std( net_returns[k]  where  position[k] ≠ 0 )
-weight(k) = (1 / vol(k)) / Σ(1 / vol(j))
-```
+$$\sigma_k = \text{std}\!\left(r^{\text{net}}_k \;\middle|\; \text{position}_k \neq 0\right)$$
+
+$$w_k = \frac{1/\sigma_k}{\displaystyle\sum_j 1/\sigma_j}$$
 
 **Why in-market only?** On flat days, net_returns = 0 by definition. Including these zeros deflates the standard deviation estimate for low-frequency pairs (like LINK/TRX at 14% market time) relative to high-frequency pairs. Using only active trading days gives a true measure of the risk taken when capital is deployed.
 
