@@ -35,14 +35,6 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
-# Shadow files: where the strategy's auto-fired ENTRY/EXIT events are
-# logged separately from the user's manual trades.  Active Positions on
-# the dashboard reads ONLY the manual files; the shadow files are used
-# by portfolio analytics so the strategy-optimal path is tracked
-# regardless of what the user actually traded.
-SHADOW_POSITIONS_PATH = os.path.join(DATA_DIR, 'strategy_positions.json')
-SHADOW_TRADES_PATH    = os.path.join(DATA_DIR, 'strategy_trades.json')
-
 import streamlit as st
 
 from dashboard import (
@@ -136,8 +128,7 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
                  direction=None, exit_type=None, exit_leverage=None,
                  entry_close=None, exit_close=None, exit_reason=None, signal_snapshot=None,
                  entry_type=None,
-                 coin_capital=None, size_usd=None, capital_total=None, coin_weight=None,
-                 trades_path=None):
+                 coin_capital=None, size_usd=None, capital_total=None, coin_weight=None):
     slippage = (actual_price - theoretical_price) / theoretical_price * 100 if theoretical_price else 0.0
     entry = {
         'timestamp':            datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
@@ -167,19 +158,16 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         entry['exit_leverage'] = exit_leverage
         entry['exit_close']    = round(float(exit_close), 4) if exit_close is not None else None
         entry['exit_reason']   = exit_reason or 'Strategy'
-    _path = trades_path if trades_path is not None else TRADES_PATH
-    trades = _load_json(_path, [])
+    trades = _load_json(TRADES_PATH, [])
     trades.append(entry)
-    _save_json(_path, trades)
+    _save_json(TRADES_PATH, trades)
 
 
 def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
                           theoretical_stop, strategy, discretion_note, direction='long',
                           coin_capital=None, size_usd=None,
-                          take_profit=None, regime_at_entry=None,
-                          positions_path=None):
-    _path = positions_path if positions_path is not None else POSITIONS_PATH
-    positions = _load_json(_path, {})
+                          take_profit=None, regime_at_entry=None):
+    positions = _load_json(POSITIONS_PATH, {})
     positions[position_id] = {
         'position_id':         position_id,
         'symbol':              symbol,
@@ -200,19 +188,17 @@ def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
         'take_profit':         take_profit,        # None ⇒ trail-only (strong-bull at entry)
         'regime_at_entry':     regime_at_entry,    # 'strong_bull' or 'chop_bear'
     }
-    _save_json(_path, positions)
+    _save_json(POSITIONS_PATH, positions)
 
 
-def _write_position_exit(position_id, actual_price, discretion_note,
-                         positions_path=None):
-    _path = positions_path if positions_path is not None else POSITIONS_PATH
-    positions = _load_json(_path, {})
+def _write_position_exit(position_id, actual_price, discretion_note):
+    positions = _load_json(POSITIONS_PATH, {})
     if position_id in positions:
         positions[position_id]['in_position'] = False
         positions[position_id]['exit_price']  = actual_price
         positions[position_id]['exit_date']   = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         positions[position_id]['discretion_note'] = discretion_note
-    _save_json(_path, positions)
+    _save_json(POSITIONS_PATH, positions)
 
 
 def _write_position_partial_exit(position_id, exit_leverage, actual_price, discretion_note):
@@ -440,13 +426,18 @@ if ("bb_dashboard_data" not in st.session_state or
         _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
         _rows   = _result['assets']
         _sdate  = _result['signal_date']
+        # Capture the actual data-fetch time so the "Generated:" header
+        # shows when run_dashboard() last fired, not the current render
+        # clock.  Persisted in session_state alongside the data so
+        # subsequent cache-hit renders display the same value.
+        _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         for _row in _rows:
             _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
-        st.session_state.bb_dashboard_data      = (_rows, _sdate)
+        st.session_state.bb_dashboard_data      = (_rows, _sdate, _gen_at)
         st.session_state.bb_dashboard_cache_key = _cache_key
         st.session_state.bb_signal_date         = _expected_signal_date
 
-coin_rows, signal_date = st.session_state.bb_dashboard_data
+coin_rows, signal_date, generated_at = st.session_state.bb_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is always fresh.
 # Single fresh read used by decisions, header portfolio summary, and trade forms.
@@ -465,89 +456,8 @@ for _c in coin_rows:
         apply_decision(_c['sig'], _open_pos, _c['exec_price'], _c['coin_capital'])
     )
 
-# ── Strategy-shadow tracker ──────────────────────────────────────────────────
-# Logs every entry / exit the strategy's state machine fires to a SEPARATE
-# pair of files (strategy_*.json), so the Active Positions table on the
-# dashboard stays manual-only.  Portfolio analytics can read the shadow
-# files later to track what the strategy-optimal portfolio would have
-# looked like, regardless of what the user actually traded.
-#
-# Sync rule: shadow position state mirrors `sig['position']` (the strategy
-# state machine).  This avoids the manual-aware `apply_decision` path
-# entirely — the shadow doesn't care whether a manual position exists.
-_shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-for _ac in coin_rows:
-    _asym       = _ac['symbol']
-    _asig       = _ac['sig']
-    _aclose     = _asig.get('close')
-    _astrat     = _ac['strategy']
-    _astrat_pos = int(_asig.get('position', 0))     # +1 long / −1 short / 0 flat
-    _astop      = _asig.get('stop') or 0.0           # strategy's current trail level
-
-    if _aclose is None:
-        continue
-
-    # Find any open shadow position for this coin (FIFO — at most one expected)
-    _shadow_pid = None
-    _shadow_rec = None
-    for pid, p in _shadow_pos.items():
-        if p.get('symbol', pid) == _asym and p.get('in_position'):
-            _shadow_pid = pid
-            _shadow_rec = p
-            break
-
-    if _astrat_pos != 0 and _shadow_rec is None:
-        # ── Strategy entered a trade, shadow has no open position → fire ──
-        _adir = 'long' if _astrat_pos == 1 else 'short'
-        _alev = float(_asig.get('leverage_multiplier') or 1.0)
-        if _alev <= 0:
-            _alev = 1.0
-        _acap     = get_coin_capital(_asym)
-        _asz      = _acap * _alev
-        _new_pid  = _next_position_id(_asym, _shadow_pos)
-        _write_trade(
-            position_id=_new_pid, action='ENTRY', strategy=_astrat,
-            theoretical_price=_aclose, actual_price=_aclose,
-            theoretical_leverage=_alev, actual_leverage=_alev,
-            theoretical_stop=_astop, discretion_note='',
-            direction=_adir, entry_close=_aclose, entry_type='Strategy',
-            coin_capital=_acap, size_usd=_asz,
-            trades_path=SHADOW_TRADES_PATH,
-        )
-        _write_position_entry(
-            _new_pid, _asym, _aclose, _alev, _astop,
-            _astrat, '', direction=_adir,
-            coin_capital=_acap, size_usd=_asz,
-            positions_path=SHADOW_POSITIONS_PATH,
-        )
-        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-    elif _astrat_pos == 0 and _shadow_rec is not None:
-        # ── Strategy exited (stop_hit / tp_hit / setup expiry) → close shadow ──
-        _alev = float(_shadow_rec.get('leverage_multiplier') or 1.0)
-        _write_trade(
-            position_id=_shadow_pid, action='EXIT', strategy=_astrat,
-            theoretical_price=_aclose, actual_price=_aclose,
-            theoretical_leverage=_alev, actual_leverage=_alev,
-            theoretical_stop=_astop, discretion_note='',
-            exit_type='full', exit_leverage=_alev,
-            exit_close=_aclose, exit_reason='Strategy',
-            trades_path=SHADOW_TRADES_PATH,
-        )
-        _write_position_exit(
-            _shadow_pid, _aclose, '',
-            positions_path=SHADOW_POSITIONS_PATH,
-        )
-        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-# Note: we deliberately do NOT call update_realised_capital() here — the
-# shadow tracker must not move the user's real capital.  And we don't
-# call invalidate_trade_caches() either, because the manual trade caches
-# don't depend on the shadow files.
-
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-
+# `generated_at` was already loaded from session_state above (the actual
+# time run_dashboard() last fired, not the current render clock).
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -561,8 +471,7 @@ def fmt(v):
 
 def _fmt_price(v):
     """Adaptive price formatter — matches decimal places to price magnitude."""
-    import math as _m
-    if v is None or (isinstance(v, float) and _m.isnan(v)):
+    if v is None or (isinstance(v, float) and math.isnan(v)):
         return '—'
     if v >= 100:
         return f'{v:,.2f}'
@@ -710,7 +619,7 @@ def _bb_positions_fragment():
     elapsed     = time.time() - _t0
     print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
 
-    _bb_rows, _ = st.session_state.get("bb_dashboard_data", ([], None))
+    _bb_rows, _, _ = st.session_state.get("bb_dashboard_data", ([], None, None))
     coin_sig_by_sym = {c['symbol']: c['sig'] for c in _bb_rows} if _bb_rows else {}
 
     from datetime import date as _date
@@ -1786,6 +1695,13 @@ tag in the State column so you don't confuse them with a real setup.
 # drives both views.
 # (_force_armed and _force_dir are already in scope from the Decisions section.)
 
+# Build a {symbol → manual direction} lookup so the 1H Setup table's
+# IN POSITION badge reflects the user's real positions.json — not the
+# strategy's internal `sig['position']`, which is also non-zero for
+# shadow trades the user never logged manually.
+_manual_open_dirs = {p.get('symbol', pid): p.get('direction', 'long')
+                     for pid, p in _open.items() if p.get('in_position')}
+
 dip_rows_html = ''
 for c in coin_rows:
     sig = c['sig']
@@ -1793,7 +1709,12 @@ for c in coin_rows:
     state_badge_real = sig.get('state_badge', 'IDLE')
     setup_active     = bool(sig.get('setup_active', False))
     setup_direction  = int(sig.get('setup_direction', 0))
-    in_position      = sig.get('position', 0) != 0
+    # `in_position` here means a MANUAL position is open for this coin.
+    # Strategy-shadow trades (sig['position'] != 0 with no manual record)
+    # are NOT IN POSITION from the user's perspective — they fall through
+    # to ARMED / ARMED (sim) / IDLE depending on the toggle.
+    _manual_dir      = _manual_open_dirs.get(c['symbol'])
+    in_position      = _manual_dir is not None
 
     # ── Determine effective state (real or simulated) ─────────────────────
     # Real arm always wins over the toggle.  In-position rows ignore the toggle.
@@ -1834,14 +1755,14 @@ for c in coin_rows:
         eff_pullback_ok = False
         eff_entry_fires = False
 
-    # ── State badge cell ────────────────────────────────────────────────────
+    # ── State badge cell — based on MANUAL position, not strategy state ────
     if in_position:
-        if state_badge_real == 'IN POSITION LONG':
+        if _manual_dir == 'long':
             state_td = '<td class="c entry-t">IN POSITION LONG</td>'
-        elif state_badge_real == 'IN POSITION SHORT':
+        elif _manual_dir == 'short':
             state_td = '<td class="c entry-f">IN POSITION SHORT</td>'
         else:
-            state_td = _muted_td(state_badge_real)
+            state_td = _muted_td('IN POSITION')
     elif eff_active and eff_simulated:
         _label = 'ARMED LONG (sim)' if eff_direction == 1 else 'ARMED SHORT (sim)'
         state_td = f'<td class="c caution">{_label}</td>'
@@ -1983,8 +1904,6 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
 - *Strong-bull regime* (close > 1H trend MA AND 4H ADX > `adx_strong` AND +DI > −DI): no TP, ride the trail.
 - *Chop / Bear regime*: fixed 6:1 reward-to-risk from entry (TP = entry ± 6 × stop distance).
 """)
-    import math as _math
-
     n        = len(coin_rows)
     col_w    = f'calc((100% - 180px) / {n})'
     coin_ths = ''.join(
@@ -2003,7 +1922,7 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
         return f'<tr class="divider-row"><td colspan="{n+1}">{escape(label)}</td></tr>'
 
     def _fnum(v, dp=2, suffix=''):
-        if v is None or (isinstance(v, float) and _math.isnan(v)):
+        if v is None or (isinstance(v, float) and math.isnan(v)):
             return '—'
         return f'{v:,.{dp}f}{suffix}'
 
@@ -2070,15 +1989,15 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
         inputs_atr.append(_fnum(h1_atr, 2))
         inputs_close.append(_fmt_price(close_v))
         inputs_trail_mult.append(_fnum(trail_mult, 2, '×'))
-        inputs_trend_ma.append(_fmt_price(trend_ma) if not _math.isnan(trend_ma) else '—')
+        inputs_trend_ma.append(_fmt_price(trend_ma) if not math.isnan(trend_ma) else '—')
 
         # Stop block
         stop_trail_dist.append(_fnum(trail_dist, 2))
-        if cur_stop and not _math.isnan(cur_stop):
+        if cur_stop and not math.isnan(cur_stop):
             stop_current.append(_fmt_price(cur_stop))
         else:
             stop_current.append('—')
-        if cur_stop and not _math.isnan(cur_stop) and not _math.isnan(close_v) and close_v > 0:
+        if cur_stop and not math.isnan(cur_stop) and not math.isnan(close_v) and close_v > 0:
             sd_pct = abs(close_v - cur_stop) / close_v * 100
             stop_dist_close.append(f'{sd_pct:.2f}%')
         else:
@@ -2099,7 +2018,7 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
                 (' <span style="font-size:10px;color:#888780">'
                  '(entry + 6× stop dist)</span>' if has_pos else '')
             )
-            if not _math.isnan(close_v) and close_v > 0:
+            if not math.isnan(close_v) and close_v > 0:
                 tp_pct = (tp_t - close_v) / close_v * 100 if dirn == 'long' \
                          else (close_v - tp_t) / close_v * 100
                 sign = '+' if tp_pct >= 0 else ''
@@ -2111,13 +2030,13 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
         # Regime breakdown — collapse each check to a single ratio.
         # Pass = ratio > 1.0 (green); fail = ratio ≤ 1.0 (red).
         def _ratio_cell(ratio):
-            if ratio is None or (isinstance(ratio, float) and _math.isnan(ratio)):
+            if ratio is None or (isinstance(ratio, float) and math.isnan(ratio)):
                 return '<span style="color:#888780">—</span>'
             cls = 'stat-pos' if ratio > 1.0 else 'stat-neg'
             return f'<span class="{cls}" style="font-weight:600">{ratio:.2f}</span>'
 
         # close / 1H trend MA
-        if not _math.isnan(trend_ma) and trend_ma != 0:
+        if not math.isnan(trend_ma) and trend_ma != 0:
             reg_close_vs_ma.append(_ratio_cell(close_v / trend_ma))
         else:
             reg_close_vs_ma.append(_ratio_cell(None))

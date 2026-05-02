@@ -115,8 +115,18 @@ def _split_oos_sharpes(cpcv_results):
 #  Function 1: plot_path_equity_curves
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _downsample(arr, max_pts: int):
+    """Return a thinned copy of arr with at most max_pts elements."""
+    if len(arr) <= max_pts:
+        return arr
+    step = max(1, len(arr) // max_pts)
+    return arr[::step]
+
+
 def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
-                            show=True, save_html=None):
+                            show=True, save_html=None,
+                            max_paths: int = 30,
+                            max_pts:   int = 1500):
     """
     CPCV path equity curves with a drawdown panel below — matching the layout
     and annotation style of infrastructure/backtester/visualizer.py.
@@ -144,22 +154,38 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
         print('[plot_path_equity_curves] No valid equity curves — nothing to plot.')
         return None
 
-    # ── align all curves to a common sorted index ─────────────────────────────
-    common_idx = valid[0]['equity_curve'].index
-    for p in valid[1:]:
+    # ── sample paths for rendering (stats still use all valid paths) ──────────
+    plot_paths = valid
+    if len(valid) > max_paths:
+        rng = np.random.default_rng(0)
+        idx = rng.choice(len(valid), size=max_paths, replace=False)
+        idx.sort()
+        plot_paths = [valid[i] for i in idx]
+
+    # ── align sampled curves to a common sorted index ─────────────────────────
+    common_idx = plot_paths[0]['equity_curve'].index
+    for p in plot_paths[1:]:
         common_idx = common_idx.union(p['equity_curve'].index)
     common_idx = common_idx.sort_values()
 
     aligned = pd.DataFrame(index=common_idx)
-    for p in valid:
+    for p in plot_paths:
         aligned[p['path_id']] = p['equity_curve'].reindex(common_idx).ffill()
 
+    # full-resolution curves — used for annotation stats and yearly breakdowns
     mean_curve = aligned.mean(axis=1)
     min_curve  = aligned.min(axis=1)
     max_curve  = aligned.max(axis=1)
 
-    x_fwd = list(common_idx)
-    x_rev = list(common_idx[::-1])
+    # ── downsample time axis for all rendered traces ──────────────────────────
+    ds_idx        = _downsample(common_idx, max_pts)
+    aligned_ds    = aligned.reindex(ds_idx).ffill()
+    mean_curve_ds = mean_curve.reindex(ds_idx).ffill()
+    min_curve_ds  = min_curve.reindex(ds_idx).ffill()
+    max_curve_ds  = max_curve.reindex(ds_idx).ffill()
+
+    x_fwd = list(ds_idx)
+    x_rev = list(ds_idx[::-1])
 
     # ── annotation stats: sourced from path distribution (matches histogram) ────
     path_sharpes = [p['sharpe']       for p in valid if p.get('sharpe')       is not None]
@@ -177,9 +203,6 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
 
     # ── mean-path curve (for drawdown panel and yearly breakdowns only) ────────
     ppy      = _infer_ppy(common_idx)
-    run_max  = mean_curve.cummax()
-    dd_pct   = (mean_curve - run_max) / run_max          # fractional, negative
-
     yr_ret, yr_sh, yr_dd = _yearly_metrics_from_curve(mean_curve, ppy)
     total_trades, win_rate, profit_factor = _aggregate_trade_stats(cpcv_results)
 
@@ -194,7 +217,7 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
     # ── Row 1: envelope band ──────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
         x=x_fwd + x_rev,
-        y=list(max_curve.values) + list(min_curve.values[::-1]),
+        y=list(max_curve_ds.values) + list(min_curve_ds.values[::-1]),
         fill='toself',
         fillcolor='rgba(59, 130, 246, 0.10)',
         line=dict(color='rgba(0,0,0,0)'),
@@ -202,10 +225,10 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
         hoverinfo='skip',
     ), row=1, col=1)
 
-    # ── Row 1: individual paths ───────────────────────────────────────────────
-    for i, p in enumerate(valid):
+    # ── Row 1: individual paths (sampled subset) ──────────────────────────────
+    for i, p in enumerate(plot_paths):
         fig.add_trace(go.Scatter(
-            x=x_fwd, y=aligned[p['path_id']].values,
+            x=x_fwd, y=aligned_ds[p['path_id']].values,
             mode='lines',
             line=dict(color=_BLUE, width=0.7),
             opacity=0.20,
@@ -216,7 +239,7 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
 
     # ── Row 1: mean path ──────────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
-        x=x_fwd, y=mean_curve.values,
+        x=x_fwd, y=mean_curve_ds.values,
         mode='lines',
         line=dict(color=_AMBER, width=2.5),
         name='Mean Path',
@@ -224,8 +247,10 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
     ), row=1, col=1)
 
     # ── Row 2: mean path drawdown ─────────────────────────────────────────────
+    run_max_ds = mean_curve_ds.cummax()
+    dd_pct_ds  = (mean_curve_ds - run_max_ds) / run_max_ds
     fig.add_trace(go.Scatter(
-        x=x_fwd, y=(dd_pct.values * 100),
+        x=x_fwd, y=(dd_pct_ds.values * 100),
         mode='lines',
         name='Drawdown',
         fill='tozeroy',
@@ -267,7 +292,7 @@ def plot_path_equity_curves(cpcv_results, wf_sharpe=None, title=None,
         f'Sharpe Ratio:  <b>{sharpe:.2f}</b>',
         f'Max Drawdown:  <b>{max_dd*100:.2f}%</b>',
         f'Calmar Ratio:  <b>{calmar:.2f}</b>',
-        f'N Paths:       <b>{len(valid)}</b>',
+        f'N Paths:       <b>{len(valid)}</b> (showing {len(plot_paths)})',
     ]
     if wf_sharpe is not None:
         perf_lines.append(f'WF Sharpe:     <b>{wf_sharpe:.2f}</b>')

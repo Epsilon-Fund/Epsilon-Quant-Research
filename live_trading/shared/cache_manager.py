@@ -116,6 +116,62 @@ def _fetch_hourly_binance(symbol: str, start_str: str, end_str: str = None) -> p
     return _klines_to_df(klines)
 
 
+# ── Symbol rebrand stitching ──────────────────────────────────────────────────
+# Map of {current_symbol: legacy_symbol} for tickers that Binance rebranded.
+# When fetching a symbol with a predecessor, hourly bars before the new symbol's
+# first listed bar are backfilled from the legacy ticker, with prices rescaled
+# so the close-to-close transition at the boundary is continuous (standard
+# split/symbol-change adjustment — preserves percentage returns within each
+# segment and prevents a phantom return on the rebrand bar).
+_REBRAND_PREDECESSOR: dict[str, str] = {
+    'POLUSDT': 'MATICUSDT',   # Binance rebrand 2024-09; new symbol opened 2024-09-13
+}
+
+
+def _fetch_hourly_stitched(symbol: str, fetch_start: date, fetch_end: date) -> pd.DataFrame:
+    """
+    Fetch hourly OHLCV for `symbol`, transparently backfilling pre-rebrand bars
+    from the legacy ticker (see _REBRAND_PREDECESSOR).  Returns the same shape
+    as `_fetch_hourly_binance` — caller can treat the result as one continuous
+    series.
+    """
+    df = _fetch_hourly_binance(
+        symbol,
+        start_str=fetch_start.strftime('%Y-%m-%d'),
+        end_str=(fetch_end + timedelta(days=1)).strftime('%Y-%m-%d'),
+    )
+
+    legacy = _REBRAND_PREDECESSOR.get(symbol)
+    if legacy is None or df.empty:
+        return df
+
+    boundary = df.index[0]
+    # Skip the legacy fetch if the requested window starts after the new
+    # symbol's first bar — nothing to stitch.
+    if pd.Timestamp(fetch_start) >= boundary:
+        return df
+
+    legacy_df = _fetch_hourly_binance(
+        legacy,
+        start_str=fetch_start.strftime('%Y-%m-%d'),
+        end_str=boundary.strftime('%Y-%m-%d %H:%M:%S'),
+    )
+    legacy_df = legacy_df[legacy_df.index < boundary]
+    if legacy_df.empty:
+        return df
+
+    # Continuity adjustment: scale legacy OHLC so legacy_close[-1] == new_close[0].
+    factor = float(df['Close'].iloc[0]) / float(legacy_df['Close'].iloc[-1])
+    for col in ('Open', 'High', 'Low', 'Close'):
+        legacy_df[col] = legacy_df[col] * factor
+
+    stitched = pd.concat([legacy_df, df]).sort_index()
+    stitched = stitched[~stitched.index.duplicated(keep='last')]
+    print(f'  {symbol} hourly: stitched {len(legacy_df)} legacy bars from {legacy} '
+          f'(factor={factor:.4f}, boundary={boundary})')
+    return stitched
+
+
 # ── Parquet I/O ───────────────────────────────────────────────────────────────
 
 def _daily_path(symbol: str) -> Path:
@@ -320,10 +376,10 @@ def get_hourly_ohlcv(
             # Fetch missing head (cache predates the request's start)
             if needs_head:
                 try:
-                    head = _fetch_hourly_binance(
+                    head = _fetch_hourly_stitched(
                         symbol,
-                        start_str=fetch_start.strftime('%Y-%m-%d'),
-                        end_str=(c_start + timedelta(days=1)).strftime('%Y-%m-%d'),
+                        fetch_start=fetch_start,
+                        fetch_end=c_start,
                     )
                     if not head.empty:
                         cached = _merge_and_save(head, cached, path)
@@ -336,10 +392,10 @@ def get_hourly_ohlcv(
     # No cache — fetch full requested range from scratch
     print(f'  {symbol} hourly: no cache — fetching {fetch_start} -> {fetch_end} from Binance…')
     try:
-        df = _fetch_hourly_binance(
+        df = _fetch_hourly_stitched(
             symbol,
-            start_str=fetch_start.strftime('%Y-%m-%d'),
-            end_str=(fetch_end + timedelta(days=1)).strftime('%Y-%m-%d'),
+            fetch_start=fetch_start,
+            fetch_end=fetch_end,
         )
         if not df.empty:
             _write_parquet(df, path)

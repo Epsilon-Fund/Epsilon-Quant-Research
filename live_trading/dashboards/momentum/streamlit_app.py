@@ -39,14 +39,6 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
-# Shadow files: where the strategy's auto-fired ENTRY/EXIT events are
-# logged separately from the user's manual trades.  Active Positions on
-# the dashboard reads ONLY the manual files; the shadow files are used
-# by portfolio analytics to track the strategy-optimal path regardless
-# of what the user actually traded.
-SHADOW_POSITIONS_PATH = os.path.join(DATA_DIR, 'strategy_positions.json')
-SHADOW_TRADES_PATH    = os.path.join(DATA_DIR, 'strategy_trades.json')
-
 import streamlit as st
 
 from dashboard import (
@@ -144,8 +136,7 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
                  direction=None, exit_type=None, exit_leverage=None,
                  entry_close=None, exit_close=None, exit_reason=None, signal_snapshot=None,
                  entry_type=None,
-                 coin_capital=None, size_usd=None, capital_total=None, coin_weight=None,
-                 trades_path=None):
+                 coin_capital=None, size_usd=None, capital_total=None, coin_weight=None):
     slippage = (actual_price - theoretical_price) / theoretical_price * 100 if theoretical_price else 0.0
     entry = {
         'timestamp':            datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
@@ -177,18 +168,15 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         entry['exit_leverage'] = exit_leverage
         entry['exit_close']    = round(float(exit_close), 4) if exit_close is not None else None
         entry['exit_reason']   = exit_reason or 'Strategy'
-    _path = trades_path if trades_path is not None else TRADES_PATH
-    trades = _load_json(_path, [])
+    trades = _load_json(TRADES_PATH, [])
     trades.append(entry)
-    _save_json(_path, trades)
+    _save_json(TRADES_PATH, trades)
 
 
 def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
                           theoretical_stop, strategy, discretion_note, direction='long',
-                          coin_capital=None, size_usd=None,
-                          positions_path=None):
-    _path = positions_path if positions_path is not None else POSITIONS_PATH
-    positions = _load_json(_path, {})
+                          coin_capital=None, size_usd=None):
+    positions = _load_json(POSITIONS_PATH, {})
     positions[position_id] = {
         'position_id':         position_id,
         'symbol':              symbol,
@@ -208,19 +196,17 @@ def _write_position_entry(position_id, symbol, actual_price, actual_leverage,
         'coin_capital':        coin_capital,
         'size_usd':            size_usd,
     }
-    _save_json(_path, positions)
+    _save_json(POSITIONS_PATH, positions)
 
 
-def _write_position_exit(position_id, actual_price, discretion_note,
-                         positions_path=None):
-    _path = positions_path if positions_path is not None else POSITIONS_PATH
-    positions = _load_json(_path, {})
+def _write_position_exit(position_id, actual_price, discretion_note):
+    positions = _load_json(POSITIONS_PATH, {})
     if position_id in positions:
         positions[position_id]['in_position'] = False
         positions[position_id]['exit_price']  = actual_price
         positions[position_id]['exit_date']   = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         positions[position_id]['discretion_note'] = discretion_note
-    _save_json(_path, positions)
+    _save_json(POSITIONS_PATH, positions)
 
 
 def _write_position_partial_exit(position_id, exit_leverage, actual_price, discretion_note):
@@ -528,13 +514,18 @@ if ("momentum_dashboard_data" not in st.session_state or
         _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
         _rows   = _result['assets']
         _sdate  = _result['signal_date']
+        # Capture the actual data-fetch time so the "Generated:" header
+        # shows when run_dashboard() last fired, not the current render
+        # clock.  Persisted in session_state alongside the data so
+        # subsequent cache-hit renders display the same value.
+        _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         for _row in _rows:
             _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
-        st.session_state.momentum_dashboard_data      = (_rows, _sdate)
+        st.session_state.momentum_dashboard_data      = (_rows, _sdate, _gen_at)
         st.session_state.momentum_dashboard_cache_key = _cache_key
         st.session_state.momentum_signal_date         = _expected_signal_date
 
-coin_rows, signal_date = st.session_state.momentum_dashboard_data
+coin_rows, signal_date, generated_at = st.session_state.momentum_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is read fresh every render.
 # st.cache_data returns deserialized copies, so mutating coin_rows here is safe.
@@ -554,87 +545,8 @@ for _c in coin_rows:
         apply_decision(_c['sig'], _open_pos, _c['exec_price'], _c['coin_capital'])
     )
 
-# ── Strategy-shadow tracker ──────────────────────────────────────────────────
-# Logs every entry / exit the strategy's state machine fires to a SEPARATE
-# pair of files (strategy_*.json), so the Active Positions table on the
-# dashboard stays manual-only.  Portfolio analytics can read the shadow
-# files later to track what the strategy-optimal portfolio would have
-# looked like, regardless of what the user actually traded.
-#
-# Sync rule: shadow position state mirrors `sig['position']` (the strategy
-# state machine).  Momentum is long-only — `sig['position']` is 1 when the
-# strategy is in trade and 0 when flat.
-_shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-for _ac in coin_rows:
-    _asym       = _ac['symbol']
-    _asig       = _ac['sig']
-    _aclose     = _asig.get('close')
-    _astrat     = _ac['strategy']
-    _astrat_pos = int(_asig.get('position', 0))   # 1 in trade / 0 flat
-    _astop      = _asig.get('theoretical_stop') or 0.0
-
-    if _aclose is None:
-        continue
-
-    # Find any open shadow position for this coin (FIFO — at most one expected)
-    _shadow_pid = None
-    _shadow_rec = None
-    for pid, p in _shadow_pos.items():
-        if p.get('symbol', pid) == _asym and p.get('in_position'):
-            _shadow_pid = pid
-            _shadow_rec = p
-            break
-
-    if _astrat_pos != 0 and _shadow_rec is None:
-        # ── Strategy entered, shadow has no open position → fire shadow entry ──
-        _alev = float(_asig.get('leverage_multiplier') or 1.0)
-        if _alev <= 0:
-            _alev = 1.0
-        _acap     = get_coin_capital(_asym)
-        _asz      = _acap * _alev
-        _new_pid  = _next_position_id(_asym, _shadow_pos)
-        _write_trade(
-            position_id=_new_pid, action='ENTRY', strategy=_astrat,
-            theoretical_price=_aclose, actual_price=_aclose,
-            theoretical_leverage=_alev, actual_leverage=_alev,
-            theoretical_stop=_astop, discretion_note='',
-            direction='long', entry_close=_aclose, entry_type='Strategy',
-            coin_capital=_acap, size_usd=_asz,
-            trades_path=SHADOW_TRADES_PATH,
-        )
-        _write_position_entry(
-            _new_pid, _asym, _aclose, _alev, _astop,
-            _astrat, '', direction='long',
-            coin_capital=_acap, size_usd=_asz,
-            positions_path=SHADOW_POSITIONS_PATH,
-        )
-        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-    elif _astrat_pos == 0 and _shadow_rec is not None:
-        # ── Strategy exited (stop_hit / strategy_exit) → close shadow ────────
-        _alev = float(_shadow_rec.get('leverage_multiplier') or 1.0)
-        _write_trade(
-            position_id=_shadow_pid, action='EXIT', strategy=_astrat,
-            theoretical_price=_aclose, actual_price=_aclose,
-            theoretical_leverage=_alev, actual_leverage=_alev,
-            theoretical_stop=_astop, discretion_note='',
-            exit_type='full', exit_leverage=_alev,
-            exit_close=_aclose, exit_reason='Strategy',
-            trades_path=SHADOW_TRADES_PATH,
-        )
-        _write_position_exit(
-            _shadow_pid, _aclose, '',
-            positions_path=SHADOW_POSITIONS_PATH,
-        )
-        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-# Note: we deliberately do NOT call update_realised_capital() here — the
-# shadow tracker must not move the user's real capital.  And we don't
-# call invalidate_trade_caches() either, because the manual trade caches
-# don't depend on the shadow files.
-
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+# `generated_at` was already loaded from session_state above (the actual
+# time run_dashboard() last fired, not the current render clock).
 
 
 # ── Helper: format param value ────────────────────────────────────────────────
@@ -676,6 +588,7 @@ for _pid0, _pos0 in _open.items():
     _lp0  = _live_prices.get(_sym0)
     _ep0  = _pos0.get('entry_price', 0)
     _lev0 = _pos0.get('leverage_multiplier') or _pos0.get('size_pct', 0)
+    _dir0 = _pos0.get('direction', 'long')
     # Use frozen size_usd from positions.json; fall back to live config for legacy entries
     _sz0  = _pos0.get('size_usd') or (get_coin_capital(_sym0) * _lev0)
     _total_size_usd += _sz0
@@ -683,7 +596,9 @@ for _pid0, _pos0 in _open.items():
         # Deduct round-trip cost (entry leg already paid + estimated exit leg)
         # so unrealized P&L is consistent with how closed trades report P&L.
         _cost0               = _sz0 * TRADING_COST_PCT * 2
-        _pnl0                = (_lp0 - _ep0) / _ep0 * _sz0 - _cost0
+        # P&L direction: long profits from price up, short from price down
+        _move0               = (_lp0 - _ep0) / _ep0 if _dir0 == 'long' else (_ep0 - _lp0) / _ep0
+        _pnl0                = _move0 * _sz0 - _cost0
         _unrealized_pnl_usd += _pnl0
         _total_pos_value    += _sz0 + _pnl0
         _total_has_live      = True
@@ -790,8 +705,11 @@ def _momentum_positions_fragment():
         size_usd = pos.get('size_usd') or (get_coin_capital(_sym_for_pos) * leverage_multiplier)
         _tot_size_usd_r += size_usd
 
+        pos_dir = pos.get('direction', 'long')
+
         if live_price and entry_price:
-            _gross_pnl         = (live_price - entry_price) / entry_price * size_usd
+            _move_frag         = (live_price - entry_price) / entry_price if pos_dir == 'long' else (entry_price - live_price) / entry_price
+            _gross_pnl         = _move_frag * size_usd
             _trade_cost        = size_usd * TRADING_COST_PCT * 2
             unrealised_pnl_usd = _gross_pnl - _trade_cost
             net_return_pct     = unrealised_pnl_usd / size_usd * 100
@@ -1190,8 +1108,9 @@ for _fi, _c in enumerate(coin_rows):
                     _full_sz_usd  = (_exited_pos.get('size_usd')
                                      or get_coin_capital(_sym) * _held_lev)
                     _frac_closed  = _exit_amount / _held_lev if _held_lev > 0 else 1.0
+                    _dir_sign     = 1 if _exited_pos.get('direction', 'long') == 'long' else -1
                     _pnl_usd_exit = (
-                        (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
+                        _dir_sign * (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
                         if _entry_p > 0 else 0.0
                     )
                     _old_rc = load_realised_capital(DATA_DIR)

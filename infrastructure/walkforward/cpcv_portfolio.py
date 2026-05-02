@@ -371,8 +371,15 @@ def portfolio_confidence_intervals(
 
     Overlap definition
     ------------------
-    Two sampled portfolio paths i and j overlap if, for any asset, they used a
-    path that shares at least one split_id.
+    For a pair of portfolio paths (i, j), the overlap is the average across all
+    assets of the weighted per-asset split overlap:
+
+        per_asset_overlap(asset) = |shared split_ids| / splits_per_path
+        overlap(i, j)            = mean(per_asset_overlap) over all assets
+
+    This matches cpcv_confidence_intervals() in cpcv_engine.py and
+    _individual_floor() in coin_inclusion_analysis() exactly, so individual
+    and portfolio Sharpe floors are directly comparable.
 
     N_eff estimation
     ----------------
@@ -428,26 +435,42 @@ def portfolio_confidence_intervals(
         path_split_sets.append(entry)
 
     # ── estimate N_eff from 1 000 random pair samples ─────────────────────────
+    # Overlap definition: weighted average per-asset overlap fraction.
+    # For each asset, overlap(i,j) = |shared split_ids| / splits_per_path.
+    # The portfolio overlap is the mean of these per-asset values.
+    #
+    # This matches the formula in _individual_floor() / cpcv_confidence_intervals()
+    # exactly, so individual and portfolio Sharpe floors are directly comparable.
+    # The old binary-OR approach (any asset sharing any split = full overlap) gave
+    # mean_overlap → 1 for multi-asset portfolios → N_eff ≈ 1 → uninformative CI.
     n_pairs = 1000
     rng     = np.random.default_rng(0)   # fixed seed for reproducible N_eff
     i_idx   = rng.integers(0, N, size=n_pairs)
     j_idx   = rng.integers(0, N, size=n_pairs)
 
-    overlap_count = 0
+    # Precompute splits_per_path per asset (max frozenset size across all portfolio paths)
+    all_assets = list({a for ps in path_split_sets for a in ps})
+    spp: dict = {}    # splits_per_path per asset
+    for asset in all_assets:
+        mx = max((len(ps.get(asset, frozenset())) for ps in path_split_sets), default=1)
+        spp[asset] = max(mx, 1)
+
+    overlap_sum = 0.0
     for k in range(n_pairs):
         i, j = int(i_idx[k]), int(j_idx[k])
         if i == j:
-            # diagonal always overlaps
-            overlap_count += 1
+            overlap_sum += 1.0
             continue
         ps_i = path_split_sets[i]
         ps_j = path_split_sets[j]
+        per_asset = []
         for asset in ps_i:
-            if asset in ps_j and (ps_i[asset] & ps_j[asset]):
-                overlap_count += 1
-                break
+            if asset in ps_j:
+                n_shared = len(ps_i[asset] & ps_j[asset])
+                per_asset.append(n_shared / spp[asset])
+        overlap_sum += (sum(per_asset) / len(per_asset)) if per_asset else 0.0
 
-    mean_overlap = overlap_count / n_pairs
+    mean_overlap = overlap_sum / n_pairs
     sum_overlap  = N ** 2 * max(mean_overlap, 1e-10)
     n_eff        = float(N ** 2) / sum_overlap
 
@@ -2640,3 +2663,87 @@ def find_optimal_weights(
         'equal_weight_floor':   equal_floor_val,
         'improvement_vs_equal': improv,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Function 12: build_representative_oos_dfs
+# ──────────────────────────────────────────────────────────────────────────────
+
+def build_representative_oos_dfs(asset_results: dict, weights: dict) -> dict:
+    """
+    For each asset, select the CPCV path whose Sharpe is closest to the median
+    across all valid paths ("representative path"), then stitch its per-group OOS
+    strategy DataFrames into one continuous full-history DataFrame.
+
+    The resulting dict feeds directly into ``plot_closed_trade_equity()`` from
+    ``wf_visualizer.py``, giving the same closed-trade equity view that the
+    portfolio master notebook produces for walk-forward OOS data.
+
+    Selection rule — representative path
+    -------------------------------------
+    For each asset, all valid paths are ranked by Sharpe.  The path whose Sharpe
+    is closest to the median is chosen.  This avoids both best-case and worst-case
+    cherry-picking while producing a realistic single curve.
+
+    Parameters
+    ----------
+    asset_results : dict returned by load_asset_cpcv()
+    weights       : {"ASSET": weight} — only assets present in weights are processed
+
+    Returns
+    -------
+    dict: {asset: oos_df}
+        oos_df is a continuous OOS strategy DataFrame (position / Close /
+        position_size columns, same schema as produced by the strategy_fn
+        passed to run_cpcv).
+    """
+    rep_dfs: dict = {}
+
+    for asset in weights:
+        if asset not in asset_results:
+            print(f'  [{asset}] not in asset_results — skipping')
+            continue
+
+        results = asset_results[asset]
+        paths   = results['paths']
+
+        valid = [p for p in paths
+                 if p.get('sharpe') is not None
+                 and p.get('equity_curve') is not None]
+        if not valid:
+            print(f'  [{asset}] no valid paths — skipping')
+            continue
+
+        # ── pick representative path (closest Sharpe to median) ───────────────
+        median_sh = float(np.median([p['sharpe'] for p in valid]))
+        rep_path  = min(valid, key=lambda p: abs(p['sharpe'] - median_sh))
+
+        # ── build split_id → split_result lookup ──────────────────────────────
+        split_map = {sr['split_id']: sr for sr in results['split_results']}
+
+        # ── concatenate OOS DataFrames for each group in the representative path
+        slices: list = []
+        for g_idx, s_id in sorted(rep_path['split_assignments'], key=lambda x: x[0]):
+            sr = split_map.get(s_id)
+            if sr is None:
+                continue
+            oos_df = sr['group_results'].get(g_idx, {}).get('oos_strategy_df')
+            if oos_df is not None and len(oos_df) > 0:
+                slices.append(oos_df)
+
+        if not slices:
+            print(f'  [{asset}] OOS DataFrames missing from split_results — skipping')
+            continue
+
+        combined = pd.concat(slices).sort_index()
+        combined = combined[~combined.index.duplicated(keep='first')]
+
+        rep_dfs[asset] = combined
+        print(
+            f'  {asset:<8}  rep Sharpe={rep_path["sharpe"]:.2f} '
+            f'(median={median_sh:.2f})  '
+            f'bars={len(combined)}  '
+            f'[{combined.index[0].date()} → {combined.index[-1].date()}]'
+        )
+
+    return rep_dfs

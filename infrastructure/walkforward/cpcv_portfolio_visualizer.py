@@ -1790,10 +1790,21 @@ def plot_asset_yearly_heatmap(breakdown, show=True, save_html=None):
     all_ret  = top_z[~np.isnan(top_z)]
     abs_max  = max(float(np.abs(all_ret).max()), 0.01) if len(all_ret) else 0.5
 
-    # ── Middle panel: pct_paths_positive ─────────────────────────────────────
+    # ── Middle panel: pct_paths_positive (assets + Portfolio row) ────────────
     pos_mat  = pos_piv[years].values
     pos_text = [[f'{v * 100:.0f}%' if not np.isnan(v) else ''
                  for v in row] for row in pos_mat]
+
+    port_pos_row = np.array([
+        float(port_summary.loc[port_summary['year'] == y, 'pct_paths_positive'].iloc[0])
+        if y in port_summary['year'].values else float('nan')
+        for y in years
+    ])
+    port_pos_text = [f'{v * 100:.0f}%' if not np.isnan(v) else '' for v in port_pos_row]
+
+    pos_mat  = np.vstack([pos_mat, port_pos_row])
+    pos_text = pos_text + [port_pos_text]
+    pos_ys   = assets + ['Portfolio']
 
     # ── Bottom panel: rank ────────────────────────────────────────────────────
     rank_mat  = rank_piv[years].values.astype(float)
@@ -1804,7 +1815,7 @@ def plot_asset_yearly_heatmap(breakdown, show=True, save_html=None):
     # ── subplots — 3 rows, shared x-axis ─────────────────────────────────────
     # row heights proportional to cell count so each cell is equal size
     n_top   = n_assets + 1   # assets + Portfolio
-    n_mid   = n_assets
+    n_mid   = n_assets + 1   # assets + Portfolio
     n_bot   = n_assets
     n_total = n_top + n_mid + n_bot
     rh = [n_top / n_total, n_mid / n_total, n_bot / n_total]
@@ -1851,7 +1862,7 @@ def plot_asset_yearly_heatmap(breakdown, show=True, save_html=None):
     fig.add_trace(go.Heatmap(
         z=pos_mat,
         x=year_strs,
-        y=assets,
+        y=pos_ys,
         text=pos_text,
         texttemplate='%{text}',
         textfont=dict(size=10, family=_FONT_MONO),

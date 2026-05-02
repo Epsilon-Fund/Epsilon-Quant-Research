@@ -1,1 +1,20 @@
-{}
+{
+  "BTCUSDT_20260502_001": {
+    "position_id": "BTCUSDT_20260502_001",
+    "symbol": "BTCUSDT",
+    "strategy": "momentum_no_vol",
+    "in_position": true,
+    "entry_date": "2026-05-02",
+    "entry_price": 78220.0,
+    "leverage_multiplier": 1.52,
+    "pending_stop": 75648.51041053924,
+    "current_stop": 75648.51041053924,
+    "direction": "long",
+    "partial_exits": 0,
+    "exit_price": null,
+    "exit_date": null,
+    "discretion_note": "",
+    "coin_capital": 16666.666666666664,
+    "size_usd": 25333.33333333333
+  }
+}

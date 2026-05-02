@@ -30,14 +30,6 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
-# Shadow files: where the strategy's auto-fired ENTRY/EXIT events are
-# logged separately from the user's manual trades.  Active Positions on
-# the dashboard reads ONLY the manual files; the shadow files are used
-# by portfolio analytics to track the strategy-optimal path regardless
-# of what the user actually traded.
-SHADOW_POSITIONS_PATH = os.path.join(DATA_DIR, 'strategy_positions.json')
-SHADOW_TRADES_PATH    = os.path.join(DATA_DIR, 'strategy_trades.json')
-
 import streamlit as st
 
 from dashboard import (
@@ -97,8 +89,7 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
                  entry_y_price=None, entry_x_price=None,
                  exit_y_price=None, exit_x_price=None,
                  pair_capital=None, pair_weight=None,
-                 signal_snapshot=None,
-                 trades_path=None):
+                 signal_snapshot=None):
     slippage = ((actual_price - theoretical_price) / theoretical_price * 100
                 if theoretical_price else 0.0)
     record = {
@@ -131,18 +122,15 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         record['exit_reason']   = exit_reason or 'Strategy'
         record['exit_y_price']  = round(exit_y_price, 6) if exit_y_price else None
         record['exit_x_price']  = round(exit_x_price, 6) if exit_x_price else None
-    _path = trades_path if trades_path is not None else TRADES_PATH
-    trades = _load_json(_path, [])
+    trades = _load_json(TRADES_PATH, [])
     trades.append(record)
-    _save_json(_path, trades)
+    _save_json(TRADES_PATH, trades)
 
 
 def _write_position_entry(position_id, pair_key, symbol_y, symbol_x,
                           strategy, direction, size_usd, pair_capital,
-                          entry_y_price, entry_x_price, beta, discretion_note,
-                          positions_path=None):
-    _path = positions_path if positions_path is not None else POSITIONS_PATH
-    positions = _load_json(_path, {})
+                          entry_y_price, entry_x_price, beta, discretion_note):
+    positions = _load_json(POSITIONS_PATH, {})
     positions[position_id] = {
         'position_id':         position_id,
         'symbol':              pair_key,
@@ -165,19 +153,17 @@ def _write_position_entry(position_id, pair_key, symbol_y, symbol_x,
         'entry_x_price':       round(entry_x_price, 6) if entry_x_price else None,
         'beta':                round(beta, 6) if beta is not None else None,
     }
-    _save_json(_path, positions)
+    _save_json(POSITIONS_PATH, positions)
 
 
-def _write_position_exit(position_id, spread_pnl_pct, discretion_note,
-                         positions_path=None):
-    _path = positions_path if positions_path is not None else POSITIONS_PATH
-    positions = _load_json(_path, {})
+def _write_position_exit(position_id, spread_pnl_pct, discretion_note):
+    positions = _load_json(POSITIONS_PATH, {})
     if position_id in positions:
         positions[position_id]['in_position'] = False
         positions[position_id]['exit_price']  = round(1.0 + spread_pnl_pct, 6)
         positions[position_id]['exit_date']   = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         positions[position_id]['discretion_note'] = discretion_note
-    _save_json(_path, positions)
+    _save_json(POSITIONS_PATH, positions)
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -289,7 +275,7 @@ def load_all():
     """
     live_params = load_live_params()
     if not live_params:
-        return [], None
+        return [], None, None
     active_set = set(ACTIVE_ASSETS)
     pair_keys  = [k for k in live_params if k in active_set]
     result     = run_dashboard(pair_keys, live_params, positions={})
@@ -298,7 +284,12 @@ def load_all():
     # ASSET_CONFIG is authoritative for fixed params.
     for row in pair_rows:
         row['fixed_keys'] = _PAIR_FIXED_KEYS.get(row['pair_key'], row['fixed_keys'])
-    return pair_rows, sig_date
+    # Capture the actual data-fetch time so the "Generated:" header shows
+    # when run_dashboard() last fired, not the current render clock.
+    # Folded into the cached return tuple so cache-hit renders display the
+    # same value (the timestamp doesn't tick on every page rerun).
+    gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    return pair_rows, sig_date, gen_at
 
 
 def load_live_prices(symbols: tuple):
@@ -311,7 +302,7 @@ def load_live_prices(symbols: tuple):
     return _shared_live_prices(symbols)
 
 
-pair_rows, signal_date = load_all()
+pair_rows, signal_date, generated_at = load_all()
 
 if not pair_rows:
     st.error("live_params.json is empty or ACTIVE_ASSETS is empty — run `optimise.py` first.")
@@ -332,93 +323,8 @@ for _r in pair_rows:
     _open_pos = get_open_positions(_r['pair_key'], _positions_for_decisions)
     _r['sig'].update(apply_decision(_r['sig'], _open_pos, _r['pair_capital']))
 
-# ── Strategy-shadow tracker ──────────────────────────────────────────────────
-# Logs every entry / exit the strategy's state machine fires to a SEPARATE
-# pair of files (strategy_*.json), so the Active Positions table on the
-# dashboard stays manual-only.  Portfolio analytics can read the shadow
-# files later to track what the strategy-optimal portfolio would have
-# looked like, regardless of what the user actually traded.
-#
-# Sync rule: shadow position state mirrors `sig['last_pos']` (the strategy
-# state machine: +1 long-spread, -1 short-spread, 0 flat).
-_shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-for _ar in pair_rows:
-    _apk        = _ar['pair_key']
-    _asig       = _ar['sig']
-    _astrat     = _ar['strategy']
-    _aclose_y   = _asig.get('close_y')
-    _aclose_x   = _asig.get('close_x')
-    _astrat_pos = int(_asig.get('last_pos', 0))   # +1 long / −1 short / 0 flat
-    _abeta      = float(_asig.get('beta') or 0)
-
-    if _aclose_y is None or _aclose_x is None:
-        continue
-
-    # Find any open shadow position for this pair (FIFO — at most one expected)
-    _shadow_pid = None
-    _shadow_rec = None
-    for pid, p in _shadow_pos.items():
-        if p.get('symbol', pid) == _apk and p.get('in_position'):
-            _shadow_pid = pid
-            _shadow_rec = p
-            break
-
-    if _astrat_pos != 0 and _shadow_rec is None:
-        # ── Strategy entered, shadow has no open position → fire shadow entry ──
-        _adir    = 'long' if _astrat_pos == 1 else 'short'
-        _acap    = get_pair_capital(_apk)
-        _new_pid = _next_position_id(_apk, _shadow_pos)
-        _write_trade(
-            position_id=_new_pid, action='ENTRY', strategy=_astrat,
-            theoretical_price=1.0, actual_price=1.0,
-            size_usd=_acap, discretion_note='',
-            direction=_adir,
-            entry_y_price=_aclose_y, entry_x_price=_aclose_x,
-            pair_capital=_acap,
-            trades_path=SHADOW_TRADES_PATH,
-        )
-        _write_position_entry(
-            _new_pid, _apk, _ar['symbol_y'], _ar['symbol_x'],
-            _astrat, _adir, _acap, _acap,
-            _aclose_y, _aclose_x, _abeta, '',
-            positions_path=SHADOW_POSITIONS_PATH,
-        )
-        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-    elif _astrat_pos == 0 and _shadow_rec is not None:
-        # ── Strategy exited (mean-revert / stop / band) → close shadow ───────
-        _ads    = 1 if _shadow_rec.get('direction', 'long') == 'long' else -1
-        _ey     = float(_shadow_rec.get('entry_y_price') or 0)
-        _ex     = float(_shadow_rec.get('entry_x_price') or 0)
-        _b      = float(_shadow_rec.get('beta') or 0)
-        if _ey > 0 and _ex > 0 and _aclose_y > 0 and _aclose_x > 0:
-            _spread_pnl = _ads * (
-                np.log(_aclose_y / _ey) - _b * np.log(_aclose_x / _ex)
-            )
-        else:
-            _spread_pnl = 0.0
-        _asz = float(_shadow_rec.get('size_usd') or 0)
-        _write_trade(
-            position_id=_shadow_pid, action='EXIT', strategy=_astrat,
-            theoretical_price=1.0, actual_price=1.0,
-            size_usd=_asz, discretion_note='',
-            exit_reason='Strategy',
-            exit_y_price=_aclose_y, exit_x_price=_aclose_x,
-            trades_path=SHADOW_TRADES_PATH,
-        )
-        _write_position_exit(
-            _shadow_pid, _spread_pnl, '',
-            positions_path=SHADOW_POSITIONS_PATH,
-        )
-        _shadow_pos = _load_json(SHADOW_POSITIONS_PATH, {})
-
-# Note: we deliberately do NOT call update_realised_capital() here — the
-# shadow tracker must not move the user's real capital.  And we don't
-# call invalidate_trade_caches() either, because the manual trade caches
-# don't depend on the shadow files.
-
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+# `generated_at` was already returned from load_all() above (the actual
+# time run_dashboard() last fired, not the current render clock).
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

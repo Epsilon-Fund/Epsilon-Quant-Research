@@ -646,7 +646,9 @@ def _add_execution_pnl(
                 n_approx += 1
                 continue
 
-            exec_return  = (exec_exit_price - exec_entry_price) / exec_entry_price
+            _dir = (p.get('direction') or 'long').lower()
+            _ds  = 1 if _dir == 'long' else -1
+            exec_return  = _ds * (exec_exit_price - exec_entry_price) / exec_entry_price
             exec_pnl_usd = exec_return * size_usd - size_usd * cost_pct * 2
 
             # Book at exit_date + 1 day (when the exit execution actually occurs)
