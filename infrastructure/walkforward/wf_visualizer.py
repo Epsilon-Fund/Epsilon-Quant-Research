@@ -232,12 +232,16 @@ def plot_oos_equity(oos_metrics, oos_combined_df, fold_boundaries=None,
     fold_boundaries : list of dates to draw vertical fold-separation lines
     benchmark_data  : optional DataFrame with 'Close' for buy-and-hold comparison
     """
-    equity_curve = oos_metrics['equity_curve']
+    # Clip equity at 0 — (1+r).cumprod() can go below 0 when a single bar has
+    # r < -1 (e.g. a shorted memecoin pumps several hundred percent). In reality
+    # liquidation would have ended the position at 0; the cumprod math doesn't
+    # know that. Cosmetic only — engine math / oos_metrics numbers untouched.
+    equity_curve = oos_metrics['equity_curve'].clip(lower=0)
 
     benchmark_equity = None
     if benchmark_data is not None:
         br = benchmark_data['Close'].pct_change()
-        benchmark_equity = (1 + br).cumprod().fillna(1.0)
+        benchmark_equity = (1 + br).cumprod().fillna(1.0).clip(lower=0)
         # align to OOS window
         benchmark_equity = benchmark_equity.reindex(equity_curve.index, method='nearest')
         #renormalise

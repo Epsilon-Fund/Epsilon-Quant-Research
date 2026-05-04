@@ -178,8 +178,12 @@ def plot_attribution(oos_df, benchmark_data=None,
     long_ret  = oos_df['long_ret'].fillna(0)
     short_ret = oos_df['short_ret'].fillna(0)
 
-    long_eq  = (1 + long_ret).cumprod()
-    short_eq = (1 - short_ret).cumprod()   # equity from being short the short basket
+    # Clip equity at 0 — (1+r).cumprod() can go below 0 when a single bar has
+    # r < -1 (e.g. a shorted memecoin pumps several hundred percent). In reality
+    # liquidation would have ended the position at 0; the cumprod math doesn't
+    # know that. Cosmetic only — does not affect attribution metrics.
+    long_eq  = (1 + long_ret).cumprod().clip(lower=0)
+    short_eq = (1 - short_ret).cumprod().clip(lower=0)   # equity from being short the short basket
 
     # ── Panel 1: cumulative equity by leg ────────────────────────────────────
     fig.add_trace(go.Scatter(x=long_eq.index,  y=long_eq.values,
@@ -189,7 +193,7 @@ def plot_attribution(oos_df, benchmark_data=None,
                               name='Short leg (held short)', line=dict(color='red')),
                   row=1, col=1)
     if 'net_returns' in oos_df.columns:
-        net_eq = (1 + oos_df['net_returns'].fillna(0)).cumprod()
+        net_eq = (1 + oos_df['net_returns'].fillna(0)).cumprod().clip(lower=0)
         fig.add_trace(go.Scatter(x=net_eq.index, y=net_eq.values,
                                   name='Combined (net of costs)',
                                   line=dict(color='black', width=2)),

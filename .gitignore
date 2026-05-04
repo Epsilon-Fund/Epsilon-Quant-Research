@@ -66,17 +66,6 @@ Thumbs.db
 # Large CPCV simulation files (exceed GitHub 100MB limit)
 portfolio_cpcv_paths.pkl
 topics/momentum/results/oos/combined_cpcv_paths.pkl
-topics/momentum/strategies/bb_cpcv/ADA.ipynb
-topics/momentum/strategies/bb_cpcv/AVAX.ipynb
-topics/momentum/strategies/bb_cpcv/BTC.ipynb
-topics/momentum/strategies/bb_cpcv/ETH.ipynb
-topics/momentum/strategies/bb_cpcv/LINK.ipynb
-topics/momentum/strategies/bb_cpcv/NEAR.ipynb
-topics/momentum/strategies/bb_cpcv/wf_params/ADA.ipynb
-topics/momentum/strategies/bb_cpcv/wf_params/AVAX.ipynb
-topics/momentum/strategies/bb_cpcv/wf_params/BTC.ipynb
-topics/momentum/strategies/bb_cpcv/wf_params/ETH.ipynb
-topics/momentum/strategies/bb_cpcv/wf_params/NEAR.ipynb
 topics/momentum/strategies/bb_cpcv/oos/*_1h_cpcv.pkl
 topics/momentum/strategies/bb_cpcv/wf_params/oos/*_1h_cpcv.pkl
 
