@@ -349,8 +349,26 @@ def apply_decision(sig, open_positions, exec_price, capital):
             'stop_detail':         stop_detail,
         }
 
+    # Day-0 guard: on the entry day, keep the entry stop — even if the
+    # positional ratchet candidate (pos_normal / pos_caution) is higher.
+    # The hold-path ratchet only takes over from Day 1+.  Without this,
+    # the Decisions table and pending_stop auto-proposal would flip to
+    # the positional stop on the same day the user logs the ENTRY,
+    # silently overriding the entry stop the user just confirmed.
+    from datetime import date as _date
+    _entry_date_str = primary.get('entry_date')
+    try:
+        _days_held = ((_date.today() - _date.fromisoformat(_entry_date_str)).days
+                      if _entry_date_str else 0)
+    except (TypeError, ValueError):
+        _days_held = 0   # malformed entry_date → treat as Day 0 (safer)
+
+    if _days_held <= 0:
+        candidate = stop_detail['entry_stop']
+    else:
+        candidate = stop_detail['hold_stop_candidate']
+
     old_stop     = confirmed_stop if confirmed_stop else 0.0
-    candidate    = stop_detail['hold_stop_candidate']
     new_stop     = max(old_stop, candidate)
     stop_updated = new_stop > old_stop
     stop_detail['hold_stop_previous'] = old_stop

@@ -639,7 +639,7 @@ def _bb_positions_fragment():
         size_usd = pos.get('size_usd') or (get_coin_capital(_sym_for_pos) * leverage_multiplier)
         _tot_size_usd_r += size_usd
 
-        if live_price and entry_price:
+        if live_price and entry_price and size_usd > 0:
             _cost0   = size_usd * TRADING_COST_PCT * 2
             _move    = (live_price - entry_price) / entry_price if pos_dir == 'long' else (entry_price - live_price) / entry_price
             _pnl0    = _move * size_usd - _cost0
@@ -900,7 +900,7 @@ for c in coin_rows:
     #   Strategy state              1H Setup state   Decisions badge
     #   ──────────────────────────  ───────────────  ──────────────────────
     #   Real position open          IN POSITION x    HOLD / EXIT  (apply_decision)
-    #   Strategy just fired entry   IN POSITION x    ENTRY        (apply_decision)
+    #   Strategy just fired entry   ENTRY x          ENTRY        (apply_decision)
     #   Real arm, 1H entry FALSE    ARMED x          ARMED x
     #   Real arm, 1H entry TRUE     would transition (handled above as ENTRY)
     #   Sim arm, 1H entry FALSE     ARMED x (sim)    ARMED x (sim)
@@ -1547,12 +1547,44 @@ for c in coin_rows:
     else:
         veto_td = _muted_td('n/a (long dir)')
 
-    # Setup-would-arm column — based on the LAST 4H bar's conditions
+    # Setup-would-arm column — based on the LAST 4H bar's conditions.
+    #
+    # The 4H engine evaluates C1+C2+C3 per-bar.  But the 1H state machine
+    # arms only on the *rising edge* of h4_long/h4_short
+    # (`long_setup_fires = h4_long_1h & ~h4_long_1h.shift(1)`).  If the 4H
+    # conditions stay True for several bars, the 1H state machine arms
+    # once at the transition, then either fires entry, expires, or exits;
+    # after that, no new 1H setup will activate until h4_long flips False
+    # and back to True.  Showing "ARMS LONG/SHORT" purely on per-bar
+    # C1+C2+C3 misleads the user into thinking a fresh arm is available
+    # when the 1H side is locked out (e.g. LINK: 4H ARMS LONG but 1H IDLE
+    # and Decisions FLAT — already-used window).
+    #
+    # Distinguish three cases when C1+C2+C3 hold:
+    #   • setup_active OR just-fired              → ARMS LONG/SHORT  (actionable)
+    #   • multi-bar shadow position open          → IN POSITION
+    #   • neither — 1H state machine is exhausted → STALE LONG/SHORT
     if c1_pass and c2_pass and c3_pass:
+        _setup_active = bool(sig.get('setup_active', False))
+        _just_fired   = bool(sig.get('entry_long',  False)
+                             or sig.get('entry_short', False))
+        _in_long      = bool(sig.get('in_long',  False))
+        _in_short     = bool(sig.get('in_short', False))
+
         if h4_dir == 'long':
-            setup_td = '<td class="c entry-t">ARMS LONG</td>'
+            if _in_long and not _just_fired:
+                setup_td = '<td class="c entry-t">IN POSITION</td>'
+            elif _setup_active or _just_fired:
+                setup_td = '<td class="c entry-t">ARMS LONG</td>'
+            else:
+                setup_td = '<td class="c caution">STALE LONG</td>'
         elif h4_dir == 'short' and not bull_veto:
-            setup_td = '<td class="c entry-t">ARMS SHORT</td>'
+            if _in_short and not _just_fired:
+                setup_td = '<td class="c entry-t">IN POSITION</td>'
+            elif _setup_active or _just_fired:
+                setup_td = '<td class="c entry-t">ARMS SHORT</td>'
+            else:
+                setup_td = '<td class="c caution">STALE SHORT</td>'
         elif h4_dir == 'short' and bull_veto:
             setup_td = '<td class="c caution">SHORT VETOED</td>'
         else:
@@ -1617,7 +1649,7 @@ Don't fade strong bulls.
 | 4H ADX / strong | first number `>` second — ADX above its threshold |
 | +DI / −DI | `+DI > −DI` ⇒ bullish bias |
 | Bull veto | FALSE = clear · TRUE = blocks shorts |
-| Setup | `ARMS LONG` / `ARMS SHORT` = all three conditions fired |
+| Setup | `ARMS LONG` / `ARMS SHORT` = C1+C2+C3 align AND the 1H state machine is currently armed or has just fired entry · `STALE LONG` / `STALE SHORT` = C1+C2+C3 still align but the 1H rising-edge window has already been used (must wait for `h4_long` to reset before a new arm fires) · `IN POSITION` = strategy already holds the trade · `SHORT VETOED` = bull-veto blocks a short |
 """)
 
 st.markdown(f"""
@@ -1678,9 +1710,13 @@ computation runs.
 - **E3 — Structural break:** close overshoots the 1H SMA by more than
   `overshoot_bps` (price has gone through the level we wanted to buy)
 
-**State** — `IDLE` (no 4H setup) · `ARMED LONG/SHORT` (watching 1H) ·
-`IN POSITION LONG/SHORT` (already entered).  Spoiler / entry columns are
-greyed when no setup is armed.
+**State** — `IDLE` (no 4H setup) · `IDLE LONG / IDLE SHORT` (4H setup
+still aligns but the 1H state machine was killed by an expiry condition
+— E1 time-decay, E2 1H volatility spike, or E3 SMA overshoot — and is
+locked out until `h4_long`/`h4_short` flips False then True again) ·
+`ARMED LONG/SHORT` (watching 1H) · `ENTRY LONG/SHORT` (strategy just
+fired entry on this bar) · `IN POSITION LONG/SHORT` (already entered).
+Spoiler / entry columns are greyed when no setup is armed.
 
 **Manual-arm toggle** — Useful for examining the 1H conditions on demand.
 When enabled, every coin without an actual position is treated as ARMED
@@ -1718,18 +1754,41 @@ for c in coin_rows:
 
     # ── Determine effective state (real or simulated) ─────────────────────
     # Real arm always wins over the toggle.  In-position rows ignore the toggle.
+    #
+    # Strategy-fired-entry case (decision='ENTRY', no manual position yet):
+    # the strategy's state machine has just transitioned position 0 → ±1 and
+    # CLEARED setup_active on the same bar, so the prior `in_position or
+    # setup_active` test would miss it and fall through to IDLE — which made
+    # the Decisions table say "ENTRY LONG" while the 1H Setup table said
+    # "IDLE" for the same coin.  Treat this as effective-active in the fired
+    # direction so the State badge reads "ENTRY LONG/SHORT" (matching the
+    # Decisions badge) and the spoiler cells recompute against the fired
+    # direction (they'll all read TRUE — the entry only fires when they do).
+    _decision        = sig.get('decision')
+    _dir_from_apply  = int(sig.get('direction') or 0)
+    _strategy_fired  = (_decision == 'ENTRY' and not in_position
+                        and _dir_from_apply != 0)
+
     if in_position or setup_active:
         eff_active     = setup_active and not in_position
         eff_direction  = setup_direction if eff_active else 0
         eff_simulated  = False
+        eff_just_fired = False
+    elif _strategy_fired:
+        eff_active     = True
+        eff_direction  = _dir_from_apply
+        eff_simulated  = False
+        eff_just_fired = True
     elif _force_armed:
         eff_active     = True
         eff_direction  = 1 if _force_dir == 'Long' else -1
         eff_simulated  = True
+        eff_just_fired = False
     else:
         eff_active     = False
         eff_direction  = 0
         eff_simulated  = False
+        eff_just_fired = False
 
     # ── Recompute direction-aware spoilers under the effective direction ──
     close_v        = sig.get('close', 0.0)
@@ -1763,6 +1822,9 @@ for c in coin_rows:
             state_td = '<td class="c entry-f">IN POSITION SHORT</td>'
         else:
             state_td = _muted_td('IN POSITION')
+    elif eff_just_fired:
+        _label = 'ENTRY LONG' if eff_direction == 1 else 'ENTRY SHORT'
+        state_td = f'<td class="c entry-t">{_label}</td>'
     elif eff_active and eff_simulated:
         _label = 'ARMED LONG (sim)' if eff_direction == 1 else 'ARMED SHORT (sim)'
         state_td = f'<td class="c caution">{_label}</td>'
@@ -1770,10 +1832,31 @@ for c in coin_rows:
         _label = 'ARMED LONG' if eff_direction == 1 else 'ARMED SHORT'
         state_td = f'<td class="c entry-t">{_label}</td>'
     else:
-        state_td = _muted_td('IDLE')
+        # Idle — but if the 4H Engine Room (C1+C2+C3) still aligns long
+        # or short (i.e. the 4H Setup column reads STALE LONG/SHORT),
+        # tag the IDLE with the 4H direction so the user can see at a
+        # glance that the setup was killed by an expiry condition while
+        # the 4H setup is still in force.  Plain "IDLE" remains for the
+        # case where the 4H engine itself isn't aligned.
+        _c1   = bool(sig.get('c1_two_big_same_dir', False))
+        _c2   = bool(sig.get('c2_bb_expanding',     False))
+        _c3   = bool(sig.get('c3_slope_ok',         False))
+        _h4d  = sig.get('h4_dir', 'mixed')
+        _veto = bool(sig.get('bull_veto_active',    False))
+        if _c1 and _c2 and _c3 and _h4d == 'long':
+            state_td = _muted_td('IDLE LONG')
+        elif _c1 and _c2 and _c3 and _h4d == 'short' and not _veto:
+            state_td = _muted_td('IDLE SHORT')
+        else:
+            state_td = _muted_td('IDLE')
 
     # ── Bars-to-expiry — only meaningful when truly armed (not simulated) ──
-    if eff_active and not eff_simulated:
+    if eff_just_fired:
+        # Strategy just fired entry — bars_until_expiry is None and isn't
+        # relevant any more.  Show a clean "fired" tag instead of "0h / Nh".
+        expiry_td = ('<td class="r" style="color:#3B6D11;font-weight:600">'
+                     'just fired</td>')
+    elif eff_active and not eff_simulated:
         bars_left = int(sig.get('bars_until_expiry') or 0)
         max_bars  = int(sig.get('max_1h_bars', 0))
         ratio     = bars_left / max_bars if max_bars > 0 else 0

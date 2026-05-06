@@ -169,6 +169,31 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         entry['exit_close']    = round(float(exit_close), 4) if exit_close is not None else None
         entry['exit_reason']   = exit_reason or 'Strategy'
     trades = _load_json(TRADES_PATH, [])
+    # ── Dedupe guard ───────────────────────────────────────────────────────
+    # ENTRY: at most one ENTRY per position_id ever. Reject silently if one
+    # already exists (covers double-clicks, page reloads, session resets).
+    # EXIT: allow multiple records (partial exits) but reject identical
+    # rapid-fire duplicates (same pid, same actual_leverage, within 60s).
+    if action == 'ENTRY':
+        if any(t.get('position_id') == position_id and t.get('action') == 'ENTRY'
+               for t in trades):
+            return
+    elif action == 'EXIT':
+        from datetime import timedelta
+        now = datetime.now(timezone.utc)
+        for t in reversed(trades):
+            if t.get('position_id') != position_id or t.get('action') != 'EXIT':
+                continue
+            try:
+                ts = datetime.strptime(t['timestamp'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=timezone.utc)
+            except (KeyError, ValueError):
+                break
+            if now - ts > timedelta(seconds=60):
+                break
+            if (round(float(t.get('actual_leverage') or 0), 4) == round(float(actual_leverage or 0), 4)
+                and round(float(t.get('actual_price')    or 0), 4) == round(float(actual_price    or 0), 4)):
+                return
+            break
     trades.append(entry)
     _save_json(TRADES_PATH, trades)
 
@@ -707,7 +732,7 @@ def _momentum_positions_fragment():
 
         pos_dir = pos.get('direction', 'long')
 
-        if live_price and entry_price:
+        if live_price and entry_price and size_usd > 0:
             _move_frag         = (live_price - entry_price) / entry_price if pos_dir == 'long' else (entry_price - live_price) / entry_price
             _gross_pnl         = _move_frag * size_usd
             _trade_cost        = size_usd * TRADING_COST_PCT * 2
@@ -994,7 +1019,7 @@ for _fi, _c in enumerate(coin_rows):
         else:
             _held_lev = float(_default_size) if _default_size > 0 else 1.0
 
-        with st.form(key=f'trade_form_{_sym}'):
+        with st.form(key=f'trade_form_{_sym}', clear_on_submit=True):
             if not _is_exit:
                 # ── ENTRY form ────────────────────────────────────────────────
                 _ent_type_default = 0 if _sig.get('entry_long') else 1
