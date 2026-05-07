@@ -160,7 +160,7 @@ if not summary["any_trades"]:
 else:
     # ── Four metric columns ───────────────────────────────────────────────────
     pnl = summary["total_pnl"]
-    pnl_display = f"+${pnl:,.2f}" if pnl >= 0 else f"-${abs(pnl):,.2f}"
+    pnl_display = f"+${pnl:,.3f}" if pnl >= 0 else f"-${abs(pnl):,.3f}"
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total capital",     f"${summary['total_capital']:,.0f}")

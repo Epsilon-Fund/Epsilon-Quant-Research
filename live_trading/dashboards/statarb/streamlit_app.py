@@ -442,7 +442,7 @@ _pnl_sign      = '+' if _pnl_pct >= 0 else ''
 _delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
 _delta_sign  = '+' if _capital_delta >= 0 else ''
 _cap_cell    = (
-    f'${_realised_capital:,.2f}'
+    f'${_realised_capital:,.3f}'
     f'<br><span style="font-size:10px;color:{_delta_color}">'
     f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
 )
@@ -457,7 +457,7 @@ st.markdown(f"""
       <td>{_cap_cell}</td>
       <td>${_total_size_usd:,.0f}</td>
       <td>${_port_val:,.0f}{_port_val_note}</td>
-      <td class="{_pnl_cls}">{_pnl_sign}{_pnl_pct:.2f}%</td>
+      <td class="{_pnl_cls}">{_pnl_sign}{_pnl_pct:.3f}%</td>
     </tr></tbody>
   </table>
 </div>
@@ -507,7 +507,7 @@ else:
             _tot_live_r = True
             pnl_cls     = 'entry-t' if unr_pnl_usd >= 0 else 'entry-f'
             pnl_sgn     = '+' if pnl_pct_r >= 0 else ''
-            pnl_pct_td  = f'<td class="{pnl_cls}">{pnl_sgn}{pnl_pct_r*100:.2f}%</td>'
+            pnl_pct_td  = f'<td class="{pnl_cls}">{pnl_sgn}{pnl_pct_r*100:.3f}%</td>'
             pnl_usd_td  = f'<td class="{pnl_cls}">{pnl_sgn}{unr_pnl_usd:,.0f}</td>'
             pos_val_td  = f'<td>{pos_val:,.0f}</td>'
         else:
@@ -542,7 +542,7 @@ else:
         _tot_pct     = _tot_pnl_r / _tot_size_r * 100
         _tot_cls     = 'entry-t' if _tot_pct >= 0 else 'entry-f'
         _tot_sgn     = '+' if _tot_pct >= 0 else ''
-        _tot_pct_td  = f'<td class="{_tot_cls}">{_tot_sgn}{_tot_pct:.2f}%</td>'
+        _tot_pct_td  = f'<td class="{_tot_cls}">{_tot_sgn}{_tot_pct:.3f}%</td>'
         _tot_pusd_td = f'<td class="{_tot_cls}">{_tot_sgn}{_tot_pnl_r:,.0f}</td>'
     else:
         _tot_pct_td  = '<td>—</td>'
@@ -577,7 +577,7 @@ else:
 # ── Decisions ─────────────────────────────────────────────────────────────────
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
 
 _dec_rows_html = ''
 for r in pair_rows:
@@ -826,8 +826,8 @@ for _fi, _r in enumerate(pair_rows):
                     _pnl_usd_exit = _spread_pnl * _size_st
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
+                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
 
                 elif not _is_exit_final:
                     _dir_k    = st.session_state.get(f'sa_dir_{_pk}', 'Long spread')

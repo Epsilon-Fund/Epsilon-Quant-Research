@@ -195,8 +195,8 @@ def compute_metrics(curve_df: pd.DataFrame, window_days: int, capital: float) ->
     max_dd      = max_dd_pct
     theo_max_dd = theo_max_dd_pct
 
-    print(f"Max drawdown:     {max_dd_pct:.2f}%")
-    print(f"Max drawdown USD: {max_dd_usd_val:.2f}")
+    print(f"Max drawdown:     {max_dd_pct:.3f}%")
+    print(f"Max drawdown USD: {max_dd_usd_val:.3f}")
     print(f"Occurred at:      {max_dd_idx_val}")
 
     # ── Calmar ratio ──────────────────────────────────────────────────────────
@@ -296,21 +296,21 @@ def render_strategy_portfolio(
             act  = metrics['total_return_pct']
             theo = metrics['theoretical_total_return_pct']
             delta = (
-                f"{act - theo:+.2f}% vs theoretical"
+                f"{act - theo:+.3f}% vs theoretical"
                 if act is not None and theo is not None
                 else None
             )
-            st.metric("Total Return (Actual)", _fmt(act, '.2f', '%'), delta=delta)
+            st.metric("Total Return (Actual)", _fmt(act, '.3f', '%'), delta=delta)
             if theo is not None:
-                st.caption(f"Theoretical: {theo:.2f}%")
+                st.caption(f"Theoretical: {theo:.3f}%")
 
         # col2 — Sharpe ratio
         with col2:
             sharpe      = metrics['sharpe']
             theo_sharpe = metrics['theoretical_sharpe']
-            st.metric("Sharpe Ratio (Actual)", _fmt(sharpe, '.2f'))
+            st.metric("Sharpe Ratio (Actual)", _fmt(sharpe, '.3f'))
             if theo_sharpe is not None:
-                st.caption(f"Theoretical: {theo_sharpe:.2f}")
+                st.caption(f"Theoretical: {theo_sharpe:.3f}")
             st.caption(f"Annualised · {closed_count} closed trades")
 
         # col3 — Rolling Sharpe + window selector
@@ -322,7 +322,7 @@ def render_strategy_portfolio(
             else:
                 rs_latest = None
 
-            st.metric("Rolling Sharpe (Actual)", _fmt(rs_latest, '.2f'))
+            st.metric("Rolling Sharpe (Actual)", _fmt(rs_latest, '.3f'))
             window = st.selectbox(
                 "Window (days)", [30, 60, 90],
                 key=f'{prefix}_rolling_window',
@@ -333,17 +333,17 @@ def render_strategy_portfolio(
         with col4:
             dd      = metrics['max_drawdown_pct']
             theo_dd = metrics['theoretical_max_drawdown_pct']
-            st.metric("Max Drawdown (Actual)", _fmt(dd, '.2f', '%'))
+            st.metric("Max Drawdown (Actual)", _fmt(dd, '.3f', '%'))
             if theo_dd is not None:
-                st.caption(f"Theoretical: {theo_dd:.2f}%")
+                st.caption(f"Theoretical: {theo_dd:.3f}%")
 
         # col5 — Calmar ratio
         with col5:
             calmar = metrics.get('calmar')
             ann    = metrics.get('annualised_return_pct')
-            st.metric("Calmar Ratio", _fmt(calmar, '.2f'))
+            st.metric("Calmar Ratio", _fmt(calmar, '.3f'))
             if ann is not None:
-                st.caption(f"Ann. return: {ann:.2f}%")
+                st.caption(f"Ann. return: {ann:.3f}%")
             st.caption("Ann. return / |max DD %|")
 
         # col6 — Capital efficiency
@@ -361,7 +361,7 @@ def render_strategy_portfolio(
                 if _total_pnl_usd is not None and _avg_dep_usd and _avg_dep_usd > 0
                 else None
             )
-            st.metric("Capital Efficiency", _fmt(efficiency, '.2f'))
+            st.metric("Capital Efficiency", _fmt(efficiency, '.3f'))
             st.caption("Total P&L / avg deployed $")
 
         st.divider()
@@ -553,7 +553,7 @@ def render_strategy_portfolio(
                     return f'${v:,.0f}' if v is not None else '—'
 
                 def _fmt_pct(v):
-                    return f'{v:.2f}%' if v is not None else '—'
+                    return f'{v:.3f}%' if v is not None else '—'
 
                 styled = (
                     df_stats.style
@@ -709,10 +709,10 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Total Return",
-                  _fmt(fund_metrics.get('total_return_pct'), '.2f', '%'))
+                  _fmt(fund_metrics.get('total_return_pct'), '.3f', '%'))
     with col2:
         st.metric("Sharpe Ratio",
-                  _fmt(fund_metrics.get('sharpe'), '.2f'))
+                  _fmt(fund_metrics.get('sharpe'), '.3f'))
         st.caption("Annualised")
     with col3:
         _rs = fund_metrics.get('rolling_sharpe')
@@ -720,14 +720,14 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
         if _rs is not None:
             _valid = _rs.dropna()
             _rs_latest = float(_valid.iloc[-1]) if not _valid.empty else None
-        st.metric("Rolling Sharpe", _fmt(_rs_latest, '.2f'))
+        st.metric("Rolling Sharpe", _fmt(_rs_latest, '.3f'))
         _window = st.selectbox(
             "Window (days)", [30, 60, 90],
             key=f'{prefix}_rolling_window',
         )
     with col4:
         st.metric("Max Drawdown",
-                  _fmt(fund_metrics.get('max_drawdown_pct'), '.2f', '%'))
+                  _fmt(fund_metrics.get('max_drawdown_pct'), '.3f', '%'))
     with col5:
         st.metric("Capital Deployed",
                   _fmt(dep_today_pct, '.1f', '%'))
@@ -865,11 +865,11 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
             .format({
                 'Capital':       lambda v: f'${v:,.0f}',
                 'Total P&L ($)': lambda v: f'${v:,.0f}' if v is not None else '—',
-                'Return %':      lambda v: f'{v:.2f}%'  if v is not None else '—',
-                'Sharpe':        lambda v: f'{v:.2f}'   if v is not None else '—',
-                'Max DD %':      lambda v: f'{v:.2f}%'  if v is not None else '—',
-                'Calmar':        lambda v: f'{v:.2f}'   if v is not None else '—',
-                'Efficiency':    lambda v: f'{v:.2f}'   if v is not None else '—',
+                'Return %':      lambda v: f'{v:.3f}%'  if v is not None else '—',
+                'Sharpe':        lambda v: f'{v:.3f}'   if v is not None else '—',
+                'Max DD %':      lambda v: f'{v:.3f}%'  if v is not None else '—',
+                'Calmar':        lambda v: f'{v:.3f}'   if v is not None else '—',
+                'Efficiency':    lambda v: f'{v:.3f}'   if v is not None else '—',
             })
         )
         st.dataframe(styled_strat, use_container_width=True, hide_index=True)

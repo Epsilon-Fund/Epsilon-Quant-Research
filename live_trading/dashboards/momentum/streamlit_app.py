@@ -580,7 +580,7 @@ def fmt(v):
     if v is None: return '—'
     if isinstance(v, int): return str(v)
     if isinstance(v, float):
-        return str(int(v)) if v == int(v) else f'{v:.2f}'
+        return str(int(v)) if v == int(v) else f'{v:.3f}'
     return escape(str(v))
 
 
@@ -667,13 +667,13 @@ _port_val_str  = f"${_port_val:,.0f}{_port_val_note}"
 _pnl_pct    = _total_pnl_usd / CAPITAL * 100 if CAPITAL else 0.0
 _pnl_cls    = 'entry-t' if _pnl_pct >= 0 else 'entry-f'
 _pnl_sign   = '+' if _pnl_pct >= 0 else ''
-_pnl_str    = f"{_pnl_sign}{_pnl_pct:.2f}%"
+_pnl_str    = f"{_pnl_sign}{_pnl_pct:.3f}%"
 _pnl_td_cls = f' class="{_pnl_cls}"'
 
 _delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
 _delta_sign  = '+' if _capital_delta >= 0 else ''
 _cap_cell    = (
-    f'${_realised_capital:,.2f}'
+    f'${_realised_capital:,.3f}'
     f'<br><span style="font-size:10px;color:{_delta_color}">'
     f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
 )
@@ -712,7 +712,7 @@ def _momentum_positions_fragment():
     symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
     live_prices = fetch_live_prices(symbols)
     elapsed     = time.time() - _t0
-    print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
+    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} price fetches)")
 
     from datetime import date as _date
     _pos_rows       = ''
@@ -744,8 +744,8 @@ def _momentum_positions_fragment():
             _tot_has_live_r    = True
             pnl_cls    = 'entry-t' if unrealised_pnl_usd >= 0 else 'entry-f'
             pnl_sign   = '+' if net_return_pct >= 0 else ''
-            live_td    = f'<td>{live_price:,.2f}</td>'
-            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.2f}%</td>'
+            live_td    = f'<td>{live_price:,.3f}</td>'
+            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.3f}%</td>'
             pnl_usd_td = f'<td class="{pnl_cls}">{pnl_sign}{unrealised_pnl_usd:,.0f}</td>'
             pos_val_td = f'<td>{position_value:,.0f}</td>'
         else:
@@ -761,12 +761,12 @@ def _momentum_positions_fragment():
 
         if conf_stop is not None:
             if _needs_confirm:
-                stop_td = (f'<td>{conf_stop:,.2f}'
-                           f'<br><span class="stop-up">-> {pending_stop:,.2f}</span></td>')
+                stop_td = (f'<td>{conf_stop:,.3f}'
+                           f'<br><span class="stop-up">-> {pending_stop:,.3f}</span></td>')
             else:
-                stop_td = f'<td>{conf_stop:,.2f}</td>'
+                stop_td = f'<td>{conf_stop:,.3f}</td>'
         elif pending_stop is not None:
-            stop_td = (f'<td><span style="color:#888780">{pending_stop:,.2f}</span>'
+            stop_td = (f'<td><span style="color:#888780">{pending_stop:,.3f}</span>'
                        f'<br><span style="font-size:10px;color:#888780">unconfirmed</span></td>')
         else:
             stop_td = '<td style="color:#888780">—</td>'
@@ -781,10 +781,10 @@ def _momentum_positions_fragment():
           <td class="asset-name">{escape(_sym_for_pos)}</td>
           <td>{escape(pos.get('entry_date','—'))}</td>
           <td>{days_held}</td>
-          <td>{entry_price:,.2f}</td>
+          <td>{entry_price:,.3f}</td>
           {live_td}
           {stop_td}
-          <td>{leverage_multiplier:.2f}x</td>
+          <td>{leverage_multiplier:.3f}x</td>
           <td>{size_usd:,.0f}</td>
           {pnl_pct_td}
           {pnl_usd_td}
@@ -795,7 +795,7 @@ def _momentum_positions_fragment():
         _tot_pct        = _tot_pnl_usd_r / _tot_size_usd_r * 100
         _tot_cls        = 'entry-t' if _tot_pct >= 0 else 'entry-f'
         _tot_sign       = '+' if _tot_pct >= 0 else ''
-        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.2f}%</td>'
+        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.3f}%</td>'
         _tot_pnl_usd_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pnl_usd_r:,.0f}</td>'
         _tot_pos_td     = f'<td>{_tot_pos_val_r:,.0f}</td>'
     else:
@@ -857,7 +857,7 @@ if _confirm_items:
     _conf_cols = st.columns(len(_confirm_items))
     for _col, (_pid, _sym, _pend) in zip(_conf_cols, _confirm_items):
         with _col:
-            if st.button(f"✓ Confirm stop {_sym}: {_pend:,.2f}",
+            if st.button(f"✓ Confirm stop {_sym}: {_pend:,.3f}",
                          key=f"conf_stop_{_pid}"):
                 _confirm_stop(_pid)
                 invalidate_trade_caches()
@@ -875,7 +875,7 @@ for c in coin_rows:
     badge      = f'<span class="badge badge-{d}">{d}</span>'
 
     lev = sig.get('leverage_multiplier')
-    size_pct = f"{lev:.2f}x" if lev is not None else '—'
+    size_pct = f"{lev:.3f}x" if lev is not None else '—'
     if d == 'HOLD' and lev is not None:
         size_pct += '<br><span style="font-size:11px;color:#888780">held</span>'
     elif d == 'EXIT' and lev is not None:
@@ -883,16 +883,16 @@ for c in coin_rows:
     size_usd = f"{sig['size_usd']:,.0f}" if sig['size_usd'] is not None else '—'
 
     if sig['current_stop'] is not None:
-        stop_html = f"{sig['current_stop']:,.2f}"
+        stop_html = f"{sig['current_stop']:,.3f}"
         if d == 'HOLD' and sig.get('stop_updated'):
-            stop_html += f' <span class="stop-up">↑</span><br><span class="stop-prev">was {sig["old_stop"]:,.2f}</span>'
+            stop_html += f' <span class="stop-up">↑</span><br><span class="stop-prev">was {sig["old_stop"]:,.3f}</span>'
     else:
         stop_html = '—'
 
-    exec_html = f"{c['exec_price']:,.2f}" if c['exec_price'] is not None else '<span style="color:#888780">pending</span>'
+    exec_html = f"{c['exec_price']:,.3f}" if c['exec_price'] is not None else '<span style="color:#888780">pending</span>'
 
     _lp = _live_prices.get(c['symbol'])
-    live_html = f"{_lp:,.2f}" if _lp is not None else '<span style="color:#888780">—</span>'
+    live_html = f"{_lp:,.3f}" if _lp is not None else '<span style="color:#888780">—</span>'
 
     row_cls = f'class="row-{d}"' if d != 'FLAT' else ''
 
@@ -906,13 +906,13 @@ for c in coin_rows:
       <td class="r">{size_pct}</td>
       <td class="r">{size_usd}</td>
       <td class="r">{stop_html}</td>
-      <td class="r">{sig['close']:,.2f}</td>
+      <td class="r">{sig['close']:,.3f}</td>
       <td class="r">{exec_html}</td>
       <td class="r">{live_html}</td>
     </tr>"""
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
 st.markdown(f"""
 <div class="dashboard-card">
   <table class="dash-table">
@@ -1000,7 +1000,7 @@ for _fi, _c in enumerate(coin_rows):
                 _selected_pos = _open_for_sym[_selected_pid]
             else:
                 _pid_labels = {
-                    pid: f"{pid}  —  {pos.get('entry_date','?')} @ ${pos.get('entry_price',0):,.2f}"
+                    pid: f"{pid}  —  {pos.get('entry_date','?')} @ ${pos.get('entry_price',0):,.3f}"
                     for pid, pos in _open_for_sym.items()
                 }
                 _selected_pid = st.selectbox(
@@ -1040,13 +1040,13 @@ for _fi, _c in enumerate(coin_rows):
                     'Actual leverage (x)',
                     value=float(round(_default_size, 2)),
                     min_value=0.0,
-                    format='%.2f',
+                    format='%.3f',
                     key=f'size_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
-                    format='%.2f',
+                    format='%.3f',
                     key=f'price_{_sym}',
                 )
                 _exit_lev = None
@@ -1063,13 +1063,13 @@ for _fi, _c in enumerate(coin_rows):
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
                     max_value=_held_lev,
-                    format='%.2f',
+                    format='%.3f',
                     key=f'exit_lev_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
-                    format='%.2f',
+                    format='%.3f',
                     key=f'price_{_sym}',
                 )
                 _direction = None
@@ -1140,8 +1140,8 @@ for _fi, _c in enumerate(coin_rows):
                     )
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
+                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
                 elif not _is_exit_final:
                     # Generate new FIFO position_id
                     _positions_fresh = load_positions(DATA_DIR)
@@ -1209,7 +1209,7 @@ for c in coin_rows:
         return f'<td class="c"><span class="{txt_cls}">{"TRUE" if flag else "FALSE"}</span></td>'
 
     if sig['has_vol_ma']:
-        vol_ratio = f"{sig['vol_vol_ma_ratio']:.2f}" if sig.get('vol_vol_ma_ratio') is not None else '—'
+        vol_ratio = f"{sig['vol_vol_ma_ratio']:.3f}" if sig.get('vol_vol_ma_ratio') is not None else '—'
         vol_td    = f'<td class="r">{vol_ratio}</td>'
         # Box background for Vol above
         vol_ab_td = _bg_box(sig['vol_above_ma'])
@@ -1225,12 +1225,12 @@ for c in coin_rows:
     # Box background for ADX override
     adx_override_td = _bg_box(sig['adx_strong'])
 
-    ratio_str = f"{sig['close_ema_ratio']:.2f}" if sig['close_ema_ratio'] is not None else '—'
+    ratio_str = f"{sig['close_ema_ratio']:.3f}" if sig['close_ema_ratio'] is not None else '—'
 
     rows_html += f"""
     <tr>
       <td class="asset-name">{escape(c['symbol'])}</td>
-      <td class="r">{sig['ema']:,.2f}</td>
+      <td class="r">{sig['ema']:,.3f}</td>
       <td class="r">{ratio_str}</td>
       {_bg_box(sig['close_above_ema'])}
       <td class="r">{sig['adx']:.1f}</td>
@@ -1373,19 +1373,19 @@ with st.expander("STOP LOSS DETAILS"):
 
     rows_html = (
         _divider('Inputs') +
-        _row('Swing Hi Stp ($)', [f"{c['sig']['stop_detail']['swing_hi_stp']:,.2f}"   for c in coin_rows]) +
-        _row('ATR Stp ($)',      [f"{c['sig']['stop_detail']['atr_stp']:,.2f}"         for c in coin_rows]) +
-        _row('Stop ATR scale',   [f"{c['sig']['stop_detail']['stop_atr_scale']:.2f}"   for c in coin_rows]) +
+        _row('Swing Hi Stp ($)', [f"{c['sig']['stop_detail']['swing_hi_stp']:,.3f}"   for c in coin_rows]) +
+        _row('ATR Stp ($)',      [f"{c['sig']['stop_detail']['atr_stp']:,.3f}"         for c in coin_rows]) +
+        _row('Stop ATR scale',   [f"{c['sig']['stop_detail']['stop_atr_scale']:.3f}"   for c in coin_rows]) +
         _divider('Entry stop (Day 1)') +
         _badge_row('Path', lambda c: c['sig']['stop_detail']['entry_path']) +
-        _row('Multiplier',       [f"{c['sig']['stop_detail']['entry_multiplier']:.2f}" for c in coin_rows]) +
-        _row('Entry stop ($)',   [f"{c['sig']['stop_detail']['entry_stop']:,.2f}"       for c in coin_rows]) +
+        _row('Multiplier',       [f"{c['sig']['stop_detail']['entry_multiplier']:.3f}" for c in coin_rows]) +
+        _row('Entry stop ($)',   [f"{c['sig']['stop_detail']['entry_stop']:,.3f}"       for c in coin_rows]) +
         _divider('Hold stop (Day 2+ ratchet)') +
         _badge_row('Path', lambda c: c['sig']['stop_detail']['hold_path']) +
-        _row('Multiplier',       [f"{c['sig']['stop_detail']['hold_multiplier']:.2f}"  for c in coin_rows]) +
-        _row('Hold candidate ($)', [f"{c['sig']['stop_detail']['hold_stop_candidate']:,.2f}" for c in coin_rows]) +
-        _row('Previous stop ($)', [_dash_or(c['sig']['stop_detail']['hold_stop_previous'], lambda v: f'{v:,.2f}') for c in coin_rows]) +
-        _row('Final stop ($)',    [_dash_or(c['sig']['stop_detail']['hold_stop_final'],    lambda v: f'{v:,.2f}') for c in coin_rows]) +
+        _row('Multiplier',       [f"{c['sig']['stop_detail']['hold_multiplier']:.3f}"  for c in coin_rows]) +
+        _row('Hold candidate ($)', [f"{c['sig']['stop_detail']['hold_stop_candidate']:,.3f}" for c in coin_rows]) +
+        _row('Previous stop ($)', [_dash_or(c['sig']['stop_detail']['hold_stop_previous'], lambda v: f'{v:,.3f}') for c in coin_rows]) +
+        _row('Final stop ($)',    [_dash_or(c['sig']['stop_detail']['hold_stop_final'],    lambda v: f'{v:,.3f}') for c in coin_rows]) +
         f'<tr><td class="field-label">Updated</td>{upd_tds}</tr>'
     )
 

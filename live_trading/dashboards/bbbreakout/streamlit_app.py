@@ -474,7 +474,7 @@ def _fmt_price(v):
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return '—'
     if v >= 100:
-        return f'{v:,.2f}'
+        return f'{v:,.3f}'
     elif v >= 1:
         return f'{v:,.3f}'
     else:
@@ -573,12 +573,12 @@ _port_val_str  = f"${_port_val:,.0f}{_port_val_note}"
 _pnl_pct    = _total_pnl_usd / CAPITAL * 100 if CAPITAL else 0.0
 _pnl_cls    = 'entry-t' if _pnl_pct >= 0 else 'entry-f'
 _pnl_sign   = '+' if _pnl_pct >= 0 else ''
-_pnl_str    = f"{_pnl_sign}{_pnl_pct:.2f}%"
+_pnl_str    = f"{_pnl_sign}{_pnl_pct:.3f}%"
 
 _delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
 _delta_sign  = '+' if _capital_delta >= 0 else ''
 _cap_cell    = (
-    f'${_realised_capital:,.2f}'
+    f'${_realised_capital:,.3f}'
     f'<br><span style="font-size:10px;color:{_delta_color}">'
     f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
 )
@@ -617,7 +617,7 @@ def _bb_positions_fragment():
     symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
     live_prices = fetch_live_prices(symbols)
     elapsed     = time.time() - _t0
-    print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
+    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} price fetches)")
 
     _bb_rows, _, _ = st.session_state.get("bb_dashboard_data", ([], None, None))
     coin_sig_by_sym = {c['symbol']: c['sig'] for c in _bb_rows} if _bb_rows else {}
@@ -651,7 +651,7 @@ def _bb_positions_fragment():
             _pnl_cls0  = 'entry-t' if _pnl0 >= 0 else 'entry-f'
             _sign0     = '+' if _ret_pct >= 0 else ''
             live_td    = f'<td>{_fmt_price(live_price)}</td>'
-            pnl_pct_td = f'<td class="{_pnl_cls0}">{_sign0}{_ret_pct:.2f}%</td>'
+            pnl_pct_td = f'<td class="{_pnl_cls0}">{_sign0}{_ret_pct:.3f}%</td>'
             pnl_usd_td = f'<td class="{_pnl_cls0}">{_sign0}{_pnl0:,.0f}</td>'
             pos_val_td = f'<td>{_pos_val:,.0f}</td>'
         else:
@@ -722,7 +722,7 @@ def _bb_positions_fragment():
                             if pos_dir == 'long'
                             else (live_price - _tp_for_display) / live_price * 100)
                 _tp_sign = '+' if _tp_move >= 0 else ''
-                tp_sub   = f'{_tp_sign}{_tp_move:.2f}% to TP ({_tp_ratio_choice}:1)'
+                tp_sub   = f'{_tp_sign}{_tp_move:.3f}% to TP ({_tp_ratio_choice}:1)'
             else:
                 tp_sub = f'{_tp_ratio_choice} × stop dist'
             tp_td = (f'<td>{_fmt_price(_tp_for_display)}'
@@ -751,7 +751,7 @@ def _bb_positions_fragment():
           {stop_td}
           {tp_td}
           {regime_td}
-          <td>{leverage_multiplier:.2f}x</td>
+          <td>{leverage_multiplier:.3f}x</td>
           <td>{size_usd:,.0f}</td>
           {pnl_pct_td}
           {pnl_usd_td}
@@ -762,7 +762,7 @@ def _bb_positions_fragment():
         _tot_pct        = _tot_pnl_usd_r / _tot_size_usd_r * 100
         _tot_cls        = 'entry-t' if _tot_pct >= 0 else 'entry-f'
         _tot_sign       = '+' if _tot_pct >= 0 else ''
-        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.2f}%</td>'
+        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.3f}%</td>'
         _tot_pnl_usd_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pnl_usd_r:,.0f}</td>'
         _tot_pos_td     = f'<td>{_tot_pos_val_r:,.0f}</td>'
     else:
@@ -859,7 +859,7 @@ if _confirm_items:
 # with the 1H Setup table further down so a single click drives both views.
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
 
 _tog_dec1, _tog_dec2, _tog_dec3 = st.columns([3, 3, 6])
 with _tog_dec1:
@@ -1010,14 +1010,14 @@ for c in coin_rows:
     # Size (leverage)
     if _sim_entry:
         _size_sub = 'on entry' if _is_real_armed else 'if armed'
-        size_pct = (f"{_sim_lev:.2f}x"
+        size_pct = (f"{_sim_lev:.3f}x"
                     f'<br><span style="font-size:11px;color:#888780">{_size_sub}</span>')
     else:
         lev = sig.get('leverage_multiplier')
         # Treat lev == 0 the same as missing — a stored leverage of 0
         # means a broken / drained-to-zero position record, not a real
         # zero-leverage hold.  Renders "—" instead of misleading "0.00x".
-        size_pct = f"{lev:.2f}x" if lev is not None and lev > 0 else '—'
+        size_pct = f"{lev:.3f}x" if lev is not None and lev > 0 else '—'
         if d == 'HOLD' and lev is not None and lev > 0:
             size_pct += '<br><span style="font-size:11px;color:#888780">held</span>'
         elif d == 'EXIT' and lev is not None and lev > 0:
@@ -1210,7 +1210,7 @@ for _fi, _c in enumerate(coin_rows):
                     'Actual leverage (x)',
                     value=float(round(max(_default_size, 0.01), 2)),
                     min_value=0.01,
-                    format='%.2f',
+                    format='%.3f',
                     key=f'bb_size_{_sym}',
                 )
                 _price = st.number_input(
@@ -1234,7 +1234,7 @@ for _fi, _c in enumerate(coin_rows):
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
                     max_value=_held_lev,
-                    format='%.2f',
+                    format='%.3f',
                     key=f'bb_exit_lev_{_sym}',
                 )
                 _price = st.number_input(
@@ -1332,8 +1332,8 @@ for _fi, _c in enumerate(coin_rows):
                     )
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
+                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
                 elif not _is_exit_final:
                     _positions_fresh = load_positions(DATA_DIR)
                     _new_pid         = _next_position_id(_sym, _positions_fresh)
@@ -1463,12 +1463,12 @@ for c in coin_rows:
         dir_label = 'Mixed'
 
     # ── Plain numeric cell (no green/red tint — matches momentum's pattern) ──
-    def _num_td(v, fmt='{:.2f}'):
+    def _num_td(v, fmt='{:.3f}'):
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return '<td class="r" style="color:#888780">—</td>'
         return f'<td class="r">{fmt.format(v)}</td>'
 
-    def _num(v, fmt='{:.2f}'):
+    def _num(v, fmt='{:.3f}'):
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return '—'
         return fmt.format(v)
@@ -1523,8 +1523,8 @@ for c in coin_rows:
     adx_val      = sig.get('h4_adx',     0.0)
     adx_thresh   = sig.get('adx_strong', 0.0)
     adx_strong_p = bool(sig.get('adx_strong_pass', False))
-    adx_td       = (f'<td class="r">{adx_val:.2f} '
-                    f'<span style="font-size:10px;color:#888780">/ {adx_thresh:.2f}</span></td>')
+    adx_td       = (f'<td class="r">{adx_val:.3f} '
+                    f'<span style="font-size:10px;color:#888780">/ {adx_thresh:.3f}</span></td>')
     adx_pass_td  = _bool_td(adx_strong_p)
 
     # +DI / −DI combined into a single cell to reduce clutter.  The
@@ -1532,8 +1532,8 @@ for c in coin_rows:
     plus_di    = sig.get('h4_plus_di',  0.0)
     minus_di   = sig.get('h4_minus_di', 0.0)
     di_bull    = bool(sig.get('plus_di_dominant', False))
-    di_vals_td = (f'<td class="r">{plus_di:.2f} '
-                  f'<span style="font-size:10px;color:#888780">/ {minus_di:.2f}</span></td>')
+    di_vals_td = (f'<td class="r">{plus_di:.3f} '
+                  f'<span style="font-size:10px;color:#888780">/ {minus_di:.3f}</span></td>')
     di_pass_td = _bool_td(di_bull)
 
     # Bull-regime veto — only matters for shorts.  For longs / mixed, show muted "—".
@@ -1874,7 +1874,7 @@ for c in coin_rows:
         expiry_td = _muted_td()
 
     # ── Plain numeric cell helper (no colour — matches momentum's pattern) ──
-    def _plain_num(v, fmt='{:.2f}'):
+    def _plain_num(v, fmt='{:.3f}'):
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return _muted_td()
         return f'<td class="r">{fmt.format(v)}</td>'
@@ -1896,8 +1896,8 @@ for c in coin_rows:
         if _v is None or (isinstance(_v, float) and math.isnan(_v)):
             pull_td = _muted_td()
         else:
-            pull_td = (f'<td class="r">{_v:.2f}× '
-                       f'<span style="font-size:10px;color:#888780">/ ≤ {_t:.2f}×</span></td>')
+            pull_td = (f'<td class="r">{_v:.3f}× '
+                       f'<span style="font-size:10px;color:#888780">/ ≤ {_t:.3f}×</span></td>')
     else:
         pull_td = _muted_td()
 
@@ -1912,7 +1912,7 @@ for c in coin_rows:
         overshoot_td = _muted_td()
 
     # Δ close % vs prev close — plain numeric
-    mom_pct_td = _plain_num(sig.get('momentum_pct'), fmt='{:+.2f}%') if eff_active else _muted_td()
+    mom_pct_td = _plain_num(sig.get('momentum_pct'), fmt='{:+.3f}%') if eff_active else _muted_td()
 
     # Momentum boolean (effective direction)
     momentum_td = _bool_td(eff_momentum_ok) if eff_active else _muted_td()
@@ -2082,7 +2082,7 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
             stop_current.append('—')
         if cur_stop and not math.isnan(cur_stop) and not math.isnan(close_v) and close_v > 0:
             sd_pct = abs(close_v - cur_stop) / close_v * 100
-            stop_dist_close.append(f'{sd_pct:.2f}%')
+            stop_dist_close.append(f'{sd_pct:.3f}%')
         else:
             stop_dist_close.append('—')
         stop_ratcheted.append(upd_yes if sig.get('stop_updated') else upd_no)
@@ -2105,7 +2105,7 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
                 tp_pct = (tp_t - close_v) / close_v * 100 if dirn == 'long' \
                          else (close_v - tp_t) / close_v * 100
                 sign = '+' if tp_pct >= 0 else ''
-                tp_dist_close.append(f'{sign}{tp_pct:.2f}%')
+                tp_dist_close.append(f'{sign}{tp_pct:.3f}%')
             else:
                 tp_dist_close.append('—')
             tp_rr.append('6 : 1')
@@ -2116,7 +2116,7 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
             if ratio is None or (isinstance(ratio, float) and math.isnan(ratio)):
                 return '<span style="color:#888780">—</span>'
             cls = 'stat-pos' if ratio > 1.0 else 'stat-neg'
-            return f'<span class="{cls}" style="font-weight:600">{ratio:.2f}</span>'
+            return f'<span class="{cls}" style="font-weight:600">{ratio:.3f}</span>'
 
         # close / 1H trend MA
         if not math.isnan(trend_ma) and trend_ma != 0:
