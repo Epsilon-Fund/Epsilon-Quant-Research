@@ -3,8 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from .state_machine import VenueCancelEvent, VenueFillEvent, VenueOrderAck, VenueRejectEvent
 from .venue import (
+    VenueCancelEvent,
+    VenueFillEvent,
+    VenueOrderAck,
+    VenueRejectEvent,
     CancelOrderResult,
     CancelOrderStatus,
     ClientOrderIdFactory,
@@ -180,7 +183,7 @@ class FakeVenueAdapter(VenueAdapter):
         *,
         client_order_id: str,
         fill_qty: int,
-        fill_price_ticks: int,
+        fill_price: float,
         ts_ns: int,
     ) -> None:
         record = self._orders[client_order_id]
@@ -191,7 +194,7 @@ class FakeVenueAdapter(VenueAdapter):
                 leg_id=record.leg_id,
                 client_order_id=record.client_order_id,
                 fill_qty=fill_qty,
-                fill_price_ticks=fill_price_ticks,
+                fill_price=fill_price,
                 ts_ns=ts_ns,
                 cumulative_qty=record.filled_qty,
             )

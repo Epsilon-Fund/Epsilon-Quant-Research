@@ -6,8 +6,11 @@ from hashlib import blake2b
 from time import perf_counter
 from typing import Mapping, Protocol, Sequence
 
-from .state_machine import VenueCancelEvent, VenueFillEvent, VenueOrderAck, VenueRejectEvent
 from .venue import (
+    VenueCancelEvent,
+    VenueFillEvent,
+    VenueOrderAck,
+    VenueRejectEvent,
     CancelOrderResult,
     CancelOrderStatus,
     ClientOrderIdFactory,
@@ -51,9 +54,9 @@ class PolymarketAdapterConfig:
     api_key: str | None = None
     api_secret: str | None = None
     passphrase: str | None = None
-    submit_timeout_ms: int = 500
-    cancel_timeout_ms: int = 500
-    poll_timeout_ms: int = 700
+    submit_timeout_ms: int = 5000
+    cancel_timeout_ms: int = 5000
+    poll_timeout_ms: int = 8000
     poll_batch_limit: int = 200
     client_order_id_prefix: str = "pmx"
     client_order_id_max_length: int = 96
@@ -90,7 +93,7 @@ class PolymarketOrderUpdate:
     event_id: str | None
     fill_delta: int | None = None
     cumulative_fill: int | None = None
-    fill_price_ticks: int | None = None
+    fill_price: float | None = None
     canceled_qty: int | None = None
     reason: str | None = None
 
@@ -262,6 +265,16 @@ class PolymarketVenueAdapter(VenueAdapter):
         request = self._build_request(intent, client_order_id)
         try:
             signed = self._client.create_signed_order(request)
+            order_fields = dict(signed) if hasattr(signed, "items") else {}
+            self._logger.debug(
+                "submit_order_body",
+                client_order_id=client_order_id,
+                signatureType=order_fields.get("signatureType"),
+                maker=str(order_fields.get("maker", ""))[:10] + "…" if order_fields.get("maker") else None,
+                price=request.price,
+                size=request.size,
+                neg_risk_contract_check="via_py_clob_client",
+            )
             raw_response = self._client.submit_order(signed, timeout_ms=self._config.submit_timeout_ms)
         except TimeoutError as exc:
             record.ambiguous_submit = True
@@ -290,6 +303,33 @@ class PolymarketVenueAdapter(VenueAdapter):
             raise VenueTransportError(
                 f"submit network error for client_order_id={client_order_id}; outcome ambiguous"
             ) from exc
+        except Exception as exc:
+            # Signing or other deterministic failure — treat as reject so OMS can retry
+            record.lifecycle = _OrderLifecycle.REJECTED
+            self._metrics.increment("venue.submit.signing_error")
+            self._logger.error(
+                "submit signing or pre-flight error",
+                client_order_id=client_order_id,
+                package_id=intent.package_id,
+                leg_id=intent.leg_id,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            reject = VenueRejectEvent(
+                package_id=intent.package_id,
+                leg_id=intent.leg_id,
+                client_order_id=client_order_id,
+                reason=f"{type(exc).__name__}: {exc}",
+                ts_ns=intent.ts_ns,
+            )
+            return SubmitOrderResult(
+                status=SubmitOrderStatus.REJECTED,
+                client_order_id=client_order_id,
+                venue_order_id=None,
+                events=(reject,),
+                ambiguous=False,
+                message=str(exc),
+            )
 
         response = self._normalize_submit_response(raw_response)
         latency_ms = (perf_counter() - started) * 1000.0
@@ -340,6 +380,8 @@ class PolymarketVenueAdapter(VenueAdapter):
             package_id=intent.package_id,
             leg_id=intent.leg_id,
             reason=response.reason,
+            status=response.status,
+            raw=dict(response.raw),
         )
         self._metrics.increment("venue.submit.reject")
         return SubmitOrderResult(
@@ -380,7 +422,7 @@ class PolymarketVenueAdapter(VenueAdapter):
         try:
             raw_response = self._client.cancel_order(
                 client_order_id=resolved_client_id,
-                venue_order_id=venue_order_id,
+                venue_order_id=record.venue_order_id if record else venue_order_id,
                 timeout_ms=self._config.cancel_timeout_ms,
             )
         except TimeoutError as exc:
@@ -512,12 +554,17 @@ class PolymarketVenueAdapter(VenueAdapter):
         generated: list[NormalizedOrderEvent] = []
 
         for item in raw_open:
-            client_order_id = _as_str(item.get("client_order_id") or item.get("clientOrderId"))
+            # Polymarket's GET /data/orders returns "id" (venue hash) but NOT client_order_id.
+            # Resolve via our in-memory reverse-lookup when the direct field is absent.
+            venue_order_id = _as_str(item.get("order_id") or item.get("id") or item.get("orderID"))
+            client_order_id = (
+                _as_str(item.get("client_order_id") or item.get("clientOrderId"))
+                or (self._client_by_venue_id.get(venue_order_id) if venue_order_id else None)
+            )
             if not client_order_id:
                 continue
             venue_open_ids.add(client_order_id)
 
-            venue_order_id = _as_str(item.get("order_id") or item.get("id"))
             record = self._orders_by_client_id.get(client_order_id)
             if record is None:
                 parsed = self._id_factory.parse(client_order_id)
@@ -579,12 +626,15 @@ class PolymarketVenueAdapter(VenueAdapter):
         )
 
     def _build_request(self, intent: VenueOrderIntent, client_order_id: str) -> PolymarketOrderRequest:
+        # Convert integer ticks to CLOB decimal price: 996 ticks @ 0.001 → "0.996"
+        decimal_places = 3 if intent.tick_size <= 0.001 else 2
+        price_str = f"{intent.limit_price_ticks * intent.tick_size:.{decimal_places}f}"
         return PolymarketOrderRequest(
             market_id=intent.market_id,
             token_id=intent.token_id,
             side=intent.side.value,
             size=str(intent.quantity),
-            price=str(intent.limit_price_ticks),
+            price=price_str,
             tif=intent.tif.value,
             client_order_id=client_order_id,
             expiration_ts=(intent.expires_at_ns // 1_000_000_000) if intent.expires_at_ns else None,
@@ -592,8 +642,9 @@ class PolymarketVenueAdapter(VenueAdapter):
 
     def _normalize_submit_response(self, raw: Mapping[str, object]) -> PolymarketSubmitResponse:
         status = _as_str(raw.get("status") or raw.get("state") or "UNKNOWN").upper()
-        order_id = _as_str(raw.get("order_id") or raw.get("id"))
-        reason = _as_str(raw.get("reason") or raw.get("error") or raw.get("message"))
+        # Polymarket returns "orderID" (capital D) in POST /order response
+        order_id = _as_str(raw.get("order_id") or raw.get("id") or raw.get("orderID"))
+        reason = _as_str(raw.get("reason") or raw.get("error") or raw.get("errorMsg") or raw.get("message"))
 
         accepted_states = {"ACCEPTED", "OPEN", "LIVE", "PLACED", "SUCCESS", "OK"}
         rejected_states = {"REJECTED", "FAILED", "ERROR", "INVALID"}
@@ -617,13 +668,17 @@ class PolymarketVenueAdapter(VenueAdapter):
 
     def _normalize_order_update(self, raw: Mapping[str, object]) -> _NormalizedEnvelope | None:
         update = _parse_raw_update(raw)
-        if not update.client_order_id:
+        # Polymarket's GET /data/orders doesn't return client_order_id — resolve via venue ID.
+        client_order_id = update.client_order_id
+        if not client_order_id and update.venue_order_id:
+            client_order_id = self._client_by_venue_id.get(update.venue_order_id, "")
+        if not client_order_id:
             self._metrics.increment("venue.update.missing_client_order_id")
             return None
 
-        record = self._orders_by_client_id.get(update.client_order_id)
+        record = self._orders_by_client_id.get(client_order_id)
         if record is None:
-            parsed = self._id_factory.parse(update.client_order_id)
+            parsed = self._id_factory.parse(client_order_id)
             if parsed and parsed.package_id and parsed.leg_id:
                 record = _OrderRecord(
                     package_id=parsed.package_id,
@@ -631,7 +686,7 @@ class PolymarketVenueAdapter(VenueAdapter):
                     market_id="",
                     token_id="",
                     quantity=0,
-                    client_order_id=update.client_order_id,
+                    client_order_id=client_order_id,
                     venue_order_id=update.venue_order_id,
                     submit_fingerprint="",
                     submit_attempts=max(parsed.attempt, 1),
@@ -643,18 +698,18 @@ class PolymarketVenueAdapter(VenueAdapter):
                     ambiguous_submit=False,
                     ambiguous_cancel=False,
                 )
-                self._orders_by_client_id[update.client_order_id] = record
+                self._orders_by_client_id[client_order_id] = record
             else:
                 self._logger.warning(
                     "dropping update for unknown client_order_id",
-                    client_order_id=update.client_order_id,
+                    client_order_id=client_order_id,
                 )
                 self._metrics.increment("venue.update.unknown_order")
                 return None
 
         if update.venue_order_id:
             record.venue_order_id = update.venue_order_id
-            self._client_by_venue_id[update.venue_order_id] = update.client_order_id
+            self._client_by_venue_id[update.venue_order_id] = client_order_id
 
         # Fill updates have priority because they represent realized exposure.
         if update.fill_delta is not None and update.fill_delta > 0:
@@ -663,7 +718,7 @@ class PolymarketVenueAdapter(VenueAdapter):
                 leg_id=record.leg_id,
                 client_order_id=record.client_order_id,
                 fill_qty=update.fill_delta,
-                fill_price_ticks=update.fill_price_ticks or 0,
+                fill_price=update.fill_price or 0.0,
                 ts_ns=update.ts_ns,
                 cumulative_qty=update.cumulative_fill,
             )
@@ -819,16 +874,21 @@ class PolymarketVenueAdapter(VenueAdapter):
 def _parse_raw_update(raw: Mapping[str, object]) -> PolymarketOrderUpdate:
     return PolymarketOrderUpdate(
         client_order_id=_as_str(raw.get("client_order_id") or raw.get("clientOrderId")) or "",
-        venue_order_id=_as_str(raw.get("order_id") or raw.get("id")),
+        # Polymarket uses "id" (order hash) or "orderID" (capital D) as the venue order ID
+        venue_order_id=_as_str(raw.get("order_id") or raw.get("id") or raw.get("orderID")),
         status=_as_str(raw.get("status") or raw.get("state") or "UNKNOWN") or "UNKNOWN",
         ts_ns=_as_ts_ns(raw),
         sequence=_as_int(raw.get("sequence") or raw.get("seq"), default=None),
         event_id=_as_str(raw.get("event_id") or raw.get("eventId")),
         fill_delta=_as_int(raw.get("fill_delta") or raw.get("last_fill_qty"), default=None),
-        cumulative_fill=_as_int(raw.get("cumulative_fill") or raw.get("filled_size"), default=None),
-        fill_price_ticks=_as_int(raw.get("fill_price") or raw.get("last_fill_price"), default=None),
+        # Polymarket uses "size_matched" for cumulative matched size in polling responses
+        cumulative_fill=_as_int(
+            raw.get("cumulative_fill") or raw.get("filled_size") or raw.get("size_matched"),
+            default=None,
+        ),
+        fill_price=_as_float(raw.get("fill_price") or raw.get("last_fill_price")),
         canceled_qty=_as_int(raw.get("canceled_size"), default=None),
-        reason=_as_str(raw.get("reason") or raw.get("error") or raw.get("message")),
+        reason=_as_str(raw.get("reason") or raw.get("error") or raw.get("errorMsg") or raw.get("message")),
     )
 
 
@@ -868,3 +928,21 @@ def _as_int(value: object, default: int | None) -> int | None:
         except ValueError:
             return default
     return default
+
+
+def _as_float(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
+    return None

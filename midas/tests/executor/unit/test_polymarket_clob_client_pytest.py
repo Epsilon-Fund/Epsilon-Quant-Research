@@ -107,9 +107,9 @@ def test_submit_and_cancel_shape_requests() -> None:
     assert len(transport.calls) == 2
     assert transport.calls[0]["method"] == "POST"
     assert str(transport.calls[0]["url"]).endswith("/order")
-    assert transport.calls[0]["headers"]["X-API-KEY"] == "key"
-    assert transport.calls[1]["method"] == "POST"
-    assert str(transport.calls[1]["url"]).endswith("/cancel")
+    assert transport.calls[0]["headers"]["POLY_API_KEY"] == "key"
+    assert transport.calls[1]["method"] == "DELETE"
+    assert str(transport.calls[1]["url"]).endswith("/order")
 
 
 def test_get_order_updates_retries_and_normalizes_payload() -> None:

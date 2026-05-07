@@ -127,6 +127,8 @@ class SlugMarket:
     no_price_cents: int | None = None
     yes_token_id: str | None = None
     no_token_id: str | None = None
+    end_date_ns: int | None = None  # resolution timestamp in nanoseconds
+    tick_size: float = 0.01         # minimum price increment (0.01 or 0.001)
 
 
 @dataclass(frozen=True, slots=True)
@@ -670,6 +672,9 @@ def _to_slug_market(slug: str, raw: Mapping[str, Any]) -> SlugMarket | None:
     if no_token_id is None and len(token_ids) >= 2:
         no_token_id = token_ids[1]
 
+    end_date_ns = _parse_end_date_ns(raw)
+    tick_size = _parse_tick_size(raw)
+
     return SlugMarket(
         slug=slug,
         market_id=market_id,
@@ -682,6 +687,8 @@ def _to_slug_market(slug: str, raw: Mapping[str, Any]) -> SlugMarket | None:
         no_price_cents=no_price_cents,
         yes_token_id=yes_token_id,
         no_token_id=no_token_id,
+        end_date_ns=end_date_ns,
+        tick_size=tick_size,
     )
 
 
@@ -932,6 +939,40 @@ def _text_tokens(text: str) -> set[str]:
             continue
         tokens.add(token)
     return tokens
+
+
+def _parse_tick_size(raw: Mapping[str, Any]) -> float:
+    """Extract the minimum price tick from the raw market object.
+
+    Polymarket returns either 0.01 (1¢ markets) or 0.001 (0.1¢ markets).
+    The API field name is orderPriceMinTickSize. Default to 0.01 when absent.
+    """
+    raw_val = (
+        raw.get("orderPriceMinTickSize")
+        or raw.get("minimum_tick_size")
+        or raw.get("minimumTickSize")
+        or raw.get("tick_size")
+    )
+    if raw_val is None:
+        return 0.01
+    try:
+        val = float(str(raw_val))
+        if 0.0 < val <= 0.005:
+            return 0.001
+        return 0.01
+    except (ValueError, TypeError):
+        return 0.01
+
+
+def _parse_end_date_ns(raw: Mapping[str, Any]) -> int | None:
+    raw_date = raw.get("endDate") or raw.get("end_date") or raw.get("endDateIso")
+    if not raw_date:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(raw_date).replace("Z", "+00:00"))
+        return int(dt.timestamp() * 1_000_000_000)
+    except (ValueError, TypeError):
+        return None
 
 
 def _as_str(value: object) -> str | None:

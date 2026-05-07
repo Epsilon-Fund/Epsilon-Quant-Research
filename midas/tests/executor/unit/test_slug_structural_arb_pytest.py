@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from executor.slug_structural_arb import (
+from executor.polymarket_discovery import (
     SlugMarket,
     SlugResolutionConfig,
     SlugSubscriptionPlan,
@@ -241,7 +241,7 @@ def test_fetch_markets_for_slug_falls_back_to_events_when_markets_endpoint_empty
             ]
         raise AssertionError(f"unexpected url: {url}")
 
-    monkeypatch.setattr("executor.slug_structural_arb._http_get_json", fake_http_get_json)
+    monkeypatch.setattr("executor.polymarket_discovery._http_get_json", fake_http_get_json)
 
     markets = fetch_markets_for_slug("bitcoin-above-on-march-22", config)
 

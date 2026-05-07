@@ -10,8 +10,15 @@ from executor.polymarket_adapter import (
     PolymarketVenueAdapter,
     VenueTimeoutError,
 )
-from executor.state_machine import Side, TimeInForce, VenueFillEvent, VenueOrderAck
-from executor.venue import CancelOrderStatus, SubmitOrderStatus, VenueOrderIntent
+from executor.venue import (
+    CancelOrderStatus,
+    Side,
+    SubmitOrderStatus,
+    TimeInForce,
+    VenueFillEvent,
+    VenueOrderAck,
+    VenueOrderIntent,
+)
 
 
 class _StubPolymarketClient:
@@ -176,7 +183,7 @@ class VenueAdapterTests(unittest.TestCase):
         adapter.enqueue_fill(
             client_order_id=client_order_id,
             fill_qty=4,
-            fill_price_ticks=99,
+            fill_price=0.99,
             ts_ns=1_111,
         )
         updates = adapter.poll_or_process_order_updates()

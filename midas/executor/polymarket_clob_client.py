@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
+import hashlib
+import hmac as _hmac
 import json
 import random
 import socket
@@ -23,13 +26,13 @@ class PolymarketCLOBHttpClientConfig:
     api_key: str | None = None
     api_secret: str | None = None
     passphrase: str | None = None
-    request_timeout_ms: int = 1_500
+    request_timeout_ms: int = 10_000
     updates_max_retries: int = 3
     updates_retry_base_ms: int = 100
     submit_path: str = "/order"
-    cancel_path: str = "/cancel"
-    updates_path: str = "/orders/updates"
-    open_orders_path: str = "/orders/open"
+    cancel_path: str = "/order"
+    updates_path: str = "/data/orders"
+    open_orders_path: str = "/data/orders"
     user_agent: str = "polyexecutor/1.0"
 
 
@@ -127,11 +130,24 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         return _as_mapping(signed, fallback={"order": unsigned})
 
     def submit_order(self, signed_order: Mapping[str, object], timeout_ms: int) -> Mapping[str, object]:
+        raw = _as_mapping(signed_order, fallback={})
+        # If create_signed_order returned raw EIP-712 fields, wrap them per Polymarket spec.
+        # If it returned an already-wrapped dict ({"order": ..., "owner": ...}), use as-is.
+        if "order" in raw and isinstance(raw.get("order"), Mapping):
+            body = raw
+        else:
+            body = {
+                "order": raw,
+                "owner": self._config.api_key or "",
+                "orderType": "GTC",
+                "postOnly": False,
+                "deferExec": False,
+            }
         status, payload = self._request_json(
             method="POST",
             path=self._config.submit_path,
             timeout_ms=timeout_ms,
-            json_body=_as_mapping(signed_order, fallback={}),
+            json_body=body,
         )
         response = _as_mapping(payload, fallback={"raw": payload})
         if "status" not in response and "state" not in response:
@@ -146,14 +162,12 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         venue_order_id: str | None = None,
         timeout_ms: int,
     ) -> Mapping[str, object]:
-        body: dict[str, object] = {}
-        if client_order_id is not None:
-            body["client_order_id"] = client_order_id
-        if venue_order_id is not None:
-            body["order_id"] = venue_order_id
+        # Polymarket cancel: DELETE /order with {"orderID": <venue_order_id>}
+        order_id = venue_order_id or client_order_id
+        body: dict[str, object] = {"orderID": order_id} if order_id else {}
 
         status, payload = self._request_json(
-            method="POST",
+            method="DELETE",
             path=self._config.cancel_path,
             timeout_ms=timeout_ms,
             json_body=body,
@@ -171,9 +185,7 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         limit: int,
         timeout_ms: int,
     ) -> Sequence[Mapping[str, object]]:
-        params: dict[str, object] = {"limit": max(1, int(limit))}
-        if since_sequence is not None:
-            params["since_sequence"] = int(since_sequence)
+        params: dict[str, object] = {"status": "LIVE", "limit": max(1, int(limit))}
 
         attempts = max(1, self._config.updates_max_retries)
         for attempt in range(1, attempts + 1):
@@ -201,7 +213,7 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
             method="GET",
             path=self._config.open_orders_path,
             timeout_ms=timeout_ms,
-            params=None,
+            params={"status": "LIVE"},
             json_body=None,
         )
         if status >= 400:
@@ -217,28 +229,51 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         params: Mapping[str, object] | None = None,
         json_body: Mapping[str, object] | None = None,
     ) -> tuple[int, object]:
+        body_str = json.dumps(dict(json_body), separators=(",", ":")) if json_body else ""
         status, body = self._transport.request(
             method=method,
             url=_join_url(self._config.api_url, path),
             timeout_ms=max(1, int(timeout_ms)),
-            headers=self._headers(),
+            headers=self._l2_headers(method, path, body_str),
             params=params,
             json_body=json_body,
         )
         return status, _decode_json(body)
 
-    def _headers(self) -> dict[str, str]:
+    def _l2_headers(self, method: str, path: str, body: str = "") -> dict[str, str]:
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "User-Agent": self._config.user_agent,
         }
-        if self._config.api_key:
-            headers["X-API-KEY"] = self._config.api_key
-        if self._config.api_secret:
-            headers["X-API-SECRET"] = self._config.api_secret
-        if self._config.passphrase:
-            headers["X-API-PASSPHRASE"] = self._config.passphrase
+        if not (self._config.api_key and self._config.api_secret and self._config.passphrase):
+            return headers
+
+        timestamp = str(int(time.time()))
+        message = timestamp + method.upper() + path
+        if body:
+            message += body.replace("'", '"')
+
+        secret = self._config.api_secret
+        padding = (4 - len(secret) % 4) % 4
+        raw_key = base64.urlsafe_b64decode(secret + "=" * padding)
+        sig = base64.urlsafe_b64encode(
+            _hmac.new(raw_key, message.encode("utf-8"), hashlib.sha256).digest()
+        ).decode("utf-8")
+
+        address = ""
+        if self._config.private_key:
+            try:
+                from eth_account import Account
+                address = Account.from_key(self._config.private_key).address
+            except Exception:
+                pass
+
+        headers["POLY_ADDRESS"] = address
+        headers["POLY_SIGNATURE"] = sig
+        headers["POLY_TIMESTAMP"] = timestamp
+        headers["POLY_API_KEY"] = self._config.api_key
+        headers["POLY_PASSPHRASE"] = self._config.passphrase
         return headers
 
     @staticmethod

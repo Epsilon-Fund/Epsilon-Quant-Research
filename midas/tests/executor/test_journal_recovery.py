@@ -1,3 +1,9 @@
+"""
+tests/executor/test_journal_recovery.py
+
+Tests for the journal infrastructure: serialisation, replay, and recovery.
+Uses the journal's own data types directly — no planner or state machine needed.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,99 +19,26 @@ from executor.journal import (
     JournalEventType,
     JournalRecord,
     JournalReplayLoader,
-    JournalStateReconstructor,
     JournalWriter,
     JournalWriterConfig,
     RecoveryCoordinator,
     partition_key_from_ts_ns,
-    serialize_order_intent,
-)
-from executor.planner import ExecutionPlan, PlannedLeg
-from executor.state_machine import (
-    OrderIntent,
-    OrderState,
-    PackageState,
-    Side,
-    TimeInForce,
-    VenueFillEvent,
-    VenueOrderAck,
 )
 
 
-class JournalRecoveryTests(unittest.TestCase):
-    def _plan(self, now_ns: int, opportunity_id: str = "opp-1") -> ExecutionPlan:
-        legs = (
-            PlannedLeg(
-                leg_id="leg-a",
-                market_id="mkt-a",
-                token_id="token-a",
-                side=Side.BUY,
-                submission_rank=1,
-                quantity=5,
-                executable_price_ticks=100,
-                limit_price_ticks=100,
-                tick_size_ticks=1,
-                timeout_ms=500,
-                tif=TimeInForce.IOC,
-                snapshot_ts_ns=now_ns - 1_000_000,
-                available_units_at_plan=100,
-            ),
-            PlannedLeg(
-                leg_id="leg-b",
-                market_id="mkt-b",
-                token_id="token-b",
-                side=Side.SELL,
-                submission_rank=2,
-                quantity=5,
-                executable_price_ticks=105,
-                limit_price_ticks=105,
-                tick_size_ticks=1,
-                timeout_ms=500,
-                tif=TimeInForce.IOC,
-                snapshot_ts_ns=now_ns - 1_000_000,
-                available_units_at_plan=100,
-            ),
-        )
-        total_notional = 5 * 100 + 5 * 105
-        net_profit = 25
-        return ExecutionPlan(
-            plan_id=f"plan-{opportunity_id}",
-            opportunity_id=opportunity_id,
-            created_ts_ns=now_ns,
-            expires_at_ns=now_ns + 5_000_000_000,
-            package_timeout_ms=1_500,
-            package_units=5,
-            tif=TimeInForce.IOC,
-            total_shares=10,
-            total_notional_cents=total_notional,
-            expected_gross_profit_cents=net_profit,
-            expected_fee_cents=0,
-            expected_net_profit_cents=net_profit,
-            expected_net_edge_bps=(net_profit * 10_000) // total_notional,
-            legs=legs,
-        )
+class JournalSerialiserTests(unittest.TestCase):
+    """Tests that records survive a round-trip through JSON serialisation."""
 
-    def test_event_roundtrip(self) -> None:
+    def test_opportunity_accepted_roundtrip(self) -> None:
         serializer = JournalEventSerializer()
-        intent = OrderIntent(
-            package_id="pkg-1",
-            leg_id="leg-a",
-            client_order_id="cid-1",
-            qty=5,
-            limit_price_ticks=100,
-            tif=TimeInForce.IOC,
-            ts_ns=1_000_000,
-            side=Side.BUY,
-            market_id="mkt-a",
-        )
         record = JournalRecord(
             event_id="evt-1",
-            ts_ns=1_000_000,
-            event_type=JournalEventType.ORDER_SUBMITTED,
+            ts_ns=1_700_000_000_000_000_000,
+            event_type=JournalEventType.OPPORTUNITY_ACCEPTED,
             package_id="pkg-1",
             opportunity_id="opp-1",
             relation_id="rel-1",
-            payload={"event": serialize_order_intent(intent)},
+            payload={"metadata": {"expected_edge_bps": 50}},
         )
 
         encoded = serializer.dumps(record)
@@ -116,173 +49,190 @@ class JournalRecoveryTests(unittest.TestCase):
         self.assertEqual(decoded.package_id, record.package_id)
         self.assertEqual(decoded.payload, record.payload)
 
-    def test_replay_reconstruction_to_terminal_completion(self) -> None:
-        now_ns = 1_000_000_000_000
+    def test_opportunity_rejected_roundtrip(self) -> None:
+        serializer = JournalEventSerializer()
+        record = JournalRecord(
+            event_id="evt-2",
+            ts_ns=1_700_000_000_000_000_001,
+            event_type=JournalEventType.OPPORTUNITY_REJECTED,
+            package_id=None,
+            opportunity_id="opp-2",
+            relation_id="rel-2",
+            payload={"reason": "trading halted"},
+        )
+
+        encoded = serializer.dumps(record)
+        decoded = serializer.loads(encoded)
+
+        self.assertEqual(decoded.event_type, JournalEventType.OPPORTUNITY_REJECTED)
+        self.assertEqual(decoded.payload["reason"], "trading halted")
+        self.assertIsNone(decoded.package_id)
+
+    def test_kill_switch_roundtrip(self) -> None:
+        serializer = JournalEventSerializer()
+        record = JournalRecord(
+            event_id="evt-ks",
+            ts_ns=1_700_000_000_000_000_002,
+            event_type=JournalEventType.KILL_SWITCH_ACTIVATED,
+            package_id=None,
+            opportunity_id=None,
+            relation_id=None,
+            payload={"reason": "daily loss cap", "automatic": True},
+        )
+
+        encoded = serializer.dumps(record)
+        decoded = serializer.loads(encoded)
+
+        self.assertEqual(decoded.event_type, JournalEventType.KILL_SWITCH_ACTIVATED)
+        self.assertEqual(decoded.payload["automatic"], True)
+
+
+class JournalWriterTests(unittest.TestCase):
+    """Tests that the writer correctly persists records and supports replay."""
+
+    def test_background_writer_flushes_all_records(self) -> None:
         storage = InMemoryJournalStorage()
-        writer = JournalWriter(storage, config=JournalWriterConfig(background=False, flush_every_n_events=1))
+        writer = JournalWriter(
+            storage,
+            config=JournalWriterConfig(background=True, flush_every_n_events=1),
+        )
         journal = ExecutorJournal(writer)
-        plan = self._plan(now_ns)
 
         journal.record_opportunity_accepted(
-            package_id="pkg-1",
-            opportunity_id=plan.opportunity_id,
-            relation_id="rel-1",
-            ts_ns=now_ns,
+            package_id="pkg-a",
+            opportunity_id="opp-a",
+            relation_id="rel-a",
+            ts_ns=1_000_000_000_000,
         )
-        journal.record_execution_plan_created(
-            package_id="pkg-1",
-            relation_id="rel-1",
-            plan=plan,
-            ts_ns=now_ns + 1,
+        journal.record_kill_switch_activation(
+            reason="test halt",
+            ts_ns=1_000_000_000_001,
+            automatic=False,
         )
-        journal.record_order_submitted(
-            OrderIntent(
-                package_id="pkg-1",
-                leg_id="leg-a",
-                client_order_id="cid-a-1",
-                qty=5,
-                limit_price_ticks=100,
-                tif=TimeInForce.IOC,
-                ts_ns=now_ns + 2,
-            )
+        writer.flush()
+        writer.close()
+
+        records = JournalReplayLoader(storage).load_records()
+        self.assertEqual(len(records), 2)
+        types = [r.event_type for r in records]
+        self.assertIn(JournalEventType.OPPORTUNITY_ACCEPTED, types)
+        self.assertIn(JournalEventType.KILL_SWITCH_ACTIVATED, types)
+
+    def test_sync_writer_persists_immediately(self) -> None:
+        storage = InMemoryJournalStorage()
+        writer = JournalWriter(
+            storage,
+            config=JournalWriterConfig(background=False, flush_every_n_events=1),
         )
-        journal.record_order_ack(
-            VenueOrderAck(
-                package_id="pkg-1",
-                leg_id="leg-a",
-                client_order_id="cid-a-1",
-                venue_order_id="vo-a-1",
-                ts_ns=now_ns + 3,
-            )
-        )
-        journal.record_order_fill(
-            VenueFillEvent(
-                package_id="pkg-1",
-                leg_id="leg-a",
-                client_order_id="cid-a-1",
-                fill_qty=5,
-                fill_price_ticks=100,
-                ts_ns=now_ns + 4,
-                cumulative_qty=5,
-            )
-        )
-        journal.record_order_submitted(
-            OrderIntent(
-                package_id="pkg-1",
-                leg_id="leg-b",
-                client_order_id="cid-b-1",
-                qty=5,
-                limit_price_ticks=105,
-                tif=TimeInForce.IOC,
-                ts_ns=now_ns + 5,
-            )
-        )
-        journal.record_order_ack(
-            VenueOrderAck(
-                package_id="pkg-1",
-                leg_id="leg-b",
-                client_order_id="cid-b-1",
-                venue_order_id="vo-b-1",
-                ts_ns=now_ns + 6,
-            )
-        )
-        journal.record_order_fill(
-            VenueFillEvent(
-                package_id="pkg-1",
-                leg_id="leg-b",
-                client_order_id="cid-b-1",
-                fill_qty=5,
-                fill_price_ticks=105,
-                ts_ns=now_ns + 7,
-                cumulative_qty=5,
-            )
+        journal = ExecutorJournal(writer)
+
+        journal.record_opportunity_rejected(
+            opportunity_id="opp-b",
+            relation_id="rel-b",
+            reason="max notional reached",
+            ts_ns=2_000_000_000_000,
         )
         writer.close()
 
         records = JournalReplayLoader(storage).load_records()
-        reconstructed = JournalStateReconstructor().reconstruct(records)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].event_type, JournalEventType.OPPORTUNITY_REJECTED)
+        self.assertEqual(records[0].payload["reason"], "max notional reached")
 
-        self.assertEqual(len(records), 8)
-        self.assertIn("pkg-1", reconstructed.terminal_packages)
-        self.assertEqual(reconstructed.terminal_packages["pkg-1"].state, PackageState.COMPLETED)
-        self.assertEqual(reconstructed.expected_open_client_order_ids(), set())
-
-    def test_restart_loads_partially_completed_package_and_reconciles(self) -> None:
-        now_ns = 1_500_000_000_000
-        with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir) / "journal"
-            storage = JSONLFileJournalStorage(root)
-            writer = JournalWriter(storage, config=JournalWriterConfig(background=False, flush_every_n_events=1))
+    def test_jsonl_file_storage_writes_and_reads_back(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = JSONLFileJournalStorage(Path(tmpdir) / "journal")
+            writer = JournalWriter(
+                storage,
+                config=JournalWriterConfig(background=False, flush_every_n_events=1),
+            )
             journal = ExecutorJournal(writer)
-            plan = self._plan(now_ns, opportunity_id="opp-restart")
 
+            ts = 3_000_000_000_000
             journal.record_opportunity_accepted(
-                package_id="pkg-r",
-                opportunity_id=plan.opportunity_id,
-                relation_id="rel-r",
-                ts_ns=now_ns,
-            )
-            journal.record_execution_plan_created(
-                package_id="pkg-r",
-                relation_id="rel-r",
-                plan=plan,
-                ts_ns=now_ns + 1,
-            )
-            journal.record_order_submitted(
-                OrderIntent(
-                    package_id="pkg-r",
-                    leg_id="leg-a",
-                    client_order_id="cid-ra-1",
-                    qty=5,
-                    limit_price_ticks=100,
-                    tif=TimeInForce.IOC,
-                    ts_ns=now_ns + 2,
-                )
-            )
-            journal.record_order_ack(
-                VenueOrderAck(
-                    package_id="pkg-r",
-                    leg_id="leg-a",
-                    client_order_id="cid-ra-1",
-                    venue_order_id="vo-ra-1",
-                    ts_ns=now_ns + 3,
-                )
-            )
-            journal.record_order_fill(
-                VenueFillEvent(
-                    package_id="pkg-r",
-                    leg_id="leg-a",
-                    client_order_id="cid-ra-1",
-                    fill_qty=5,
-                    fill_price_ticks=100,
-                    ts_ns=now_ns + 4,
-                    cumulative_qty=5,
-                )
-            )
-            journal.record_order_submitted(
-                OrderIntent(
-                    package_id="pkg-r",
-                    leg_id="leg-b",
-                    client_order_id="cid-rb-1",
-                    qty=5,
-                    limit_price_ticks=105,
-                    tif=TimeInForce.IOC,
-                    ts_ns=now_ns + 5,
-                )
+                package_id="pkg-file",
+                opportunity_id="opp-file",
+                relation_id="rel-file",
+                ts_ns=ts,
             )
             writer.close()
 
-            read_storage = JSONLFileJournalStorage(root)
-            loader = JournalReplayLoader(read_storage)
-            recovery = RecoveryCoordinator(loader=loader).recover(venue_adapter=FakeVenueAdapter())
+            read_storage = JSONLFileJournalStorage(Path(tmpdir) / "journal")
+            records = JournalReplayLoader(read_storage).load_records()
 
-            self.assertEqual(partition_key_from_ts_ns(now_ns), next(iter(read_storage.list_partitions())))
-            self.assertIn("pkg-r", recovery.reconstructed_state.active_packages)
-            package = recovery.reconstructed_state.active_packages["pkg-r"]
-            leg_states = {leg.leg_id: leg.state for leg in package.legs}
-            self.assertEqual(leg_states["leg-a"], OrderState.FILLED)
-            self.assertEqual(leg_states["leg-b"], OrderState.PENDING_ACK)
-            self.assertIn("cid-rb-1", recovery.reconciliation.missing_expected_client_order_ids)
+            self.assertEqual(len(records), 1)
+            partition = partition_key_from_ts_ns(ts)
+            self.assertIn(partition, read_storage.list_partitions())
+
+    def test_replay_loader_filters_by_event_type(self) -> None:
+        storage = InMemoryJournalStorage()
+        writer = JournalWriter(
+            storage,
+            config=JournalWriterConfig(background=False, flush_every_n_events=1),
+        )
+        journal = ExecutorJournal(writer)
+
+        journal.record_opportunity_accepted(
+            package_id="pkg-filter",
+            opportunity_id="opp-filter",
+            relation_id="rel-filter",
+            ts_ns=1_000,
+        )
+        journal.record_opportunity_rejected(
+            opportunity_id="opp-filter-2",
+            relation_id="rel-filter",
+            reason="halted",
+            ts_ns=2_000,
+        )
+        journal.record_kill_switch_activation(
+            reason="test", ts_ns=3_000, automatic=True
+        )
+        writer.close()
+
+        accepted_only = JournalReplayLoader(storage).load_records(
+            event_types={JournalEventType.OPPORTUNITY_ACCEPTED}
+        )
+        self.assertEqual(len(accepted_only), 1)
+        self.assertEqual(
+            accepted_only[0].event_type, JournalEventType.OPPORTUNITY_ACCEPTED
+        )
+
+
+class RecoveryCoordinatorTests(unittest.TestCase):
+    """Tests that recovery correctly loads journal state and reconciles with venue."""
+
+    def test_empty_journal_recovers_cleanly(self) -> None:
+        storage = InMemoryJournalStorage()
+        venue = FakeVenueAdapter()
+        recovery = RecoveryCoordinator(
+            loader=JournalReplayLoader(storage)
+        ).recover(venue_adapter=venue)
+
+        self.assertEqual(recovery.records_loaded, 0)
+        self.assertEqual(len(recovery.reconstructed_state.active_packages), 0)
+        self.assertEqual(len(recovery.reconstructed_state.terminal_packages), 0)
+        self.assertEqual(recovery.actions, tuple())
+
+    def test_kill_switch_state_survives_replay(self) -> None:
+        storage = InMemoryJournalStorage()
+        writer = JournalWriter(
+            storage,
+            config=JournalWriterConfig(background=False, flush_every_n_events=1),
+        )
+        journal = ExecutorJournal(writer)
+        journal.record_kill_switch_activation(
+            reason="daily loss cap breached",
+            ts_ns=1_000_000,
+            automatic=True,
+        )
+        writer.close()
+
+        records = JournalReplayLoader(storage).load_records()
+        from executor.journal import JournalStateReconstructor
+        state = JournalStateReconstructor().reconstruct(records)
+
+        self.assertTrue(state.kill_switch_active)
+        self.assertEqual(state.kill_switch_reason, "daily loss cap breached")
 
 
 if __name__ == "__main__":

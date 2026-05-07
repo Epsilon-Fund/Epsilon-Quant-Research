@@ -21,6 +21,7 @@ class PyClobClientOrderSignerConfig:
 class _PyClobSdkBindings:
     clob_client_cls: type[Any]
     order_args_cls: type[Any] | None
+    is_v2: bool = False
 
 
 class PyClobClientOrderSigner:
@@ -45,6 +46,12 @@ class PyClobClientOrderSigner:
             raise ValueError("private_key is required for SDK signing")
 
         client = self._client_for_private_key(private_key)
+
+        if self._bindings.is_v2:
+            order_input = _build_order_input_v2(unsigned, self._bindings.order_args_cls)
+            signed = _invoke_sign_v2(client, order_input)
+            return signed
+
         order_input = _build_order_input(unsigned, self._bindings.order_args_cls)
         signed = _invoke_sign(client, order_input)
         signed_mapping = _to_mapping(signed)
@@ -76,31 +83,123 @@ def build_py_clob_client_signer(config: PyClobClientOrderSignerConfig) -> OrderS
 
 
 def _load_py_clob_sdk_bindings() -> _PyClobSdkBindings:
+    # Prefer V2 SDK (required for CLOB V2 protocol active since 2026-04-27).
+    try:
+        from py_clob_client_v2.client import ClobClient as ClobClientV2
+        from py_clob_client_v2.clob_types import OrderArgsV2
+        return _PyClobSdkBindings(clob_client_cls=ClobClientV2, order_args_cls=OrderArgsV2, is_v2=True)
+    except ImportError:
+        pass
+
+    # Fallback: V1 SDK (generates order_version_mismatch against live CLOB).
     try:
         from py_clob_client.client import ClobClient
     except ImportError as exc:
         raise RuntimeError(
-            "py-clob-client is required for SDK signing. Install with: pip install py-clob-client"
+            "py-clob-client-v2 is required. Install with: pip install py-clob-client-v2"
         ) from exc
 
     order_args_cls: type[Any] | None = None
     try:
         from py_clob_client.clob_types import OrderArgs
-
         order_args_cls = OrderArgs
     except Exception:
         order_args_cls = None
 
-    return _PyClobSdkBindings(clob_client_cls=ClobClient, order_args_cls=order_args_cls)
+    return _PyClobSdkBindings(clob_client_cls=ClobClient, order_args_cls=order_args_cls, is_v2=False)
 
+
+# ---------------------------------------------------------------------------
+# V2 signing path
+# ---------------------------------------------------------------------------
+
+def _build_order_input_v2(unsigned: Mapping[str, object], order_args_cls: type[Any] | None) -> object:
+    raw_price = unsigned.get("price")
+    raw_size = unsigned.get("size")
+    price_float: float | None = float(raw_price) if raw_price is not None else None
+    size_float: float | None = float(raw_size) if raw_size is not None else None
+
+    payload: dict[str, object] = {
+        "token_id": unsigned.get("token_id"),
+        "side": unsigned.get("side"),
+        "price": price_float,
+        "size": size_float,
+    }
+    expiration_ts = unsigned.get("expiration_ts")
+    if expiration_ts is not None:
+        payload["expiration"] = int(expiration_ts)  # type: ignore[arg-type]
+
+    payload = {k: v for k, v in payload.items() if v is not None}
+
+    if order_args_cls is None:
+        return payload
+
+    try:
+        return order_args_cls(**payload)
+    except Exception:
+        filtered = _filter_kwargs_for_callable(order_args_cls, payload)
+        return order_args_cls(**filtered)
+
+
+def _invoke_sign_v2(client: Any, order_input: object) -> dict[str, object]:
+    create_order = getattr(client, "create_order", None)
+    if not callable(create_order):
+        raise RuntimeError("V2 SDK client does not expose create_order()")
+    signed = create_order(order_input)
+    if signed is None:
+        raise RuntimeError("create_order() returned None")
+    return _serialize_signed_order_v2(signed)
+
+
+def _serialize_signed_order_v2(signed: Any) -> dict[str, object]:
+    """Flatten SignedOrderV2 to a JSON-serializable dict.
+
+    SignedOrderV2 has `side: Side` (IntEnum 0=BUY/1=SELL) and
+    `signatureType: SignatureTypeV2` (IntEnum) — both must be converted to
+    primitive types before JSON serialisation.
+    """
+    side_val = getattr(signed, "side", None)
+    if isinstance(side_val, str):
+        side_str = side_val
+    else:
+        side_str = "BUY" if int(side_val) == 0 else "SELL"
+
+    sig_type = getattr(signed, "signatureType", None)
+    sig_type_int: int = int(sig_type) if sig_type is not None else 0
+
+    return {
+        "salt": int(getattr(signed, "salt", 0)),
+        "maker": str(getattr(signed, "maker", "")),
+        "signer": str(getattr(signed, "signer", "")),
+        "tokenId": str(getattr(signed, "tokenId", "")),
+        "makerAmount": str(getattr(signed, "makerAmount", "")),
+        "takerAmount": str(getattr(signed, "takerAmount", "")),
+        "side": side_str,
+        "expiration": str(getattr(signed, "expiration", "0")),
+        "signatureType": sig_type_int,
+        "timestamp": str(getattr(signed, "timestamp", "")),
+        "metadata": str(getattr(signed, "metadata", "")),
+        "builder": str(getattr(signed, "builder", "")),
+        "signature": str(getattr(signed, "signature", "")),
+    }
+
+
+# ---------------------------------------------------------------------------
+# V1 signing path (legacy)
+# ---------------------------------------------------------------------------
 
 def _build_order_input(unsigned: Mapping[str, object], order_args_cls: type[Any] | None) -> object:
+    raw_price = unsigned.get("price")
+    raw_size = unsigned.get("size")
+    price_float: float | None = float(raw_price) if raw_price is not None else None
+    size_float: float | None = float(raw_size) if raw_size is not None else None
+
     payload: dict[str, object] = {
         "market_id": unsigned.get("market_id"),
         "token_id": unsigned.get("token_id"),
         "side": unsigned.get("side"),
-        "size": unsigned.get("size"),
-        "price": unsigned.get("price"),
+        "size": size_float,
+        "price": price_float,
         "tif": unsigned.get("tif"),
         "time_in_force": unsigned.get("tif"),
         "client_order_id": unsigned.get("client_order_id"),
@@ -180,8 +279,6 @@ def _filter_kwargs_for_callable(callable_obj: object, values: Mapping[str, objec
 def _to_mapping(value: object) -> dict[str, object]:
     if isinstance(value, Mapping):
         return dict(value)
-    if is_dataclass(value):
-        return asdict(value)
 
     dict_method = getattr(value, "dict", None)
     if callable(dict_method):
@@ -189,6 +286,12 @@ def _to_mapping(value: object) -> dict[str, object]:
             mapped = dict_method()
             if isinstance(mapped, Mapping):
                 return dict(mapped)
+        except Exception:
+            pass
+
+    if is_dataclass(value):
+        try:
+            return asdict(value)
         except Exception:
             return {}
 

@@ -3,8 +3,7 @@ from __future__ import annotations
 import pytest
 
 from executor.polymarket_adapter import PolymarketAdapterConfig, PolymarketVenueAdapter, VenueTimeoutError
-from executor.state_machine import Side, TimeInForce, VenueFillEvent
-from executor.venue import SubmitOrderStatus, VenueOrderIntent
+from executor.venue import Side, SubmitOrderStatus, TimeInForce, VenueFillEvent, VenueOrderIntent
 from tests.helpers.stubs import StubPolymarketClient
 
 

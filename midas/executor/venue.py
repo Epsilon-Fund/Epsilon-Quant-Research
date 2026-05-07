@@ -5,7 +5,54 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Mapping, Protocol, Sequence, TypeAlias
 
-from .state_machine import Side, TimeInForce, VenueCancelEvent, VenueFillEvent, VenueOrderAck, VenueRejectEvent
+
+class Side(str, Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+class TimeInForce(str, Enum):
+    IOC = "IOC"
+    GTC = "GTC"
+
+
+@dataclass(frozen=True, slots=True)
+class VenueOrderAck:
+    package_id: str
+    leg_id: str
+    client_order_id: str
+    venue_order_id: str
+    ts_ns: int
+
+
+@dataclass(frozen=True, slots=True)
+class VenueFillEvent:
+    package_id: str
+    leg_id: str
+    client_order_id: str
+    fill_qty: int
+    fill_price: float
+    ts_ns: int
+    cumulative_qty: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class VenueCancelEvent:
+    package_id: str
+    leg_id: str
+    client_order_id: str
+    canceled_qty: int
+    reason: str
+    ts_ns: int
+
+
+@dataclass(frozen=True, slots=True)
+class VenueRejectEvent:
+    package_id: str
+    leg_id: str
+    client_order_id: str
+    reason: str
+    ts_ns: int
 
 
 NormalizedOrderEvent: TypeAlias = VenueOrderAck | VenueFillEvent | VenueCancelEvent | VenueRejectEvent
@@ -32,6 +79,11 @@ class VenueOrderIntent:
     """Internal order intent passed from execution layer to venue adapter.
 
     This is strategy-agnostic and deliberately limited to order placement fields.
+
+    limit_price_ticks is in units of tick_size:
+      tick_size=0.01  → ticks are whole cents  (94¢  = 94 ticks)
+      tick_size=0.001 → ticks are tenth-cents   (94.2¢ = 942 ticks)
+    Adapters convert: price_decimal = limit_price_ticks * tick_size
     """
 
     package_id: str
@@ -43,6 +95,7 @@ class VenueOrderIntent:
     limit_price_ticks: int
     tif: TimeInForce
     ts_ns: int
+    tick_size: float = 0.01
     expires_at_ns: int | None = None
     client_order_id: str | None = None
 
