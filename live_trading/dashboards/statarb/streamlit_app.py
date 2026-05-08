@@ -30,6 +30,7 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
+
 import streamlit as st
 
 from dashboard import (
@@ -275,7 +276,7 @@ def load_all():
     """
     live_params = load_live_params()
     if not live_params:
-        return [], None, None
+        return [], None
     active_set = set(ACTIVE_ASSETS)
     pair_keys  = [k for k in live_params if k in active_set]
     result     = run_dashboard(pair_keys, live_params, positions={})
@@ -284,12 +285,7 @@ def load_all():
     # ASSET_CONFIG is authoritative for fixed params.
     for row in pair_rows:
         row['fixed_keys'] = _PAIR_FIXED_KEYS.get(row['pair_key'], row['fixed_keys'])
-    # Capture the actual data-fetch time so the "Generated:" header shows
-    # when run_dashboard() last fired, not the current render clock.
-    # Folded into the cached return tuple so cache-hit renders display the
-    # same value (the timestamp doesn't tick on every page rerun).
-    gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-    return pair_rows, sig_date, gen_at
+    return pair_rows, sig_date
 
 
 def load_live_prices(symbols: tuple):
@@ -302,7 +298,7 @@ def load_live_prices(symbols: tuple):
     return _shared_live_prices(symbols)
 
 
-pair_rows, signal_date, generated_at = load_all()
+pair_rows, signal_date = load_all()
 
 if not pair_rows:
     st.error("live_params.json is empty or ACTIVE_ASSETS is empty — run `optimise.py` first.")
@@ -323,8 +319,89 @@ for _r in pair_rows:
     _open_pos = get_open_positions(_r['pair_key'], _positions_for_decisions)
     _r['sig'].update(apply_decision(_r['sig'], _open_pos, _r['pair_capital']))
 
-# `generated_at` was already returned from load_all() above (the actual
-# time run_dashboard() last fired, not the current render clock).
+# ── Auto-log theoretical trades ───────────────────────────────────────────────
+# Reads positions/trades fresh each render to guard against duplicate writes.
+# EXIT/STOP: fires even when exec prices are None (uses close prices as fallback).
+# ENTRY_LONG/ENTRY_SHORT: fires only once both exec_y and exec_x are available.
+_auto_raw     = _load_json(TRADES_PATH, [])
+_auto_exited  = {t['position_id'] for t in _auto_raw if t.get('action') == 'EXIT'}
+_auto_pos_now = _load_json(POSITIONS_PATH, {})
+_auto_open_pks = {
+    p.get('symbol', pid) for pid, p in _auto_pos_now.items() if p.get('in_position')
+}
+_did_auto = False
+
+for _ar in pair_rows:
+    _apk    = _ar['pair_key']
+    _asig   = _ar['sig']
+    _adec   = _asig['decision']
+    _astrat = _ar['strategy']
+    _aey    = _ar['exec_y']
+    _aex    = _ar['exec_x']
+
+    if _adec in ('EXIT', 'STOP'):
+        _apos_file = _load_json(POSITIONS_PATH, {})
+        for _apid, _apos in list(_apos_file.items()):
+            if (
+                _apos.get('symbol', _apid) == _apk
+                and _apos.get('in_position')
+                and _apid not in _auto_exited
+            ):
+                _adir   = _apos.get('direction', 'long')
+                _ads    = 1 if _adir == 'long' else -1
+                _asz    = float(_apos.get('size_usd') or _apos.get('coin_capital') or 0)
+                _apos_ey = float(_apos.get('entry_y_price') or 0)
+                _apos_ex = float(_apos.get('entry_x_price') or 0)
+                _abeta   = float(_apos.get('beta') or 0)
+                _axity   = _aey if _aey is not None else _asig.get('close_y', 1.0)
+                _axitx   = _aex if _aex is not None else _asig.get('close_x', 1.0)
+                if _apos_ey > 0 and _apos_ex > 0 and _axity > 0 and _axitx > 0:
+                    _aspread_pnl = _ads * (
+                        np.log(_axity / _apos_ey) - _abeta * np.log(_axitx / _apos_ex)
+                    )
+                else:
+                    _aspread_pnl = 0.0
+                _write_trade(
+                    position_id=_apid, action='EXIT', strategy=_astrat,
+                    theoretical_price=1.0 + _aspread_pnl * _ads,
+                    actual_price=1.0 + _aspread_pnl * _ads,
+                    size_usd=_asz, discretion_note='',
+                    exit_reason=_adec,
+                    exit_y_price=_axity, exit_x_price=_axitx,
+                )
+                _write_position_exit(_apid, _aspread_pnl, '')
+                if _asz > 0:
+                    update_realised_capital(DATA_DIR, _aspread_pnl * _asz, _apid)
+                _auto_exited.add(_apid)
+                _did_auto = True
+
+    elif _adec in ('ENTRY_LONG', 'ENTRY_SHORT') and _apk not in _auto_open_pks:
+        if _aey is not None and _aex is not None:
+            _adir    = 'long' if _adec == 'ENTRY_LONG' else 'short'
+            _apos_fresh = _load_json(POSITIONS_PATH, {})
+            _anpid   = _next_position_id(_apk, _apos_fresh)
+            _acap    = get_pair_capital(_apk)
+            _abeta   = float(_asig.get('beta') or 0)
+            _write_trade(
+                position_id=_anpid, action='ENTRY', strategy=_astrat,
+                theoretical_price=1.0, actual_price=1.0,
+                size_usd=_acap, discretion_note='',
+                direction=_adir,
+                entry_y_price=_aey, entry_x_price=_aex,
+                pair_capital=_acap,
+            )
+            _write_position_entry(
+                _anpid, _apk, _ar['symbol_y'], _ar['symbol_x'],
+                _astrat, _adir, _acap, _acap,
+                _aey, _aex, _abeta, '',
+            )
+            _auto_open_pks.add(_apk)
+            _did_auto = True
+
+if _did_auto:
+    invalidate_trade_caches()
+
+generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -442,7 +519,7 @@ _pnl_sign      = '+' if _pnl_pct >= 0 else ''
 _delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
 _delta_sign  = '+' if _capital_delta >= 0 else ''
 _cap_cell    = (
-    f'${_realised_capital:,.3f}'
+    f'${_realised_capital:,.2f}'
     f'<br><span style="font-size:10px;color:{_delta_color}">'
     f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
 )
@@ -457,7 +534,7 @@ st.markdown(f"""
       <td>{_cap_cell}</td>
       <td>${_total_size_usd:,.0f}</td>
       <td>${_port_val:,.0f}{_port_val_note}</td>
-      <td class="{_pnl_cls}">{_pnl_sign}{_pnl_pct:.3f}%</td>
+      <td class="{_pnl_cls}">{_pnl_sign}{_pnl_pct:.2f}%</td>
     </tr></tbody>
   </table>
 </div>
@@ -507,7 +584,7 @@ else:
             _tot_live_r = True
             pnl_cls     = 'entry-t' if unr_pnl_usd >= 0 else 'entry-f'
             pnl_sgn     = '+' if pnl_pct_r >= 0 else ''
-            pnl_pct_td  = f'<td class="{pnl_cls}">{pnl_sgn}{pnl_pct_r*100:.3f}%</td>'
+            pnl_pct_td  = f'<td class="{pnl_cls}">{pnl_sgn}{pnl_pct_r*100:.2f}%</td>'
             pnl_usd_td  = f'<td class="{pnl_cls}">{pnl_sgn}{unr_pnl_usd:,.0f}</td>'
             pos_val_td  = f'<td>{pos_val:,.0f}</td>'
         else:
@@ -542,7 +619,7 @@ else:
         _tot_pct     = _tot_pnl_r / _tot_size_r * 100
         _tot_cls     = 'entry-t' if _tot_pct >= 0 else 'entry-f'
         _tot_sgn     = '+' if _tot_pct >= 0 else ''
-        _tot_pct_td  = f'<td class="{_tot_cls}">{_tot_sgn}{_tot_pct:.3f}%</td>'
+        _tot_pct_td  = f'<td class="{_tot_cls}">{_tot_sgn}{_tot_pct:.2f}%</td>'
         _tot_pusd_td = f'<td class="{_tot_cls}">{_tot_sgn}{_tot_pnl_r:,.0f}</td>'
     else:
         _tot_pct_td  = '<td>—</td>'
@@ -577,7 +654,7 @@ else:
 # ── Decisions ─────────────────────────────────────────────────────────────────
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
 
 _dec_rows_html = ''
 for r in pair_rows:
@@ -812,8 +889,8 @@ for _fi, _r in enumerate(pair_rows):
                         position_id=_pid_to_exit,
                         action='EXIT',
                         strategy=_strategy,
-                        theoretical_price=1.0 + _theo_spread,
-                        actual_price=1.0 + _spread_pnl,
+                        theoretical_price=1.0 + _theo_spread * _dsign_ex,
+                        actual_price=1.0 + _spread_pnl * _dsign_ex,
                         size_usd=_size_st,
                         discretion_note=_disc,
                         exit_reason=_exit_reason_val,
@@ -826,8 +903,8 @@ for _fi, _r in enumerate(pair_rows):
                     _pnl_usd_exit = _spread_pnl * _size_st
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
+                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
 
                 elif not _is_exit_final:
                     _dir_k    = st.session_state.get(f'sa_dir_{_pk}', 'Long spread')

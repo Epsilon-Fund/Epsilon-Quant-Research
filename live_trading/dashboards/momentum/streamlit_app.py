@@ -39,6 +39,7 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
+
 import streamlit as st
 
 from dashboard import (
@@ -169,31 +170,6 @@ def _write_trade(position_id, action, strategy, theoretical_price, actual_price,
         entry['exit_close']    = round(float(exit_close), 4) if exit_close is not None else None
         entry['exit_reason']   = exit_reason or 'Strategy'
     trades = _load_json(TRADES_PATH, [])
-    # ── Dedupe guard ───────────────────────────────────────────────────────
-    # ENTRY: at most one ENTRY per position_id ever. Reject silently if one
-    # already exists (covers double-clicks, page reloads, session resets).
-    # EXIT: allow multiple records (partial exits) but reject identical
-    # rapid-fire duplicates (same pid, same actual_leverage, within 60s).
-    if action == 'ENTRY':
-        if any(t.get('position_id') == position_id and t.get('action') == 'ENTRY'
-               for t in trades):
-            return
-    elif action == 'EXIT':
-        from datetime import timedelta
-        now = datetime.now(timezone.utc)
-        for t in reversed(trades):
-            if t.get('position_id') != position_id or t.get('action') != 'EXIT':
-                continue
-            try:
-                ts = datetime.strptime(t['timestamp'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=timezone.utc)
-            except (KeyError, ValueError):
-                break
-            if now - ts > timedelta(seconds=60):
-                break
-            if (round(float(t.get('actual_leverage') or 0), 4) == round(float(actual_leverage or 0), 4)
-                and round(float(t.get('actual_price')    or 0), 4) == round(float(actual_price    or 0), 4)):
-                return
-            break
     trades.append(entry)
     _save_json(TRADES_PATH, trades)
 
@@ -539,18 +515,13 @@ if ("momentum_dashboard_data" not in st.session_state or
         _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
         _rows   = _result['assets']
         _sdate  = _result['signal_date']
-        # Capture the actual data-fetch time so the "Generated:" header
-        # shows when run_dashboard() last fired, not the current render
-        # clock.  Persisted in session_state alongside the data so
-        # subsequent cache-hit renders display the same value.
-        _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         for _row in _rows:
             _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
-        st.session_state.momentum_dashboard_data      = (_rows, _sdate, _gen_at)
+        st.session_state.momentum_dashboard_data      = (_rows, _sdate)
         st.session_state.momentum_dashboard_cache_key = _cache_key
         st.session_state.momentum_signal_date         = _expected_signal_date
 
-coin_rows, signal_date, generated_at = st.session_state.momentum_dashboard_data
+coin_rows, signal_date = st.session_state.momentum_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is read fresh every render.
 # st.cache_data returns deserialized copies, so mutating coin_rows here is safe.
@@ -570,8 +541,78 @@ for _c in coin_rows:
         apply_decision(_c['sig'], _open_pos, _c['exec_price'], _c['coin_capital'])
     )
 
-# `generated_at` was already loaded from session_state above (the actual
-# time run_dashboard() last fired, not the current render clock).
+# ── Auto-log theoretical trades ───────────────────────────────────────────────
+# Reads positions/trades fresh each render to guard against duplicate writes.
+# EXIT: fires even when exec_price is None (uses last close as fallback).
+# ENTRY: fires only once exec_price is available (T+1 bar is open).
+_auto_raw     = _load_json(TRADES_PATH, [])
+_auto_exited  = {t['position_id'] for t in _auto_raw if t.get('action') == 'EXIT'}
+_auto_pos_now = _load_json(POSITIONS_PATH, {})
+_auto_open_syms = {
+    p.get('symbol', pid) for pid, p in _auto_pos_now.items() if p.get('in_position')
+}
+_did_auto = False
+
+for _ac in coin_rows:
+    _asym   = _ac['symbol']
+    _asig   = _ac['sig']
+    _adec   = _asig['decision']
+    _aexec  = _ac['exec_price']
+    _atheo  = _aexec if _aexec is not None else _asig['close']
+    _astrat = _ac['strategy']
+
+    if _adec == 'EXIT':
+        _apos_file = _load_json(POSITIONS_PATH, {})
+        for _apid, _apos in list(_apos_file.items()):
+            if (
+                _apos.get('symbol', _apid) == _asym
+                and _apos.get('in_position')
+                and _apid not in _auto_exited
+            ):
+                _alev = float(_apos.get('leverage_multiplier') or _apos.get('size_pct') or 1.0)
+                _aep  = float(_apos.get('entry_price') or 0)
+                _asz  = float(_apos.get('size_usd') or (get_coin_capital(_asym) * _alev))
+                _write_trade(
+                    position_id=_apid, action='EXIT', strategy=_astrat,
+                    theoretical_price=_atheo, actual_price=_atheo,
+                    theoretical_leverage=_alev, actual_leverage=_alev,
+                    theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
+                    exit_type='full', exit_leverage=_alev,
+                    exit_close=_asig['close'], exit_reason='Strategy',
+                )
+                _write_position_exit(_apid, _atheo, '')
+                if _aep > 0:
+                    update_realised_capital(DATA_DIR, (_atheo - _aep) / _aep * _asz, _apid)
+                _auto_exited.add(_apid)
+                _did_auto = True
+
+    elif _adec == 'ENTRY' and _aexec is not None and _asym not in _auto_open_syms:
+        _alev = float(_asig.get('leverage_multiplier') or 0.0)
+        if _alev > 0:
+            _apos_fresh = _load_json(POSITIONS_PATH, {})
+            _anpid      = _next_position_id(_asym, _apos_fresh)
+            _acap       = get_coin_capital(_asym)
+            _asz        = _acap * _alev
+            _write_trade(
+                position_id=_anpid, action='ENTRY', strategy=_astrat,
+                theoretical_price=_aexec, actual_price=_aexec,
+                theoretical_leverage=_alev, actual_leverage=_alev,
+                theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
+                direction='long', entry_close=_asig['close'], entry_type='Strategy',
+                coin_capital=_acap, size_usd=_asz,
+                capital_total=load_realised_capital(DATA_DIR),
+            )
+            _write_position_entry(
+                _anpid, _asym, _aexec, _alev, _asig.get('theoretical_stop'),
+                _astrat, '', direction='long', coin_capital=_acap, size_usd=_asz,
+            )
+            _auto_open_syms.add(_asym)
+            _did_auto = True
+
+if _did_auto:
+    invalidate_trade_caches()
+
+generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
 # ── Helper: format param value ────────────────────────────────────────────────
@@ -580,7 +621,7 @@ def fmt(v):
     if v is None: return '—'
     if isinstance(v, int): return str(v)
     if isinstance(v, float):
-        return str(int(v)) if v == int(v) else f'{v:.3f}'
+        return str(int(v)) if v == int(v) else f'{v:.2f}'
     return escape(str(v))
 
 
@@ -613,7 +654,6 @@ for _pid0, _pos0 in _open.items():
     _lp0  = _live_prices.get(_sym0)
     _ep0  = _pos0.get('entry_price', 0)
     _lev0 = _pos0.get('leverage_multiplier') or _pos0.get('size_pct', 0)
-    _dir0 = _pos0.get('direction', 'long')
     # Use frozen size_usd from positions.json; fall back to live config for legacy entries
     _sz0  = _pos0.get('size_usd') or (get_coin_capital(_sym0) * _lev0)
     _total_size_usd += _sz0
@@ -621,9 +661,7 @@ for _pid0, _pos0 in _open.items():
         # Deduct round-trip cost (entry leg already paid + estimated exit leg)
         # so unrealized P&L is consistent with how closed trades report P&L.
         _cost0               = _sz0 * TRADING_COST_PCT * 2
-        # P&L direction: long profits from price up, short from price down
-        _move0               = (_lp0 - _ep0) / _ep0 if _dir0 == 'long' else (_ep0 - _lp0) / _ep0
-        _pnl0                = _move0 * _sz0 - _cost0
+        _pnl0                = (_lp0 - _ep0) / _ep0 * _sz0 - _cost0
         _unrealized_pnl_usd += _pnl0
         _total_pos_value    += _sz0 + _pnl0
         _total_has_live      = True
@@ -667,13 +705,13 @@ _port_val_str  = f"${_port_val:,.0f}{_port_val_note}"
 _pnl_pct    = _total_pnl_usd / CAPITAL * 100 if CAPITAL else 0.0
 _pnl_cls    = 'entry-t' if _pnl_pct >= 0 else 'entry-f'
 _pnl_sign   = '+' if _pnl_pct >= 0 else ''
-_pnl_str    = f"{_pnl_sign}{_pnl_pct:.3f}%"
+_pnl_str    = f"{_pnl_sign}{_pnl_pct:.2f}%"
 _pnl_td_cls = f' class="{_pnl_cls}"'
 
 _delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
 _delta_sign  = '+' if _capital_delta >= 0 else ''
 _cap_cell    = (
-    f'${_realised_capital:,.3f}'
+    f'${_realised_capital:,.2f}'
     f'<br><span style="font-size:10px;color:{_delta_color}">'
     f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
 )
@@ -712,7 +750,7 @@ def _momentum_positions_fragment():
     symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
     live_prices = fetch_live_prices(symbols)
     elapsed     = time.time() - _t0
-    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} price fetches)")
+    print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
 
     from datetime import date as _date
     _pos_rows       = ''
@@ -730,11 +768,8 @@ def _momentum_positions_fragment():
         size_usd = pos.get('size_usd') or (get_coin_capital(_sym_for_pos) * leverage_multiplier)
         _tot_size_usd_r += size_usd
 
-        pos_dir = pos.get('direction', 'long')
-
-        if live_price and entry_price and size_usd > 0:
-            _move_frag         = (live_price - entry_price) / entry_price if pos_dir == 'long' else (entry_price - live_price) / entry_price
-            _gross_pnl         = _move_frag * size_usd
+        if live_price and entry_price:
+            _gross_pnl         = (live_price - entry_price) / entry_price * size_usd
             _trade_cost        = size_usd * TRADING_COST_PCT * 2
             unrealised_pnl_usd = _gross_pnl - _trade_cost
             net_return_pct     = unrealised_pnl_usd / size_usd * 100
@@ -744,8 +779,8 @@ def _momentum_positions_fragment():
             _tot_has_live_r    = True
             pnl_cls    = 'entry-t' if unrealised_pnl_usd >= 0 else 'entry-f'
             pnl_sign   = '+' if net_return_pct >= 0 else ''
-            live_td    = f'<td>{live_price:,.3f}</td>'
-            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.3f}%</td>'
+            live_td    = f'<td>{live_price:,.2f}</td>'
+            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.2f}%</td>'
             pnl_usd_td = f'<td class="{pnl_cls}">{pnl_sign}{unrealised_pnl_usd:,.0f}</td>'
             pos_val_td = f'<td>{position_value:,.0f}</td>'
         else:
@@ -761,12 +796,12 @@ def _momentum_positions_fragment():
 
         if conf_stop is not None:
             if _needs_confirm:
-                stop_td = (f'<td>{conf_stop:,.3f}'
-                           f'<br><span class="stop-up">-> {pending_stop:,.3f}</span></td>')
+                stop_td = (f'<td>{conf_stop:,.2f}'
+                           f'<br><span class="stop-up">-> {pending_stop:,.2f}</span></td>')
             else:
-                stop_td = f'<td>{conf_stop:,.3f}</td>'
+                stop_td = f'<td>{conf_stop:,.2f}</td>'
         elif pending_stop is not None:
-            stop_td = (f'<td><span style="color:#888780">{pending_stop:,.3f}</span>'
+            stop_td = (f'<td><span style="color:#888780">{pending_stop:,.2f}</span>'
                        f'<br><span style="font-size:10px;color:#888780">unconfirmed</span></td>')
         else:
             stop_td = '<td style="color:#888780">—</td>'
@@ -781,10 +816,10 @@ def _momentum_positions_fragment():
           <td class="asset-name">{escape(_sym_for_pos)}</td>
           <td>{escape(pos.get('entry_date','—'))}</td>
           <td>{days_held}</td>
-          <td>{entry_price:,.3f}</td>
+          <td>{entry_price:,.2f}</td>
           {live_td}
           {stop_td}
-          <td>{leverage_multiplier:.3f}x</td>
+          <td>{leverage_multiplier:.2f}x</td>
           <td>{size_usd:,.0f}</td>
           {pnl_pct_td}
           {pnl_usd_td}
@@ -795,7 +830,7 @@ def _momentum_positions_fragment():
         _tot_pct        = _tot_pnl_usd_r / _tot_size_usd_r * 100
         _tot_cls        = 'entry-t' if _tot_pct >= 0 else 'entry-f'
         _tot_sign       = '+' if _tot_pct >= 0 else ''
-        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.3f}%</td>'
+        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.2f}%</td>'
         _tot_pnl_usd_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pnl_usd_r:,.0f}</td>'
         _tot_pos_td     = f'<td>{_tot_pos_val_r:,.0f}</td>'
     else:
@@ -857,7 +892,7 @@ if _confirm_items:
     _conf_cols = st.columns(len(_confirm_items))
     for _col, (_pid, _sym, _pend) in zip(_conf_cols, _confirm_items):
         with _col:
-            if st.button(f"✓ Confirm stop {_sym}: {_pend:,.3f}",
+            if st.button(f"✓ Confirm stop {_sym}: {_pend:,.2f}",
                          key=f"conf_stop_{_pid}"):
                 _confirm_stop(_pid)
                 invalidate_trade_caches()
@@ -875,7 +910,7 @@ for c in coin_rows:
     badge      = f'<span class="badge badge-{d}">{d}</span>'
 
     lev = sig.get('leverage_multiplier')
-    size_pct = f"{lev:.3f}x" if lev is not None else '—'
+    size_pct = f"{lev:.2f}x" if lev is not None else '—'
     if d == 'HOLD' and lev is not None:
         size_pct += '<br><span style="font-size:11px;color:#888780">held</span>'
     elif d == 'EXIT' and lev is not None:
@@ -883,16 +918,16 @@ for c in coin_rows:
     size_usd = f"{sig['size_usd']:,.0f}" if sig['size_usd'] is not None else '—'
 
     if sig['current_stop'] is not None:
-        stop_html = f"{sig['current_stop']:,.3f}"
+        stop_html = f"{sig['current_stop']:,.2f}"
         if d == 'HOLD' and sig.get('stop_updated'):
-            stop_html += f' <span class="stop-up">↑</span><br><span class="stop-prev">was {sig["old_stop"]:,.3f}</span>'
+            stop_html += f' <span class="stop-up">↑</span><br><span class="stop-prev">was {sig["old_stop"]:,.2f}</span>'
     else:
         stop_html = '—'
 
-    exec_html = f"{c['exec_price']:,.3f}" if c['exec_price'] is not None else '<span style="color:#888780">pending</span>'
+    exec_html = f"{c['exec_price']:,.2f}" if c['exec_price'] is not None else '<span style="color:#888780">pending</span>'
 
     _lp = _live_prices.get(c['symbol'])
-    live_html = f"{_lp:,.3f}" if _lp is not None else '<span style="color:#888780">—</span>'
+    live_html = f"{_lp:,.2f}" if _lp is not None else '<span style="color:#888780">—</span>'
 
     row_cls = f'class="row-{d}"' if d != 'FLAT' else ''
 
@@ -906,13 +941,13 @@ for c in coin_rows:
       <td class="r">{size_pct}</td>
       <td class="r">{size_usd}</td>
       <td class="r">{stop_html}</td>
-      <td class="r">{sig['close']:,.3f}</td>
+      <td class="r">{sig['close']:,.2f}</td>
       <td class="r">{exec_html}</td>
       <td class="r">{live_html}</td>
     </tr>"""
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
 st.markdown(f"""
 <div class="dashboard-card">
   <table class="dash-table">
@@ -1000,7 +1035,7 @@ for _fi, _c in enumerate(coin_rows):
                 _selected_pos = _open_for_sym[_selected_pid]
             else:
                 _pid_labels = {
-                    pid: f"{pid}  —  {pos.get('entry_date','?')} @ ${pos.get('entry_price',0):,.3f}"
+                    pid: f"{pid}  —  {pos.get('entry_date','?')} @ ${pos.get('entry_price',0):,.2f}"
                     for pid, pos in _open_for_sym.items()
                 }
                 _selected_pid = st.selectbox(
@@ -1019,7 +1054,7 @@ for _fi, _c in enumerate(coin_rows):
         else:
             _held_lev = float(_default_size) if _default_size > 0 else 1.0
 
-        with st.form(key=f'trade_form_{_sym}', clear_on_submit=True):
+        with st.form(key=f'trade_form_{_sym}'):
             if not _is_exit:
                 # ── ENTRY form ────────────────────────────────────────────────
                 _ent_type_default = 0 if _sig.get('entry_long') else 1
@@ -1040,13 +1075,13 @@ for _fi, _c in enumerate(coin_rows):
                     'Actual leverage (x)',
                     value=float(round(_default_size, 2)),
                     min_value=0.0,
-                    format='%.3f',
+                    format='%.2f',
                     key=f'size_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
-                    format='%.3f',
+                    format='%.2f',
                     key=f'price_{_sym}',
                 )
                 _exit_lev = None
@@ -1062,14 +1097,14 @@ for _fi, _c in enumerate(coin_rows):
                     'Exit leverage (x)',
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
-                    max_value=_held_lev,
-                    format='%.3f',
+                    max_value=float(round(_held_lev, 2)),
+                    format='%.2f',
                     key=f'exit_lev_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
-                    format='%.3f',
+                    format='%.2f',
                     key=f'price_{_sym}',
                 )
                 _direction = None
@@ -1133,15 +1168,14 @@ for _fi, _c in enumerate(coin_rows):
                     _full_sz_usd  = (_exited_pos.get('size_usd')
                                      or get_coin_capital(_sym) * _held_lev)
                     _frac_closed  = _exit_amount / _held_lev if _held_lev > 0 else 1.0
-                    _dir_sign     = 1 if _exited_pos.get('direction', 'long') == 'long' else -1
                     _pnl_usd_exit = (
-                        _dir_sign * (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
+                        (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
                         if _entry_p > 0 else 0.0
                     )
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
+                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
                 elif not _is_exit_final:
                     # Generate new FIFO position_id
                     _positions_fresh = load_positions(DATA_DIR)
@@ -1209,7 +1243,7 @@ for c in coin_rows:
         return f'<td class="c"><span class="{txt_cls}">{"TRUE" if flag else "FALSE"}</span></td>'
 
     if sig['has_vol_ma']:
-        vol_ratio = f"{sig['vol_vol_ma_ratio']:.3f}" if sig.get('vol_vol_ma_ratio') is not None else '—'
+        vol_ratio = f"{sig['vol_vol_ma_ratio']:.2f}" if sig.get('vol_vol_ma_ratio') is not None else '—'
         vol_td    = f'<td class="r">{vol_ratio}</td>'
         # Box background for Vol above
         vol_ab_td = _bg_box(sig['vol_above_ma'])
@@ -1225,12 +1259,12 @@ for c in coin_rows:
     # Box background for ADX override
     adx_override_td = _bg_box(sig['adx_strong'])
 
-    ratio_str = f"{sig['close_ema_ratio']:.3f}" if sig['close_ema_ratio'] is not None else '—'
+    ratio_str = f"{sig['close_ema_ratio']:.2f}" if sig['close_ema_ratio'] is not None else '—'
 
     rows_html += f"""
     <tr>
       <td class="asset-name">{escape(c['symbol'])}</td>
-      <td class="r">{sig['ema']:,.3f}</td>
+      <td class="r">{sig['ema']:,.2f}</td>
       <td class="r">{ratio_str}</td>
       {_bg_box(sig['close_above_ema'])}
       <td class="r">{sig['adx']:.1f}</td>
@@ -1373,19 +1407,19 @@ with st.expander("STOP LOSS DETAILS"):
 
     rows_html = (
         _divider('Inputs') +
-        _row('Swing Hi Stp ($)', [f"{c['sig']['stop_detail']['swing_hi_stp']:,.3f}"   for c in coin_rows]) +
-        _row('ATR Stp ($)',      [f"{c['sig']['stop_detail']['atr_stp']:,.3f}"         for c in coin_rows]) +
-        _row('Stop ATR scale',   [f"{c['sig']['stop_detail']['stop_atr_scale']:.3f}"   for c in coin_rows]) +
+        _row('Swing Hi Stp ($)', [f"{c['sig']['stop_detail']['swing_hi_stp']:,.2f}"   for c in coin_rows]) +
+        _row('ATR Stp ($)',      [f"{c['sig']['stop_detail']['atr_stp']:,.2f}"         for c in coin_rows]) +
+        _row('Stop ATR scale',   [f"{c['sig']['stop_detail']['stop_atr_scale']:.2f}"   for c in coin_rows]) +
         _divider('Entry stop (Day 1)') +
         _badge_row('Path', lambda c: c['sig']['stop_detail']['entry_path']) +
-        _row('Multiplier',       [f"{c['sig']['stop_detail']['entry_multiplier']:.3f}" for c in coin_rows]) +
-        _row('Entry stop ($)',   [f"{c['sig']['stop_detail']['entry_stop']:,.3f}"       for c in coin_rows]) +
+        _row('Multiplier',       [f"{c['sig']['stop_detail']['entry_multiplier']:.2f}" for c in coin_rows]) +
+        _row('Entry stop ($)',   [f"{c['sig']['stop_detail']['entry_stop']:,.2f}"       for c in coin_rows]) +
         _divider('Hold stop (Day 2+ ratchet)') +
         _badge_row('Path', lambda c: c['sig']['stop_detail']['hold_path']) +
-        _row('Multiplier',       [f"{c['sig']['stop_detail']['hold_multiplier']:.3f}"  for c in coin_rows]) +
-        _row('Hold candidate ($)', [f"{c['sig']['stop_detail']['hold_stop_candidate']:,.3f}" for c in coin_rows]) +
-        _row('Previous stop ($)', [_dash_or(c['sig']['stop_detail']['hold_stop_previous'], lambda v: f'{v:,.3f}') for c in coin_rows]) +
-        _row('Final stop ($)',    [_dash_or(c['sig']['stop_detail']['hold_stop_final'],    lambda v: f'{v:,.3f}') for c in coin_rows]) +
+        _row('Multiplier',       [f"{c['sig']['stop_detail']['hold_multiplier']:.2f}"  for c in coin_rows]) +
+        _row('Hold candidate ($)', [f"{c['sig']['stop_detail']['hold_stop_candidate']:,.2f}" for c in coin_rows]) +
+        _row('Previous stop ($)', [_dash_or(c['sig']['stop_detail']['hold_stop_previous'], lambda v: f'{v:,.2f}') for c in coin_rows]) +
+        _row('Final stop ($)',    [_dash_or(c['sig']['stop_detail']['hold_stop_final'],    lambda v: f'{v:,.2f}') for c in coin_rows]) +
         f'<tr><td class="field-label">Updated</td>{upd_tds}</tr>'
     )
 
