@@ -160,6 +160,28 @@ The three regime features (`regime`, `regime_lag1`, `regime_duration`) use `regi
 
 ## 4. Stage 2 — XGBoost Walk-Forward
 
+### What is XGBoost?
+
+XGBoost (eXtreme Gradient Boosting) is an ensemble learning algorithm that builds a sequence of decision trees, where each new tree corrects the errors of all previous trees combined. It belongs to the family of **gradient boosting** methods.
+
+**Decision trees:** A single decision tree splits the data by asking yes/no questions about features ("is `dd_60d` < −0.15?"), partitioning the feature space into rectangular regions. Each leaf of the tree assigns a class or score to all points that land in it. A single deep tree overfits; a single shallow tree underfits.
+
+**Gradient boosting:** Rather than fitting one deep tree, gradient boosting fits many shallow trees in sequence. Each tree is trained on the **residuals** (errors) of the current ensemble — the difference between the predicted output so far and the truth. The key insight is that this residual-fitting process is equivalent to gradient descent in function space: at each step the algorithm fits a tree that points in the direction that most reduces the loss.
+
+Formally, if the current ensemble prediction is $F_m(x)$, the next tree $h_{m+1}$ is fit to minimise:
+
+$$\sum_i L(y_i,\ F_m(x_i) + h_{m+1}(x_i))$$
+
+where $L$ is the loss function (here, multiclass log-loss). The learning rate $\eta$ scales each tree's contribution: $F_{m+1}(x) = F_m(x) + \eta \cdot h_{m+1}(x)$.
+
+**Why XGBoost specifically?** XGBoost adds several improvements over vanilla gradient boosting:
+- **Regularisation** (`reg_alpha`, `reg_lambda`): L1 and L2 penalties on leaf weights prevent individual trees from memorising noise
+- **Column and row subsampling** (`colsample_bytree`, `subsample`): Each tree sees only a random subset of features and rows — like random forests, this reduces correlation between trees and improves generalisation
+- **Second-order gradients**: Uses both the gradient and Hessian of the loss to fit each tree more accurately, enabling larger learning steps than first-order methods
+- **Sparsity-aware splitting**: Handles missing values natively by learning a default direction for each split
+
+**Why XGBoost for regime classification?** The regime label depends on combinations of features in a non-linear way — deep drawdown combined with high volatility signals Bear differently than deep drawdown combined with low volatility (which could be Extreme Bear with a quiet recovery starting). XGBoost's decision tree structure captures these interactions naturally, without requiring the user to specify them explicitly. Linear models or neural networks either miss these interactions or require extensive feature engineering to capture them.
+
 ### Why Walk-Forward?
 
 A single train/test split is insufficient for a regime classifier: the model trained on 2020–2022 data has never seen a 2024–2025 bull market and would be predicting out-of-distribution. Walk-forward validation rolls the training window forward in time, producing genuinely out-of-sample (OOS) predictions at every point in the test history — the same way the model would actually be used in live trading.
