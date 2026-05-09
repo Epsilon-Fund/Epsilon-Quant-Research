@@ -184,6 +184,10 @@ def plot_portfolio_equity_curves(portfolio_paths, ci_results=None, n_display=200
     max_dd  = float(np.mean(path_maxdds))  if path_maxdds  else 0.0
     tot_ret = float(np.mean(path_rets))    if path_rets    else 0.0
 
+    # CAGR from mean total return across paths + common date span
+    n_years = (common_idx[-1] - common_idx[0]).days / 365.25
+    cagr    = float((1 + tot_ret) ** (1.0 / n_years) - 1.0) if n_years > 0 else 0.0
+
     # ── mean-path curve stats (for drawdown panel and yearly breakdowns only) ──
     ppy       = _infer_ppy(common_idx)
     mean_rets = mean_series.pct_change().dropna()
@@ -269,8 +273,12 @@ def plot_portfolio_equity_curves(portfolio_paths, ci_results=None, n_display=200
                   line_width=1, row=2, col=1)
 
     # ── annotation box 1: Portfolio Performance (top-left, row 1) ────────────
+    date_start = pd.Timestamp(common_idx[0]).strftime('%Y-%m-%d')
+    date_end   = pd.Timestamp(common_idx[-1]).strftime('%Y-%m-%d')
     perf_lines = [
         '<b>Portfolio Performance</b>',
+        f'Period:        <b>{date_start} → {date_end}</b>',
+        f'CAGR:          <b>{cagr * 100:.2f}%</b>',
         f'Total Return:  <b>{tot_ret * 100:.2f}%</b>',
         f'Sharpe Ratio:  <b>{sharpe:.2f}</b>',
         f'Max Drawdown:  <b>{max_dd * 100:.2f}%</b>',
@@ -1782,10 +1790,21 @@ def plot_asset_yearly_heatmap(breakdown, show=True, save_html=None):
     all_ret  = top_z[~np.isnan(top_z)]
     abs_max  = max(float(np.abs(all_ret).max()), 0.01) if len(all_ret) else 0.5
 
-    # ── Middle panel: pct_paths_positive ─────────────────────────────────────
+    # ── Middle panel: pct_paths_positive (assets + Portfolio row) ────────────
     pos_mat  = pos_piv[years].values
     pos_text = [[f'{v * 100:.0f}%' if not np.isnan(v) else ''
                  for v in row] for row in pos_mat]
+
+    port_pos_row = np.array([
+        float(port_summary.loc[port_summary['year'] == y, 'pct_paths_positive'].iloc[0])
+        if y in port_summary['year'].values else float('nan')
+        for y in years
+    ])
+    port_pos_text = [f'{v * 100:.0f}%' if not np.isnan(v) else '' for v in port_pos_row]
+
+    pos_mat  = np.vstack([pos_mat, port_pos_row])
+    pos_text = pos_text + [port_pos_text]
+    pos_ys   = assets + ['Portfolio']
 
     # ── Bottom panel: rank ────────────────────────────────────────────────────
     rank_mat  = rank_piv[years].values.astype(float)
@@ -1796,7 +1815,7 @@ def plot_asset_yearly_heatmap(breakdown, show=True, save_html=None):
     # ── subplots — 3 rows, shared x-axis ─────────────────────────────────────
     # row heights proportional to cell count so each cell is equal size
     n_top   = n_assets + 1   # assets + Portfolio
-    n_mid   = n_assets
+    n_mid   = n_assets + 1   # assets + Portfolio
     n_bot   = n_assets
     n_total = n_top + n_mid + n_bot
     rh = [n_top / n_total, n_mid / n_total, n_bot / n_total]
@@ -1843,7 +1862,7 @@ def plot_asset_yearly_heatmap(breakdown, show=True, save_html=None):
     fig.add_trace(go.Heatmap(
         z=pos_mat,
         x=year_strs,
-        y=assets,
+        y=pos_ys,
         text=pos_text,
         texttemplate='%{text}',
         textfont=dict(size=10, family=_FONT_MONO),

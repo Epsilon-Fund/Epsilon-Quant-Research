@@ -18,6 +18,6 @@ TRADING_COST_PCT = 0.001     # one-way cost fraction (used for unrealised P&L di
 COIN_WEIGHTS = {}
 
 # ── shared ────────────────────────────────────────────────────────────────────
-ACTIVE_ASSETS = ["BTCUSDT", "ETHUSDT", "AVAXUSDT", "ADAUSDT", "NEARUSDT"]
+ACTIVE_ASSETS = ["BTCUSDT", "ETHUSDT", "AVAXUSDT", "LINKUSDT", "POLUSDT"]
 # Add coins here after running:  python optimise.py --asset <SYMBOL>
 # Remove coins here to pause the dashboard without losing live_params.json data

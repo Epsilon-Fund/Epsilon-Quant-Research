@@ -363,7 +363,8 @@ for _ar in pair_rows:
                     _aspread_pnl = 0.0
                 _write_trade(
                     position_id=_apid, action='EXIT', strategy=_astrat,
-                    theoretical_price=1.0, actual_price=1.0,
+                    theoretical_price=1.0 + _aspread_pnl * _ads,
+                    actual_price=1.0 + _aspread_pnl * _ads,
                     size_usd=_asz, discretion_note='',
                     exit_reason=_adec,
                     exit_y_price=_axity, exit_x_price=_axitx,
@@ -888,8 +889,8 @@ for _fi, _r in enumerate(pair_rows):
                         position_id=_pid_to_exit,
                         action='EXIT',
                         strategy=_strategy,
-                        theoretical_price=1.0 + _theo_spread,
-                        actual_price=1.0 + _spread_pnl,
+                        theoretical_price=1.0 + _theo_spread * _dsign_ex,
+                        actual_price=1.0 + _spread_pnl * _dsign_ex,
                         size_usd=_size_st,
                         discretion_note=_disc,
                         exit_reason=_exit_reason_val,

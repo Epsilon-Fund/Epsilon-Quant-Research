@@ -224,6 +224,7 @@ def run_cpcv(
     score_fn     = None,
     reject_fn    = None,
     verbose      = True,
+    n_jobs       = 1,
 ):
     """
     Combinatorial Purged Cross-Validation (CPCV).
@@ -248,6 +249,9 @@ def run_cpcv(
     score_fn     : fn(metrics) -> float  (default: wf_engine composite)
     reject_fn    : fn(metrics) -> bool   (default: wf_engine min filters)
     verbose      : print one progress line per split
+    n_jobs       : parallel Optuna trials per split (default 1 = serial).
+                   Set to -1 to use all CPU cores, or a positive int.
+                   Uses threads — strategy_fn must not mutate shared state.
 
     Returns
     -------
@@ -312,11 +316,27 @@ def run_cpcv(
             _make_objective(df_train, strategy_fn, param_defs,
                             fixed_params, cost, score_fn, reject_fn),
             n_trials          = n_trials,
+            n_jobs            = n_jobs,
             show_progress_bar = False,
         )
 
         best_params = {**fixed_params, **study.best_params}
         is_score    = study.best_value
+
+        # ── IS Sharpe — one extra evaluation on the training slice ─────────
+        # score_fn is a composite (Sharpe + Calmar + Return), so comparing it
+        # directly against OOS Sharpe would be apples-to-oranges.  Run the
+        # strategy once on df_train with best_params and extract the raw Sharpe.
+        is_sharpe = float('nan')
+        try:
+            _is_result = strategy_fn(df_train, best_params)   # strategy copies internally
+            if _is_result is not None:
+                _is_strat_df, _ = _is_result
+                _is_m = _run_backtest(_is_strat_df, cost)
+                if _is_m is not None:
+                    is_sharpe = float(_is_m['sharpe_ratio'])
+        except Exception:
+            pass
 
         # ── OOS evaluation per test group ──────────────────────────────────
         group_results = {}
@@ -369,6 +389,7 @@ def run_cpcv(
             'test_group_indices': test_groups,
             'best_params':        best_params,
             'is_score':           is_score,
+            'is_sharpe':          is_sharpe,
             'group_results':      group_results,
         })
 
@@ -422,11 +443,48 @@ def run_cpcv(
     # ── group_boundaries ──────────────────────────────────────────────────────
     group_boundaries = [(df.index[s], df.index[e - 1]) for s, e in groups]
 
+    # ── efficiency_stats ──────────────────────────────────────────────────────
+    _eff_rows = []
+    for sr in split_results:
+        grp_sharpes = [
+            gr['metrics']['sharpe']
+            for gr in sr['group_results'].values()
+            if gr['metrics'] and gr['metrics']['sharpe'] is not None
+        ]
+        oos_sh = float(np.mean(grp_sharpes)) if grp_sharpes else float('nan')
+        is_sh  = sr.get('is_sharpe', float('nan'))   # IS Sharpe — same metric as OOS
+        ratio  = (oos_sh / is_sh
+                  if (is_sh != 0 and not (np.isnan(oos_sh) or np.isnan(is_sh)))
+                  else float('nan'))
+        _eff_rows.append({
+            'split_id':         sr['split_id'],
+            'is_score':         float(sr['is_score']),   # kept for reference only
+            'is_sharpe':        is_sh,
+            'oos_sharpe':       oos_sh,
+            'efficiency_ratio': ratio,
+            'test_groups':      sr['test_group_indices'],
+        })
+
+    _eff_df = pd.DataFrame(_eff_rows)
+    _v_rat  = _eff_df['efficiency_ratio'].replace([np.inf, -np.inf], np.nan).dropna()
+    _v_oos  = _eff_df['oos_sharpe'].replace([np.inf, -np.inf], np.nan).dropna()
+    _v_is   = _eff_df['is_sharpe'].replace([np.inf, -np.inf], np.nan).dropna()
+
+    efficiency_stats = {
+        'per_split':                        _eff_df,
+        'mean_efficiency':                  float(_v_rat.mean())          if len(_v_rat) else float('nan'),
+        'std_efficiency':                   float(_v_rat.std(ddof=1))     if len(_v_rat) > 1 else 0.0,
+        'median_efficiency':                float(_v_rat.median())        if len(_v_rat) else float('nan'),
+        'pct_splits_positive_oos':          float((_v_oos > 0).mean())    if len(_v_oos) else float('nan'),
+        'pct_splits_efficiency_above_half': float((_v_rat > 0.5).mean())  if len(_v_rat) else float('nan'),
+    }
+
     results = {
         'split_results':      split_results,
         'paths':              path_results,
         'param_distributions': param_distributions,
         'group_boundaries':   group_boundaries,
+        'efficiency_stats':   efficiency_stats,
         'config':             {
             'N': N, 'k': k, 'purge_bars': purge_bars,
             'n_trials': n_trials, 'burnin': burnin, 'cost': cost,
@@ -824,6 +882,7 @@ def cpcv_summary(
     show_highlights   = True,   # top 5 / bottom 5 paths by Sharpe
     show_split_legend = True,   # split legend decoding gN→sM notation
     show_ci           = True,   # confidence intervals
+    show_efficiency   = True,   # IS/OOS efficiency table
 ):
     """
     Print selected sections of the CPCV summary.
@@ -846,6 +905,7 @@ def cpcv_summary(
     show_highlights   : print top-5 / bottom-5 paths by Sharpe (default True)
     show_split_legend : print split legend decoding gN→sM notation (default True)
     show_ci           : compute and print confidence intervals (default True)
+    show_efficiency   : print IS/OOS efficiency table (default True)
     """
     paths         = cpcv_results['paths']
     bounds        = cpcv_results['group_boundaries']
@@ -1085,6 +1145,50 @@ def cpcv_summary(
     if show_ci:
         ci = cpcv_confidence_intervals(cpcv_results)
         cpcv_ci_summary(ci)
+
+    # ── Section 6: IS/OOS efficiency ─────────────────────────────────────────
+    if show_efficiency:
+        eff = cpcv_results.get('efficiency_stats')
+        if eff is None:
+            pass   # results from older runs that pre-date this feature
+        else:
+            eff_df   = eff['per_split']
+            n_sp     = len(eff_df)
+            mean_eff = eff['mean_efficiency']
+            std_eff  = eff['std_efficiency']
+            med_eff  = eff['median_efficiency']
+            pct_pos  = eff['pct_splits_positive_oos']
+            pct_half = eff['pct_splits_efficiency_above_half']
+
+            # mean IS Sharpe across all splits (same metric as OOS Sharpe)
+            v_is     = eff_df['is_sharpe'].replace([np.inf, -np.inf], np.nan).dropna()
+            v_oos    = eff_df['oos_sharpe'].replace([np.inf, -np.inf], np.nan).dropna()
+            mean_is  = float(v_is.mean())  if len(v_is)  else float('nan')
+            mean_oos = float(v_oos.mean()) if len(v_oos) else float('nan')
+
+            def _feff(v, pct=False):
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    return 'N/A'
+                return f'{v * 100:.1f}%' if pct else f'{v:.3f}'
+
+            W_EFF = 56
+            print(f"\n{'═' * W_EFF}")
+            print(f'IS/OOS EFFICIENCY  ({n_sp} splits)')
+            print(f"{'─' * W_EFF}")
+            print(f'  {"Mean IS Sharpe:":<28} {_feff(mean_is)}')
+            print(f'  {"Mean OOS Sharpe:":<28} {_feff(mean_oos)}')
+            print(f'  {"Mean efficiency:":<28} {_feff(mean_eff)}  (OOS / IS ratio)')
+            print(f'  {"Std efficiency:":<28} {_feff(std_eff)}')
+            print(f'  {"% splits OOS > 0:":<28} {_feff(pct_pos,  pct=True)}')
+            print(f'  {"% splits eff > 0.5:":<28} {_feff(pct_half, pct=True)}')
+            print(f"{'─' * W_EFF}")
+
+            consistency = ('Consistent' if (not np.isnan(std_eff)  and std_eff  < 0.25)
+                           else 'Volatile')
+            generalise  = ('Generalising' if (not np.isnan(mean_eff) and mean_eff > 0.5)
+                           else 'Overfitting')
+            print(f'  Verdict: {consistency}  |  {generalise}')
+            print(f"{'═' * W_EFF}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

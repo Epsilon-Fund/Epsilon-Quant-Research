@@ -35,7 +35,6 @@ for _p in (_DASHBOARD_DIR, _LT_DIR, _INFRA):
 DATA_DIR       = _DASHBOARD_DIR
 POSITIONS_PATH = os.path.join(DATA_DIR, 'positions.json')
 TRADES_PATH    = os.path.join(DATA_DIR, 'trades.json')
-
 import streamlit as st
 
 from dashboard import (
@@ -427,13 +426,18 @@ if ("bb_dashboard_data" not in st.session_state or
         _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
         _rows   = _result['assets']
         _sdate  = _result['signal_date']
+        # Capture the actual data-fetch time so the "Generated:" header
+        # shows when run_dashboard() last fired, not the current render
+        # clock.  Persisted in session_state alongside the data so
+        # subsequent cache-hit renders display the same value.
+        _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         for _row in _rows:
             _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
-        st.session_state.bb_dashboard_data      = (_rows, _sdate)
+        st.session_state.bb_dashboard_data      = (_rows, _sdate, _gen_at)
         st.session_state.bb_dashboard_cache_key = _cache_key
         st.session_state.bb_signal_date         = _expected_signal_date
 
-coin_rows, signal_date = st.session_state.bb_dashboard_data
+coin_rows, signal_date, generated_at = st.session_state.bb_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is always fresh.
 # Single fresh read used by decisions, header portfolio summary, and trade forms.
@@ -452,84 +456,8 @@ for _c in coin_rows:
         apply_decision(_c['sig'], _open_pos, _c['exec_price'], _c['coin_capital'])
     )
 
-# ── Auto-log theoretical trades ───────────────────────────────────────────────
-# Reads positions/trades fresh each render to guard against duplicate writes.
-# EXIT: fires even when exec_price is None (uses last close as fallback).
-# ENTRY: fires only once exec_price is available (T+1 bar is open).
-_auto_raw     = _load_json(TRADES_PATH, [])
-_auto_exited  = {t['position_id'] for t in _auto_raw if t.get('action') == 'EXIT'}
-_auto_pos_now = _load_json(POSITIONS_PATH, {})
-_auto_open_syms = {
-    p.get('symbol', pid) for pid, p in _auto_pos_now.items() if p.get('in_position')
-}
-_did_auto = False
-
-for _ac in coin_rows:
-    _asym   = _ac['symbol']
-    _asig   = _ac['sig']
-    _adec   = _asig['decision']
-    _aexec  = _ac['exec_price']
-    _atheo  = _aexec if _aexec is not None else _asig['close']
-    _astrat = _ac['strategy']
-
-    if _adec == 'EXIT':
-        _apos_file = _load_json(POSITIONS_PATH, {})
-        for _apid, _apos in list(_apos_file.items()):
-            if (
-                _apos.get('symbol', _apid) == _asym
-                and _apos.get('in_position')
-                and _apid not in _auto_exited
-            ):
-                _alev = float(_apos.get('leverage_multiplier') or _apos.get('size_pct') or 1.0)
-                _aep  = float(_apos.get('entry_price') or 0)
-                _asz  = float(_apos.get('size_usd') or (get_coin_capital(_asym) * _alev))
-                _adir_pos = _apos.get('direction', 'long')
-                _adir_sign = 1 if _adir_pos == 'long' else -1
-                _write_trade(
-                    position_id=_apid, action='EXIT', strategy=_astrat,
-                    theoretical_price=_atheo, actual_price=_atheo,
-                    theoretical_leverage=_alev, actual_leverage=_alev,
-                    theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
-                    exit_type='full', exit_leverage=_alev,
-                    exit_close=_asig['close'], exit_reason='Strategy',
-                )
-                _write_position_exit(_apid, _atheo, '')
-                if _aep > 0:
-                    _araw_ret = (_atheo - _aep) / _aep * _adir_sign
-                    update_realised_capital(DATA_DIR, _araw_ret * _asz, _apid)
-                _auto_exited.add(_apid)
-                _did_auto = True
-
-    elif _adec == 'ENTRY' and _aexec is not None and _asym not in _auto_open_syms:
-        _alev = float(_asig.get('leverage_multiplier') or 0.0)
-        if _alev > 0:
-            _adir_int = _asig.get('direction', 1)
-            _adir = 'long' if (_adir_int == 1 or _adir_int == 'long') else 'short'
-            _apos_fresh = _load_json(POSITIONS_PATH, {})
-            _anpid      = _next_position_id(_asym, _apos_fresh)
-            _acap       = get_coin_capital(_asym)
-            _asz        = _acap * _alev
-            _write_trade(
-                position_id=_anpid, action='ENTRY', strategy=_astrat,
-                theoretical_price=_aexec, actual_price=_aexec,
-                theoretical_leverage=_alev, actual_leverage=_alev,
-                theoretical_stop=_asig.get('theoretical_stop'), discretion_note='',
-                direction=_adir, entry_close=_asig['close'], entry_type='Strategy',
-                coin_capital=_acap, size_usd=_asz,
-                capital_total=load_realised_capital(DATA_DIR),
-            )
-            _write_position_entry(
-                _anpid, _asym, _aexec, _alev, _asig.get('theoretical_stop'),
-                _astrat, '', direction=_adir, coin_capital=_acap, size_usd=_asz,
-            )
-            _auto_open_syms.add(_asym)
-            _did_auto = True
-
-if _did_auto:
-    invalidate_trade_caches()
-
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-
+# `generated_at` was already loaded from session_state above (the actual
+# time run_dashboard() last fired, not the current render clock).
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -543,11 +471,10 @@ def fmt(v):
 
 def _fmt_price(v):
     """Adaptive price formatter — matches decimal places to price magnitude."""
-    import math as _m
-    if v is None or (isinstance(v, float) and _m.isnan(v)):
+    if v is None or (isinstance(v, float) and math.isnan(v)):
         return '—'
     if v >= 100:
-        return f'{v:,.2f}'
+        return f'{v:,.3f}'
     elif v >= 1:
         return f'{v:,.3f}'
     else:
@@ -646,12 +573,12 @@ _port_val_str  = f"${_port_val:,.0f}{_port_val_note}"
 _pnl_pct    = _total_pnl_usd / CAPITAL * 100 if CAPITAL else 0.0
 _pnl_cls    = 'entry-t' if _pnl_pct >= 0 else 'entry-f'
 _pnl_sign   = '+' if _pnl_pct >= 0 else ''
-_pnl_str    = f"{_pnl_sign}{_pnl_pct:.2f}%"
+_pnl_str    = f"{_pnl_sign}{_pnl_pct:.3f}%"
 
 _delta_color = '#1a5c2a' if _capital_delta >= 0 else '#a32d2d'
 _delta_sign  = '+' if _capital_delta >= 0 else ''
 _cap_cell    = (
-    f'${_realised_capital:,.2f}'
+    f'${_realised_capital:,.3f}'
     f'<br><span style="font-size:10px;color:{_delta_color}">'
     f'{_delta_sign}${_capital_delta:,.0f} vs initial</span>'
 )
@@ -690,9 +617,9 @@ def _bb_positions_fragment():
     symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
     live_prices = fetch_live_prices(symbols)
     elapsed     = time.time() - _t0
-    print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
+    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} price fetches)")
 
-    _bb_rows, _ = st.session_state.get("bb_dashboard_data", ([], None))
+    _bb_rows, _, _ = st.session_state.get("bb_dashboard_data", ([], None, None))
     coin_sig_by_sym = {c['symbol']: c['sig'] for c in _bb_rows} if _bb_rows else {}
 
     from datetime import date as _date
@@ -712,7 +639,7 @@ def _bb_positions_fragment():
         size_usd = pos.get('size_usd') or (get_coin_capital(_sym_for_pos) * leverage_multiplier)
         _tot_size_usd_r += size_usd
 
-        if live_price and entry_price:
+        if live_price and entry_price and size_usd > 0:
             _cost0   = size_usd * TRADING_COST_PCT * 2
             _move    = (live_price - entry_price) / entry_price if pos_dir == 'long' else (entry_price - live_price) / entry_price
             _pnl0    = _move * size_usd - _cost0
@@ -724,7 +651,7 @@ def _bb_positions_fragment():
             _pnl_cls0  = 'entry-t' if _pnl0 >= 0 else 'entry-f'
             _sign0     = '+' if _ret_pct >= 0 else ''
             live_td    = f'<td>{_fmt_price(live_price)}</td>'
-            pnl_pct_td = f'<td class="{_pnl_cls0}">{_sign0}{_ret_pct:.2f}%</td>'
+            pnl_pct_td = f'<td class="{_pnl_cls0}">{_sign0}{_ret_pct:.3f}%</td>'
             pnl_usd_td = f'<td class="{_pnl_cls0}">{_sign0}{_pnl0:,.0f}</td>'
             pos_val_td = f'<td>{_pos_val:,.0f}</td>'
         else:
@@ -795,7 +722,7 @@ def _bb_positions_fragment():
                             if pos_dir == 'long'
                             else (live_price - _tp_for_display) / live_price * 100)
                 _tp_sign = '+' if _tp_move >= 0 else ''
-                tp_sub   = f'{_tp_sign}{_tp_move:.2f}% to TP ({_tp_ratio_choice}:1)'
+                tp_sub   = f'{_tp_sign}{_tp_move:.3f}% to TP ({_tp_ratio_choice}:1)'
             else:
                 tp_sub = f'{_tp_ratio_choice} × stop dist'
             tp_td = (f'<td>{_fmt_price(_tp_for_display)}'
@@ -824,7 +751,7 @@ def _bb_positions_fragment():
           {stop_td}
           {tp_td}
           {regime_td}
-          <td>{leverage_multiplier:.2f}x</td>
+          <td>{leverage_multiplier:.3f}x</td>
           <td>{size_usd:,.0f}</td>
           {pnl_pct_td}
           {pnl_usd_td}
@@ -835,7 +762,7 @@ def _bb_positions_fragment():
         _tot_pct        = _tot_pnl_usd_r / _tot_size_usd_r * 100
         _tot_cls        = 'entry-t' if _tot_pct >= 0 else 'entry-f'
         _tot_sign       = '+' if _tot_pct >= 0 else ''
-        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.2f}%</td>'
+        _tot_pnl_pct_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pct:.3f}%</td>'
         _tot_pnl_usd_td = f'<td class="{_tot_cls}">{_tot_sign}{_tot_pnl_usd_r:,.0f}</td>'
         _tot_pos_td     = f'<td>{_tot_pos_val_r:,.0f}</td>'
     else:
@@ -932,7 +859,7 @@ if _confirm_items:
 # with the 1H Setup table further down so a single click drives both views.
 
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
 
 _tog_dec1, _tog_dec2, _tog_dec3 = st.columns([3, 3, 6])
 with _tog_dec1:
@@ -973,7 +900,7 @@ for c in coin_rows:
     #   Strategy state              1H Setup state   Decisions badge
     #   ──────────────────────────  ───────────────  ──────────────────────
     #   Real position open          IN POSITION x    HOLD / EXIT  (apply_decision)
-    #   Strategy just fired entry   IN POSITION x    ENTRY        (apply_decision)
+    #   Strategy just fired entry   ENTRY x          ENTRY        (apply_decision)
     #   Real arm, 1H entry FALSE    ARMED x          ARMED x
     #   Real arm, 1H entry TRUE     would transition (handled above as ENTRY)
     #   Sim arm, 1H entry FALSE     ARMED x (sim)    ARMED x (sim)
@@ -1083,14 +1010,14 @@ for c in coin_rows:
     # Size (leverage)
     if _sim_entry:
         _size_sub = 'on entry' if _is_real_armed else 'if armed'
-        size_pct = (f"{_sim_lev:.2f}x"
+        size_pct = (f"{_sim_lev:.3f}x"
                     f'<br><span style="font-size:11px;color:#888780">{_size_sub}</span>')
     else:
         lev = sig.get('leverage_multiplier')
         # Treat lev == 0 the same as missing — a stored leverage of 0
         # means a broken / drained-to-zero position record, not a real
         # zero-leverage hold.  Renders "—" instead of misleading "0.00x".
-        size_pct = f"{lev:.2f}x" if lev is not None and lev > 0 else '—'
+        size_pct = f"{lev:.3f}x" if lev is not None and lev > 0 else '—'
         if d == 'HOLD' and lev is not None and lev > 0:
             size_pct += '<br><span style="font-size:11px;color:#888780">held</span>'
         elif d == 'EXIT' and lev is not None and lev > 0:
@@ -1283,7 +1210,7 @@ for _fi, _c in enumerate(coin_rows):
                     'Actual leverage (x)',
                     value=float(round(max(_default_size, 0.01), 2)),
                     min_value=0.01,
-                    format='%.2f',
+                    format='%.3f',
                     key=f'bb_size_{_sym}',
                 )
                 _price = st.number_input(
@@ -1307,7 +1234,7 @@ for _fi, _c in enumerate(coin_rows):
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
                     max_value=_held_lev,
-                    format='%.2f',
+                    format='%.3f',
                     key=f'bb_exit_lev_{_sym}',
                 )
                 _price = st.number_input(
@@ -1405,8 +1332,8 @@ for _fi, _c in enumerate(coin_rows):
                     )
                     _old_rc = load_realised_capital(DATA_DIR)
                     _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
+                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
                 elif not _is_exit_final:
                     _positions_fresh = load_positions(DATA_DIR)
                     _new_pid         = _next_position_id(_sym, _positions_fresh)
@@ -1536,12 +1463,12 @@ for c in coin_rows:
         dir_label = 'Mixed'
 
     # ── Plain numeric cell (no green/red tint — matches momentum's pattern) ──
-    def _num_td(v, fmt='{:.2f}'):
+    def _num_td(v, fmt='{:.3f}'):
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return '<td class="r" style="color:#888780">—</td>'
         return f'<td class="r">{fmt.format(v)}</td>'
 
-    def _num(v, fmt='{:.2f}'):
+    def _num(v, fmt='{:.3f}'):
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return '—'
         return fmt.format(v)
@@ -1596,8 +1523,8 @@ for c in coin_rows:
     adx_val      = sig.get('h4_adx',     0.0)
     adx_thresh   = sig.get('adx_strong', 0.0)
     adx_strong_p = bool(sig.get('adx_strong_pass', False))
-    adx_td       = (f'<td class="r">{adx_val:.2f} '
-                    f'<span style="font-size:10px;color:#888780">/ {adx_thresh:.2f}</span></td>')
+    adx_td       = (f'<td class="r">{adx_val:.3f} '
+                    f'<span style="font-size:10px;color:#888780">/ {adx_thresh:.3f}</span></td>')
     adx_pass_td  = _bool_td(adx_strong_p)
 
     # +DI / −DI combined into a single cell to reduce clutter.  The
@@ -1605,8 +1532,8 @@ for c in coin_rows:
     plus_di    = sig.get('h4_plus_di',  0.0)
     minus_di   = sig.get('h4_minus_di', 0.0)
     di_bull    = bool(sig.get('plus_di_dominant', False))
-    di_vals_td = (f'<td class="r">{plus_di:.2f} '
-                  f'<span style="font-size:10px;color:#888780">/ {minus_di:.2f}</span></td>')
+    di_vals_td = (f'<td class="r">{plus_di:.3f} '
+                  f'<span style="font-size:10px;color:#888780">/ {minus_di:.3f}</span></td>')
     di_pass_td = _bool_td(di_bull)
 
     # Bull-regime veto — only matters for shorts.  For longs / mixed, show muted "—".
@@ -1620,12 +1547,44 @@ for c in coin_rows:
     else:
         veto_td = _muted_td('n/a (long dir)')
 
-    # Setup-would-arm column — based on the LAST 4H bar's conditions
+    # Setup-would-arm column — based on the LAST 4H bar's conditions.
+    #
+    # The 4H engine evaluates C1+C2+C3 per-bar.  But the 1H state machine
+    # arms only on the *rising edge* of h4_long/h4_short
+    # (`long_setup_fires = h4_long_1h & ~h4_long_1h.shift(1)`).  If the 4H
+    # conditions stay True for several bars, the 1H state machine arms
+    # once at the transition, then either fires entry, expires, or exits;
+    # after that, no new 1H setup will activate until h4_long flips False
+    # and back to True.  Showing "ARMS LONG/SHORT" purely on per-bar
+    # C1+C2+C3 misleads the user into thinking a fresh arm is available
+    # when the 1H side is locked out (e.g. LINK: 4H ARMS LONG but 1H IDLE
+    # and Decisions FLAT — already-used window).
+    #
+    # Distinguish three cases when C1+C2+C3 hold:
+    #   • setup_active OR just-fired              → ARMS LONG/SHORT  (actionable)
+    #   • multi-bar shadow position open          → IN POSITION
+    #   • neither — 1H state machine is exhausted → STALE LONG/SHORT
     if c1_pass and c2_pass and c3_pass:
+        _setup_active = bool(sig.get('setup_active', False))
+        _just_fired   = bool(sig.get('entry_long',  False)
+                             or sig.get('entry_short', False))
+        _in_long      = bool(sig.get('in_long',  False))
+        _in_short     = bool(sig.get('in_short', False))
+
         if h4_dir == 'long':
-            setup_td = '<td class="c entry-t">ARMS LONG</td>'
+            if _in_long and not _just_fired:
+                setup_td = '<td class="c entry-t">IN POSITION</td>'
+            elif _setup_active or _just_fired:
+                setup_td = '<td class="c entry-t">ARMS LONG</td>'
+            else:
+                setup_td = '<td class="c caution">STALE LONG</td>'
         elif h4_dir == 'short' and not bull_veto:
-            setup_td = '<td class="c entry-t">ARMS SHORT</td>'
+            if _in_short and not _just_fired:
+                setup_td = '<td class="c entry-t">IN POSITION</td>'
+            elif _setup_active or _just_fired:
+                setup_td = '<td class="c entry-t">ARMS SHORT</td>'
+            else:
+                setup_td = '<td class="c caution">STALE SHORT</td>'
         elif h4_dir == 'short' and bull_veto:
             setup_td = '<td class="c caution">SHORT VETOED</td>'
         else:
@@ -1690,7 +1649,7 @@ Don't fade strong bulls.
 | 4H ADX / strong | first number `>` second — ADX above its threshold |
 | +DI / −DI | `+DI > −DI` ⇒ bullish bias |
 | Bull veto | FALSE = clear · TRUE = blocks shorts |
-| Setup | `ARMS LONG` / `ARMS SHORT` = all three conditions fired |
+| Setup | `ARMS LONG` / `ARMS SHORT` = C1+C2+C3 align AND the 1H state machine is currently armed or has just fired entry · `STALE LONG` / `STALE SHORT` = C1+C2+C3 still align but the 1H rising-edge window has already been used (must wait for `h4_long` to reset before a new arm fires) · `IN POSITION` = strategy already holds the trade · `SHORT VETOED` = bull-veto blocks a short |
 """)
 
 st.markdown(f"""
@@ -1751,9 +1710,13 @@ computation runs.
 - **E3 — Structural break:** close overshoots the 1H SMA by more than
   `overshoot_bps` (price has gone through the level we wanted to buy)
 
-**State** — `IDLE` (no 4H setup) · `ARMED LONG/SHORT` (watching 1H) ·
-`IN POSITION LONG/SHORT` (already entered).  Spoiler / entry columns are
-greyed when no setup is armed.
+**State** — `IDLE` (no 4H setup) · `IDLE LONG / IDLE SHORT` (4H setup
+still aligns but the 1H state machine was killed by an expiry condition
+— E1 time-decay, E2 1H volatility spike, or E3 SMA overshoot — and is
+locked out until `h4_long`/`h4_short` flips False then True again) ·
+`ARMED LONG/SHORT` (watching 1H) · `ENTRY LONG/SHORT` (strategy just
+fired entry on this bar) · `IN POSITION LONG/SHORT` (already entered).
+Spoiler / entry columns are greyed when no setup is armed.
 
 **Manual-arm toggle** — Useful for examining the 1H conditions on demand.
 When enabled, every coin without an actual position is treated as ARMED
@@ -1768,6 +1731,13 @@ tag in the State column so you don't confuse them with a real setup.
 # drives both views.
 # (_force_armed and _force_dir are already in scope from the Decisions section.)
 
+# Build a {symbol → manual direction} lookup so the 1H Setup table's
+# IN POSITION badge reflects the user's real positions.json — not the
+# strategy's internal `sig['position']`, which is also non-zero for
+# shadow trades the user never logged manually.
+_manual_open_dirs = {p.get('symbol', pid): p.get('direction', 'long')
+                     for pid, p in _open.items() if p.get('in_position')}
+
 dip_rows_html = ''
 for c in coin_rows:
     sig = c['sig']
@@ -1775,22 +1745,50 @@ for c in coin_rows:
     state_badge_real = sig.get('state_badge', 'IDLE')
     setup_active     = bool(sig.get('setup_active', False))
     setup_direction  = int(sig.get('setup_direction', 0))
-    in_position      = sig.get('position', 0) != 0
+    # `in_position` here means a MANUAL position is open for this coin.
+    # Strategy-shadow trades (sig['position'] != 0 with no manual record)
+    # are NOT IN POSITION from the user's perspective — they fall through
+    # to ARMED / ARMED (sim) / IDLE depending on the toggle.
+    _manual_dir      = _manual_open_dirs.get(c['symbol'])
+    in_position      = _manual_dir is not None
 
     # ── Determine effective state (real or simulated) ─────────────────────
     # Real arm always wins over the toggle.  In-position rows ignore the toggle.
+    #
+    # Strategy-fired-entry case (decision='ENTRY', no manual position yet):
+    # the strategy's state machine has just transitioned position 0 → ±1 and
+    # CLEARED setup_active on the same bar, so the prior `in_position or
+    # setup_active` test would miss it and fall through to IDLE — which made
+    # the Decisions table say "ENTRY LONG" while the 1H Setup table said
+    # "IDLE" for the same coin.  Treat this as effective-active in the fired
+    # direction so the State badge reads "ENTRY LONG/SHORT" (matching the
+    # Decisions badge) and the spoiler cells recompute against the fired
+    # direction (they'll all read TRUE — the entry only fires when they do).
+    _decision        = sig.get('decision')
+    _dir_from_apply  = int(sig.get('direction') or 0)
+    _strategy_fired  = (_decision == 'ENTRY' and not in_position
+                        and _dir_from_apply != 0)
+
     if in_position or setup_active:
         eff_active     = setup_active and not in_position
         eff_direction  = setup_direction if eff_active else 0
         eff_simulated  = False
+        eff_just_fired = False
+    elif _strategy_fired:
+        eff_active     = True
+        eff_direction  = _dir_from_apply
+        eff_simulated  = False
+        eff_just_fired = True
     elif _force_armed:
         eff_active     = True
         eff_direction  = 1 if _force_dir == 'Long' else -1
         eff_simulated  = True
+        eff_just_fired = False
     else:
         eff_active     = False
         eff_direction  = 0
         eff_simulated  = False
+        eff_just_fired = False
 
     # ── Recompute direction-aware spoilers under the effective direction ──
     close_v        = sig.get('close', 0.0)
@@ -1816,14 +1814,17 @@ for c in coin_rows:
         eff_pullback_ok = False
         eff_entry_fires = False
 
-    # ── State badge cell ────────────────────────────────────────────────────
+    # ── State badge cell — based on MANUAL position, not strategy state ────
     if in_position:
-        if state_badge_real == 'IN POSITION LONG':
+        if _manual_dir == 'long':
             state_td = '<td class="c entry-t">IN POSITION LONG</td>'
-        elif state_badge_real == 'IN POSITION SHORT':
+        elif _manual_dir == 'short':
             state_td = '<td class="c entry-f">IN POSITION SHORT</td>'
         else:
-            state_td = _muted_td(state_badge_real)
+            state_td = _muted_td('IN POSITION')
+    elif eff_just_fired:
+        _label = 'ENTRY LONG' if eff_direction == 1 else 'ENTRY SHORT'
+        state_td = f'<td class="c entry-t">{_label}</td>'
     elif eff_active and eff_simulated:
         _label = 'ARMED LONG (sim)' if eff_direction == 1 else 'ARMED SHORT (sim)'
         state_td = f'<td class="c caution">{_label}</td>'
@@ -1831,10 +1832,31 @@ for c in coin_rows:
         _label = 'ARMED LONG' if eff_direction == 1 else 'ARMED SHORT'
         state_td = f'<td class="c entry-t">{_label}</td>'
     else:
-        state_td = _muted_td('IDLE')
+        # Idle — but if the 4H Engine Room (C1+C2+C3) still aligns long
+        # or short (i.e. the 4H Setup column reads STALE LONG/SHORT),
+        # tag the IDLE with the 4H direction so the user can see at a
+        # glance that the setup was killed by an expiry condition while
+        # the 4H setup is still in force.  Plain "IDLE" remains for the
+        # case where the 4H engine itself isn't aligned.
+        _c1   = bool(sig.get('c1_two_big_same_dir', False))
+        _c2   = bool(sig.get('c2_bb_expanding',     False))
+        _c3   = bool(sig.get('c3_slope_ok',         False))
+        _h4d  = sig.get('h4_dir', 'mixed')
+        _veto = bool(sig.get('bull_veto_active',    False))
+        if _c1 and _c2 and _c3 and _h4d == 'long':
+            state_td = _muted_td('IDLE LONG')
+        elif _c1 and _c2 and _c3 and _h4d == 'short' and not _veto:
+            state_td = _muted_td('IDLE SHORT')
+        else:
+            state_td = _muted_td('IDLE')
 
     # ── Bars-to-expiry — only meaningful when truly armed (not simulated) ──
-    if eff_active and not eff_simulated:
+    if eff_just_fired:
+        # Strategy just fired entry — bars_until_expiry is None and isn't
+        # relevant any more.  Show a clean "fired" tag instead of "0h / Nh".
+        expiry_td = ('<td class="r" style="color:#3B6D11;font-weight:600">'
+                     'just fired</td>')
+    elif eff_active and not eff_simulated:
         bars_left = int(sig.get('bars_until_expiry') or 0)
         max_bars  = int(sig.get('max_1h_bars', 0))
         ratio     = bars_left / max_bars if max_bars > 0 else 0
@@ -1852,7 +1874,7 @@ for c in coin_rows:
         expiry_td = _muted_td()
 
     # ── Plain numeric cell helper (no colour — matches momentum's pattern) ──
-    def _plain_num(v, fmt='{:.2f}'):
+    def _plain_num(v, fmt='{:.3f}'):
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return _muted_td()
         return f'<td class="r">{fmt.format(v)}</td>'
@@ -1874,8 +1896,8 @@ for c in coin_rows:
         if _v is None or (isinstance(_v, float) and math.isnan(_v)):
             pull_td = _muted_td()
         else:
-            pull_td = (f'<td class="r">{_v:.2f}× '
-                       f'<span style="font-size:10px;color:#888780">/ ≤ {_t:.2f}×</span></td>')
+            pull_td = (f'<td class="r">{_v:.3f}× '
+                       f'<span style="font-size:10px;color:#888780">/ ≤ {_t:.3f}×</span></td>')
     else:
         pull_td = _muted_td()
 
@@ -1890,7 +1912,7 @@ for c in coin_rows:
         overshoot_td = _muted_td()
 
     # Δ close % vs prev close — plain numeric
-    mom_pct_td = _plain_num(sig.get('momentum_pct'), fmt='{:+.2f}%') if eff_active else _muted_td()
+    mom_pct_td = _plain_num(sig.get('momentum_pct'), fmt='{:+.3f}%') if eff_active else _muted_td()
 
     # Momentum boolean (effective direction)
     momentum_td = _bool_td(eff_momentum_ok) if eff_active else _muted_td()
@@ -1965,8 +1987,6 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
 - *Strong-bull regime* (close > 1H trend MA AND 4H ADX > `adx_strong` AND +DI > −DI): no TP, ride the trail.
 - *Chop / Bear regime*: fixed 6:1 reward-to-risk from entry (TP = entry ± 6 × stop distance).
 """)
-    import math as _math
-
     n        = len(coin_rows)
     col_w    = f'calc((100% - 180px) / {n})'
     coin_ths = ''.join(
@@ -1985,7 +2005,7 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
         return f'<tr class="divider-row"><td colspan="{n+1}">{escape(label)}</td></tr>'
 
     def _fnum(v, dp=2, suffix=''):
-        if v is None or (isinstance(v, float) and _math.isnan(v)):
+        if v is None or (isinstance(v, float) and math.isnan(v)):
             return '—'
         return f'{v:,.{dp}f}{suffix}'
 
@@ -2052,17 +2072,17 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
         inputs_atr.append(_fnum(h1_atr, 2))
         inputs_close.append(_fmt_price(close_v))
         inputs_trail_mult.append(_fnum(trail_mult, 2, '×'))
-        inputs_trend_ma.append(_fmt_price(trend_ma) if not _math.isnan(trend_ma) else '—')
+        inputs_trend_ma.append(_fmt_price(trend_ma) if not math.isnan(trend_ma) else '—')
 
         # Stop block
         stop_trail_dist.append(_fnum(trail_dist, 2))
-        if cur_stop and not _math.isnan(cur_stop):
+        if cur_stop and not math.isnan(cur_stop):
             stop_current.append(_fmt_price(cur_stop))
         else:
             stop_current.append('—')
-        if cur_stop and not _math.isnan(cur_stop) and not _math.isnan(close_v) and close_v > 0:
+        if cur_stop and not math.isnan(cur_stop) and not math.isnan(close_v) and close_v > 0:
             sd_pct = abs(close_v - cur_stop) / close_v * 100
-            stop_dist_close.append(f'{sd_pct:.2f}%')
+            stop_dist_close.append(f'{sd_pct:.3f}%')
         else:
             stop_dist_close.append('—')
         stop_ratcheted.append(upd_yes if sig.get('stop_updated') else upd_no)
@@ -2081,11 +2101,11 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
                 (' <span style="font-size:10px;color:#888780">'
                  '(entry + 6× stop dist)</span>' if has_pos else '')
             )
-            if not _math.isnan(close_v) and close_v > 0:
+            if not math.isnan(close_v) and close_v > 0:
                 tp_pct = (tp_t - close_v) / close_v * 100 if dirn == 'long' \
                          else (close_v - tp_t) / close_v * 100
                 sign = '+' if tp_pct >= 0 else ''
-                tp_dist_close.append(f'{sign}{tp_pct:.2f}%')
+                tp_dist_close.append(f'{sign}{tp_pct:.3f}%')
             else:
                 tp_dist_close.append('—')
             tp_rr.append('6 : 1')
@@ -2093,13 +2113,13 @@ Ratchets in favour only on every closed 1H bar — never moves backward.
         # Regime breakdown — collapse each check to a single ratio.
         # Pass = ratio > 1.0 (green); fail = ratio ≤ 1.0 (red).
         def _ratio_cell(ratio):
-            if ratio is None or (isinstance(ratio, float) and _math.isnan(ratio)):
+            if ratio is None or (isinstance(ratio, float) and math.isnan(ratio)):
                 return '<span style="color:#888780">—</span>'
             cls = 'stat-pos' if ratio > 1.0 else 'stat-neg'
-            return f'<span class="{cls}" style="font-weight:600">{ratio:.2f}</span>'
+            return f'<span class="{cls}" style="font-weight:600">{ratio:.3f}</span>'
 
         # close / 1H trend MA
-        if not _math.isnan(trend_ma) and trend_ma != 0:
+        if not math.isnan(trend_ma) and trend_ma != 0:
             reg_close_vs_ma.append(_ratio_cell(close_v / trend_ma))
         else:
             reg_close_vs_ma.append(_ratio_cell(None))

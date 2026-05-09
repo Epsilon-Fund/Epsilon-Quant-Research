@@ -45,9 +45,15 @@ LIVE_PARAMS_PATH = os.path.join(_DASHBOARD_DIR, 'live_params.json')
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _score(metrics: dict) -> float:
-    """Normalised composite: Sharpe 50% | Calmar 30% | Return 20%."""
-    SHARPE_MAX = 3
-    CALMAR_MAX = 30.0
+    """
+    Normalised composite: Sharpe 50% | Calmar 30% | Return 20%.
+
+    Thresholds aligned with bb_cpcv per-asset notebooks (SCORE_FN) so the live
+    final-fit Optuna run targets the same objective as the CPCV validation:
+      SHARPE_MAX=3.5, CALMAR_MAX=16.0, RETURN_MAX=100.0
+    """
+    SHARPE_MAX = 3.5
+    CALMAR_MAX = 16.0
     RETURN_MAX = 100.0
 
     calmar = (metrics['total_return'] / abs(metrics['max_drawdown'])
@@ -61,12 +67,20 @@ def _score(metrics: dict) -> float:
 
 
 def _reject(metrics) -> bool:
-    """Returns True if this trial should be discarded."""
-    if metrics is None:                  return True
-    if metrics['num_trades']    < 15:     return True
-    if metrics['win_rate']      < 0.4:  return True
-    if metrics['max_drawdown']  < -0.6: return True
-    if metrics['profit_factor'] < 0.5:   return True
+    """
+    Returns True if this trial should be discarded.
+
+    Thresholds aligned with bb_cpcv per-asset notebooks (REJECT_FN).  The
+    previous live thresholds (num_trades<15, win_rate<0.4, max_dd<-0.6) were
+    stricter and rejected most leveraged BB-breakout trials whose IS metrics
+    naturally land between the two ranges (e.g. 35-40% win-rate, -60% to
+    -80% drawdown), forcing Optuna into worse local optima.
+    """
+    if metrics is None:                   return True
+    if metrics['num_trades']    < 5:      return True
+    if metrics['win_rate']      < 0.35:   return True
+    if metrics['max_drawdown']  < -0.80:  return True
+    if metrics['profit_factor'] < 0.5:    return True
     return False
 
 

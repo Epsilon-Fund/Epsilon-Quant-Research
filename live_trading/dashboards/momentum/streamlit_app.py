@@ -1097,7 +1097,7 @@ for _fi, _c in enumerate(coin_rows):
                     'Exit leverage (x)',
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
-                    max_value=_held_lev,
+                    max_value=float(round(_held_lev, 2)),
                     format='%.2f',
                     key=f'exit_lev_{_sym}',
                 )

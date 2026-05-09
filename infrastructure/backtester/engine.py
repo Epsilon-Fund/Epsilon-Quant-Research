@@ -59,8 +59,16 @@ def backtest(data, cost=0.0, show_plot=True, save_html=None, show_trades=False, 
     df['effective_position'] = eff_pos * eff_size
 
     # costs based on position changes (used for trade annotation / pairs cost)
+    # If the strategy supplies an explicit 'turnover' column (fractional portfolio
+    # turnover per bar, 0–2), use that instead of the binary position-change signal.
+    # This lets portfolio strategies charge accurate partial-turnover costs without
+    # baking them into strategy_returns.  Single-asset strategies that don't return
+    # a 'turnover' column are unaffected.
     df['position_change'] = df['position'].diff().abs()
-    df['trade_cost']      = df['position_change'] * cost
+    if 'turnover' in df.columns:
+        df['trade_cost'] = df['turnover'].fillna(0.0) * cost
+    else:
+        df['trade_cost'] = df['position_change'] * cost
 
     if not use_precomputed:
         # ── realized sizing (single-asset strategies) ─────────────────────────

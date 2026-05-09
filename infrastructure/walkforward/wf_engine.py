@@ -96,7 +96,9 @@ def _make_objective(df_train, strategy_fn, param_defs, fixed_params,
                 params[name] = trial.suggest_float(name, lo, hi)
 
         try:
-            result = strategy_fn(df_train.copy(), params)
+            # strategy_fn does df = df_slice.copy() internally — no need to
+            # copy here; removing it saves one ~37k-row allocation per trial.
+            result = strategy_fn(df_train, params)
         except Exception as e:
             if not _error_reported[0]:
                 import traceback

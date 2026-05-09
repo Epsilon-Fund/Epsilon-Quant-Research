@@ -292,11 +292,11 @@ def _render_stats_html(s: dict, n_total: int, skip_summary: bool = False) -> str
     if s is None:
         return '<p class="no-data-msg">No closed trades yet.</p>'
     pf_val     = s['profit_factor']
-    pf_str     = "∞" if pf_val == float('inf') else f"{pf_val:.2f}"
+    pf_str     = "∞" if pf_val == float('inf') else f"{pf_val:.3f}"
     pf_cls     = 'stat-pos' if pf_val >= 1 else 'stat-neg'
-    dd_str     = f"${s['max_dd']:,.2f}" if s['max_dd'] < 0 else "—"
+    dd_str     = f"${s['max_dd']:,.3f}" if s['max_dd'] < 0 else "—"
     rf_val     = s['recovery_factor']
-    rf_str     = f"{rf_val:.2f}" if rf_val is not None else "—"
+    rf_str     = f"{rf_val:.3f}" if rf_val is not None else "—"
     rf_cls     = ('stat-pos' if rf_val is not None and rf_val >= 1
                   else 'stat-neg' if rf_val is not None else '')
     streak_cls = 'stat-pos' if s['cur_result'] == 'W' else 'stat-neg'
@@ -336,9 +336,9 @@ def _render_stats_html(s: dict, n_total: int, skip_summary: bool = False) -> str
 def _render_hold_html(s: dict) -> str:
     if s is None:
         return ''
-    mae_all = f"{s['avg_mae_all']:.2f}%"    if s['avg_mae_all']    is not None else "—"
-    mae_w   = f"{s['avg_mae_wins']:.2f}%"   if s['avg_mae_wins']   is not None else "—"
-    mae_l   = f"{s['avg_mae_losses']:.2f}%" if s['avg_mae_losses'] is not None else "—"
+    mae_all = f"{s['avg_mae_all']:.3f}%"    if s['avg_mae_all']    is not None else "—"
+    mae_w   = f"{s['avg_mae_wins']:.3f}%"   if s['avg_mae_wins']   is not None else "—"
+    mae_l   = f"{s['avg_mae_losses']:.3f}%" if s['avg_mae_losses'] is not None else "—"
     mae_all_cls = 'stat-neg' if s['avg_mae_all']    is not None else ''
     mae_w_cls   = 'stat-neg' if s['avg_mae_wins']   is not None else ''
     mae_l_cls   = 'stat-neg' if s['avg_mae_losses'] is not None else ''
@@ -374,14 +374,14 @@ def _render_exec_html(e: dict, pairs: list) -> str:
     pd_cls = ('stat-pos' if e['avg_pnl_disc']  is not None and e['avg_pnl_disc']  >= 0
               else 'stat-neg' if e['avg_pnl_disc']  is not None else '')
     rows = "".join([
-        _stat_row("Avg entry slippage",          f"{e['avg_entry_slip']:+.2f}%",  es_cls),
-        _stat_row("Avg exit slippage",           f"{e['avg_exit_slip']:+.2f}%",   xs_cls),
-        _stat_row("Total slippage cost",         f"${e['total_slip_cost']:,.2f}", 'stat-neg'),
+        _stat_row("Avg entry slippage",          f"{e['avg_entry_slip']:+.3f}%",  es_cls),
+        _stat_row("Avg exit slippage",           f"{e['avg_exit_slip']:+.3f}%",   xs_cls),
+        _stat_row("Total slippage cost",         f"${e['total_slip_cost']:,.3f}", 'stat-neg'),
         _stat_row("Best execution trade",
-                  f"{b['entry_slippage_pct']:+.2f}% ({b['symbol']}, {b['entry_date']})" if b else "—",
+                  f"{b['entry_slippage_pct']:+.3f}% ({b['symbol']}, {b['entry_date']})" if b else "—",
                   'stat-pos'),
         _stat_row("Worst execution trade",
-                  f"{w['entry_slippage_pct']:+.2f}% ({w['symbol']}, {w['entry_date']})" if w else "—",
+                  f"{w['entry_slippage_pct']:+.3f}% ({w['symbol']}, {w['entry_date']})" if w else "—",
                   'stat-neg'),
         _stat_row("Avg P&amp;L — strategy exit",
                   _usd(e['avg_pnl_strat']) if e['avg_pnl_strat'] is not None else "—", ps_cls),
@@ -566,7 +566,7 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                 df_open = pd.DataFrame(open_rows)
                 try:
                     styled_open = df_open.style.format(
-                        {'Entry price': '{:,.2f}', 'Leverage': '{:.2f}x', 'Size ($)': '{:,.0f}'},
+                        {'Entry price': '{:,.3f}', 'Leverage': '{:.3f}x', 'Size ($)': '{:,.0f}'},
                         na_rep='—',
                     )
                 except Exception:
@@ -615,9 +615,9 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                 st.caption(f"{len(tab_closed)} closed trade{'s' if len(tab_closed)!=1 else ''}")
                 df_perf = pd.DataFrame(perf_rows)
                 try:
-                    fmt_perf: dict = {'Return %': '{:+.2f}', 'P&L ($)': '{:+,.2f}'}
+                    fmt_perf: dict = {'Return %': '{:+.3f}', 'P&L ($)': '{:+,.3f}'}
                     if 'MAE %' in df_perf.columns:
-                        fmt_perf['MAE %'] = lambda v: f'{v:.2f}' if pd.notna(v) else '—'
+                        fmt_perf['MAE %'] = lambda v: f'{v:.3f}' if pd.notna(v) else '—'
                     style_perf = df_perf.style.applymap(_style_return, subset=['Return %'])
                     style_perf = style_perf.applymap(_style_return, subset=['P&L ($)'])
                     if 'MAE %' in df_perf.columns:
@@ -665,9 +665,9 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                 df_exec = pd.DataFrame(exec_rows)
                 try:
                     styled_exec = df_exec.style.format(
-                        {'Actual price': '{:,.2f}', 'Strat close': '{:,.2f}',
-                         'Slip %': '{:+.2f}', 'Slip $': '{:+,.2f}',
-                         'Leverage': '{:.2f}x', 'Theo Lev': '{:.2f}x'},
+                        {'Actual price': '{:,.3f}', 'Strat close': '{:,.3f}',
+                         'Slip %': '{:+.3f}', 'Slip $': '{:+,.3f}',
+                         'Leverage': '{:.3f}x', 'Theo Lev': '{:.3f}x'},
                         na_rep='—',
                     )
                 except Exception:
@@ -745,8 +745,8 @@ def render_strategy_tab(
     _wl          = (_avg_win / abs(_avg_loss)
                     if _avg_win is not None and _avg_loss is not None and _avg_loss != 0
                     else None)
-    _pnl_sign    = (f"+${_total_rpnl:,.2f}" if _total_rpnl >= 0
-                    else f"-${abs(_total_rpnl):,.2f}")
+    _pnl_sign    = (f"+${_total_rpnl:,.3f}" if _total_rpnl >= 0
+                    else f"-${abs(_total_rpnl):,.3f}")
 
     with _hdr:
         m1, m2, m3, m4, m5, m6 = st.columns(6)
@@ -754,8 +754,8 @@ def render_strategy_tab(
         m2.metric("Open positions", len(strat_open))
         m3.metric("Total P&L",      _pnl_sign)
         m4.metric("Win rate",       f"{_win_rate:.1f}%" if _win_rate is not None else "—")
-        m5.metric("Profit factor",  f"{_pf:.2f}" if _pf is not None else "—")
-        m6.metric("Avg win / loss", f"{_wl:.2f}x" if _wl is not None else "—")
+        m5.metric("Profit factor",  f"{_pf:.3f}" if _pf is not None else "—")
+        m6.metric("Avg win / loss", f"{_wl:.3f}x" if _wl is not None else "—")
         if cost_pct > 0:
             st.caption(
                 f"P&L figures include trading costs: "
@@ -821,15 +821,15 @@ def render_fund_tab(
         m1, m2, m3, m4, m5, m6 = st.columns(6)
         m1.metric("Total trades",   len(filt_trades))
         m2.metric("Open positions", len(filt_open))
-        delta_sign = (f"+${total_rpnl:,.2f}" if total_rpnl >= 0
-                      else f"-${abs(total_rpnl):,.2f}")
+        delta_sign = (f"+${total_rpnl:,.3f}" if total_rpnl >= 0
+                      else f"-${abs(total_rpnl):,.3f}")
         m3.metric("Total P&L",      delta_sign)
         m4.metric("Win rate",       f"{_win_rate:.1f}%" if _win_rate is not None else "—")
-        m5.metric("Profit factor",  f"{_pf:.2f}" if _pf is not None else "—")
+        m5.metric("Profit factor",  f"{_pf:.3f}" if _pf is not None else "—")
         _wl = (_avg_win / abs(_avg_loss)
                if _avg_win is not None and _avg_loss is not None and _avg_loss != 0
                else None)
-        m6.metric("Avg win / loss", f"{_wl:.2f}x" if _wl is not None else "—")
+        m6.metric("Avg win / loss", f"{_wl:.3f}x" if _wl is not None else "—")
         _nonzero = {n: v for n, v in _cost_pcts.items() if v > 0}
         if _nonzero:
             _unique = set(_nonzero.values())
@@ -904,7 +904,7 @@ def render_fund_tab(
 
     df_fund = pd.DataFrame(fund_rows)
     try:
-        fmt_fund   = {'Return %': '{:+.2f}', 'P&L ($)': '{:+,.2f}'}
+        fmt_fund   = {'Return %': '{:+.3f}', 'P&L ($)': '{:+,.3f}'}
         style_fund = df_fund.style.applymap(_style_return, subset=['Return %'])
         style_fund = style_fund.applymap(_style_return, subset=['P&L ($)'])
         styled_fund = style_fund.format(fmt_fund, na_rep='—')

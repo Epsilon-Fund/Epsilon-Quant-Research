@@ -65,6 +65,9 @@ Thumbs.db
 
 # Large CPCV simulation files (exceed GitHub 100MB limit)
 portfolio_cpcv_paths.pkl
+topics/momentum/results/oos/combined_cpcv_paths.pkl
+topics/momentum/strategies/bb_cpcv/oos/*_1h_cpcv.pkl
+topics/momentum/strategies/bb_cpcv/wf_params/oos/*_1h_cpcv.pkl
 
 # Live trading — runtime data files (never commit live state)
 **/trades.json

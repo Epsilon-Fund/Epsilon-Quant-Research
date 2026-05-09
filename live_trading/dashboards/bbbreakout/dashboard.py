@@ -569,8 +569,16 @@ def apply_decision(sig, open_positions, exec_price, capital):
     leverage_mult   = sig['leverage_multiplier']
     trail_dist      = sig.get('trail_dist', 0.0) or 0.0
 
-    # ── ENTRY (strategy auto-fire) ────────────────────────────────────────────
-    if not in_position and position_signal != 0:
+    # ── ENTRY (strategy fires entry on THIS bar) ──────────────────────────────
+    # Use the entry-transition flags `entry_long` / `entry_short` (only True
+    # on the bar position transitions from 0 → ±1) instead of `position != 0`
+    # (which is True for entry bar AND every subsequent HOLD bar).  Without
+    # this, ENTRY would keep firing every render while the strategy is in
+    # a shadow trade the user never manually logged — confusing the user,
+    # since 1H Setup correctly shows the position state but Decisions kept
+    # saying "you should ENTER".
+    just_entered = bool(sig.get('entry_long', False) or sig.get('entry_short', False))
+    if not in_position and just_entered:
         price_for_units = exec_price if exec_price is not None else close
         size_usd        = leverage_mult * capital
         size_units      = size_usd / price_for_units if price_for_units else None

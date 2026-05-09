@@ -228,6 +228,66 @@ _CSS = """
 
   /* Legacy-data warning icon inline */
   .legacy-warn { color: #854F0B; font-size: 11px; }
+
+  /* ── Mobile overrides ────────────────────────────────────────────────────
+     Only fire below 768px — desktop layout is untouched. Goals:
+       1. Reclaim horizontal space (drop the 2rem side padding).
+       2. Stack st.columns vertically so they aren't squeezed to 150px each.
+       3. Make raw-HTML .dash-table tables scroll horizontally instead of
+          overflowing the page.
+       4. Shrink headers slightly so they don't wrap awkwardly. */
+  @media (max-width: 768px) {
+      .block-container,
+      [data-testid="stMainBlockContainer"] {
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+          padding-top: 3.5rem !important;
+      }
+      [data-baseweb="tab-panel"] {
+          padding-left: 0.25rem !important;
+          padding-right: 0.25rem !important;
+      }
+
+      /* Stack st.columns vertically on phones */
+      div[data-testid="stHorizontalBlock"] {
+          flex-direction: column !important;
+          gap: 0.5rem !important;
+      }
+      div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+      div[data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+          width: 100% !important;
+          flex: 1 1 100% !important;
+          min-width: 0 !important;
+      }
+
+      /* Horizontal scroll for raw-HTML tables rendered via st.markdown.
+         Streamlit wraps each markdown block in [data-testid="stMarkdown"];
+         capping its width at 100% and enabling overflow-x lets wide
+         .dash-table tables scroll inside the viewport instead of pushing
+         the whole page sideways. */
+      [data-testid="stMarkdown"] {
+          max-width: 100% !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch;
+      }
+      .dash-table { font-size: 12px !important; }
+      .dash-table th, .dash-table td { padding: 6px 8px !important; }
+
+      /* st.dataframe already scrolls; just make sure its container can */
+      div[data-testid="stDataFrame"] { overflow-x: auto !important; }
+
+      /* Headers — shrink so they don't wrap into 3 lines */
+      h1 { font-size: 1.5rem !important; }
+      h2 { font-size: 1.25rem !important; }
+      h3 { font-size: 1.05rem !important; }
+
+      /* Field-label column: 180px hard-coded width is too wide on phones */
+      .dash-table td.field-label {
+          width: auto !important;
+          min-width: 110px !important;
+          max-width: 140px !important;
+      }
+  }
 </style>
 """
 

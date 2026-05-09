@@ -8,6 +8,14 @@ No numerical config lives here — only function logic.
 import numpy as np
 import pandas as pd
 
+# ── 4H resample cache ─────────────────────────────────────────────────────────
+# Keyed on (first_timestamp, last_timestamp, n_rows).  Within a single CPCV
+# or walk-forward split the same training slice is passed to strategy_fn on
+# every Optuna trial — the resample result is identical each time, so we pay
+# the cost once and return the cached DataFrame on all subsequent calls.
+# The cache is bounded naturally: one entry per unique (split × asset) pair.
+_H4_CACHE: dict = {}
+
 
 # ── Shared indicator helpers ───────────────────────────────────────────────────
 
@@ -84,10 +92,21 @@ def bb_breakout(df_slice: pd.DataFrame, params: dict) -> tuple:
     df = df_slice.copy()
     h1 = df.rename(columns=str.lower)
 
-    # 4H resample
-    h4 = h1.resample("4h").agg(
-        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
-    ).dropna()
+    # 4H resample — cached per unique slice so repeated Optuna trials on the
+    # same training window pay the resample cost only once.  Cache key includes
+    # the first/last close price so different assets sharing the same date
+    # range and length (e.g. BTC and ETH both 51887 bars over 2020-2026) get
+    # separate cache entries; without the prices in the key, whichever asset
+    # ran first would silently feed its 4H bars to all later same-shape assets.
+    _cache_key = (
+        h1.index[0], h1.index[-1], len(h1),
+        float(h1["close"].iloc[0]), float(h1["close"].iloc[-1]),
+    )
+    if _cache_key not in _H4_CACHE:
+        _H4_CACHE[_cache_key] = h1.resample("4h").agg(
+            {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+        ).dropna()
+    h4 = _H4_CACHE[_cache_key]
 
     # 4H indicators
     h4_range = _candle_range(h4)
@@ -370,167 +389,228 @@ STRATEGY_REGISTRY = {
 
 
 # ── Asset config ──────────────────────────────────────────────────────────────
-# lookback = 2151 days of hourly data
+# lookback = 2200 days of hourly data
 # param_defs: {name: (dtype, lo, hi)}  — optimised by optimise.py
 # fixed_params: {name: value}          — held constant across all folds
 
 ASSET_CONFIG = [
     # ── BTC ───────────────────────────────────────────────────────────────────
+    # PARAM_DEFS / FIXED_PARAMS from bb_cpcv/BTC.ipynb
     {
         "symbol":   "BTCUSDT",
         "strategy": "bb_breakout",
-        "lookback": 2151,
+        "lookback": 2200,
         "param_defs": {
-            "bb_period":         ("int",   30,   40),
-            "bb_exp_window":     ("int",    2,   20),
-            "atr_period":        ("int",    5,   20),
-            "breakout_pct":      ("float",  0.50, 0.85),
-            "breakout_lookback": ("int",   20,  100),
-            "h4_ma_period":      ("int",   10,   50),
-            "slope_epsilon":     ("float",  0.0,  0.003),
-            "h1_ma_period":      ("int",    5,   17),
-            "entry_zone_bps":    ("int",   20,  100),
-            "overshoot_bps":     ("int",    5,  150),
-            "max_1h_bars":       ("int",   12,   48),
-            "pullback_atr_mult": ("float",  1.0,  3.0),
-            "trail_atr_mult":    ("float",  0.5,  4.0),
-            "adx_period":        ("int",    7,   21),
-            "adx_strong":        ("float", 20.0, 60.0),
-            "trend_ma_period":   ("int",  150,  300),
+            "bb_period":         ("int",    30,     40),
+            "bb_exp_window":     ("int",     2,     20),
+            "atr_period":        ("int",    13,     18),   # narrowed (was 5–20)
+            "breakout_pct":      ("float",  0.50,   0.85),
+            "breakout_lookback": ("int",    20,    100),
+            "h4_ma_period":      ("int",    10,     50),
+            "slope_epsilon":     ("float",  0.0,    0.003),
+            "h1_ma_period":      ("int",     9,     12),   # narrowed (was 5–17)
+            "entry_zone_bps":    ("int",    20,    100),
+            "overshoot_bps":     ("int",     5,    150),
+            "max_1h_bars":       ("int",    12,     48),
+            "pullback_atr_mult": ("float",  1.328,  1.486), # narrowed (was 1.0–3.0)
+            "trail_atr_mult":    ("float",  0.5,    4.0),
+            "adx_period":        ("int",     7,     21),
+            "adx_strong":        ("float", 20.0,   60.0),
+            "trend_ma_period":   ("int",   150,    300),
         },
         "fixed_params": {
             "bb_period":         36,
             "bb_exp_window":     17,
             "breakout_lookback": 86,
+            "breakout_pct":      0.6949,
             "trail_atr_mult":    3.1918,
             "trend_ma_period":   230,
-            "risk_per_trade":    0.03,
+            "risk_per_trade":    0.02,
             "max_leverage":      2.5,
         },
     },
     # ── ETH ───────────────────────────────────────────────────────────────────
+    # PARAM_DEFS / FIXED_PARAMS from bb_cpcv/ETH.ipynb
     {
         "symbol":   "ETHUSDT",
         "strategy": "bb_breakout",
-        "lookback": 2151,
+        "lookback": 2200,
         "param_defs": {
-            "bb_period":         ("int",   10,   40),
-            "bb_exp_window":     ("int",    8,   20),
-            "atr_period":        ("int",    5,   20),
-            "breakout_pct":      ("float",  0.70, 0.85),
-            "breakout_lookback": ("int",   20,  100),
-            "h4_ma_period":      ("int",   10,   50),
-            "slope_epsilon":     ("float",  0.0,  0.003),
-            "h1_ma_period":      ("int",    5,   17),
-            "entry_zone_bps":    ("int",    5,  100),
-            "overshoot_bps":     ("int",    5,  150),
-            "max_1h_bars":       ("int",   12,   48),
-            "pullback_atr_mult": ("float",  1.2,  3.0),
-            "trail_atr_mult":    ("float",  0.5,  4.0),
-            "adx_period":        ("int",    7,   21),
-            "adx_strong":        ("float", 20.0, 60.0),
-            "trend_ma_period":   ("int",  150,  300),
+            "bb_period":         ("int",    28,     37),   # narrowed (was 10–40)
+            "bb_exp_window":     ("int",    13,     18),   # narrowed (was 8–20)
+            "atr_period":        ("int",     5,     20),
+            "breakout_pct":      ("float",  0.50,   0.85),
+            "breakout_lookback": ("int",    20,    100),
+            "h4_ma_period":      ("int",    10,     50),
+            "slope_epsilon":     ("float",  0.0,    0.003),
+            "h1_ma_period":      ("int",    13,     14),   # narrowed (was 5–17)
+            "entry_zone_bps":    ("int",     5,    100),
+            "overshoot_bps":     ("int",    94,    111),   # narrowed (was 5–150)
+            "max_1h_bars":       ("int",    30,     41),   # narrowed (was 12–48)
+            "pullback_atr_mult": ("float",  2.066,  2.609), # narrowed (was 1.2–3.0)
+            "trail_atr_mult":    ("float",  3.384,  3.789), # narrowed (was 0.5–4.0)
+            "adx_period":        ("int",     7,     21),
+            "adx_strong":        ("float", 20.0,   60.0),
+            "trend_ma_period":   ("int",   188,    242),   # narrowed (was 150–300)
         },
         "fixed_params": {
-            "bb_period":         38,
-            "breakout_pct":      0.7953,
-            "breakout_lookback": 50,
-            "pullback_atr_mult": 1.9474,
-            "trail_atr_mult":    3.3608,
-            "risk_per_trade":    0.03,
+            "bb_period":         34,
+            "bb_exp_window":     15,
+            "breakout_pct":      0.7367,
+            "breakout_lookback": 28,
+            "pullback_atr_mult": 2.227,
+            "trail_atr_mult":    3.609,
+            "trend_ma_period":   203,
+            "risk_per_trade":    0.02,
             "max_leverage":      2.5,
         },
     },
     # ── AVAX ──────────────────────────────────────────────────────────────────
+    # PARAM_DEFS / FIXED_PARAMS from bb_cpcv/AVAX.ipynb
     {
         "symbol":   "AVAXUSDT",
         "strategy": "bb_breakout",
-        "lookback": 2151,
+        "lookback": 2200,
         "param_defs": {
-            "bb_period":         ("int",   20,   40),
-            "bb_exp_window":     ("int",    1,   20),
-            "atr_period":        ("int",    5,   20),
-            "breakout_lookback": ("int",   20,  100),
-            "h4_ma_period":      ("int",   10,   50),
-            "slope_epsilon":     ("float",  0.001, 0.003),
-            "overshoot_bps":     ("int",   60,  150),
-            "max_1h_bars":       ("int",   12,   48),
-            "pullback_atr_mult": ("float",  1.5,  3.0),
-            "trail_atr_mult":    ("float",  0.5,  4.0),
-            "adx_period":        ("int",    7,   21),
-            "adx_strong":        ("float", 20.0, 60.0),
-            "trend_ma_period":   ("int",  150,  300),
+            "bb_period":         ("int",    20,     40),
+            "bb_exp_window":     ("int",     1,     20),
+            "atr_period":        ("int",     5,     20),
+            "breakout_pct":      ("float",  0.50,   0.85),
+            "breakout_lookback": ("int",    20,    100),
+            "h4_ma_period":      ("int",    34,     49),   # narrowed (was 10–50)
+            "slope_epsilon":     ("float",  0.001,  0.003),
+            "h1_ma_period":      ("int",     5,     17),
+            "entry_zone_bps":    ("int",     5,    100),
+            "overshoot_bps":     ("int",    98,    131),   # narrowed (was 60–150)
+            "max_1h_bars":       ("int",    12,     48),
+            "pullback_atr_mult": ("float",  1.5,    3.0),
+            "trail_atr_mult":    ("float",  0.5,    4.0),
+            "adx_period":        ("int",    12,     20),   # narrowed (was 7–21)
+            "adx_strong":        ("float", 20.0,   60.0),
+            "trend_ma_period":   ("int",   202,    255),   # narrowed (was 150–300)
         },
         "fixed_params": {
+            "bb_period":         28,
+            "bb_exp_window":     16,
             "breakout_pct":      0.6029,
             "breakout_lookback": 48,
             "h1_ma_period":      16,
             "entry_zone_bps":    71,
-            "risk_per_trade":    0.03,
+            "pullback_atr_mult": 2.575,
+            "adx_strong":        47.12,
+            "overshoot_bps":     105,
+            "trend_ma_period":   234,
+            "risk_per_trade":    0.02,
+            "max_leverage":      2.5,
+        },
+    },
+    # ── LINK ──────────────────────────────────────────────────────────────────
+    # PARAM_DEFS / FIXED_PARAMS from bb_cpcv/LINK.ipynb
+    {
+        "symbol":   "LINKUSDT",
+        "strategy": "bb_breakout",
+        "lookback": 2200,
+        "param_defs": {
+            "bb_period":         ("int",    10,     40),
+            "bb_exp_window":     ("int",    12,     20),   # narrowed (was 1–20)
+            "atr_period":        ("int",     5,     20),
+            "breakout_pct":      ("float",  0.50,   0.85),
+            "breakout_lookback": ("int",    20,    100),
+            "h4_ma_period":      ("int",    32,     39),   # narrowed (was 10–50)
+            "slope_epsilon":     ("float",  0.0,    0.002), # narrowed (was 0.0–0.003)
+            "h1_ma_period":      ("int",     5,     17),
+            "entry_zone_bps":    ("int",     5,    100),
+            "overshoot_bps":     ("int",    68,     86),   # narrowed (was 5–150)
+            "max_1h_bars":       ("int",    12,     48),
+            "pullback_atr_mult": ("float",  1.032,  1.303), # narrowed (was 1.0–3.0)
+            "trail_atr_mult":    ("float",  0.5,    4.0),
+            "adx_period":        ("int",     7,     21),
+            "adx_strong":        ("float", 41.28,  55.03), # narrowed (was 20.0–60.0)
+            "trend_ma_period":   ("int",   188,    268),   # narrowed (was 150–300)
+        },
+        "fixed_params": {
+            "bb_period":         34,
+            "bb_exp_window":     18,
+            "breakout_pct":      0.7064,
+            "breakout_lookback": 84,
+            "h4_ma_period":      37,
+            "h1_ma_period":      14,
+            "entry_zone_bps":    92,
+            "pullback_atr_mult": 1.09,
+            "trail_atr_mult":    1.5603,
+            "adx_strong":        44.96,
+            "trend_ma_period":   220,
+            "risk_per_trade":    0.02,
+            "max_leverage":      2.5,
+        },
+    },
+    # ── POL (formerly MATIC; Binance rebranded Sep 2024) ──────────────────────
+    # PARAM_DEFS / FIXED_PARAMS from bb_cpcv/MATIC.ipynb
+    {
+        "symbol":   "POLUSDT",
+        "strategy": "bb_breakout",
+        "lookback": 2200,
+        "param_defs": {
+            "bb_period":         ("int",    28,     34),   # narrowed (was 20–40)
+            "bb_exp_window":     ("int",    18,     20),   # narrowed (was 1–20)
+            "atr_period":        ("int",    12,     16),   # narrowed (was 5–20)
+            "breakout_pct":      ("float",  0.5193, 0.5569), # narrowed (was 0.50–0.85)
+            "breakout_lookback": ("int",    20,    100),
+            "h4_ma_period":      ("int",    10,     50),
+            "slope_epsilon":     ("float",  0.0,    0.003),
+            "h1_ma_period":      ("int",     5,     17),
+            "entry_zone_bps":    ("int",     5,    100),
+            "overshoot_bps":     ("int",    95,    130),   # narrowed (was 5–150)
+            "max_1h_bars":       ("int",    12,     48),
+            "pullback_atr_mult": ("float",  1.215,  1.359), # narrowed (was 1.5–3.0)
+            "trail_atr_mult":    ("float",  3.234,  3.724), # narrowed (was 0.5–4.0)
+            "adx_period":        ("int",     7,     21),
+            "adx_strong":        ("float", 20.0,   60.0),
+            "trend_ma_period":   ("int",   178,    251),   # narrowed (was 150–300)
+        },
+        "fixed_params": {
+            "bb_period":         30,
+            "bb_exp_window":     20,
+            "atr_period":        14,
+            "breakout_pct":      0.5277,
+            "overshoot_bps":     116,
+            "pullback_atr_mult": 1.246,
+            "trail_atr_mult":    3.407,
+            "trend_ma_period":   193,
+            "risk_per_trade":    0.02,
             "max_leverage":      2.5,
         },
     },
     # ── ADA ───────────────────────────────────────────────────────────────────
+    # PARAM_DEFS / FIXED_PARAMS from bb_cpcv/ADA.ipynb
     {
         "symbol":   "ADAUSDT",
         "strategy": "bb_breakout",
-        "lookback": 2151,
+        "lookback": 2200,
         "param_defs": {
-            "bb_period":         ("int",   10,   40),
-            "bb_exp_window":     ("int",    2,   20),
-            "atr_period":        ("int",    5,   20),
-            "breakout_pct":      ("float",  0.50, 0.85),
-            "breakout_lookback": ("int",   20,  100),
-            "h4_ma_period":      ("int",   10,   50),
-            "slope_epsilon":     ("float",  0.0,  0.003),
-            "entry_zone_bps":    ("int",    5,  100),
-            "overshoot_bps":     ("int",    5,  110),
-            "max_1h_bars":       ("int",   12,   48),
-            "pullback_atr_mult": ("float",  1.0,  3.0),
-            "adx_period":        ("int",    7,   21),
-            "adx_strong":        ("float", 20.0, 60.0),
+            "bb_period":         ("int",    24,     28),   # narrowed (was 20–40)
+            "bb_exp_window":     ("int",     2,     20),
+            "atr_period":        ("int",     5,     20),
+            "breakout_pct":      ("float",  0.50,   0.85),
+            "breakout_lookback": ("int",    20,    100),
+            "h4_ma_period":      ("int",    10,     50),
+            "slope_epsilon":     ("float",  0.0,    0.003),
+            "h1_ma_period":      ("int",     5,     17),
+            "entry_zone_bps":    ("int",     5,    100),
+            "overshoot_bps":     ("int",     5,    110),   # narrowed (was 5–150)
+            "max_1h_bars":       ("int",    12,     48),
+            "pullback_atr_mult": ("float",  2.0,    3.0),  # narrowed (was 1.0–3.0)
+            "trail_atr_mult":    ("float",  3.769,  3.94), # narrowed (was 0.5–4.0)
+            "adx_period":        ("int",     7,     21),
+            "adx_strong":        ("float", 20.0,   60.0),
+            "trend_ma_period":   ("int",   150,    300),
         },
         "fixed_params": {
-            "breakout_pct":      0.5199,
+            "bb_period":         26,
             "h1_ma_period":      10,
-            "trail_atr_mult":    3.7041,
+            "trail_atr_mult":    3.891,
             "trend_ma_period":   244,
-            "risk_per_trade":    0.03,
-            "max_leverage":      2.5,
-        },
-    },
-    # ── NEAR ──────────────────────────────────────────────────────────────────
-    {
-        "symbol":   "NEARUSDT",
-        "strategy": "bb_breakout",
-        "lookback": 2151,
-        "param_defs": {
-            "bb_period":         ("int",   10,   40),
-            "bb_exp_window":     ("int",    2,   20),
-            "atr_period":        ("int",    5,   20),
-            "breakout_pct":      ("float",  0.50, 0.85),
-            "breakout_lookback": ("int",   20,  100),
-            "h4_ma_period":      ("int",   10,   50),
-            "slope_epsilon":     ("float",  0.0,  0.003),
-            "h1_ma_period":      ("int",    5,   17),
-            "entry_zone_bps":    ("int",    5,  100),
-            "overshoot_bps":     ("int",    5,  150),
-            "max_1h_bars":       ("int",   12,   48),
-            "pullback_atr_mult": ("float",  1.0,  3.0),
-            "trail_atr_mult":    ("float",  0.5,  4.0),
-            "adx_period":        ("int",    7,   21),
-            "adx_strong":        ("float", 20.0, 60.0),
-            "trend_ma_period":   ("int",  150,  300),
-        },
-        "fixed_params": {
-            "overshoot_bps":     99,
-            "pullback_atr_mult": 2.717,
-            "trail_atr_mult":    2.7646,
-            "breakout_pct":      0.7113,
-            "atr_period":        5,
-            "max_1h_bars":       23,
-            "trend_ma_period":   220,
-            "risk_per_trade":    0.03,
+            "risk_per_trade":    0.015,
             "max_leverage":      2.5,
         },
     },
