@@ -333,10 +333,15 @@ Bull and Extreme Bear predictions are correctly positioned at opposite ends. Bea
 |----------|-----------|--------|--------|-------------|
 | Long / Flat / Short | 17.3% | 0.36 | −55.0% | 28.0% |
 | **Long / Flat only** | **17.7%** | **0.69** | **−27.7%** | **70.7%** |
+| Long / Flat / ExBear Short | 26.1% | 0.63 | −36.5% | 91.8% |
 | Long / Half / Flat | 14.1% | 0.49 | −37.0% | 46.1% |
 | BTC Buy & Hold | 14.2% | 0.26 | −68.8% | 0.6% |
 
-Long/Flat only achieves 0.69 Sharpe and −27.7% max drawdown vs Buy & Hold's −68.8% — the regime filter alone is a viable trading signal. The OOS window starts in April 2022 (the heart of the crypto bear market), making Buy & Hold a low bar; the regime filter's real value is in the risk-adjusted metrics. Note: strategy application results in sections 8–10 use the full prediction history including 2021.
+Long/Flat only achieves the best risk-adjusted return (0.69 Sharpe, −27.7% MaxDD). Adding an Extreme Bear short leg (Long/Flat/ExBear Short) raises annualised return to 26.1% and total return to 91.8% at the cost of slightly lower Sharpe (0.63) and deeper drawdown (−36.5%) — a viable long-short configuration since Extreme Bear has a clean −52.4% average forward return.
+
+**Why not short Bear?** The Bear regime (+25.1% forward return) is structurally unsuitable for shorting: Bear predictions cluster around crash bottoms and post-crash recovery periods where V-shaped reversals produce strong positive returns. Filtering by recovery level (recov_60d), consecutive prediction days, or probability threshold all made the Bear short leg worse — the positive forward return on Bear days is not a filter artefact but a structural property of where the model places Bear labels. Only Extreme Bear produces a reliable negative forward return.
+
+Note: strategy application results in sections 8–10 use the full prediction history including 2021.
 
 ---
 
@@ -548,7 +553,7 @@ topics/momentum/results/
 | 12. Regime Timeline | True (HMM) vs Predicted (XGBoost) colour strips with price |
 | 13. Probability Time Series | Stacked probabilities + Bull probability alone vs price |
 | 14. Save | Write `btc_regime_predictions.parquet` |
-| 15. Direct Strategy Backtest | Long/Flat/Short using predictions as BTC trading signal |
+| 15. Direct Strategy Backtest | Long/Flat only, Long/Flat/ExBear Short, Long/Flat/Short, Long/Half/Flat vs Buy & Hold |
 
 ### Downstream Notebook Structure — `moneyin_regime.ipynb`
 
