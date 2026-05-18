@@ -9,7 +9,6 @@ Exported public API
   run_dashboard(coin_symbols, live_params, positions) -> dict
   fetch_ohlcv(symbol, warmup_bars)     -> DataFrame
   fetch_hourly_recent(symbol, days)    -> DataFrame
-  fetch_live_price(symbol)             -> float | None
   compute_signals(df, params, strategy)-> dict
   apply_decision(sig, open_positions, exec_price, capital) -> dict
   get_open_positions(symbol, positions)-> dict
@@ -47,30 +46,9 @@ POSITIONS_PATH   = os.path.join(_DASHBOARD_DIR, 'positions.json')
 #  Data fetching
 # ══════════════════════════════════════════════════════════════════════════════
 
-def fetch_live_price(symbol: str):
-    """
-    Fetch the current market price for a single symbol via the ticker endpoint.
-    Very lightweight — one REST call, no OHLCV data fetched.
-    Returns a float, or None on error.  Not cached — always returns fresh data.
-    """
-    try:
-        client = get_binance_client()
-        ticker = client.get_symbol_ticker(symbol=symbol)
-        return float(ticker['price'])
-    except Exception as e:
-        print(f"  fetch_live_price({symbol}) failed: {e}")
-        return None
-
-
-def fetch_live_prices(symbols: list) -> dict:
-    """
-    Fetch live prices for multiple symbols.  Not cached — always returns fresh data.
-    Returns dict keyed by symbol; symbols that fail are omitted.
-    """
-    return {
-        s: p for s in symbols
-        if (p := fetch_live_price(s)) is not None
-    }
+# Live prices come from shared.websocket_manager (one streaming connection
+# shared across all dashboards).  This module no longer provides a REST
+# price fetcher — the dashboard reads from the WS singleton directly.
 
 
 def fetch_ohlcv(symbol, warmup_bars=INDICATOR_WARMUP):

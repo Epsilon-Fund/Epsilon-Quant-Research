@@ -39,8 +39,6 @@ import streamlit as st
 
 from dashboard import (
     run_dashboard,
-    fetch_live_price,
-    fetch_live_prices,
     apply_decision,
     get_coin_capital,
     get_open_positions,
@@ -51,10 +49,10 @@ from shared.data_loader import (
     load_live_params,
     build_trade_pairs,
     load_realised_capital,
-    update_realised_capital,
     invalidate_trade_caches,
 )
-from shared.binance_utils import get_live_prices as _shared_live_prices
+from shared.websocket_manager import get_shared_ws, force_reset_shared_ws
+from shared import signal_cache as _signal_cache
 from config import ACTIVE_ASSETS, CAPITAL, COIN_WEIGHTS
 import config as _cfg_mod
 TRADING_COST_PCT = getattr(_cfg_mod, 'TRADING_COST_PCT', 0.0)
@@ -272,9 +270,13 @@ st.markdown("""
       font-size: 11px !important; font-weight: 400 !important;
       letter-spacing: 0 !important; text-transform: none !important; color: #888780 !important;
   }
+  /* overflow-x:auto so wide tables scroll horizontally on narrow
+     viewports (mobile) instead of being clipped. */
   .dashboard-card {
       background: white; border: 1px solid #d3d1c7; border-radius: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 0; margin-bottom: 14px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 0; margin-bottom: 14px;
+      overflow-x: auto; overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
   }
   .section-label {
       font-size: 11px !important; font-weight: 500; letter-spacing: 0.06em;
@@ -368,14 +370,24 @@ with st.sidebar:
     st.markdown("### Controls")
     if st.button("↻ Refresh data", key="bb_refresh_data"):
         st.cache_data.clear()
+        _signal_cache.clear(DATA_DIR)
+        # Also reset the shared WS so any wedged TWM gets a clean slate.
+        force_reset_shared_ws()
         st.session_state.pop("bb_dashboard_data", None)
         st.session_state.pop("bb_dashboard_cache_key", None)
         st.rerun()
     if st.button("↻ Refresh signals", key="bb_refresh_signals"):
+        _signal_cache.clear(DATA_DIR)
         st.session_state.pop("bb_dashboard_data", None)
         st.session_state.pop("bb_dashboard_cache_key", None)
         st.rerun()
-    st.caption("Prices refresh every 30s. Signals refresh on new 1H bar.")
+    if st.button("↻ Reconnect WS", key="bb_ws_reconnect",
+                 help="Discard the shared WebSocket singleton and rebuild "
+                      "from scratch.  Use when the price feed shows 🟡 "
+                      "No connection and won't auto-recover."):
+        force_reset_shared_ws()
+        st.rerun()
+    st.caption("Prices stream live (WS). Signals refresh on new 1H bar.")
 
 
 # ── Signal cache helpers ───────────────────────────────────────────────────────
@@ -395,19 +407,18 @@ def _current_signal_date() -> str:
 
 # ── Data loading — session_state signal cache ─────────────────────────────────
 
-def load_live_prices(symbols: tuple):
-    """
-    Look up current prices for the requested symbols.
-
-    Backed by shared.binance_utils.fetch_all_live_prices() — one batched
-    REST call shared across all dashboards, cached 300 s.
-    """
-    return _shared_live_prices(symbols)
+# Process-wide shared price WebSocket — one TWM across momentum + bb.
+# Subscribing here just adds bb's symbols to the union maintained by
+# shared/websocket_manager.py.  Symbols without a tick yet render as "—"
+# until the next 5 s fragment rerun.
+def _get_ws_manager(symbols):
+    return get_shared_ws(symbols)
 
 
 _live_params_raw = load_live_params(DATA_DIR)
 if not _live_params_raw:
-    st.error("live_params.json is empty — run `optimise.py` first.")
+    st.warning("No optimised parameters found. "
+               "Run optimise.py before using this dashboard.")
     st.stop()
 
 _active_set   = set(ACTIVE_ASSETS)
@@ -422,20 +433,32 @@ if st.session_state.get("bb_signal_date") != _expected_signal_date:
 
 if ("bb_dashboard_data" not in st.session_state or
         st.session_state.get("bb_dashboard_cache_key") != _cache_key):
-    with st.spinner("Loading BB Breakout signals..."):
-        _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
-        _rows   = _result['assets']
-        _sdate  = _result['signal_date']
-        # Capture the actual data-fetch time so the "Generated:" header
-        # shows when run_dashboard() last fired, not the current render
-        # clock.  Persisted in session_state alongside the data so
-        # subsequent cache-hit renders display the same value.
-        _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-        for _row in _rows:
-            _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
-        st.session_state.bb_dashboard_data      = (_rows, _sdate, _gen_at)
-        st.session_state.bb_dashboard_cache_key = _cache_key
-        st.session_state.bb_signal_date         = _expected_signal_date
+    # Cross-session cache lookup (process memory → disk → compute).
+    # Hits skip the spinner entirely; misses fall through to run_dashboard.
+    _cached_signals = _signal_cache.load(DATA_DIR, _cache_key, _expected_signal_date)
+    if _cached_signals is not None:
+        _rows, _sdate, _gen_at = _cached_signals
+    else:
+        with st.spinner("Loading BB Breakout signals..."):
+            _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
+            _rows   = _result['assets']
+            _sdate  = _result['signal_date']
+            # Capture the actual data-fetch time so the "Generated:" header
+            # shows when run_dashboard() last fired, not the current render
+            # clock.  Persisted alongside the data so subsequent cache-hit
+            # renders display the same value.
+            _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            _signal_cache.store(
+                DATA_DIR, _cache_key, _expected_signal_date,
+                _rows, _sdate, _gen_at,
+            )
+    # Re-attach fixed_keys from authoritative ASSET_CONFIG (disk round-trip
+    # turns them into lists; downstream code wants sets).
+    for _row in _rows:
+        _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
+    st.session_state.bb_dashboard_data      = (_rows, _sdate, _gen_at)
+    st.session_state.bb_dashboard_cache_key = _cache_key
+    st.session_state.bb_signal_date         = _expected_signal_date
 
 coin_rows, signal_date, generated_at = st.session_state.bb_dashboard_data
 
@@ -469,16 +492,19 @@ def fmt(v):
     return escape(str(v))
 
 
-def _fmt_price(v):
-    """Adaptive price formatter — matches decimal places to price magnitude."""
+def _fmt_price(v, symbol=None):
+    """Price display formatter.
+
+    BTC* symbols → 2 decimal places (their 5-digit prices look bloated
+    with 3dp).  Everything else → 3 decimal places.  Trade-log inputs
+    accept up to 4dp; this caps the *display* by one to keep tables
+    clean.  ``None`` / NaN return em-dash.
+    """
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return '—'
-    if v >= 100:
-        return f'{v:,.3f}'
-    elif v >= 1:
-        return f'{v:,.3f}'
-    else:
-        return f'{v:,.4f}'
+    if symbol and 'BTC' in str(symbol).upper():
+        return f'{v:,.2f}'
+    return f'{v:,.3f}'
 
 
 def _bg_box(flag):
@@ -504,8 +530,13 @@ _open            = {pid: p for pid, p in _positions_now.items() if p.get('in_pos
 st.session_state.bb_open_positions = _open
 _coin_sig_by_sym = {c['symbol']: c['sig'] for c in coin_rows}
 
+# All active coins (positions + decisions) — subscription set for the
+# shared WebSocket.  WS is the only live-price source; symbols without
+# a tick yet render as "—" until the next 5 s fragment rerun.
 _all_syms    = tuple(sorted({c['symbol'] for c in coin_rows} | {p.get('symbol', pid) for pid, p in _open.items()}))
-_live_prices = load_live_prices(_all_syms) if _all_syms else {}
+_ws_manager  = _get_ws_manager(_all_syms) if _all_syms else None
+_ws_live     = bool(_ws_manager and _ws_manager.is_connected)
+_live_prices = _ws_manager.get_prices(_all_syms) if (_ws_manager and _all_syms) else {}
 
 _trade_pairs        = build_trade_pairs(DATA_DIR)
 _realized_pnl_usd   = sum(p['actual_pnl_usd'] for p in _trade_pairs.get('closed', []))
@@ -557,10 +588,11 @@ if not globals().get('_SUPPRESS_H1', False):
 </h1>
 """, unsafe_allow_html=True)
 
+_prices_status = '🟢 Live' if _ws_live else '🟡 No connection'
 st.markdown(f"""
 <div class="dash-meta">
   <strong>Last 1H bar:</strong> {signal_date} UTC &nbsp;&nbsp;
-  <strong>Generated:</strong> {generated_at} UTC
+  <strong>Prices:</strong> {_prices_status}
 </div>
 """, unsafe_allow_html=True)
 
@@ -602,9 +634,15 @@ st.markdown(f"""
 
 # ── Active Positions — live-price fragment ────────────────────────────────────
 
-@st.fragment(run_every=30)
+@st.fragment(run_every=5)
 def _bb_positions_fragment():
-    """Re-renders active positions HTML table with fresh live prices. No external calls besides fetch_live_prices."""
+    """Re-renders the active-positions table from the latest WS ticks.
+
+    WS is the only source.  Symbols without a tick yet render as "—" and
+    fill in on the next 5 s rerun.  If the WS is fully down, every row's
+    live cell is "—" and the header indicator shows 🟡; nothing here
+    calls REST.
+    """
     _t0 = time.time()
     open_positions = st.session_state.get("bb_open_positions", {})
     if not open_positions:
@@ -615,9 +653,10 @@ def _bb_positions_fragment():
         return
 
     symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
-    live_prices = fetch_live_prices(symbols)
+    ws          = get_shared_ws(symbols)
+    live_prices = ws.get_prices(symbols) if ws.is_connected else {}
     elapsed     = time.time() - _t0
-    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} price fetches)")
+    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} symbols, {len(live_prices)} ticks)")
 
     _bb_rows, _, _ = st.session_state.get("bb_dashboard_data", ([], None, None))
     coin_sig_by_sym = {c['symbol']: c['sig'] for c in _bb_rows} if _bb_rows else {}
@@ -793,6 +832,12 @@ def _bb_positions_fragment():
 </div>
 """, unsafe_allow_html=True)
 
+    _conn_label = '🟢 Live' if ws.is_connected else '🟡 No connection'
+    st.caption(
+        f"{_conn_label} · updated "
+        f"{datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC"
+    )
+
 
 # ── Active Positions ──────────────────────────────────────────────────────────
 
@@ -832,6 +877,11 @@ for pid, pos in _open.items():
         if _improves:
             pending_stop = sugg_stop
             _write_pending_stop(pid, sugg_stop)
+            # Keep the in-memory dict (shared with session_state.bb_open_positions
+            # and consumed by the live-price fragment every 30s) in sync with disk;
+            # otherwise the fragment shows the pre-ratchet pending value until the
+            # next full rerun.
+            pos['pending_stop'] = sugg_stop
     _needs_confirm = pending_stop is not None and pending_stop != conf_stop
     if _needs_confirm:
         _confirm_items.append((pid, _sym_for_pos, pending_stop))
@@ -915,7 +965,34 @@ for c in coin_rows:
     if _sim_entry:
         _sim_dir_int    = (_real_setup_dir if _is_real_armed
                            else (1 if _force_dir == 'Long' else -1))
-        _sim_close      = sig.get('close', 0.0)
+        # ── Live-close override for the manual-arm path ──────────────────
+        # When the user has explicitly toggled "Manually arm 4H setup"
+        # (i.e. _is_toggle_sim) AND the shared WebSocket has a tick for
+        # this symbol, substitute the live WS price for the cached 1H-bar
+        # close.  Derived values (leverage, stop, TP, size) downstream
+        # use this value so the simulation reflects "what an ENTRY would
+        # look like right now" rather than at the last 1H bar close
+        # (which can be up to 59 minutes stale).
+        #
+        # Real strategy arms (_is_real_armed) intentionally keep the
+        # cached close — they fire on bar close in the backtest, so the
+        # cached value is the correct execution reference.
+        #
+        # h1_atr / trail_dist / tp_distance stay on the cached sig: a
+        # full strategy recompute on a synthetic intra-bar would cost
+        # ~50 ms per coin per render and the ATR-derived quantities
+        # move slowly enough over a 1H bar that the cached values are
+        # a good approximation.  The leverage formula uses ATR/close,
+        # so even though ATR is cached the leverage itself adjusts
+        # with the live close.
+        _live_price_for_sim = (
+            _live_prices.get(c.get('symbol'))
+            if _is_toggle_sim else None
+        )
+        _sim_close      = (float(_live_price_for_sim)
+                           if _live_price_for_sim is not None
+                           else sig.get('close', 0.0))
+        _sim_close_is_live = bool(_is_toggle_sim and _live_price_for_sim is not None)
         _sim_prev_close = sig.get('prev_close', 0.0)
         _sim_trail_dist = sig.get('trail_dist') or 0.0
 
@@ -982,15 +1059,18 @@ for c in coin_rows:
         badge = f'<span class="badge badge-LONG">ARMED {_dir_lbl}</span>'
     elif _is_toggle_sim:
         _dir_lbl = 'LONG' if _sim_dir_int == 1 else 'SHORT'
+        # Suffix "(sim · 🟢 live)" when the simulation is using a fresh
+        # WS tick, "(sim)" when it fell back to the cached 1H-bar close.
+        _sim_suffix = '(sim · 🟢 live)' if _sim_close_is_live else '(sim)'
         if _entry_would_fire:
             # All 1H conditions align in the simulated direction → entry
             # would fire if the strategy were really armed this way.
             badge = (f'<span class="badge" style="background:#FAEEDA;color:#854F0B">'
-                     f'ENTRY {_dir_lbl} (sim)</span>')
+                     f'ENTRY {_dir_lbl} {_sim_suffix}</span>')
         else:
             # Armed but at least one 1H condition is failing.
             badge = (f'<span class="badge" style="background:#FAEEDA;color:#854F0B">'
-                     f'ARMED {_dir_lbl} (sim)</span>')
+                     f'ARMED {_dir_lbl} {_sim_suffix}</span>')
     else:
         badge = f'<span class="badge badge-{d}">{d}</span>'
 
@@ -1098,6 +1178,16 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+if _force_armed:
+    st.caption(
+        "Manually-armed rows compute Size / Stop / TP from the **live WS "
+        "price** when the WebSocket is connected (badge shows · 🟢 live), "
+        "falling back to the last 1H bar close otherwise.  Real strategy "
+        "arms always use the last 1H bar close — that's how they fire "
+        "in the backtest, so live-overriding them would diverge from "
+        "the executable signal."
+    )
+
 
 # ── Trade Log Forms ───────────────────────────────────────────────────────────
 
@@ -1147,7 +1237,7 @@ for _fi, _c in enumerate(coin_rows):
         _action_options = ['ENTRY', 'EXIT'] if _has_position else ['ENTRY']
         _action_default = 1 if (_has_position and _decision in ('HOLD', 'EXIT')) else 0
         _action_radio   = st.radio(
-            '',
+            'Action',
             _action_options,
             index=min(_action_default, len(_action_options) - 1),
             key=_action_key,
@@ -1210,14 +1300,14 @@ for _fi, _c in enumerate(coin_rows):
                     'Actual leverage (x)',
                     value=float(round(max(_default_size, 0.01), 2)),
                     min_value=0.01,
-                    format='%.3f',
+                    format='%.4f',
                     key=f'bb_size_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
                     step=0.01,
-                    format='%.6f',
+                    format='%.4f',
                     key=f'bb_price_{_sym}',
                 )
                 _exit_lev = None
@@ -1234,14 +1324,14 @@ for _fi, _c in enumerate(coin_rows):
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
                     max_value=_held_lev,
-                    format='%.3f',
+                    format='%.4f',
                     key=f'bb_exit_lev_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
                     step=0.01,
-                    format='%.6f',
+                    format='%.4f',
                     key=f'bb_price_{_sym}',
                 )
                 _direction = None
@@ -1330,8 +1420,11 @@ for _fi, _c in enumerate(coin_rows):
                         _dir_sign * (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
                         if _entry_p > 0 else 0.0
                     )
+                    # load_realised_capital reads the cached pre-exit trade
+                    # pairs; _new_rc is the projected post-write total.  No
+                    # file write — trades.json is the source of truth.
                     _old_rc = load_realised_capital(DATA_DIR)
-                    _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
+                    _new_rc = _old_rc + _pnl_usd_exit
                     print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
                           f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
                 elif not _is_exit_final:

@@ -19,6 +19,10 @@ INDICATOR_WARMUP = 100      # bars fetched to warm up indicators ie burn in bars
 # Set once you know the platform fee schedule (e.g. 0.001 = 0.1% per leg).
 TRADING_COST_PCT = 0.001
 
+# Bar frequency the strategy is designed for — drives which OHLC cache the
+# theoretical-curve backtest feeds it (see shared/theoretical_curve.py).
+DATA_FREQUENCY = 'daily'
+
 # Coin weights — must sum to 1.0
 # Edit here to allocate unequally across coins.
 # Coins in ACTIVE_ASSETS but absent from this dict share the remaining weight equally.

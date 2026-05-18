@@ -45,10 +45,9 @@ from dashboard import (
 from shared.data_loader import (
     build_trade_pairs,
     load_realised_capital,
-    update_realised_capital,
     invalidate_trade_caches,
 )
-from shared.binance_utils import get_live_prices as _shared_live_prices
+from shared.websocket_manager import get_shared_ws
 from config import ACTIVE_ASSETS, EXECUTION_HOUR, CAPITAL, COIN_WEIGHTS
 import config as _cfg_mod
 TRADING_COST_PCT = getattr(_cfg_mod, 'TRADING_COST_PCT', 0.001)
@@ -187,10 +186,14 @@ st.markdown("""
       font-size: 11px !important; font-weight: 400 !important;
       letter-spacing: 0 !important; text-transform: none !important; color: #888780 !important;
   }
+  /* overflow-x:auto so wide tables scroll horizontally on narrow
+     viewports (mobile) instead of being clipped. */
   .dashboard-card {
       background: white; border: 1px solid #d3d1c7; border-radius: 6px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 0;
-      margin-bottom: 14px; overflow: hidden;
+      margin-bottom: 14px;
+      overflow-x: auto; overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
   }
   table { font-size: 13px !important; }
   .dash-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -288,14 +291,10 @@ def load_all():
     return pair_rows, sig_date
 
 
-def load_live_prices(symbols: tuple):
-    """
-    Look up current prices for the requested symbols.
-
-    Backed by shared.binance_utils.fetch_all_live_prices() — one batched
-    REST call shared across all dashboards, cached 120 s.
-    """
-    return _shared_live_prices(symbols)
+# Live prices come from the shared WebSocket singleton (one TWM serving
+# every dashboard).  Symbols without a tick yet render "—" in the pair
+# tables; statarb has no auto-refresh fragment, so prices are sampled
+# once per render and stay fixed for that page view.
 
 
 pair_rows, signal_date = load_all()
@@ -443,7 +442,8 @@ def _tf(flag):
 _open          = {pid: p for pid, p in _positions_now.items() if p.get('in_position')}
 
 _all_syms    = tuple(sorted({r['symbol_y'] for r in pair_rows} | {r['symbol_x'] for r in pair_rows}))
-_live_prices = load_live_prices(_all_syms) if _all_syms else {}
+_ws_manager  = get_shared_ws(_all_syms) if _all_syms else None
+_live_prices = _ws_manager.get_prices(_all_syms) if (_ws_manager and _all_syms) else {}
 
 # Realized P&L from closed trade pairs
 _trade_pairs      = build_trade_pairs(DATA_DIR)
@@ -753,7 +753,7 @@ for _fi, _r in enumerate(pair_rows):
         _action_opts = ['ENTRY', 'EXIT'] if _has_position else ['ENTRY']
         _def_idx     = 1 if (_has_position and _d in ('HOLD', 'EXIT', 'STOP')) else 0
         _action      = st.radio(
-            '',
+            'Action',
             _action_opts,
             index=min(_def_idx, len(_action_opts) - 1),
             key=_action_key,
@@ -899,12 +899,13 @@ for _fi, _r in enumerate(pair_rows):
                     )
                     _write_position_exit(_pid_to_exit, _spread_pnl, _disc)
 
-                    # ── Update realised capital with exit P&L ─────────────────
+                    # ── Project realised capital (terminal log only) ──────────
+                    # No file write — trades.json is the source of truth.
                     _pnl_usd_exit = _spread_pnl * _size_st
                     _old_rc = load_realised_capital(DATA_DIR)
-                    _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
+                    _new_rc = _old_rc + _pnl_usd_exit
+                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
 
                 elif not _is_exit_final:
                     _dir_k    = st.session_state.get(f'sa_dir_{_pk}', 'Long spread')

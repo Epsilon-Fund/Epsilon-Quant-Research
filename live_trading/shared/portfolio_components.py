@@ -557,7 +557,7 @@ def render_strategy_portfolio(
 
                 styled = (
                     df_stats.style
-                    .applymap(_colour_pnl, subset=['Total P&L', 'Return %'])
+                    .map(_colour_pnl, subset=['Total P&L', 'Return %'])
                     .format({
                         'Total P&L':    _fmt_pnl,
                         'Return %':     _fmt_pct,
@@ -861,7 +861,7 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
 
         styled_strat = (
             df_strat.style
-            .applymap(_colour_signed, subset=['Total P&L ($)', 'Return %'])
+            .map(_colour_signed, subset=['Total P&L ($)', 'Return %'])
             .format({
                 'Capital':       lambda v: f'${v:,.0f}',
                 'Total P&L ($)': lambda v: f'${v:,.0f}' if v is not None else '—',

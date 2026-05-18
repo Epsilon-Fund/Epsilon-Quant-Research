@@ -29,7 +29,8 @@ if _LT_DIR not in sys.path:
     sys.path.insert(0, _LT_DIR)
 
 from shared.styles import apply_styles
-from shared.data_loader import load_trades, build_trade_pairs, load_config
+from shared.data_loader import load_trades, build_trade_pairs, load_realised_capital, load_positions
+from shared.websocket_manager import get_shared_ws
 
 apply_styles()
 
@@ -62,18 +63,12 @@ DASHBOARD_DIRS = {
 
 # ── One-time in-process Streamlit-cache warm-up ──────────────────────────────
 # `_warm_cache` above fills the on-disk parquet cache.  This second pass primes
-# Streamlit's in-memory caches that PERSIST across tab/page switches:
-#   • fetch_all_live_prices  (one batched ticker call covers every coin)
-#   • build_equity_curve / build_capital_deployment  (used by pages 2 & 3)
-# Per-dashboard `@st.cache_data` on fetch_ohlcv etc. does NOT persist across
-# `_exec_page` re-imports, so it isn't worth pre-warming here.
+# Streamlit's in-memory equity-curve / deployment caches used by pages 2 & 3.
+# Live prices come from the WebSocket on the dashboard pages — no REST prewarm
+# is needed.  Per-dashboard `@st.cache_data` on fetch_ohlcv etc. doesn't
+# persist across `_exec_page` re-imports, so it isn't worth pre-warming here.
 @st.cache_resource(show_spinner=False)
 def _prewarm_session():
-    try:
-        from shared.binance_utils import fetch_all_live_prices
-        fetch_all_live_prices()
-    except Exception as e:
-        print(f"prewarm: live prices skipped — {e}")
     try:
         from shared.data_loader import build_equity_curve, build_capital_deployment
         for _data_dir in DASHBOARD_DIRS.values():
@@ -99,15 +94,17 @@ def _load_summary(dirs_tuple: tuple) -> dict:
     last_signal     = None
     any_trades      = False
 
+    open_positions_mtm: list = []   # [{symbol, entry_price, size_usd, direction}]
+
     for name, data_dir in dirs_tuple:
         trades_json = os.path.join(data_dir, "trades.json")
         if not os.path.exists(trades_json):
             continue
 
         try:
-            trades = load_trades(data_dir)
-            pairs  = build_trade_pairs(data_dir)
-            cfg    = load_config(data_dir)
+            trades    = load_trades(data_dir)
+            pairs     = build_trade_pairs(data_dir)
+            positions = load_positions(data_dir)
         except Exception:
             continue
 
@@ -116,8 +113,12 @@ def _load_summary(dirs_tuple: tuple) -> dict:
 
         any_trades = True
 
-        # Capital: from config, only count if strategy has trade history
-        total_capital += cfg.get("capital", 0.0)
+        # Live equity per strategy (= config CAPITAL + realised P&L from
+        # closed trades).  Reading from load_realised_capital instead of
+        # cfg.get('capital') means the metric tracks actual realised equity
+        # rather than the static config allocation, so it converges to
+        # what's really in the book as trades close.
+        total_capital += load_realised_capital(data_dir)
 
         # Open / closed counts
         total_open   += len(pairs.get("open", []))
@@ -133,14 +134,62 @@ def _load_summary(dirs_tuple: tuple) -> dict:
             if last_signal is None or latest > last_signal:
                 last_signal = latest
 
+        # Stash everything the unrealised-PnL helper needs to mark each
+        # open position to the WS live price — see _compute_unrealised().
+        # Done here so we only have to walk positions.json once per render.
+        for pid, pos in positions.items():
+            if not pos.get("in_position"):
+                continue
+            sym = pos.get("symbol", pid)
+            ep  = pos.get("entry_price")
+            sz  = pos.get("size_usd")
+            if not sym or not ep or not sz:
+                continue
+            open_positions_mtm.append({
+                "symbol":      sym,
+                "entry_price": float(ep),
+                "size_usd":    float(sz),
+                "direction":   pos.get("direction", "long"),
+            })
+
     return {
-        "any_trades":    any_trades,
-        "total_capital": total_capital,
-        "total_open":    total_open,
-        "total_closed":  total_closed,
-        "total_pnl":     total_pnl,
-        "last_signal":   last_signal,
+        "any_trades":         any_trades,
+        "total_capital":      total_capital,
+        "total_open":         total_open,
+        "total_closed":       total_closed,
+        "total_pnl":          total_pnl,
+        "last_signal":        last_signal,
+        "open_positions_mtm": open_positions_mtm,
     }
+
+
+def _compute_unrealised(open_positions: list) -> tuple[float, bool]:
+    """Mark every open position to market against the shared WS prices.
+
+    Lives OUTSIDE _load_summary's 120-second cache so the figure stays
+    fresh on every render — the WS push cost is sub-millisecond.
+
+    Returns ``(unrealised_pnl_usd, all_priced)``.  ``all_priced`` is False
+    if the WS isn't connected or any symbol is missing a tick, so the
+    caller can flag the number as partial.
+    """
+    if not open_positions:
+        return 0.0, True
+    symbols = sorted({p["symbol"] for p in open_positions})
+    ws      = get_shared_ws(symbols)
+    if not ws.is_connected:
+        return 0.0, False
+    prices = ws.get_prices(symbols)
+    total       = 0.0
+    all_priced  = True
+    for p in open_positions:
+        lp = prices.get(p["symbol"])
+        if lp is None or p["entry_price"] <= 0:
+            all_priced = False
+            continue
+        sign = 1 if p["direction"].lower() == "long" else -1
+        total += sign * (lp - p["entry_price"]) / p["entry_price"] * p["size_usd"]
+    return total, all_priced
 
 
 # ── Page header ───────────────────────────────────────────────────────────────
@@ -158,15 +207,32 @@ if not summary["any_trades"]:
         "No trade history yet — run optimise.py and start trading."
     )
 else:
-    # ── Four metric columns ───────────────────────────────────────────────────
-    pnl = summary["total_pnl"]
-    pnl_display = f"+${pnl:,.3f}" if pnl >= 0 else f"-${abs(pnl):,.3f}"
+    # ── Mark every open position to market via the shared WS ─────────────────
+    # Cheap, so done on every render rather than cached.
+    unrealised, _all_priced = _compute_unrealised(summary["open_positions_mtm"])
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total capital",     f"${summary['total_capital']:,.0f}")
-    m2.metric("Open positions",    summary["total_open"])
-    m3.metric("Closed trades",     summary["total_closed"])
-    m4.metric("Realised P&L",      pnl_display)
+    realised_pnl = summary["total_pnl"]
+    live_equity  = summary["total_capital"] + unrealised
+
+    def _signed(v: float) -> str:
+        return f"+${v:,.3f}" if v >= 0 else f"-${abs(v):,.3f}"
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric(
+        "Total capital",
+        f"${live_equity:,.0f}",
+        # Delta = unrealised contribution; Streamlit colours it green/red.
+        delta=_signed(unrealised) if summary["open_positions_mtm"] else None,
+    )
+    m2.metric("Open positions",  summary["total_open"])
+    m3.metric("Closed trades",   summary["total_closed"])
+    m4.metric("Realised P&L",    _signed(realised_pnl))
+    m5.metric("Unrealised P&L",  _signed(unrealised))
+
+    # Tiny status line: WS health + (if partial) flag missing ticks
+    _ws_label = "🟢 Live" if _all_priced and summary["open_positions_mtm"] else (
+        "🟡 Partial" if summary["open_positions_mtm"] else "—"
+    )
 
     # ── Last signal date ──────────────────────────────────────────────────────
     last_sig = summary["last_signal"]
@@ -174,6 +240,7 @@ else:
     st.markdown(
         f'<div class="dash-meta" style="margin-top:18px">'
         f'<strong>Last signal date:</strong> {sig_str}'
+        f' &nbsp;&nbsp; <strong>Mark-to-market:</strong> {_ws_label}'
         f'</div>',
         unsafe_allow_html=True,
     )

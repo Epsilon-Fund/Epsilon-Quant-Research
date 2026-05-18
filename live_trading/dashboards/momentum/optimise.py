@@ -37,7 +37,30 @@ from strategies import STRATEGY_REGISTRY  # noqa: E402
 # NOTE: binance_client and WF_CONFIG are imported lazily inside main()
 # (after --verify check) so that `--verify` exits without touching them.
 
-LIVE_PARAMS_PATH = os.path.join(_DASHBOARD_DIR, 'live_params.json')
+LIVE_PARAMS_PATH         = os.path.join(_DASHBOARD_DIR, 'live_params.json')
+LIVE_PARAMS_HISTORY_PATH = os.path.join(_DASHBOARD_DIR, 'live_params_history.json')
+
+
+def _append_history(symbol: str, entry: dict) -> None:
+    """Append one optimisation event to live_params_history.json.
+
+    History is append-only — the theoretical curve uses it to look up which
+    params were active on any historical date.  See shared/theoretical_curve.py.
+    """
+    if os.path.exists(LIVE_PARAMS_HISTORY_PATH):
+        with open(LIVE_PARAMS_HISTORY_PATH) as f:
+            history = json.load(f)
+    else:
+        history = []
+    history.append({
+        'symbol':           symbol,
+        'effective_from':   entry.get('optimised_on') or str(date.today()),
+        'strategy':         entry.get('strategy'),
+        'params':           entry.get('params', {}),
+        'fixed_param_keys': entry.get('fixed_param_keys', []),
+    })
+    with open(LIVE_PARAMS_HISTORY_PATH, 'w') as f:
+        json.dump(history, f, indent=2)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -592,7 +615,9 @@ def main():
         with open(LIVE_PARAMS_PATH, "w") as f:
             json.dump(live_params, f, indent=2)
 
-        print(f"✓ {symbol} written to live_params.json")
+        _append_history(symbol, entry)
+
+        print(f"✓ {symbol} written to live_params.json (history appended)")
 
     print("\nDone. Run dashboard.py to verify data fetch.")
 
