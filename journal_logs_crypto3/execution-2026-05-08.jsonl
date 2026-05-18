@@ -1,0 +1,4 @@
+{"event_type": "WATCHER_STARTED", "ts_utc": "2026-05-08T15:23:14.021312+00:00", "ws_url": "wss://ws-live-data.polymarket.com"}
+{"event_type": "LEADER_FILL_OBSERVED", "ts_utc": "2026-05-08T15:29:28.162531+00:00", "transaction_hash": "0xfe79f9c2de69c1aa24bc5b5938728fb7711665b2923cb5691bc8da23c063e2bf", "condition_id": "0xa0f4c4924ea1a8b410b4ce821c2a9955fad21a1b19bdcfde90816732278b3dd5", "asset_id": "13915689317269078219168496739008737517740566192006337297676041270492637394586", "side": "SELL", "size": 16.07, "price": 0.013, "proxy_wallet": "0xfa394a598dbf573202a8286b45f512c7a383977f", "observed_at_utc": "2026-05-08T15:29:28.162531+00:00"}
+{"event_type": "LEADER_FILL_DROPPED", "ts_utc": "2026-05-08T15:29:28.163010+00:00", "transaction_hash": "0xfe79f9c2de69c1aa24bc5b5938728fb7711665b2923cb5691bc8da23c063e2bf", "reason": "leader_no_position"}
+{"event_type": "WATCHER_STOPPED", "ts_utc": "2026-05-08T15:38:14.311928+00:00"}

@@ -1,1 +1,22 @@
-{}
+{
+  "ETHUSDT_20260504_001": {
+    "position_id": "ETHUSDT_20260504_001",
+    "symbol": "ETHUSDT",
+    "strategy": "bb_breakout",
+    "in_position": true,
+    "entry_date": "2026-05-04",
+    "entry_price": 2360.89,
+    "leverage_multiplier": 2.28,
+    "pending_stop": 2351.7847421551983,
+    "current_stop": 2351.7847421551983,
+    "direction": "long",
+    "partial_exits": 0,
+    "exit_price": null,
+    "exit_date": null,
+    "discretion_note": "",
+    "coin_capital": 20000.0,
+    "size_usd": 45599.99999999999,
+    "take_profit": 2810.0243075130816,
+    "regime_at_entry": "chop_bear"
+  }
+}

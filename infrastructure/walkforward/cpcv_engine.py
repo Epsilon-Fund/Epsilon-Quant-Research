@@ -381,8 +381,9 @@ def run_cpcv(
                 gm = group_results[g]['metrics']
                 sh = _fmt(gm['sharpe']) if (gm and gm['sharpe'] is not None) else 'N/A'
                 sharpe_strs.append(sh)
+            test_groups_1based = tuple(g + 1 for g in test_groups)
             print(f'Split {sid+1}/{n_splits} done | IS score: {_fmt(is_score)} | '
-                  f'OOS groups {test_groups} Sharpe: {", ".join(sharpe_strs)}')
+                  f'OOS groups {test_groups_1based} Sharpe: {", ".join(sharpe_strs)}')
 
         split_results.append({
             'split_id':           sid,

@@ -1,0 +1,18 @@
+[project]
+name = "polymarket-execution"
+version = "0.1.0"
+description = "Polymarket copy-trading execution module (PoC)."
+requires-python = ">=3.11"
+dependencies = [
+    "websockets>=12",
+    "py-clob-client>=0.18.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,1 +1,35 @@
-[]
+[
+  {
+    "timestamp": "2026-05-04T22:20:02",
+    "date": "2026-05-04",
+    "position_id": "ETHUSDT_20260504_001",
+    "action": "ENTRY",
+    "strategy": "bb_breakout",
+    "theoretical_price": 2360.89,
+    "actual_price": 2360.89,
+    "slippage_pct": 0.0,
+    "theoretical_leverage": 2.2764999780610626,
+    "actual_leverage": 2.28,
+    "theoretical_stop": 2286.034282081153,
+    "discretion_note": "",
+    "direction": "long",
+    "entry_type": "Strategy",
+    "entry_close": 2360.89,
+    "signal_snapshot": {
+      "close": 2360.89,
+      "position": 1,
+      "entry_long": true,
+      "entry_short": false,
+      "bb_upper": 2388.166208975637,
+      "bb_mid": 2348.000588235294,
+      "bb_lower": 2307.834967494951,
+      "bb_width": 0.03421261556883221,
+      "sma": 2353.273076923077,
+      "stop": 2286.034282081153
+    },
+    "coin_capital": 20000.0,
+    "size_usd": 45600.0,
+    "capital_total": 100000.0,
+    "coin_weight": null
+  }
+]

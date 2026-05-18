@@ -1,0 +1,2 @@
+{"event_type": "WATCHER_STARTED", "ts_utc": "2026-05-08T15:23:09.815953+00:00", "ws_url": "wss://ws-live-data.polymarket.com"}
+{"event_type": "WATCHER_STOPPED", "ts_utc": "2026-05-08T15:38:10.738151+00:00"}
