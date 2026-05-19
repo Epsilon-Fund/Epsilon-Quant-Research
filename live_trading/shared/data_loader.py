@@ -571,7 +571,7 @@ def _equity_df_from_closed(closed: list,
 
 def _add_execution_pnl(
     df: pd.DataFrame,
-    closed: list,
+    pairs: list,
     execution_hour: int,
     end_date: date,
     data_dir: str,
@@ -582,10 +582,15 @@ def _add_execution_pnl(
       execution_pnl         — daily P&L booked at exit_date + 1 day
       execution_cumulative  — cumulative sum of execution_pnl
 
+    ``pairs`` is the strategy's theoretical pair list (from
+    build_theoretical_pairs) so the execution-hour curve shares its trade
+    sequence with the Theoretical line — only the per-trade fill price
+    differs (signal-day close → next-day EXECUTION_HOUR open).
+
     Execution model:
       Signal fires on the close of day T.
-      Entry  executed at the Open of the EXECUTION_HOUR UTC bar on T+1.
-      Exit   executed at the Open of the EXECUTION_HOUR UTC bar on exit_date+1.
+      Entry executed at the Open of the EXECUTION_HOUR UTC bar on T+1.
+      Exit  executed at the Open of the EXECUTION_HOUR UTC bar on exit_date+1.
 
     Falls back to flagging the pair with exec_approx=True and skipping it
     when the hourly bar is unavailable (cache not yet populated).
@@ -601,7 +606,7 @@ def _add_execution_pnl(
     exec_pnl_by_date: dict[date, float] = {}
     n_approx = 0
 
-    for p in closed:
+    for p in pairs:
         entry_date = p['entry_date']
         exit_date  = p['exit_date']
         symbol     = p['symbol']
@@ -654,8 +659,10 @@ def _add_execution_pnl(
             exec_return  = _ds * (exec_exit_price - exec_entry_price) / exec_entry_price
             exec_pnl_usd = exec_return * size_usd - size_usd * cost_pct * 2
 
-            # Book at exit_date + 1 day (when the exit execution actually occurs)
-            book_date = exit_date + timedelta(days=1)
+            # Book on exit_date (signal date) so the execution-hour curve
+            # aligns temporally with the Theoretical line — movements at the
+            # same date, only the per-trade fill price differs.
+            book_date = exit_date
             exec_pnl_by_date[book_date] = (
                 exec_pnl_by_date.get(book_date, 0.0) + exec_pnl_usd
             )
@@ -723,10 +730,15 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
     # ── Strategy-pure theoretical curve (never reads trades.json) ────────────
     # Computed up-front so we can render a theoretical-only view for
     # strategies that haven't executed a live trade yet — useful for
-    # spotting signals the user would otherwise miss.
+    # spotting signals the user would otherwise miss.  The pair list is
+    # also reused by the execution-hour curve so both share trade timing.
+    theo_pairs: list = []
     try:
-        from shared.theoretical_curve import build_theoretical_curve
+        from shared.theoretical_curve import (
+            build_theoretical_curve, build_theoretical_pairs,
+        )
         theo_df = build_theoretical_curve(data_dir)
+        theo_pairs, _theo_ws, _theo_we = build_theoretical_pairs(data_dir)
     except Exception as e:
         print(f"build_equity_curve: theoretical curve unavailable — {e}")
         theo_df = None
@@ -772,10 +784,13 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
         df['theoretical_cumulative'] = 0.0
 
     # ── Execution-hour P&L (added when hourly cache is populated) ─────────────
+    # Source pairs from the theoretical backtest so the execution-hour curve
+    # shares trade timing with the Theoretical line — same sequence, just
+    # priced at T+1 EXECUTION_HOUR open instead of signal-day close.
     try:
         _cfg           = _load_config(data_dir)
         execution_hour = getattr(_cfg, 'EXECUTION_HOUR', 8)
-        df = _add_execution_pnl(df, closed, execution_hour, end_date, data_dir)
+        df = _add_execution_pnl(df, theo_pairs, execution_hour, end_date, data_dir)
     except Exception as e:
         print(f"build_equity_curve: execution P&L skipped — {e}")
 

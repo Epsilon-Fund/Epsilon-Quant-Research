@@ -556,7 +556,7 @@ if ("momentum_dashboard_data" not in st.session_state or
     st.session_state.momentum_dashboard_cache_key = _cache_key
     st.session_state.momentum_signal_date         = _expected_signal_date
 
-coin_rows, signal_date = st.session_state.momentum_dashboard_data
+coin_rows, signal_date, generated_at = st.session_state.momentum_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is read fresh every render.
 # st.cache_data returns deserialized copies, so mutating coin_rows here is safe.
@@ -616,8 +616,6 @@ for _ac in coin_rows:
                     exit_close=_asig['close'], exit_reason='Strategy',
                 )
                 _write_position_exit(_apid, _atheo, '')
-                if _aep > 0:
-                    update_realised_capital(DATA_DIR, (_atheo - _aep) / _aep * _asz, _apid)
                 _auto_exited.add(_apid)
                 _did_auto = True
 
@@ -646,8 +644,6 @@ for _ac in coin_rows:
 
 if _did_auto:
     invalidate_trade_caches()
-
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
 # ── Helper: format param value ────────────────────────────────────────────────

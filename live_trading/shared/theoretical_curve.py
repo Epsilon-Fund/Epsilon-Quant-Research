@@ -271,6 +271,8 @@ def _closed_trades_for_symbol(
                 'direction':    'long' if entry_sign > 0 else 'short',
                 'entry_date':   entry_ts.date() if hasattr(entry_ts, 'date') else entry_ts,
                 'exit_date':    ts.date() if hasattr(ts, 'date') else ts,
+                'entry_ts':     entry_ts,
+                'exit_ts':      ts,
                 'entry_close':  entry_close,
                 'exit_close':   exit_close,
                 'leverage':     entry_lev,
@@ -300,6 +302,8 @@ def _closed_trades_for_symbol(
                 'direction':    'long' if entry_sign > 0 else 'short',
                 'entry_date':   entry_ts.date() if hasattr(entry_ts, 'date') else entry_ts,
                 'exit_date':    ts.date() if hasattr(ts, 'date') else ts,
+                'entry_ts':     entry_ts,
+                'exit_ts':      ts,
                 'entry_close':  entry_close,
                 'exit_close':   exit_close,
                 'leverage':     entry_lev,
@@ -315,7 +319,283 @@ def _closed_trades_for_symbol(
     return closed
 
 
+# ── Pair-trading helpers (statarb-style) ─────────────────────────────────────
+
+def _load_asset_config(data_dir: str) -> list:
+    """Import data_dir/optimise.py and return its ASSET_CONFIG list (or []).
+
+    Only used to detect pair-trading dashboards.  Returns [] silently on
+    any import error — single-symbol dashboards' optimise.py modules may
+    pull in sibling modules (e.g. ``from strategies import ASSET_CONFIG``)
+    that resolve to a different dashboard's cached entry, and that is
+    harmless here because the single-symbol code path doesn't need
+    ASSET_CONFIG at all.
+    """
+    import sys as _sys
+    path = os.path.join(data_dir, 'optimise.py')
+    if not os.path.exists(path):
+        return []
+    # Temporarily clear any cached sibling-named modules that would shadow
+    # this dashboard's local 'strategies' / 'optimise' on import.
+    _saved = {
+        name: _sys.modules.pop(name, None)
+        for name in ('strategies', 'optimise', 'config')
+    }
+    _saved_path = list(_sys.path)
+    _sys.path.insert(0, os.path.abspath(data_dir))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            f'_opt_{os.path.abspath(data_dir).replace(os.sep, "_")}', path
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return list(getattr(mod, 'ASSET_CONFIG', []) or [])
+    except Exception:
+        return []
+    finally:
+        _sys.path[:] = _saved_path
+        for name, prev in _saved.items():
+            if prev is not None:
+                _sys.modules[name] = prev
+            else:
+                _sys.modules.pop(name, None)
+
+
+def _is_pair_dashboard(asset_config: list) -> bool:
+    """ASSET_CONFIG with pair_key/symbol_y/symbol_x => pair-trading strategy."""
+    return bool(asset_config) and isinstance(asset_config[0], dict) and (
+        'pair_key' in asset_config[0]
+        and 'symbol_y' in asset_config[0]
+        and 'symbol_x' in asset_config[0]
+    )
+
+
+def _closed_trades_for_pair(
+    pair_key: str,
+    df: pd.DataFrame,
+    segments: list,
+    strategy_registry: dict,
+    coin_capital: float,
+    cost_pct: float,
+) -> list:
+    """Run the pair-trading strategy on a Close_Y / Close_X df and extract
+    closed pair trades.
+
+    Same position-transition logic as ``_closed_trades_for_symbol`` but P&L
+    is computed from the strategy's ``spread_return`` column summed over
+    the holding bars (signed by entry direction).  Trades that never close
+    inside the window are dropped, matching the single-symbol path.
+    """
+    if df is None or df.empty or not segments:
+        return []
+
+    position      = pd.Series(0,   index=df.index, dtype=int)
+    pos_size      = pd.Series(0.0, index=df.index, dtype=float)
+    spread_return = pd.Series(0.0, index=df.index, dtype=float)
+
+    for seg_start, seg_end, strategy, params in segments:
+        fn = strategy_registry.get(strategy)
+        if fn is None:
+            continue
+        try:
+            out_df, _ = fn(df, params)
+        except Exception as e:
+            print(f"  theoretical pair {pair_key} seg {seg_start}..{seg_end}: {e}")
+            continue
+        idx_dates = out_df.index.map(lambda ts: ts.date()
+                                     if hasattr(ts, 'date') else ts)
+        mask = pd.Series(
+            [(seg_start <= d <= seg_end) for d in idx_dates],
+            index=out_df.index,
+        )
+        position.loc[mask] = out_df.loc[mask, 'position'].astype(int).values
+        pos_size.loc[mask] = out_df.loc[mask, 'position_size'].astype(float).values
+        if 'spread_return' in out_df.columns:
+            spread_return.loc[mask] = (
+                out_df.loc[mask, 'spread_return'].fillna(0.0).astype(float).values
+            )
+
+    closed     = []
+    entry_sign = 0
+    entry_ts   = None
+    entry_lev  = 0.0
+    entry_i    = None
+
+    pos_v = position.values
+    sz_v  = pos_size.values
+    ts_ix = position.index
+    sr_v  = spread_return.values
+
+    def _emit(exit_idx: int, exit_ts):
+        # spread_return at bar k is the return earned from bar k-1 to bar k,
+        # so the trade's P&L runs from entry_i+1..exit_idx inclusive.
+        trade_ret = float(sr_v[entry_i + 1:exit_idx + 1].sum()) * entry_sign
+        size_usd  = coin_capital * entry_lev
+        gross_pnl = size_usd * trade_ret
+        cost_usd  = size_usd * cost_pct * 2.0
+        closed.append({
+            'symbol':       pair_key,
+            'direction':    'long' if entry_sign > 0 else 'short',
+            'entry_date':   entry_ts.date() if hasattr(entry_ts, 'date') else entry_ts,
+            'exit_date':    exit_ts.date() if hasattr(exit_ts, 'date') else exit_ts,
+            'entry_ts':     entry_ts,
+            'exit_ts':      exit_ts,
+            'entry_close':  None,
+            'exit_close':   None,
+            'leverage':     entry_lev,
+            'size_usd':     size_usd,
+            'pnl_usd':      gross_pnl - cost_usd,
+            'gross_pnl':    gross_pnl,
+            'cost_usd':     cost_usd,
+        })
+
+    for i in range(len(position)):
+        ts  = ts_ix[i]
+        pos = int(pos_v[i])
+        sz  = float(sz_v[i])
+
+        if entry_sign == 0 and pos != 0:
+            entry_sign = 1 if pos > 0 else -1
+            entry_ts   = ts
+            entry_lev  = sz
+            entry_i    = i
+        elif entry_sign != 0 and pos == 0:
+            _emit(i, ts)
+            entry_sign = 0
+            entry_ts   = None
+            entry_lev  = 0.0
+            entry_i    = None
+        elif entry_sign != 0 and pos != 0 and ((pos > 0) != (entry_sign > 0)):
+            _emit(i, ts)
+            entry_sign = 1 if pos > 0 else -1
+            entry_ts   = ts
+            entry_lev  = sz
+            entry_i    = i
+
+    return closed
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
+
+def build_theoretical_pairs(data_dir: str) -> tuple[list, "date | None", "date | None"]:
+    """Pure-strategy closed-trade pairs.
+
+    Returns (pairs, window_start, window_end).  Pairs are the same dicts
+    `_closed_trades_for_symbol` produces (symbol, direction, entry_date,
+    exit_date, entry_close, exit_close, leverage, size_usd, pnl_usd, …).
+    Used by build_theoretical_curve (close-priced) and by data_loader's
+    execution-hour curve (same pairs, re-priced at T+1 EXECUTION_HOUR open).
+
+    Returns ([], None, None) when no strategy can be loaded.
+    """
+    from shared.data_loader import (
+        load_trades, load_config, _load_config, get_coin_capital,
+    )
+    from shared.cache_manager import get_daily_ohlcv_range, get_hourly_ohlcv
+
+    cfg          = load_config(data_dir)
+    cost_pct     = float(cfg.get('trading_cost_pct', 0.0))
+    active       = list(cfg.get('active_assets', []))
+    data_freq    = str(cfg.get('data_frequency', 'daily')).lower()
+    if not active:
+        return [], None, None
+
+    history             = _load_history(data_dir)
+    strategy_registry   = _load_strategy_registry(data_dir)
+
+    trades       = load_trades(data_dir)
+    first_dates  = _first_entry_date_per_symbol(trades)
+    window_end   = date.today()
+    if first_dates:
+        window_start = min(first_dates.values())
+    else:
+        opt_dates = [
+            d for d in (_most_recent_optimised_date(history, s) for s in active)
+            if d is not None
+        ]
+        if not opt_dates:
+            return [], None, None
+        window_start = min(opt_dates)
+
+    try:
+        warmup_bars = int(getattr(_load_config(data_dir), 'INDICATOR_WARMUP', 100))
+    except Exception:
+        warmup_bars = 100
+    if data_freq == 'hourly':
+        warmup_days = max(30, warmup_bars // 24 + 30)
+    else:
+        warmup_days = warmup_bars + 30
+    fetch_start = window_start - timedelta(days=warmup_days)
+
+    asset_config = _load_asset_config(data_dir)
+    fetch_fn     = get_hourly_ohlcv if data_freq == 'hourly' else get_daily_ohlcv_range
+
+    all_closed: list = []
+
+    if _is_pair_dashboard(asset_config):
+        # Pair-trading strategy (statarb): each ACTIVE_ASSETS entry is a
+        # pair_key matched against ASSET_CONFIG to find symbol_y / symbol_x.
+        active_set = set(active)
+        for a in asset_config:
+            pair_key = a.get('pair_key')
+            if pair_key not in active_set:
+                continue
+            segments = _segments_for_symbol(history, pair_key,
+                                            window_start, window_end)
+            if not segments:
+                continue
+            sym_y, sym_x = a.get('symbol_y'), a.get('symbol_x')
+            try:
+                df_y = fetch_fn(sym_y, fetch_start, window_end)
+                df_x = fetch_fn(sym_x, fetch_start, window_end)
+            except Exception as e:
+                print(f"build_theoretical_pairs: {pair_key} ({sym_y}/{sym_x}) "
+                      f"fetch failed — {e}")
+                continue
+            if df_y is None or df_y.empty or df_x is None or df_x.empty:
+                continue
+            y = df_y[['Close']].rename(columns={'Close': 'Close_Y'})
+            x = df_x[['Close']].rename(columns={'Close': 'Close_X'})
+            merged = y.join(x, how='inner').dropna()
+            if merged.empty:
+                continue
+            coin_cap = get_coin_capital(pair_key, data_dir)
+            closed = _closed_trades_for_pair(
+                pair_key=pair_key,
+                df=merged,
+                segments=segments,
+                strategy_registry=strategy_registry,
+                coin_capital=coin_cap,
+                cost_pct=cost_pct,
+            )
+            all_closed.extend(closed)
+    else:
+        for symbol in active:
+            segments = _segments_for_symbol(history, symbol,
+                                            window_start, window_end)
+            if not segments:
+                continue
+            try:
+                ohlc_df = fetch_fn(symbol, fetch_start, window_end)
+            except Exception as e:
+                print(f"build_theoretical_pairs: {symbol} fetch failed — {e}")
+                continue
+            if ohlc_df is None or ohlc_df.empty:
+                continue
+
+            coin_cap = get_coin_capital(symbol, data_dir)
+            closed = _closed_trades_for_symbol(
+                symbol=symbol,
+                ohlc_df=ohlc_df,
+                segments=segments,
+                strategy_registry=strategy_registry,
+                coin_capital=coin_cap,
+                cost_pct=cost_pct,
+            )
+            all_closed.extend(closed)
+
+    return all_closed, window_start, window_end
+
 
 def build_theoretical_curve(data_dir: str) -> pd.DataFrame:
     """Pure-strategy daily P&L curve.
@@ -327,90 +607,13 @@ def build_theoretical_curve(data_dir: str) -> pd.DataFrame:
     DataFrame when there are no live trades to anchor the window or when
     no strategy can be loaded.
     """
-    # Lazy imports avoid a circular dependency with data_loader.
-    from shared.data_loader import (
-        load_trades, load_config, _load_config, get_coin_capital,
-    )
-    from shared.cache_manager import get_daily_ohlcv_range, get_hourly_ohlcv
-
-    cfg          = load_config(data_dir)
-    cost_pct     = float(cfg.get('trading_cost_pct', 0.0))
-    active       = list(cfg.get('active_assets', []))
-    data_freq    = str(cfg.get('data_frequency', 'daily')).lower()
-    if not active:
+    all_closed, window_start, window_end = build_theoretical_pairs(data_dir)
+    if window_start is None or window_end is None:
         return pd.DataFrame(columns=['date', 'theoretical_pnl', 'theoretical_cumulative'])
 
-    history             = _load_history(data_dir)
-    strategy_registry   = _load_strategy_registry(data_dir)
-
-    trades       = load_trades(data_dir)
-    first_dates  = _first_entry_date_per_symbol(trades)
-    window_end   = date.today()
-    if first_dates:
-        window_start = min(first_dates.values())
-    else:
-        # No live trades yet — fall back to "since most recent optimised_on
-        # per symbol" so a brand-new strategy (e.g. BB Breakout pre-first-
-        # trade) still shows a theoretical curve.  The user can spot
-        # missed entries this way.  Window start = the EARLIEST of the
-        # active assets' most-recent optimisation dates so every symbol's
-        # signals from then onwards render.
-        opt_dates = [
-            d for d in (_most_recent_optimised_date(history, s) for s in active)
-            if d is not None
-        ]
-        if not opt_dates:
-            return pd.DataFrame(columns=['date', 'theoretical_pnl', 'theoretical_cumulative'])
-        window_start = min(opt_dates)
-
-    # Indicator warmup — pull extra history before window_start so the
-    # strategy's indicators are warm by the time we reach the window.
-    # INDICATOR_WARMUP is in BARS (daily for momentum, hourly for BB),
-    # which we convert to a calendar-day buffer here.  Add a healthy
-    # safety margin so multi-timeframe strategies (BB resamples 1H→4H)
-    # never run short of history at the boundary.
-    try:
-        warmup_bars = int(getattr(_load_config(data_dir), 'INDICATOR_WARMUP', 100))
-    except Exception:
-        warmup_bars = 100
-    if data_freq == 'hourly':
-        warmup_days = max(30, warmup_bars // 24 + 30)
-    else:
-        warmup_days = warmup_bars + 30
-    fetch_start = window_start - timedelta(days=warmup_days)
-
-    all_closed: list = []
-    for symbol in active:
-        segments = _segments_for_symbol(history, symbol, window_start, window_end)
-        if not segments:
-            continue
-        try:
-            if data_freq == 'hourly':
-                ohlc_df = get_hourly_ohlcv(symbol, fetch_start, window_end)
-            else:
-                ohlc_df = get_daily_ohlcv_range(symbol, fetch_start, window_end)
-        except Exception as e:
-            print(f"build_theoretical_curve: {symbol} fetch failed — {e}")
-            continue
-        if ohlc_df is None or ohlc_df.empty:
-            continue
-
-        coin_cap = get_coin_capital(symbol, data_dir)
-        closed = _closed_trades_for_symbol(
-            symbol=symbol,
-            ohlc_df=ohlc_df,
-            segments=segments,
-            strategy_registry=strategy_registry,
-            coin_capital=coin_cap,
-            cost_pct=cost_pct,
-        )
-        all_closed.extend(closed)
-
-    # ── Aggregate daily P&L on exit date, bucketed over [window_start, today] ─
     pnl_by_date: dict = {}
     for t in all_closed:
         d = t['exit_date']
-        # Only keep theoretical trades whose exit falls inside the live window
         if d < window_start or d > window_end:
             continue
         pnl_by_date[d] = pnl_by_date.get(d, 0.0) + t['pnl_usd']

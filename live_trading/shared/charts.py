@@ -505,7 +505,8 @@ def fund_equity_chart(strategy_curves_dict: dict,
                       normalised: bool = False,
                       benchmark_series: pd.Series = None,
                       total_capital: float = 0.0,
-                      title: str = '') -> go.Figure:
+                      title: str = '',
+                      show_theoretical: bool = False) -> go.Figure:
     """
     Combined fund equity curve, summing actual_cumulative across strategies.
 
@@ -565,6 +566,38 @@ def fund_equity_chart(strategy_curves_dict: dict,
         line=dict(color=_C_ACTUAL, width=2.5),
         hovertemplate=hover_tmpl,
     ))
+
+    # ── Theoretical fund line (sum of per-strategy theoretical_cumulative) ────
+    if show_theoretical:
+        theo_frames = []
+        for name in names:
+            curve = strategy_curves_dict.get(name)
+            if curve is None or 'theoretical_cumulative' not in curve.columns:
+                continue
+            theo_frames.append(
+                curve[['date', 'theoretical_cumulative']]
+                .set_index('date')
+                .rename(columns={'theoretical_cumulative': name})
+            )
+        if theo_frames:
+            theo_wide = (pd.concat(theo_frames, axis=1)
+                         .reindex(combined_wide.index)
+                         .ffill().fillna(0))
+            theo_sum  = theo_wide.sum(axis=1)
+            if normalised and total_capital > 0:
+                theo_y    = (total_capital + theo_sum) / total_capital * 100
+                theo_tmpl = '%{x|%b %d, %Y}<br>Theoretical: %{y:.2f}<extra></extra>'
+            else:
+                theo_y    = theo_sum
+                theo_tmpl = '%{x|%b %d, %Y}<br>Theoretical: $%{y:,.0f}<extra></extra>'
+            fig.add_trace(go.Scatter(
+                x=dates,
+                y=theo_y,
+                name='Theoretical',
+                mode='lines',
+                line=dict(color=_C_THEORETICAL, width=1.5, dash='dash'),
+                hovertemplate=theo_tmpl,
+            ))
 
     if benchmark_series is not None and not benchmark_series.empty:
         # Align benchmark to combined curve start date

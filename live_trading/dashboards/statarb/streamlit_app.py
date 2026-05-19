@@ -369,8 +369,6 @@ for _ar in pair_rows:
                     exit_y_price=_axity, exit_x_price=_axitx,
                 )
                 _write_position_exit(_apid, _aspread_pnl, '')
-                if _asz > 0:
-                    update_realised_capital(DATA_DIR, _aspread_pnl * _asz, _apid)
                 _auto_exited.add(_apid)
                 _did_auto = True
 

@@ -630,7 +630,7 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
         if not strategy_curves.get(name, pd.DataFrame()).empty
     ]
 
-    col1, col2, col3 = st.columns([3, 1, 1])
+    col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
     with col1:
         strategies_selected = st.multiselect(
             "Strategies",
@@ -647,6 +647,11 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
         show_btc = st.checkbox(
             "BTC benchmark", value=False,
             key=f"{prefix}_btc",
+        )
+    with col4:
+        fund_show_theo = st.checkbox(
+            "Show theoretical", value=False,
+            key=f"{prefix}_show_theoretical_fund",
         )
 
     if not strategies_selected:
@@ -768,6 +773,7 @@ def render_fund_portfolio(dashboard_dirs: dict, prefix: str) -> None:
         benchmark_series=btc_series,
         total_capital=total_capital_sel,
         title="Epsilon Fund — Combined equity",
+        show_theoretical=fund_show_theo,
     )
     st.plotly_chart(fig_fund, use_container_width=True,
                     key=f'{prefix}_fund_equity')
