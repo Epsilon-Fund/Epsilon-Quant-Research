@@ -1,0 +1,59 @@
+# Polymarket Brain Map
+
+> Start here when you need the Obsidian-level map of the Polymarket project. For execution details, read the linked notes themselves.
+
+## Why Wikilinks Matter
+
+Wikilinks keep the research memory navigable. A finding is only useful later if a future Codex or Cowork session can discover its hub, sibling notes, and closure status without re-reading the whole repo. Obsidian then gives us a graph view of clusters, orphans, and broken links, which is exactly how we avoid repeating dead branches or losing the one note that explains why a strategy was closed.
+
+## Core Hubs
+
+- [[COWORK]] — strategic orientation, active clusters, and prompt discipline.
+- [[CODEX]] — implementation orientation and required startup context.
+- [[TODO]] — authoritative active task list.
+- [[glossary]] — cross-project terms.
+
+## Overarching Polymarket Docs
+
+- [[polymarket/research/README|research README]] — copytrade/data infrastructure overview and reproduction guide.
+- [[polymarket/research/CLAUDE|research rules]] — Polymarket research implementation conventions.
+- [[polymarket/research/notebooks/README|research notebook index]] — bridge from Markdown notes to notebooks.
+- [[polymarket/execution/README|execution README]] — Polymarket execution bot entry point.
+- [[block_k_plain_english_synthesis]] — plain-English explanation of the Block K arc and the MM/OD split.
+- [[block_k_maker_options_research]] — foundation research for maker/options-delta work.
+- [[strat_market_making]] — MM hub.
+- [[strat_options_delta]] — OD hub.
+- [[polymarket/research/RESEARCH_FINDINGS|RESEARCH_FINDINGS]] — copytrade/data-side overview findings.
+- [[METRICS_REFERENCE]] — authoritative metric formulas and caveats.
+- [[dali_literature_synthesis]] and [[dali_factor_construction]] — academic/deep-research foundation for the dali / Polymarket research lineage.
+- [[external_ofi_tob_l2_midfreq_strategy_research]] — imported external OFI/TOB/L2 research library and triage source.
+- [[polymarket_csv_output_audit]] — CSV output layout and convention for generated result/report tables.
+- [[polymarket_data_manifest]] — family-level manifest for Parquet, CSV, JSONL, DuckDB, and raw Polymarket data artifacts.
+- [[polymarket_table_dictionary]] — shared definitions for compact table columns, bucket labels, filters, and indicators.
+- [[polymarket_plot_gallery_index]] — wikilinked index of generated Polymarket plot-gallery attachments.
+
+## Strategy Folders
+
+Folder index: [[INDEX]].
+
+- `polymarket/research/notes/market_making/` — MM notes: K1/K2/K5/K-PEG, real-maker playbook, maker dominance.
+- `polymarket/research/notes/options_delta/` — OD notes: K3/K4/K6/K7, basis, vol, static hedge, longshot premium.
+- `polymarket/research/notes/copytrade/` — copytrade notes: relayer work, Domah profile, Block B/E, Phase 5, weather FTC.
+- `polymarket/research/notes/dali/` — dali lineage notes: A0/A1/A14/A15/A16/A17/P blocks, capture state, falsified branches, and redesign cues that fed Block K/MM/OD.
+- `polymarket/research/notes/overview/synthesis/` — cross-branch synthesis, plain-English explainers, and high-level maps.
+- `polymarket/research/notes/overview/foundations/` — academic/deep research and external research libraries.
+- `polymarket/research/notes/overview/data_quality/` — validation, reconciliation, freshness, trigger, and methodology notes.
+- `polymarket/research/notes/overview/market_maps/` — market screens and maps.
+
+## Falsification And Redesign Anchors
+
+- dali is not globally closed; its original direct local microstructure continuation branch was falsified/redesigned via [[block_p3prime_oos_findings]], [[block_a0c_holdout_retest_findings]], [[block_a14h_maker_non_overlap_findings]], and [[block_a17_lightgbm_findings]].
+- Single-venue Polymarket market-making is closed; surviving maker value is in [[block_k5_findings]], [[block_k5b_findings]], and the copy/learn route.
+- Continuous/banded options-delta gamma scalp is closed; static-hedge Strategy A moved through [[block_k6_strategy_a_static_hedge_findings]] into [[od_strategy_a_v2_lifecycle_findings]], where the primary OOS lifecycle gate failed and the hedge overlay stayed gated.
+- Cross-project Binance daily momentum plus Polymarket BTC/ETH binary overlay is closed in [[2026-06-02_binance_momentum_polymarket_hybrid]]: the [[STRATEGY_REFERENCE]] daily momentum baseline keeps the best CAGR and Sharpe, while the PM hedge only improves drawdown by paying away too much return and the alpha sleeve fails even under proxy quote-edge assumptions.
+- Latest politics NegRisk live-loop handoffs: [[2026-06-03_politics_negrisk_live_loop]] and [[2026-06-03_politics_negrisk_phase1_review]].
+- Latest graph cleanup context: [[2026-06-04_obsidian_orphan_link_pass]].
+
+## Prompt Rule
+
+Every Cowork-authored Codex prompt must begin by telling Codex to read [[CODEX]] first, then [[TODO]], [[COWORK]], this map, and the relevant strategy hub. [[CODEX]] is the implementation-agent README; this rule keeps Codex from running on stale or partial context.

@@ -90,7 +90,7 @@ polymarket/research/.env
 polymarket/research/.venv/
 polymarket/research/.tmp/
 
-# Personal Obsidian brain (journals, TODO, glossary — gitignored, not for collaborators)
+# Obsidian brain seed is tracked for collaborator onboarding; new local notes stay ignored unless force-added.
 brain/
 
 # Obsidian volatile session state (personal window layout)
