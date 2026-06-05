@@ -1,4 +1,6 @@
 ## CPCV Validation Notebooks
+> Hub: [[STRATEGY_REFERENCE]]
+
 
 Combinatorial Purged Cross-Validation (CPCV) for the momentum strategy family.
 One notebook per asset. Run after walk-forward validation.
@@ -12,7 +14,21 @@ One notebook per asset. Run after walk-forward validation.
 3. Set `WF_SHARPE` to the combined OOS Sharpe from walk-forward (for comparison annotation).
 4. Run all cells. Results are saved as `{symbol.lower()}_cpcv.pkl`.
 
-**Files**
+## Notebook Map
+
+| Notebook | Role |
+|---|---|
+| [[topics/momentum/strategies/momentum_cpcv/cpcv_template.ipynb|cpcv template]] | Template notebook — copy and rename per asset |
+| [[topics/momentum/strategies/momentum_cpcv/ADA.ipynb|ADA CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/AVAX.ipynb|AVAX CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/BNB.ipynb|BNB CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/BTC.ipynb|BTC CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/ETH.ipynb|ETH CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/SOL.ipynb|SOL CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/XRP.ipynb|XRP CPCV]] | Per-asset CPCV notebook |
+| [[topics/momentum/strategies/momentum_cpcv/portfolio_cpcv.ipynb|portfolio CPCV]] | Portfolio aggregation over per-asset CPCV results |
+
+## Files
 
 | File | Description |
 |------|-------------|

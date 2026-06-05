@@ -44,9 +44,9 @@ import streamlit as st
 
 from dashboard import (
     run_dashboard,
-    fetch_live_price,
-    fetch_live_prices,
     apply_decision,
+    compute_signals,
+    fetch_ohlcv,
     get_coin_capital,
     get_open_positions,
 )
@@ -56,10 +56,10 @@ from shared.data_loader import (
     load_live_params,
     build_trade_pairs,
     load_realised_capital,
-    update_realised_capital,
     invalidate_trade_caches,
 )
-from shared.binance_utils import get_live_prices as _shared_live_prices
+from shared.websocket_manager import get_shared_ws, force_reset_shared_ws
+from shared import signal_cache as _signal_cache
 from config   import ACTIVE_ASSETS, EXECUTION_HOUR, CAPITAL, COIN_WEIGHTS
 import config as _cfg_mod
 TRADING_COST_PCT = getattr(_cfg_mod, 'TRADING_COST_PCT', 0.0)
@@ -291,7 +291,9 @@ st.markdown("""
       color: #888780 !important;
   }
 
-  /* Card wrapper */
+  /* Card wrapper.  overflow-x:auto so wide tables scroll horizontally on
+     narrow viewports (mobile) instead of being clipped.  -webkit-overflow-
+     scrolling smooths the touch-scroll on iOS Safari. */
   .dashboard-card {
       background: white;
       border: 1px solid #d3d1c7;
@@ -299,7 +301,9 @@ st.markdown("""
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       padding: 0;
       margin-bottom: 14px;
-      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
   }
   .card-header {
       padding: 10px 16px 8px;
@@ -454,14 +458,25 @@ with st.sidebar:
     st.markdown("### Controls")
     if st.button("↻ Refresh data", key="momentum_refresh_data"):
         st.cache_data.clear()
+        _signal_cache.clear(DATA_DIR)
+        # Also reset the shared WS so any wedged TWM gets a clean slate
+        # — covers the case where the singleton's rebuild loop is stuck.
+        force_reset_shared_ws()
         st.session_state.pop("momentum_dashboard_data", None)
         st.session_state.pop("momentum_dashboard_cache_key", None)
         st.rerun()
     if st.button("↻ Refresh signals", key="momentum_refresh_signals"):
+        _signal_cache.clear(DATA_DIR)
         st.session_state.pop("momentum_dashboard_data", None)
         st.session_state.pop("momentum_dashboard_cache_key", None)
         st.rerun()
-    st.caption("Prices refresh every 30s. Signals refresh on new daily bar.")
+    if st.button("↻ Reconnect WS", key="momentum_ws_reconnect",
+                 help="Discard the shared WebSocket singleton and rebuild "
+                      "from scratch.  Use when the price feed shows 🟡 "
+                      "No connection and won't auto-recover."):
+        force_reset_shared_ws()
+        st.rerun()
+    st.caption("Prices stream live (WS). Signals refresh on new daily bar.")
 
 
 # ── Signal cache helpers ───────────────────────────────────────────────────────
@@ -484,19 +499,22 @@ def _current_signal_date() -> str:
 
 # ── Data loading — session_state signal cache ─────────────────────────────────
 
-def load_live_prices(symbols: tuple):
-    """
-    Look up current market prices for the requested symbols.
-
-    Backed by shared.binance_utils.fetch_all_live_prices() — a single
-    batched REST call shared across all dashboards, cached 300 s.
-    """
-    return _shared_live_prices(symbols)
+# Process-wide shared price WebSocket — one TWM across momentum + bb.
+# Subscribing here just adds momentum's symbols to the union maintained
+# by shared/websocket_manager.py.
+#
+# We don't block waiting for the first tick: the fragment's REST
+# fallback already covers "WS started but no price yet" for the very
+# first render, and after that the indicator flips to 🟢 Live on its
+# own.  Saves 500 ms off every cold start.
+def _get_ws_manager(symbols):
+    return get_shared_ws(symbols)
 
 
 _live_params_raw = load_live_params(DATA_DIR)
 if not _live_params_raw:
-    st.error("live_params.json is empty — run `optimise.py` first.")
+    st.warning("No optimised parameters found. "
+               "Run optimise.py before using this dashboard.")
     st.stop()
 
 _active_set   = set(ACTIVE_ASSETS)
@@ -511,17 +529,34 @@ if st.session_state.get("momentum_signal_date") != _expected_signal_date:
 
 if ("momentum_dashboard_data" not in st.session_state or
         st.session_state.get("momentum_dashboard_cache_key") != _cache_key):
-    with st.spinner("Loading signals..."):
-        _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
-        _rows   = _result['assets']
-        _sdate  = _result['signal_date']
-        for _row in _rows:
-            _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
-        st.session_state.momentum_dashboard_data      = (_rows, _sdate)
-        st.session_state.momentum_dashboard_cache_key = _cache_key
-        st.session_state.momentum_signal_date         = _expected_signal_date
+    # Cross-session cache lookup (process memory → disk → compute).
+    # Hits skip the spinner entirely; misses fall through to run_dashboard.
+    _cached_signals = _signal_cache.load(DATA_DIR, _cache_key, _expected_signal_date)
+    if _cached_signals is not None:
+        _rows, _sdate, _gen_at = _cached_signals
+    else:
+        with st.spinner("Loading signals..."):
+            _result = run_dashboard(_coin_symbols, _live_params_raw, positions={})
+            _rows   = _result['assets']
+            _sdate  = _result['signal_date']
+            # Capture the actual data-fetch time so the "Generated:" header
+            # shows when run_dashboard() last fired, not the current render
+            # clock.  Persisted alongside the data so subsequent cache-hit
+            # renders display the same value.
+            _gen_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            _signal_cache.store(
+                DATA_DIR, _cache_key, _expected_signal_date,
+                _rows, _sdate, _gen_at,
+            )
+    # Re-attach fixed_keys from the authoritative ASSET_CONFIG (cached on
+    # disk they round-trip as lists; downstream code wants sets).
+    for _row in _rows:
+        _row['fixed_keys'] = _ASSET_FIXED_KEYS.get(_row['symbol'], _row['fixed_keys'])
+    st.session_state.momentum_dashboard_data      = (_rows, _sdate, _gen_at)
+    st.session_state.momentum_dashboard_cache_key = _cache_key
+    st.session_state.momentum_signal_date         = _expected_signal_date
 
-coin_rows, signal_date = st.session_state.momentum_dashboard_data
+coin_rows, signal_date, generated_at = st.session_state.momentum_dashboard_data
 
 # Apply decisions OUTSIDE the cache so positions.json is read fresh every render.
 # st.cache_data returns deserialized copies, so mutating coin_rows here is safe.
@@ -581,8 +616,6 @@ for _ac in coin_rows:
                     exit_close=_asig['close'], exit_reason='Strategy',
                 )
                 _write_position_exit(_apid, _atheo, '')
-                if _aep > 0:
-                    update_realised_capital(DATA_DIR, (_atheo - _aep) / _aep * _asz, _apid)
                 _auto_exited.add(_apid)
                 _did_auto = True
 
@@ -612,8 +645,6 @@ for _ac in coin_rows:
 if _did_auto:
     invalidate_trade_caches()
 
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-
 
 # ── Helper: format param value ────────────────────────────────────────────────
 
@@ -625,15 +656,43 @@ def fmt(v):
     return escape(str(v))
 
 
+def _fmt_price(value, symbol=None):
+    """Price display formatter.
+
+    BTC* symbols → 2 decimal places (their 5-digit prices look bloated
+    with 3dp).  Everything else → 3 decimal places.  Trade-log inputs
+    accept up to 4dp; this caps the *display* by one to keep tables
+    clean.  ``None`` / NaN return em-dash.
+    """
+    if value is None:
+        return '—'
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return '—'
+    if v != v:               # NaN
+        return '—'
+    if symbol and 'BTC' in str(symbol).upper():
+        return f'{v:,.2f}'
+    return f'{v:,.3f}'
+
+
 # ── Load positions + live prices early (needed for header portfolio summary) ──
 # _positions_now was already read once near the top of this render.
 _open            = {pid: p for pid, p in _positions_now.items() if p.get('in_position')}
 st.session_state.momentum_open_positions = _open
 _coin_sig_by_sym = {c['symbol']: c['sig'] for c in coin_rows}
 
-# Fetch live prices for all active coins (positions + decisions)
-_all_syms    = tuple(sorted({c['symbol'] for c in coin_rows} | {p.get('symbol', pid) for pid, p in _open.items()}))
-_live_prices = load_live_prices(_all_syms) if _all_syms else {}
+# All active coins (positions + decisions) — subscription set for the
+# shared WebSocket.  Starting / reusing the WS is the only live-price
+# call we make: by the time the header and fragment render, the WS has
+# typically delivered first ticks for every symbol.  Symbols that don't
+# yet have a tick are rendered as "—"; they fill in on the next 5 s
+# fragment rerun.
+_all_syms   = tuple(sorted({c['symbol'] for c in coin_rows} | {p.get('symbol', pid) for pid, p in _open.items()}))
+_ws_manager = _get_ws_manager(_all_syms) if _all_syms else None
+_ws_live    = bool(_ws_manager and _ws_manager.is_connected)
+_live_prices = _ws_manager.get_prices(_all_syms) if (_ws_manager and _all_syms) else {}
 
 # Pre-compute portfolio totals for the header summary card
 # Realized P&L: sum actual_pnl_usd from all closed trade pairs in the journal
@@ -687,11 +746,12 @@ if not globals().get('_SUPPRESS_H1', False):
 </h1>
 """, unsafe_allow_html=True)
 
+_prices_status = '🟢 Live' if _ws_live else '🟡 No connection'
 st.markdown(f"""
 <div class="dash-meta">
   <strong>Signal date:</strong> {signal_date} &nbsp;&nbsp;
-  <strong>Generated:</strong> {generated_at} UTC &nbsp;&nbsp;
-  <strong>Execution hour:</strong> {EXECUTION_HOUR}h UTC (T+1)
+  <strong>Execution hour:</strong> {EXECUTION_HOUR}h UTC (T+1) &nbsp;&nbsp;
+  <strong>Prices:</strong> {_prices_status}
 </div>
 """, unsafe_allow_html=True)
 
@@ -735,9 +795,15 @@ st.markdown(f"""
 
 # ── Active Positions — live-price fragment ────────────────────────────────────
 
-@st.fragment(run_every=30)
+@st.fragment(run_every=5)
 def _momentum_positions_fragment():
-    """Re-renders active positions HTML table with fresh live prices. No external calls besides fetch_live_prices."""
+    """Re-renders the active-positions table from the latest WS ticks.
+
+    WS is the only source.  Symbols without a tick yet (e.g. first 1-2 s
+    after process start) render as "—" and fill in on the next 5 s rerun.
+    If the WS is fully down, every row's live cell is "—" and the header
+    indicator flips to 🟡; nothing here calls REST.
+    """
     _t0 = time.time()
     open_positions = st.session_state.get("momentum_open_positions", {})
     if not open_positions:
@@ -748,9 +814,10 @@ def _momentum_positions_fragment():
         return
 
     symbols     = list({p.get("symbol", pid) for pid, p in open_positions.items()})
-    live_prices = fetch_live_prices(symbols)
+    ws          = get_shared_ws(symbols)
+    live_prices = ws.get_prices(symbols) if ws.is_connected else {}
     elapsed     = time.time() - _t0
-    print(f"Fragment refresh: {elapsed:.2f}s ({len(symbols)} price fetches)")
+    print(f"Fragment refresh: {elapsed:.3f}s ({len(symbols)} symbols, {len(live_prices)} ticks)")
 
     from datetime import date as _date
     _pos_rows       = ''
@@ -779,8 +846,8 @@ def _momentum_positions_fragment():
             _tot_has_live_r    = True
             pnl_cls    = 'entry-t' if unrealised_pnl_usd >= 0 else 'entry-f'
             pnl_sign   = '+' if net_return_pct >= 0 else ''
-            live_td    = f'<td>{live_price:,.2f}</td>'
-            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.2f}%</td>'
+            live_td    = f'<td>{_fmt_price(live_price, _sym_for_pos)}</td>'
+            pnl_pct_td = f'<td class="{pnl_cls}">{pnl_sign}{net_return_pct:.3f}%</td>'
             pnl_usd_td = f'<td class="{pnl_cls}">{pnl_sign}{unrealised_pnl_usd:,.0f}</td>'
             pos_val_td = f'<td>{position_value:,.0f}</td>'
         else:
@@ -796,12 +863,12 @@ def _momentum_positions_fragment():
 
         if conf_stop is not None:
             if _needs_confirm:
-                stop_td = (f'<td>{conf_stop:,.2f}'
-                           f'<br><span class="stop-up">-> {pending_stop:,.2f}</span></td>')
+                stop_td = (f'<td>{_fmt_price(conf_stop, _sym_for_pos)}'
+                           f'<br><span class="stop-up">-> {_fmt_price(pending_stop, _sym_for_pos)}</span></td>')
             else:
-                stop_td = f'<td>{conf_stop:,.2f}</td>'
+                stop_td = f'<td>{_fmt_price(conf_stop, _sym_for_pos)}</td>'
         elif pending_stop is not None:
-            stop_td = (f'<td><span style="color:#888780">{pending_stop:,.2f}</span>'
+            stop_td = (f'<td><span style="color:#888780">{_fmt_price(pending_stop, _sym_for_pos)}</span>'
                        f'<br><span style="font-size:10px;color:#888780">unconfirmed</span></td>')
         else:
             stop_td = '<td style="color:#888780">—</td>'
@@ -816,7 +883,7 @@ def _momentum_positions_fragment():
           <td class="asset-name">{escape(_sym_for_pos)}</td>
           <td>{escape(pos.get('entry_date','—'))}</td>
           <td>{days_held}</td>
-          <td>{entry_price:,.2f}</td>
+          <td>{_fmt_price(entry_price, _sym_for_pos)}</td>
           {live_td}
           {stop_td}
           <td>{leverage_multiplier:.2f}x</td>
@@ -862,6 +929,12 @@ def _momentum_positions_fragment():
 </div>
 """, unsafe_allow_html=True)
 
+    _conn_label = '🟢 Live' if ws.is_connected else '🟡 No connection'
+    st.caption(
+        f"{_conn_label} · updated "
+        f"{datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC"
+    )
+
 
 # ── Active Positions ──────────────────────────────────────────────────────────
 
@@ -880,6 +953,11 @@ for pid, pos in _open.items():
     if sugg_stop is not None and sugg_stop > (conf_stop or 0) and sugg_stop != pending_stop:
         pending_stop = sugg_stop
         _write_pending_stop(pid, sugg_stop)
+        # Keep the in-memory dict (shared with session_state.momentum_open_positions
+        # and consumed by the live-price fragment every 30s) in sync with disk;
+        # otherwise the fragment shows the pre-ratchet pending value until the
+        # next full rerun.
+        pos['pending_stop'] = sugg_stop
     _needs_confirm = pending_stop is not None and pending_stop != conf_stop
     if _needs_confirm:
         _confirm_items.append((pid, _sym_for_pos, pending_stop))
@@ -892,63 +970,83 @@ if _confirm_items:
     _conf_cols = st.columns(len(_confirm_items))
     for _col, (_pid, _sym, _pend) in zip(_conf_cols, _confirm_items):
         with _col:
-            if st.button(f"✓ Confirm stop {_sym}: {_pend:,.2f}",
-                         key=f"conf_stop_{_pid}"):
+            if st.button(f"✓ Confirm stop {_sym}: {_fmt_price(_pend, _sym)}",
+                         key=f"momentum_conf_stop_{_pid}"):
                 _confirm_stop(_pid)
                 invalidate_trade_caches()
                 st.rerun()
 
 
 # ── Section 1: Decisions ──────────────────────────────────────────────────────
-
-rows_html = ''
-for c in coin_rows:
-    sig = c['sig']
-    d   = sig['decision']
-
-    alloc_note = f"{c['coin_capital']:,.0f} alloc ({c['coin_weight']*100:.0f}% of ${_realised_capital:,.0f})"
-    badge      = f'<span class="badge badge-{d}">{d}</span>'
-
-    lev = sig.get('leverage_multiplier')
-    size_pct = f"{lev:.2f}x" if lev is not None else '—'
-    if d == 'HOLD' and lev is not None:
-        size_pct += '<br><span style="font-size:11px;color:#888780">held</span>'
-    elif d == 'EXIT' and lev is not None:
-        size_pct += '<br><span style="font-size:11px;color:#888780">to exit</span>'
-    size_usd = f"{sig['size_usd']:,.0f}" if sig['size_usd'] is not None else '—'
-
-    if sig['current_stop'] is not None:
-        stop_html = f"{sig['current_stop']:,.2f}"
-        if d == 'HOLD' and sig.get('stop_updated'):
-            stop_html += f' <span class="stop-up">↑</span><br><span class="stop-prev">was {sig["old_stop"]:,.2f}</span>'
-    else:
-        stop_html = '—'
-
-    exec_html = f"{c['exec_price']:,.2f}" if c['exec_price'] is not None else '<span style="color:#888780">pending</span>'
-
-    _lp = _live_prices.get(c['symbol'])
-    live_html = f"{_lp:,.2f}" if _lp is not None else '<span style="color:#888780">—</span>'
-
-    row_cls = f'class="row-{d}"' if d != 'FLAT' else ''
-
-    rows_html += f"""
-    <tr {row_cls}>
-      <td>
-        <div class="asset-name">{escape(c['symbol'])}</div>
-        <div class="asset-alloc">{escape(alloc_note)}</div>
-      </td>
-      <td>{badge}</td>
-      <td class="r">{size_pct}</td>
-      <td class="r">{size_usd}</td>
-      <td class="r">{stop_html}</td>
-      <td class="r">{sig['close']:,.2f}</td>
-      <td class="r">{exec_html}</td>
-      <td class="r">{live_html}</td>
-    </tr>"""
-
+# Header + caption render once per full page rerun — they don't depend on
+# tick-level data.  The table BODY lives inside a 5-s fragment so its
+# Live ($) column ticks at the same cadence as the Active Positions
+# fragment above, instead of freezing at the page-load snapshot of
+# _live_prices.  Decision values (HOLD/ENTRY/EXIT, leverage, stop, exec)
+# come from the cached signal and are stable per page rerun — no point
+# recomputing those every 5 s; only the live-price cell really moves.
 st.markdown("#### DECISIONS")
-st.caption(f"Sizes based on realised capital: ${_realised_capital:,.2f}")
-st.markdown(f"""
+st.caption(f"Sizes based on realised capital: ${_realised_capital:,.3f}")
+
+
+@st.fragment(run_every=5)
+def _momentum_decisions_fragment():
+    # Pull fresh WS prices for every coin in the decisions table.  This is
+    # what the Active Positions fragment does — same pattern, same
+    # singleton.  Fragment closures see coin_rows / _realised_capital /
+    # EXECUTION_HOUR from the enclosing scope at function-definition time,
+    # which is fine: they only change on full page rerun.
+    _decision_syms = [c['symbol'] for c in coin_rows]
+    _ws_dec        = get_shared_ws(_decision_syms) if _decision_syms else None
+    _live_dec      = _ws_dec.get_prices(_decision_syms) if (_ws_dec and _ws_dec.is_connected) else {}
+
+    _rows_html = ''
+    for c in coin_rows:
+        sig = c['sig']
+        d   = sig['decision']
+
+        alloc_note = f"{c['coin_capital']:,.0f} alloc ({c['coin_weight']*100:.0f}% of ${_realised_capital:,.0f})"
+        badge      = f'<span class="badge badge-{d}">{d}</span>'
+
+        lev = sig.get('leverage_multiplier')
+        size_pct = f"{lev:.3f}x" if lev is not None else '—'
+        if d == 'HOLD' and lev is not None:
+            size_pct += '<br><span style="font-size:11px;color:#888780">held</span>'
+        elif d == 'EXIT' and lev is not None:
+            size_pct += '<br><span style="font-size:11px;color:#888780">to exit</span>'
+        size_usd = f"{sig['size_usd']:,.0f}" if sig['size_usd'] is not None else '—'
+
+        if sig['current_stop'] is not None:
+            stop_html = _fmt_price(sig['current_stop'], c['symbol'])
+            if d == 'HOLD' and sig.get('stop_updated'):
+                stop_html += (f' <span class="stop-up">↑</span>'
+                              f'<br><span class="stop-prev">was {_fmt_price(sig["old_stop"], c["symbol"])}</span>')
+        else:
+            stop_html = '—'
+
+        exec_html = _fmt_price(c['exec_price'], c['symbol']) if c['exec_price'] is not None else '<span style="color:#888780">pending</span>'
+
+        _lp = _live_dec.get(c['symbol'])
+        live_html = _fmt_price(_lp, c['symbol']) if _lp is not None else '<span style="color:#888780">—</span>'
+
+        row_cls = f'class="row-{d}"' if d != 'FLAT' else ''
+
+        _rows_html += f"""
+        <tr {row_cls}>
+          <td>
+            <div class="asset-name">{escape(c['symbol'])}</div>
+            <div class="asset-alloc">{escape(alloc_note)}</div>
+          </td>
+          <td>{badge}</td>
+          <td class="r">{size_pct}</td>
+          <td class="r">{size_usd}</td>
+          <td class="r">{stop_html}</td>
+          <td class="r">{_fmt_price(sig['close'], c['symbol'])}</td>
+          <td class="r">{exec_html}</td>
+          <td class="r">{live_html}</td>
+        </tr>"""
+
+    st.markdown(f"""
 <div class="dashboard-card">
   <table class="dash-table">
     <thead><tr>
@@ -957,10 +1055,141 @@ st.markdown(f"""
       <th class="r">Stop ($)</th><th class="r">Last Daily Close ($)</th>
       <th class="r">Today's {EXECUTION_HOUR}h ($)</th><th class="r">Live ($)</th>
     </tr></thead>
-    <tbody>{rows_html}</tbody>
+    <tbody>{_rows_html}</tbody>
   </table>
 </div>
 """, unsafe_allow_html=True)
+
+
+_momentum_decisions_fragment()
+
+
+# ── LIVE TENDENCY (manual trigger) ───────────────────────────────────────────
+# Recompute the strategy's signal + decision per coin using the current WS
+# price as today's hypothetical close — so you can see whether a coin is
+# "tending toward an entry" 1-2 hours before the daily bar actually closes.
+#
+# Synthetic today bar:
+#   Open   = previous bar's close   (assumes flat gap)
+#   High   = max(WS price, prev close)   (lower bound on today's high)
+#   Low    = min(WS price, prev close)   (upper bound on today's low)
+#   Close  = WS price                (live, what we care about)
+#   Volume = previous bar's volume   (placeholder — today's volume is
+#                                     unknown intra-day; flagged in UI)
+#
+# For each coin we then run compute_signals() + apply_decision() with
+# open_positions={} so the result shows what the strategy would do IF
+# the coin were not already held — i.e. the suggested ENTRY leverage and
+# stop the user can compare against their current position.
+_tend_col1, _tend_col2, _tend_col3 = st.columns([3, 3, 6])
+with _tend_col1:
+    _show_tendency = st.checkbox(
+        "Show live tendency",
+        key="momentum_show_tendency",
+        help=("Substitute the live WS price as today's hypothetical close "
+              "and recompute the strategy's ENTRY decision / leverage / "
+              "stop for each coin.  Useful 1-2 h before the daily bar "
+              "closes.  Volume isn't validated (today's daily volume is "
+              "unknown intra-day); everything else is computed off real "
+              "history + the live close."),
+    )
+
+if _show_tendency:
+    @st.fragment(run_every=5)
+    def _momentum_tendency_fragment():
+        import pandas as _pd
+        _ws_now    = get_shared_ws(_all_syms) if _all_syms else None
+        _lp_now    = _ws_now.get_prices(_all_syms) if (_ws_now and _ws_now.is_connected) else {}
+        _ws_status = '🟢 Live' if (_ws_now and _ws_now.is_connected) else '🟡 No connection'
+
+        _rows = ''
+        for _c in coin_rows:
+            _sym       = _c['symbol']
+            _live      = _lp_now.get(_sym)
+            _params    = _c['all_params']
+            _strategy  = _c['strategy']
+
+            if _live is None:
+                _rows += (f'<tr><td class="asset-name">{escape(_sym)}</td>'
+                          f'<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>')
+                continue
+
+            try:
+                _daily      = fetch_ohlcv(_sym)
+                _prev_close = float(_daily['Close'].iloc[-1])
+                _prev_vol   = float(_daily['Volume'].iloc[-1])
+                _today_idx  = _daily.index[-1] + _pd.Timedelta(days=1)
+                _today_bar  = _pd.DataFrame({
+                    'Open':   [_prev_close],
+                    'High':   [max(_live, _prev_close)],
+                    'Low':    [min(_live, _prev_close)],
+                    'Close':  [_live],
+                    'Volume': [_prev_vol],
+                }, index=[_today_idx])
+                _df_aug   = _pd.concat([_daily, _today_bar])
+                _tsig     = compute_signals(_df_aug, _params, _strategy)
+                # Pretend not-in-position so apply_decision returns ENTRY/FLAT.
+                _tdec     = apply_decision(_tsig, {}, _live, _c['coin_capital'])
+            except Exception as _e:
+                print(f"  tendency {_sym}: {_e}")
+                _rows += (f'<tr><td class="asset-name">{escape(_sym)}</td>'
+                          f'<td>err</td><td colspan="5">{escape(str(_e))[:60]}</td></tr>')
+                continue
+
+            _d        = _tdec['decision']
+            _badge    = f'<span class="badge badge-{_d}">{_d}</span>'
+            _lev      = _tdec.get('leverage_multiplier')
+            _size_usd = _tdec.get('size_usd')
+            _stop     = _tdec.get('current_stop')
+
+            _lev_str  = f"{_lev:.3f}x"        if _lev      is not None else '—'
+            _size_str = f"${_size_usd:,.0f}"  if _size_usd is not None else '—'
+            _stop_str = _fmt_price(_stop, _sym) if _stop is not None else '—'
+
+            # Reference column: what's currently held (if anything)
+            _existing = next((p for p in _open.values()
+                              if p.get('symbol', '') == _sym), None)
+            if _existing:
+                _cur_lev = _existing.get('leverage_multiplier') or 0
+                _cur_str = f"{_cur_lev:.3f}x"
+            else:
+                _cur_str = '—'
+
+            # Row tint matches Decisions table for consistency
+            _row_cls = f'class="row-{_d}"' if _d != 'FLAT' else ''
+            _rows += (
+                f'<tr {_row_cls}>'
+                f'<td class="asset-name">{escape(_sym)}</td>'
+                f'<td>{_badge}</td>'
+                f'<td class="r">{_fmt_price(_live, _sym)}</td>'
+                f'<td class="r">{_lev_str}</td>'
+                f'<td class="r">{_size_str}</td>'
+                f'<td class="r">{_stop_str}</td>'
+                f'<td class="r">{_cur_str}</td>'
+                f'</tr>'
+            )
+
+        st.markdown(f"""
+<div class="dashboard-card">
+  <table class="dash-table">
+    <thead><tr>
+      <th>Asset</th><th>Tendency</th><th class="r">Live close</th>
+      <th class="r">Size (lev)</th><th class="r">Size ($)</th>
+      <th class="r">Stop ($)</th><th class="r">Currently held</th>
+    </tr></thead>
+    <tbody>{_rows}</tbody>
+  </table>
+</div>
+""", unsafe_allow_html=True)
+        st.caption(
+            f"{_ws_status} · synthetic today bar uses prev-day volume as placeholder · "
+            f"Decision computed as if not-in-position, so it shows what a fresh "
+            f"ENTRY would look like.  If you're already holding the coin, treat "
+            f"the suggested leverage as the *target* level — your discretion to "
+            f"size up to it or not."
+        )
+
+    _momentum_tendency_fragment()
 
 
 # ── Trade Log Forms ───────────────────────────────────────────────────────────
@@ -1011,11 +1240,11 @@ for _fi, _c in enumerate(coin_rows):
         )
 
         # ── Action toggle (outside form -> live rerender) ──────────────────────
-        _action_key     = f'action_radio_{_sym}'
+        _action_key     = f'momentum_action_radio_{_sym}'
         _action_options = ['ENTRY', 'EXIT'] if _has_position else ['ENTRY']
         _action_default = 1 if (_has_position and _decision in ('HOLD', 'EXIT')) else 0
         _action_radio   = st.radio(
-            '',
+            'Action',
             _action_options,
             index=min(_action_default, len(_action_options) - 1),
             key=_action_key,
@@ -1035,14 +1264,14 @@ for _fi, _c in enumerate(coin_rows):
                 _selected_pos = _open_for_sym[_selected_pid]
             else:
                 _pid_labels = {
-                    pid: f"{pid}  —  {pos.get('entry_date','?')} @ ${pos.get('entry_price',0):,.2f}"
+                    pid: f"{pid}  —  {pos.get('entry_date','?')} @ ${_fmt_price(pos.get('entry_price', 0), _sym)}"
                     for pid, pos in _open_for_sym.items()
                 }
                 _selected_pid = st.selectbox(
                     'Position to exit',
                     options=list(_pid_labels.keys()),
                     format_func=lambda k: _pid_labels[k],
-                    key=f'exit_pid_{_sym}',
+                    key=f'momentum_exit_pid_{_sym}',
                 )
                 _selected_pos = _open_for_sym[_selected_pid]
             _held_lev = float(
@@ -1054,7 +1283,7 @@ for _fi, _c in enumerate(coin_rows):
         else:
             _held_lev = float(_default_size) if _default_size > 0 else 1.0
 
-        with st.form(key=f'trade_form_{_sym}'):
+        with st.form(key=f'momentum_trade_form_{_sym}', clear_on_submit=True):
             if not _is_exit:
                 # ── ENTRY form ────────────────────────────────────────────────
                 _ent_type_default = 0 if _sig.get('entry_long') else 1
@@ -1063,26 +1292,26 @@ for _fi, _c in enumerate(coin_rows):
                     ['Strategy', 'Discretionary'],
                     index=_ent_type_default,
                     horizontal=True,
-                    key=f'entry_type_{_sym}',
+                    key=f'momentum_entry_type_{_sym}',
                 )
                 _direction = st.radio(
                     'Direction',
                     ['Long', 'Short'],
                     horizontal=True,
-                    key=f'direction_{_sym}',
+                    key=f'momentum_direction_{_sym}',
                 )
                 _size = st.number_input(
                     'Actual leverage (x)',
                     value=float(round(_default_size, 2)),
                     min_value=0.0,
-                    format='%.2f',
-                    key=f'size_{_sym}',
+                    format='%.4f',
+                    key=f'momentum_size_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
-                    format='%.2f',
-                    key=f'price_{_sym}',
+                    format='%.4f',
+                    key=f'momentum_price_{_sym}',
                 )
                 _exit_lev = None
             else:
@@ -1090,29 +1319,29 @@ for _fi, _c in enumerate(coin_rows):
                 _exit_reason_widget = st.radio(
                     'Exit reason',
                     ['Strategy', 'Discretionary'],
-                    key=f'exit_reason_{_sym}',
+                    key=f'momentum_exit_reason_{_sym}',
                     horizontal=True,
                 )
                 _exit_lev = st.number_input(
                     'Exit leverage (x)',
                     value=float(round(_held_lev, 2)),
                     min_value=0.01,
-                    max_value=float(round(_held_lev, 2)),
-                    format='%.2f',
-                    key=f'exit_lev_{_sym}',
+                    max_value=_held_lev,
+                    format='%.4f',
+                    key=f'momentum_exit_lev_{_sym}',
                 )
                 _price = st.number_input(
                     'Actual price',
                     value=float(round(_default_price, 2)),
-                    format='%.2f',
-                    key=f'price_{_sym}',
+                    format='%.4f',
+                    key=f'momentum_price_{_sym}',
                 )
                 _direction = None
                 _size      = _held_lev   # held leverage, for trade log reference
 
             _disc = st.text_input(
                 'Discretion note',
-                key=f'note_{_sym}',
+                key=f'momentum_note_{_sym}',
             )
             _submitted = st.form_submit_button('Log trade', use_container_width=True)
 
@@ -1124,12 +1353,16 @@ for _fi, _c in enumerate(coin_rows):
             _action_final  = st.session_state.get(_action_key, 'ENTRY')
             _is_exit_final = (_action_final == 'EXIT')
 
+            if not _is_exit_final and float(_size or 0) <= 0:
+                st.error(f"❌ ENTRY rejected for {_sym}: leverage must be > 0.")
+                st.stop()
+
             if _is_exit_final:
                 _exit_amount   = _exit_lev if _exit_lev is not None else _held_lev
                 _is_full_exit  = (_exit_amount >= _held_lev * 0.999)
                 _exit_type_log = 'full' if _is_full_exit else 'partial'
                 # Resolve selected position_id (from selectbox or only open position)
-                _pid_to_exit   = st.session_state.get(f'exit_pid_{_sym}', _selected_pid)
+                _pid_to_exit   = st.session_state.get(f'momentum_exit_pid_{_sym}', _selected_pid)
                 if _pid_to_exit is None and _open_for_sym:
                     _pid_to_exit = next(iter(_open_for_sym))
                 _sub_sig = ('EXIT', round(_price, 4), round(_exit_amount, 4), _pid_to_exit)
@@ -1137,7 +1370,7 @@ for _fi, _c in enumerate(coin_rows):
                 _dir_val = (_direction or 'Long').lower()
                 _sub_sig = ('ENTRY', round(_price, 4), round(_size, 4), _dir_val)
 
-            _guard_key = f'_last_trade_{_sym}'
+            _guard_key = f'_momentum_last_trade_{_sym}'
             if st.session_state.get(_guard_key) != _sub_sig:
                 st.session_state[_guard_key] = _sub_sig
                 _theo_stop = _sig['theoretical_stop']
@@ -1156,7 +1389,7 @@ for _fi, _c in enumerate(coin_rows):
                         exit_type=_exit_type_log,
                         exit_leverage=_exit_amount,
                         exit_close=_sig['close'],
-                        exit_reason=st.session_state.get(f'exit_reason_{_sym}', 'Strategy exit'),
+                        exit_reason=st.session_state.get(f'momentum_exit_reason_{_sym}', 'Strategy exit'),
                     )
                     if _is_full_exit:
                         _write_position_exit(_pid_to_exit, _price, _disc)
@@ -1172,10 +1405,15 @@ for _fi, _c in enumerate(coin_rows):
                         (_price - _entry_p) / _entry_p * _full_sz_usd * _frac_closed
                         if _entry_p > 0 else 0.0
                     )
+                    # load_realised_capital reads the still-cached trade
+                    # pairs (pre-exit), so _old_rc is the pre-write total
+                    # and _new_rc is the projected post-write total —
+                    # no file write, no audit log; trades.json is the
+                    # source of truth.
                     _old_rc = load_realised_capital(DATA_DIR)
-                    _new_rc = update_realised_capital(DATA_DIR, _pnl_usd_exit, _pid_to_exit)
-                    print(f"Capital updated: ${_old_rc:.2f} -> ${_new_rc:.2f} "
-                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.2f})")
+                    _new_rc = _old_rc + _pnl_usd_exit
+                    print(f"Capital updated: ${_old_rc:.3f} -> ${_new_rc:.3f} "
+                          f"(trade: {_pid_to_exit}, P&L: ${_pnl_usd_exit:+.3f})")
                 elif not _is_exit_final:
                     # Generate new FIFO position_id
                     _positions_fresh = load_positions(DATA_DIR)
@@ -1209,7 +1447,7 @@ for _fi, _c in enumerate(coin_rows):
                         direction=_dir_val,
                         entry_close=_sig['close'],
                         signal_snapshot=_signal_snapshot,
-                        entry_type=st.session_state.get(f'entry_type_{_sym}', 'Strategy'),
+                        entry_type=st.session_state.get(f'momentum_entry_type_{_sym}', 'Strategy'),
                         coin_capital=_snap_coin_cap,
                         size_usd=_snap_size_usd,
                         capital_total=load_realised_capital(DATA_DIR),

@@ -1,0 +1,32 @@
+run:
+  run_id: block_a0_20260528_morning
+  label: block_a0
+  duration_hours: 24
+  rotate_minutes: 60
+  print_every_events: 500
+  heartbeat_seconds: 60
+  stale_warning_seconds: 900
+  reconnect_backoff_seconds: [1, 2, 4, 8, 16, 30]
+  tolerate_gaps: true
+
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/block_a0
+
+selection:
+  candidates_csv: data/analysis/csv_outputs/dali/dali_gamma_current_future_candidate_markets.csv
+  max_markets: 12
+  min_mid: 0.15
+  max_mid: 0.85
+  min_days_to_end: 7
+  max_spread: 0.05
+  min_liquidity: 500
+  families:
+    geopolitics_policy: 4
+    ai_product: 4
+    sports_game_lines: 2
+    daily_equity_index: 1
+    daily_single_stock: 1
+
+markets: []

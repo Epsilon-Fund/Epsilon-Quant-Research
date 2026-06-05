@@ -1,0 +1,4 @@
+# Probe-local deps. Stdlib covers everything else (urllib, asyncio, json).
+# `websockets` is already in midas/requirements.txt (>=12.0); pinned here
+# so the probe is self-contained.
+websockets>=12.0

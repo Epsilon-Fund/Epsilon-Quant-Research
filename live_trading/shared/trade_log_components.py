@@ -71,6 +71,22 @@ def _load_single(data_dir: str):
     return trades, pairs
 
 
+@st.cache_data(ttl=300, show_spinner="Loading theoretical strategy trades…")
+def _load_theoretical_pairs(data_dir: str) -> list:
+    """Strategy-pure closed-trade pairs (independent of trades.json clicks).
+
+    Expensive (loads OHLC, runs the strategy across history) so cached
+    longer than the actual-trade loaders.  Returns [] on any error.
+    """
+    try:
+        from shared.theoretical_curve import build_theoretical_pairs
+        pairs, _ws, _we = build_theoretical_pairs(data_dir)
+        return pairs
+    except Exception as e:
+        print(f"_load_theoretical_pairs failed for {data_dir}: {e}")
+        return []
+
+
 @st.cache_data(ttl=120, show_spinner="Loading trade journal…")
 def _load_all(dashboard_dirs_items: tuple):
     """
@@ -419,16 +435,21 @@ def _style_mae(val):
 #  FILTER WIDGET RENDERER
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _render_filters_and_compute(tab_key: str, all_trades: list, all_pairs: dict):
+def _render_filters_and_compute(tab_key: str, all_trades: list, all_pairs: dict,
+                                extra_syms: "list | None" = None):
     """
     Render date-range selector and coin multiselect.
     Returns (coin_sel, filt_trades, filt_closed, filt_open).
     ``tab_key`` is prepended to every widget key.
+
+    ``extra_syms`` adds symbols that may not appear in trades.json — used
+    so the coin multiselect can offer theoretical-only symbols (and so
+    the All-time date range still works when trades.json is empty).
     """
     today     = date.today()
     ytd_start = date(today.year, 1, 1)
     all_syms  = sorted({_pid_to_symbol(t['position_id']) for t in all_trades
-                        if t['position_id']})
+                        if t['position_id']} | set(extra_syms or []))
 
     ff1, ff2 = st.columns([2, 2])
     with ff1:
@@ -473,13 +494,23 @@ def _render_filters_and_compute(tab_key: str, all_trades: list, all_pairs: dict)
 def _render_coin_tabs(strat_closed: list, strat_open: list,
                       coin_sel: list, tab_prefix: str, prefix: str,
                       show_strategy_col: bool, data_dir: str,
-                      skip_summary_stats: bool = False):
+                      skip_summary_stats: bool = False,
+                      strat_theo: "list | None" = None,
+                      strategy_display: str = "Strategy"):
     """
     Render 'All coins' + per-coin sub-tabs with open positions,
     trade performance table, and execution detail table.
+
+    ``strat_theo`` is the strategy-pure theoretical pair list (from
+    build_theoretical_pairs).  Used to render the Trade-performance
+    table when the toggle is on — even when there are no actual trades
+    yet (strat_closed/strat_open both empty).
     """
+    strat_theo = strat_theo or []
+
     traded_syms      = sorted({p['symbol'] for p in strat_closed} |
-                               {_pid_to_symbol(t['position_id']) for t in strat_open})
+                               {_pid_to_symbol(t['position_id']) for t in strat_open} |
+                               {p['symbol'] for p in strat_theo})
     active_in_filter = [s for s in traded_syms if s in coin_sel]
     coin_tab_labels  = ["All coins"] + active_in_filter
     coin_tabs        = st.tabs(coin_tab_labels)
@@ -491,10 +522,12 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
             if coin_label == "All coins":
                 tab_closed = strat_closed
                 tab_open   = strat_open
+                tab_theo   = [p for p in strat_theo if p['symbol'] in coin_sel]
             else:
                 tab_closed = [p for p in strat_closed if p['symbol'] == coin_label]
                 tab_open   = [t for t in strat_open
                               if _pid_to_symbol(t['position_id']) == coin_label]
+                tab_theo   = [p for p in strat_theo if p['symbol'] == coin_label]
 
             search = st.text_input(
                 "Search notes", key=f"{prefix}_search_{coin_key}",
@@ -506,7 +539,7 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                 tab_open   = [t for t in tab_open
                               if search.lower() in (t.get('discretion_note') or '').lower()]
 
-            if not tab_closed and not tab_open:
+            if not tab_closed and not tab_open and not tab_theo:
                 st.markdown('<p class="no-data-msg">No trades match current filters.</p>',
                             unsafe_allow_html=True)
                 continue
@@ -579,66 +612,163 @@ def _render_coin_tabs(strat_closed: list, strat_open: list,
                              column_config=open_col_cfg)
 
             # ── Closed: Table 1 — Trade performance ───────────────────────────
-            if tab_closed:
-                sorted_closed = sorted(tab_closed,
-                                       key=lambda x: x['entry_date'] or date.today())
-                perf_rows = []
-                for p in sorted_closed:
-                    entry_type_disp  = p.get('entry_type') or 'Strategy'
-                    exit_reason_disp = _normalize_exit_reason(p.get('exit_reason'))
-                    strat_label      = _STRATEGY_LABELS.get(
-                        p.get('strategy', ''), p.get('strategy', '—'))
-                    size_usd  = p.get('actual_size_usd', p.get('size_usd'))
-                    is_legacy = p.get('legacy', False)
-                    if size_usd is None:
-                        size_display = '—'
-                    elif is_legacy:
-                        size_display = f'⚠ {size_usd:,.0f}'
-                    else:
-                        size_display = f'{size_usd:,.0f}'
-
-                    row = {'Coin': p['symbol']}
-                    if show_strategy_col:
-                        row['Strategy'] = strat_label
-                    row['Entry date']  = p['entry_date']
-                    row['Exit date']   = p['exit_date']
-                    row['Days']        = p['holding_days']
-                    row['Size ($)']    = size_display
-                    # Net return (after round-trip costs) — consistent with P&L ($)
-                    row['Return %']    = p.get('actual_net_return_pct', p['actual_return_pct'])
-                    row['P&L ($)']     = p['actual_pnl_usd']
-                    row['MAE %']       = p.get('mae_pct')
-                    row['Entry type']  = entry_type_disp
-                    row['Exit reason'] = exit_reason_disp
-                    perf_rows.append(row)
-
-                st.caption(f"{len(tab_closed)} closed trade{'s' if len(tab_closed)!=1 else ''}")
-                df_perf = pd.DataFrame(perf_rows)
-                try:
-                    fmt_perf: dict = {'Return %': '{:+.3f}', 'P&L ($)': '{:+,.3f}'}
-                    if 'MAE %' in df_perf.columns:
-                        fmt_perf['MAE %'] = lambda v: f'{v:.3f}' if pd.notna(v) else '—'
-                    style_perf = df_perf.style.applymap(_style_return, subset=['Return %'])
-                    style_perf = style_perf.applymap(_style_return, subset=['P&L ($)'])
-                    if 'MAE %' in df_perf.columns:
-                        style_perf = style_perf.applymap(_style_mae, subset=['MAE %'])
-                    styled_perf = style_perf.format(fmt_perf, na_rep='—')
-                except Exception:
-                    styled_perf = df_perf
-                st.markdown("**Trade performance**")
-                st.dataframe(styled_perf, use_container_width=True, hide_index=True,
-                             column_config={
-                                 'Entry date': st.column_config.DateColumn("Entry date"),
-                                 'Exit date':  st.column_config.DateColumn("Exit date"),
-                             })
-                st.caption(
-                    "MAE % — Maximum Adverse Excursion: the furthest the price moved "
-                    "against the position from entry, expressed as a % of entry price."
+            # The toggle is rendered whenever EITHER actual or theoretical
+            # closed trades exist for this coin — so a strategy with an empty
+            # trades.json still has a visible theoretical trade log.
+            if tab_closed or tab_theo:
+                show_theo_perf = st.toggle(
+                    "Show theoretical",
+                    value=(not tab_closed) and bool(tab_theo),
+                    key=f"{prefix}_show_theo_perf_{coin_key}",
+                    help="Show the strategy's theoretical closed trades "
+                         "(strategy-pure backtest, independent of actual click "
+                         "timing). Off = trades you actually logged.",
+                    disabled=not tab_theo,
                 )
+                perf_rows = []
+                theo_is_hourly = False
+                if show_theo_perf:
+                    sorted_source = sorted(
+                        tab_theo,
+                        key=lambda x: x['entry_date'] or date.today(),
+                    )
+                    # If any pair has an intraday entry timestamp, treat the
+                    # whole table as hourly so the Entry/Exit columns show
+                    # the bar time (BB Breakout etc.).  Daily strategies stay
+                    # as plain dates.
+                    theo_is_hourly = any(
+                        p.get('entry_ts') is not None
+                        and hasattr(p['entry_ts'], 'hour')
+                        and (p['entry_ts'].hour
+                             or getattr(p['entry_ts'], 'minute', 0))
+                        for p in sorted_source
+                    )
+                    for p in sorted_source:
+                        entry_d = p.get('entry_date')
+                        exit_d  = p.get('exit_date')
+                        if theo_is_hourly:
+                            entry_d = p.get('entry_ts') or entry_d
+                            exit_d  = p.get('exit_ts')  or exit_d
+                        # Hold duration: hours when intraday, days otherwise.
+                        if theo_is_hourly and entry_d is not None and exit_d is not None:
+                            _delta_hours = (
+                                pd.Timestamp(exit_d) - pd.Timestamp(entry_d)
+                            ).total_seconds() / 3600.0
+                            held_disp = round(_delta_hours, 1)
+                        else:
+                            _ed = p.get('entry_date')
+                            _xd = p.get('exit_date')
+                            held_disp = ((_xd - _ed).days
+                                         if _ed and _xd else None)
+                        entry_close = p.get('entry_close') or 0.0
+                        exit_close  = p.get('exit_close')  or 0.0
+                        dir_sign    = 1 if p.get('direction', 'long') == 'long' else -1
+                        gross_ret   = (
+                            (exit_close / entry_close - 1.0) * 100 * dir_sign
+                            if entry_close else 0.0
+                        )
+                        size_usd    = p.get('size_usd') or 0.0
+                        net_ret_pct = (
+                            p['pnl_usd'] / size_usd * 100 if size_usd else gross_ret
+                        )
+                        row = {'Coin': p['symbol']}
+                        if show_strategy_col:
+                            row['Strategy'] = strategy_display
+                        row['Entry date']  = entry_d
+                        row['Exit date']   = exit_d
+                        row[('Hours' if theo_is_hourly else 'Days')] = held_disp
+                        row['Size ($)']    = f'{size_usd:,.0f}' if size_usd else '—'
+                        row['Return %']    = net_ret_pct
+                        row['P&L ($)']     = p.get('pnl_usd')
+                        row['MAE %']       = None
+                        row['Entry type']  = 'Strategy'
+                        row['Exit reason'] = 'Strategy'
+                        perf_rows.append(row)
+                else:
+                    sorted_source = sorted(
+                        tab_closed,
+                        key=lambda x: x['entry_date'] or date.today(),
+                    )
+                    for p in sorted_source:
+                        entry_type_disp  = p.get('entry_type') or 'Strategy'
+                        exit_reason_disp = _normalize_exit_reason(p.get('exit_reason'))
+                        strat_label      = _STRATEGY_LABELS.get(
+                            p.get('strategy', ''), p.get('strategy', '—'))
+                        size_usd  = p.get('actual_size_usd', p.get('size_usd'))
+                        is_legacy = p.get('legacy', False)
+                        if size_usd is None:
+                            size_display = '—'
+                        elif is_legacy:
+                            size_display = f'⚠ {size_usd:,.0f}'
+                        else:
+                            size_display = f'{size_usd:,.0f}'
 
-                # ── Closed: Table 2 — Execution detail ───────────────────────
+                        row = {'Coin': p['symbol']}
+                        if show_strategy_col:
+                            row['Strategy'] = strat_label
+                        row['Entry date']  = p['entry_date']
+                        row['Exit date']   = p['exit_date']
+                        row['Days']        = p['holding_days']
+                        row['Size ($)']    = size_display
+                        row['Return %']    = p.get('actual_net_return_pct',
+                                                   p['actual_return_pct'])
+                        row['P&L ($)']     = p['actual_pnl_usd']
+                        row['MAE %']       = p.get('mae_pct')
+                        row['Entry type']  = entry_type_disp
+                        row['Exit reason'] = exit_reason_disp
+                        perf_rows.append(row)
+
+                _src_label = "theoretical" if show_theo_perf else "closed"
+                st.markdown(
+                    "**Trade performance (theoretical)**" if show_theo_perf
+                    else "**Trade performance**"
+                )
+                if not perf_rows:
+                    st.markdown(
+                        f'<p class="no-data-msg">No {_src_label} trades '
+                        f'for this filter.</p>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.caption(
+                        f"{len(perf_rows)} {_src_label} trade"
+                        f"{'s' if len(perf_rows) != 1 else ''}"
+                    )
+                    df_perf = pd.DataFrame(perf_rows)
+                    try:
+                        fmt_perf: dict = {'Return %': '{:+.3f}', 'P&L ($)': '{:+,.3f}'}
+                        if 'MAE %' in df_perf.columns:
+                            fmt_perf['MAE %'] = lambda v: f'{v:.3f}' if pd.notna(v) else '—'
+                        style_perf = df_perf.style.applymap(_style_return, subset=['Return %'])
+                        style_perf = style_perf.applymap(_style_return, subset=['P&L ($)'])
+                        if 'MAE %' in df_perf.columns:
+                            style_perf = style_perf.applymap(_style_mae, subset=['MAE %'])
+                        styled_perf = style_perf.format(fmt_perf, na_rep='—')
+                    except Exception:
+                        styled_perf = df_perf
+                    _date_col_cls = (st.column_config.DatetimeColumn
+                                     if theo_is_hourly
+                                     else st.column_config.DateColumn)
+                    _date_fmt = ({'format': 'YYYY-MM-DD HH:mm'}
+                                 if theo_is_hourly else {})
+                    st.dataframe(styled_perf, use_container_width=True, hide_index=True,
+                                 column_config={
+                                     'Entry date': _date_col_cls("Entry date", **_date_fmt),
+                                     'Exit date':  _date_col_cls("Exit date",  **_date_fmt),
+                                 })
+                    st.caption(
+                        "MAE % — Maximum Adverse Excursion: the furthest the price moved "
+                        "against the position from entry, expressed as a % of entry price."
+                    )
+
+            # ── Closed: Table 2 — Execution detail ─────────────────────────────
+            # Always actual-only (compares each real fill vs the signal-day
+            # close). Skipped for theoretical-only views.
+            if tab_closed:
+                exec_sorted = sorted(tab_closed,
+                                     key=lambda x: x['entry_date'] or date.today())
                 exec_rows = []
-                for p in sorted_closed:
+                for p in exec_sorted:
                     sz = p.get('actual_size_usd', p.get('size_usd')) or 0
                     strat_entry = (p['entry_close'] if p.get('entry_close') is not None
                                    else p['theoretical_entry'])
@@ -710,6 +840,7 @@ def render_strategy_tab(
         strategy_keys = [strategy_keys]
 
     all_trades, all_pairs = _load_single(data_dir)
+    theo_pairs = _load_theoretical_pairs(data_dir)
 
     cfg      = load_config(data_dir)
     cost_pct = float(cfg.get('trading_cost_pct', 0.0))
@@ -718,13 +849,19 @@ def render_strategy_tab(
     _hdr = st.container()
 
     coin_sel, _, filt_closed, filt_open = _render_filters_and_compute(
-        f"{prefix}_strat", all_trades, all_pairs
+        f"{prefix}_strat", all_trades, all_pairs,
+        extra_syms=[p['symbol'] for p in theo_pairs],
     )
 
     strat_closed = [p for p in filt_closed if (p.get('strategy') or '') in strategy_keys]
     strat_open   = [t for t in filt_open   if (t.get('strategy') or '') in strategy_keys]
 
-    if not strat_closed and not strat_open:
+    # Apply the same coin filter to theoretical pairs.  No strategy_keys
+    # filter — theoretical pairs come from the strategy backtest itself
+    # and are inherently this strategy.
+    strat_theo = [p for p in theo_pairs if p['symbol'] in coin_sel]
+
+    if not strat_closed and not strat_open and not strat_theo:
         st.markdown(
             f'<p class="no-data-msg">No {display_name} trades in the current filter window.</p>',
             unsafe_allow_html=True,
@@ -773,6 +910,8 @@ def render_strategy_tab(
         show_strategy_col=show_strategy_col,
         data_dir=data_dir,
         skip_summary_stats=True,
+        strat_theo=strat_theo,
+        strategy_display=display_name,
     )
 
 

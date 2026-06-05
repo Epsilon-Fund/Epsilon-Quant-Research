@@ -1,4 +1,6 @@
 # ML Prediction — Walk-Forward XGBoost Strategy
+> Hub: [[STRATEGY_REFERENCE]]
+
 
 A daily-bar machine learning strategy trained on 8 crypto assets that outputs a calibrated probability of a next-day positive return. Validated through rolling walk-forward cross-validation and filtered to a long-only signal set on BTC / ETH / XRP / BNB.
 
@@ -528,6 +530,13 @@ The SHAP section in the notebook runs on the most recent fold with active signal
 ---
 
 ## 13. File Structure
+
+## Notebook Map
+
+- [[topics/ml-prediction/notebooks/1_data_audit.ipynb|data audit notebook]]
+- [[topics/ml-prediction/notebooks/2_features.ipynb|feature build notebook]]
+- [[topics/ml-prediction/notebooks/3_walkforward.ipynb|walk-forward notebook]]
+- [[topics/ml-prediction/notebooks/4_microstructure_rank_sweep.ipynb|microstructure rank sweep notebook]]
 
 ```
 ml-prediction/

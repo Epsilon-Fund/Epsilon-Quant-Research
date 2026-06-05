@@ -1,0 +1,93 @@
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": true,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:polymarket/research/notes/dali",
+      "color": {
+        "a": 1,
+        "rgb": 49919
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/options_delta",
+      "color": {
+        "a": 1,
+        "rgb": 16732120
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/market_making",
+      "color": {
+        "a": 1,
+        "rgb": 43128
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/copytrade",
+      "color": {
+        "a": 1,
+        "rgb": 16756736
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/overview",
+      "color": {
+        "a": 1,
+        "rgb": 8150271
+      }
+    },
+    {
+      "query": "path:topics",
+      "color": {
+        "a": 1,
+        "rgb": 2981881
+      }
+    },
+    {
+      "query": "path:polymarket/execution",
+      "color": {
+        "a": 1,
+        "rgb": 16734815
+      }
+    },
+    {
+      "query": "path:docs OR path:midas OR path:live_trading OR path:archive OR path:polymarket/research/docs OR path:polymarket/research/README.md OR path:polymarket/research/RESEARCH_FINDINGS.md OR path:polymarket/research/CLAUDE.md",
+      "color": {
+        "a": 1,
+        "rgb": 16765286
+      }
+    },
+    {
+      "query": "tag:#github",
+      "color": {
+        "a": 1,
+        "rgb": 11565729
+      }
+    },
+    {
+      "query": "tag:#ai",
+      "color": {
+        "a": 1,
+        "rgb": 10253663
+      }
+    }
+  ],
+  "collapse-display": true,
+  "showArrow": true,
+  "textFadeMultiplier": 0.8,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.477430555555556,
+  "repelStrength": 13.3142361111111,
+  "linkStrength": 0.426388888888889,
+  "linkDistance": 105,
+  "scale": 0.04658715001711587,
+  "close": false
+}

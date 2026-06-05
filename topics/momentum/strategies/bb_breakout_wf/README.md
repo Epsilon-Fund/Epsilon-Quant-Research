@@ -1,4 +1,29 @@
 # Stage 1 — 4H Setup Detection
+> Hub: [[STRATEGY_REFERENCE]]
+
+## Notebook Map
+
+- [[topics/momentum/strategies/bb_breakout_wf/ADA.ipynb|ADA walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/AVAX.ipynb|AVAX walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/BTC.ipynb|BTC walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/DOT.ipynb|DOT walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/ETH.ipynb|ETH walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/LINK.ipynb|LINK walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/MATIC.ipynb|MATIC walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/NEAR.ipynb|NEAR walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/SOL.ipynb|SOL walk-forward]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC.ipynb|BTC strategy design]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC_2.ipynb|BTC strategy design 2]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC_3.ipynb|BTC strategy design 3]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC_3.2.ipynb|BTC strategy design 3.2]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC_3long.ipynb|BTC strategy design 3 long]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC_4.ipynb|BTC strategy design 4]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC_5.ipynb|BTC strategy design 5]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC34.ipynb|BTC34 strategy design]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC34_2.ipynb|BTC34 strategy design 2]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC345.ipynb|BTC345 strategy design]]
+- [[topics/momentum/strategies/bb_breakout_wf/strategy_design/BTC345_2.ipynb|BTC345 strategy design 2]]
+
 
 The 4H timeframe acts as the **"Engine Room"** to filter for high-conviction momentum. Three conditions must align:
 
@@ -79,4 +104,3 @@ $$
 
 - **Leverage Cap:**  
   The final size is clipped between **0.1x** and your `max_leverage` parameter to prevent extreme exposure.
-

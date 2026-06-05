@@ -12,6 +12,9 @@ CAPITAL          = 100_000   # total portfolio capital in USD
 EXECUTION_HOUR   = 8         # UTC hour for theoretical execution price
 INDICATOR_WARMUP = 200       # hourly bars dropped as indicator burn-in
 TRADING_COST_PCT = 0.001     # one-way cost fraction (used for unrealised P&L display)
+# Bar frequency the strategy is designed for — drives which OHLC cache the
+# theoretical-curve backtest feeds it (see shared/theoretical_curve.py).
+DATA_FREQUENCY   = 'hourly'  # 'daily' or 'hourly'
 
 # Coin weights — must sum to ≤ 1.0
 # Coins in ACTIVE_ASSETS but absent from this dict share the remaining weight equally.

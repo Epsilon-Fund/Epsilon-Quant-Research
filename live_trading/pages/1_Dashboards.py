@@ -65,12 +65,29 @@ def _exec_page(path: str, extra: dict = None) -> None:
     for _mod in ('strategies', 'dashboard', 'config', 'optimise'):
         sys.modules.pop(_mod, None)
 
+    # `st.stop()` inside the exec'd script raises StopException.  Without
+    # catching it here, an early-exit in one strategy tab (e.g. empty
+    # live_params.json) would unwind through the for-loop and abort the
+    # whole page, hiding the other strategy tabs.  Swallow it so the halt
+    # is scoped to this tab only.  Same for RerunException — let it
+    # propagate, since a rerun should restart the entire page.
+    try:
+        from streamlit.runtime.scriptrunner.script_runner import StopException
+    except Exception:                                # very old Streamlit
+        StopException = None  # type: ignore[assignment]
+
     try:
         source = open(path, encoding='utf-8').read()
         ns = {'__file__': path, '__builtins__': __builtins__}
         if extra:
             ns.update(extra)
-        exec(source, ns)
+        try:
+            exec(source, ns)
+        except Exception as e:
+            if StopException is not None and isinstance(e, StopException):
+                pass                                  # tab-scoped early exit
+            else:
+                raise
     finally:
         _st.set_page_config = _orig_spc
 

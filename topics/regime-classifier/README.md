@@ -1,4 +1,6 @@
 # BTC Regime Classifier
+> Hub: [[STRATEGY_REFERENCE]]
+
 
 A two-stage machine learning pipeline that assigns a daily **market regime label** to BTC and predicts the next day's regime from observable features — enabling forward-looking regime awareness that can be used to gate or size positions in other trading strategies.
 
@@ -39,6 +41,8 @@ Two notebooks test the regime filter on real strategies. Full results in section
 |----------|----------|---------|------------|
 | `topics/momentum/results/moneyin_regime.ipynb` | MoneyIn Long (BTC trend, long-only) | **Filter helps** | Hybrid p>0.70: Return +423%, Sharpe 1.05, MaxDD −22% vs baseline 314% / 0.88 / −30% |
 | `topics/momentum/results/portfolio_bb_regime.ipynb` | BB Breakout portfolio (6 coins) | **Filter hurts** | Baseline 754% Sharpe 2.24 → Bull+Chop 247% Sharpe 1.66 — filter removes the strategy's best vol-expansion trades |
+
+Notebook index: [[topics/regime-classifier/notebooks/README|regime classifier notebook index]].
 
 **Recommended filter configuration for directional long strategies:** Hybrid probability threshold at 0.70 — allow positions when `p_regime_0 > 0.70` OR `pred_regime == 1` (Chop always allowed). Do not apply to volatility or mean-reversion strategies.
 
@@ -333,10 +337,15 @@ Bull and Extreme Bear predictions are correctly positioned at opposite ends. Bea
 |----------|-----------|--------|--------|-------------|
 | Long / Flat / Short | 17.3% | 0.36 | −55.0% | 28.0% |
 | **Long / Flat only** | **17.7%** | **0.69** | **−27.7%** | **70.7%** |
+| Long / Flat / ExBear Short | 26.1% | 0.63 | −36.5% | 91.8% |
 | Long / Half / Flat | 14.1% | 0.49 | −37.0% | 46.1% |
 | BTC Buy & Hold | 14.2% | 0.26 | −68.8% | 0.6% |
 
-Long/Flat only achieves 0.69 Sharpe and −27.7% max drawdown vs Buy & Hold's −68.8% — the regime filter alone is a viable trading signal. The OOS window starts in April 2022 (the heart of the crypto bear market), making Buy & Hold a low bar; the regime filter's real value is in the risk-adjusted metrics. Note: strategy application results in sections 8–10 use the full prediction history including 2021.
+Long/Flat only achieves the best risk-adjusted return (0.69 Sharpe, −27.7% MaxDD). Adding an Extreme Bear short leg (Long/Flat/ExBear Short) raises annualised return to 26.1% and total return to 91.8% at the cost of slightly lower Sharpe (0.63) and deeper drawdown (−36.5%) — a viable long-short configuration since Extreme Bear has a clean −52.4% average forward return.
+
+**Why not short Bear?** The Bear regime (+25.1% forward return) is structurally unsuitable for shorting: Bear predictions cluster around crash bottoms and post-crash recovery periods where V-shaped reversals produce strong positive returns. Filtering by recovery level (recov_60d), consecutive prediction days, or probability threshold all made the Bear short leg worse — the positive forward return on Bear days is not a filter artefact but a structural property of where the model places Bear labels. Only Extreme Bear produces a reliable negative forward return.
+
+Note: strategy application results in sections 8–10 use the full prediction history including 2021.
 
 ---
 
@@ -548,7 +557,7 @@ topics/momentum/results/
 | 12. Regime Timeline | True (HMM) vs Predicted (XGBoost) colour strips with price |
 | 13. Probability Time Series | Stacked probabilities + Bull probability alone vs price |
 | 14. Save | Write `btc_regime_predictions.parquet` |
-| 15. Direct Strategy Backtest | Long/Flat/Short using predictions as BTC trading signal |
+| 15. Direct Strategy Backtest | Long/Flat only, Long/Flat/ExBear Short, Long/Flat/Short, Long/Half/Flat vs Buy & Hold |
 
 ### Downstream Notebook Structure — `moneyin_regime.ipynb`
 

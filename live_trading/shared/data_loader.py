@@ -83,9 +83,14 @@ def _save_json(path, data):
 
 # ── Schema normalisation ──────────────────────────────────────────────────────
 
-def _leverage(t: dict, key_new: str, key_old: str) -> float:
-    """Return leverage from new key, falling back to old key. Never returns None."""
-    for k in (key_new, key_old):
+def _leverage(t: dict, *keys: str) -> float:
+    """Return leverage from the first present key in ``keys``, else 0.0.
+
+    Used to unify a few different leverage-field conventions across the
+    trade-record schemas — see ``_normalize_trade`` below for the full
+    fallback chain.
+    """
+    for k in keys:
         v = t.get(k)
         if v is not None:
             return float(v)
@@ -94,10 +99,13 @@ def _leverage(t: dict, key_new: str, key_old: str) -> float:
 
 def _normalize_trade(t: dict) -> dict:
     """
-    Unify three historical schemas into one consistent dict:
+    Unify the historical schemas into one consistent dict:
       v1 — no position_id, uses 'asset'; size in 'actual_size_pct'
       v2 — has position_id; size still in 'actual_size_pct'
-      v3 — has position_id; size in 'actual_leverage' (current _write_trade)
+      v3 — has position_id; size in 'actual_leverage' / 'theoretical_leverage'
+      v4 — has position_id; size in a single 'leverage' field (used for both
+           actual and theoretical when the two are equal, e.g. manually
+           edited records carrying a clean execution price)
     """
     position_id = t.get('position_id') or t.get('asset', '')
 
@@ -114,8 +122,10 @@ def _normalize_trade(t: dict) -> dict:
         'date':                 parsed_date,
         'actual_price':         float(t.get('actual_price', 0)),
         'theoretical_price':    float(t.get('theoretical_price', 0)),
-        'actual_leverage':      _leverage(t, 'actual_leverage',      'actual_size_pct'),
-        'theoretical_leverage': _leverage(t, 'theoretical_leverage', 'theoretical_size_pct'),
+        # Try the v3 explicit key, then v1/v2 percent-style key, then the
+        # v4 unified 'leverage' field (used for both actual and theoretical).
+        'actual_leverage':      _leverage(t, 'actual_leverage',      'actual_size_pct',      'leverage'),
+        'theoretical_leverage': _leverage(t, 'theoretical_leverage', 'theoretical_size_pct', 'leverage'),
         'slippage_pct':         float(t.get('slippage_pct', 0)),
         'theoretical_stop':     t.get('theoretical_stop'),
         'discretion_note':      t.get('discretion_note'),
@@ -169,11 +179,10 @@ def load_realised_capital(data_dir: str) -> float:
 
     realised_capital = config CAPITAL + sum of every closed trade's P&L.
 
-    Computing this from trade history (rather than reading a separately-
-    maintained realised_capital.json) means the value can never drift from
-    the actual closed-trade record — including for trades that pre-date
-    the realised-capital tracking system, or trades pulled in via a git
-    merge of trades.json.
+    Computed from the trade history on every call.  ``trades.json`` is
+    the single source of truth — there is no separate realised-capital
+    file (we used to write one as an audit log; it duplicated data
+    already visible on the trade-log page).
 
     Falls back to config CAPITAL if trades.json is unreadable or empty.
     Never returns 0 or None.
@@ -190,39 +199,11 @@ def load_realised_capital(data_dir: str) -> float:
         return capital
 
 
-def update_realised_capital(data_dir: str, pnl_usd: float, trade_id) -> float:
-    """
-    Audit-log helper: write the post-exit realised capital to
-    realised_capital.json so we have a per-trade running record.
-
-    The file is now only a log — `load_realised_capital` derives the live
-    value from trades.json, so this write is no longer load-bearing for
-    sizing or display.
-
-    Note on timing: `load_realised_capital` reads from a CACHED
-    build_trade_pairs() at this point in the call sequence (the cache is
-    cleared later by invalidate_trade_caches()), so the value it returns
-    here is the pre-write total — adding pnl_usd produces the post-write
-    total without re-reading trades.json.
-    """
-    old_capital = load_realised_capital(data_dir)
-    new_capital = old_capital + pnl_usd
-    path = os.path.join(data_dir, 'realised_capital.json')
-    _save_json(path, {
-        'realised_capital': new_capital,
-        'last_updated':     date.today().isoformat(),
-        'last_trade_id':    trade_id,
-        'last_pnl_usd':     pnl_usd,
-    })
-    return new_capital
-
-
 def invalidate_trade_caches() -> None:
     """
-    Clear ONLY caches whose values depend on trades.json / positions.json /
-    realised_capital.json.  Market-data, signal, and live-price caches are
-    left alone — they don't change when a trade is logged, and rebuilding
-    them is expensive.
+    Clear ONLY caches whose values depend on trades.json / positions.json.
+    Market-data, signal, and live-price caches are left alone — they
+    don't change when a trade is logged, and rebuilding them is expensive.
 
     Call this after writing a trade (or confirming a stop) instead of the
     blanket st.cache_data.clear() — that one also wipes the market-data
@@ -258,6 +239,7 @@ def load_config(data_dir: str) -> dict:
         'coin_weights':      cfg.COIN_WEIGHTS,
         'execution_hour':    cfg.EXECUTION_HOUR,
         'trading_cost_pct':  getattr(cfg, 'TRADING_COST_PCT', 0.0),
+        'data_frequency':    getattr(cfg, 'DATA_FREQUENCY', 'daily'),
     }
 
 
@@ -364,21 +346,30 @@ def build_trade_pairs(data_dir: str) -> dict:
     cost_pct  = getattr(_cfg, 'TRADING_COST_PCT', 0.0)  # fraction per leg
 
     from collections import defaultdict
-    entries_by_sym: dict = defaultdict(list)
-    exits_by_sym:   dict = defaultdict(list)
+    # Group by position_id (was: by symbol).  Position-id grouping pairs
+    # each ENTRY with its own EXIT explicitly, so an EXIT for a position
+    # whose ENTRY was never logged is surfaced as an orphan rather than
+    # silently dropped.  Lists are still used (not single records) so
+    # legacy records with non-FIFO position_ids (pid == bare symbol, e.g.
+    # 'BTCUSDT' from v1) and partial-exit chains both round-trip correctly.
+    entries_by_pid: dict = defaultdict(list)
+    exits_by_pid:   dict = defaultdict(list)
 
     for t in trades:
-        sym = _pid_to_symbol(t['position_id'])
+        pid = t.get('position_id') or ''
+        if not pid:
+            continue
         if t['action'] == 'ENTRY':
-            entries_by_sym[sym].append(t)
+            entries_by_pid[pid].append(t)
         elif t['action'] == 'EXIT':
-            exits_by_sym[sym].append(t)
+            exits_by_pid[pid].append(t)
 
     closed:      list = []
     open_trades: list = []
 
-    for sym, entry_list in entries_by_sym.items():
-        exit_list = exits_by_sym.get(sym, [])
+    for pid, entry_list in entries_by_pid.items():
+        sym       = _pid_to_symbol(pid)
+        exit_list = exits_by_pid.get(pid, [])
 
         for i, entry in enumerate(entry_list):
             if i < len(exit_list):
@@ -522,6 +513,18 @@ def build_trade_pairs(data_dir: str) -> dict:
             else:
                 open_trades.append(entry)
 
+    # Surface EXITs whose position_id never had a matching ENTRY logged
+    # in trades.json (typically: positions.json hand-edited or carried
+    # over from a different machine).  Logged loudly because these are
+    # genuinely lost P&L unless the user backfills the ENTRY record.
+    _orphan_pids = sorted(set(exits_by_pid) - set(entries_by_pid))
+    if _orphan_pids:
+        _n = sum(len(exits_by_pid[p]) for p in _orphan_pids)
+        print(f"build_trade_pairs: {_n} orphan EXIT(s) — no matching "
+              f"ENTRY for position_id(s): {_orphan_pids}.  These will "
+              f"not appear in closed pairs or P&L until the ENTRY is "
+              f"backfilled to trades.json.")
+
     return {'closed': closed, 'open': open_trades}
 
 
@@ -568,7 +571,7 @@ def _equity_df_from_closed(closed: list,
 
 def _add_execution_pnl(
     df: pd.DataFrame,
-    closed: list,
+    pairs: list,
     execution_hour: int,
     end_date: date,
     data_dir: str,
@@ -579,10 +582,15 @@ def _add_execution_pnl(
       execution_pnl         — daily P&L booked at exit_date + 1 day
       execution_cumulative  — cumulative sum of execution_pnl
 
+    ``pairs`` is the strategy's theoretical pair list (from
+    build_theoretical_pairs) so the execution-hour curve shares its trade
+    sequence with the Theoretical line — only the per-trade fill price
+    differs (signal-day close → next-day EXECUTION_HOUR open).
+
     Execution model:
       Signal fires on the close of day T.
-      Entry  executed at the Open of the EXECUTION_HOUR UTC bar on T+1.
-      Exit   executed at the Open of the EXECUTION_HOUR UTC bar on exit_date+1.
+      Entry executed at the Open of the EXECUTION_HOUR UTC bar on T+1.
+      Exit  executed at the Open of the EXECUTION_HOUR UTC bar on exit_date+1.
 
     Falls back to flagging the pair with exec_approx=True and skipping it
     when the hourly bar is unavailable (cache not yet populated).
@@ -598,7 +606,7 @@ def _add_execution_pnl(
     exec_pnl_by_date: dict[date, float] = {}
     n_approx = 0
 
-    for p in closed:
+    for p in pairs:
         entry_date = p['entry_date']
         exit_date  = p['exit_date']
         symbol     = p['symbol']
@@ -651,8 +659,10 @@ def _add_execution_pnl(
             exec_return  = _ds * (exec_exit_price - exec_entry_price) / exec_entry_price
             exec_pnl_usd = exec_return * size_usd - size_usd * cost_pct * 2
 
-            # Book at exit_date + 1 day (when the exit execution actually occurs)
-            book_date = exit_date + timedelta(days=1)
+            # Book on exit_date (signal date) so the execution-hour curve
+            # aligns temporally with the Theoretical line — movements at the
+            # same date, only the per-trade fill price differs.
+            book_date = exit_date
             exec_pnl_by_date[book_date] = (
                 exec_pnl_by_date.get(book_date, 0.0) + exec_pnl_usd
             )
@@ -700,10 +710,15 @@ def _add_execution_pnl(
 @_cache_data
 def build_equity_curve(data_dir: str) -> pd.DataFrame:
     """
-    Daily step-function equity curve from closed trade pairs.
+    Daily step-function equity curve.
+
+    Actual columns come from closed trade pairs in trades.json.
+    Theoretical columns come from a pure-strategy backtest over the same
+    window — independent of when the user actually clicked Entry/Exit.
+    See shared/theoretical_curve.py for the backtest contract.
 
     Date range: min(entry_date) -> max(exit_date) across all closed pairs.
-    Derived entirely from trades data — never uses date.today().
+    Derived entirely from trades data — never uses date.today() as start.
 
     Columns: date | actual_pnl | theoretical_pnl |
              actual_cumulative | theoretical_cumulative |
@@ -712,27 +727,70 @@ def build_equity_curve(data_dir: str) -> pd.DataFrame:
     pairs  = build_trade_pairs(data_dir)
     closed = pairs.get('closed', [])
 
-    if not closed:
+    # ── Strategy-pure theoretical curve (never reads trades.json) ────────────
+    # Computed up-front so we can render a theoretical-only view for
+    # strategies that haven't executed a live trade yet — useful for
+    # spotting signals the user would otherwise miss.  The pair list is
+    # also reused by the execution-hour curve so both share trade timing.
+    theo_pairs: list = []
+    try:
+        from shared.theoretical_curve import (
+            build_theoretical_curve, build_theoretical_pairs,
+        )
+        theo_df = build_theoretical_curve(data_dir)
+        theo_pairs, _theo_ws, _theo_we = build_theoretical_pairs(data_dir)
+    except Exception as e:
+        print(f"build_equity_curve: theoretical curve unavailable — {e}")
+        theo_df = None
+
+    has_theo = theo_df is not None and not theo_df.empty
+
+    if not closed and not has_theo:
         return pd.DataFrame(columns=_EQUITY_COLS)
 
     entry_dates = [p['entry_date'] for p in closed if p['entry_date']]
     exit_dates  = [p['exit_date']  for p in closed if p['exit_date']]
 
-    if not entry_dates or not exit_dates:
-        return pd.DataFrame(columns=_EQUITY_COLS)
+    # Date range: union of actual-trades window and theoretical window
+    range_starts: list = []
+    range_ends:   list = []
+    if entry_dates and exit_dates:
+        range_starts.append(min(entry_dates))
+        range_ends.append(max(exit_dates))
+    if has_theo:
+        range_starts.append(theo_df['date'].iloc[0])
+        range_ends.append(theo_df['date'].iloc[-1])
+    range_ends.append(date.today())
 
-    start_date = min(entry_dates)
-    end_date   = max(max(exit_dates), date.today())
+    start_date = min(range_starts)
+    end_date   = max(range_ends)
 
     print(f"build_equity_curve: start_date={start_date}  end_date={end_date}")
 
     df = _equity_df_from_closed(closed, start_date, end_date)
 
+    # ── Overlay theoretical_* with the strategy-pure curve ───────────────────
+    # The legacy theoretical columns from _equity_df_from_closed are bucketed
+    # by the EXIT trade's click date and priced at click-time, so they
+    # implicitly depend on when the user pressed the button.  Replace them
+    # with the strategy-pure curve so the Theoretical line on the Portfolio
+    # page reflects only the strategy.
+    if has_theo:
+        theo_map = dict(zip(theo_df['date'], theo_df['theoretical_pnl']))
+        df['theoretical_pnl']        = df['date'].map(theo_map).fillna(0.0)
+        df['theoretical_cumulative'] = df['theoretical_pnl'].cumsum()
+    else:
+        df['theoretical_pnl']        = 0.0
+        df['theoretical_cumulative'] = 0.0
+
     # ── Execution-hour P&L (added when hourly cache is populated) ─────────────
+    # Source pairs from the theoretical backtest so the execution-hour curve
+    # shares trade timing with the Theoretical line — same sequence, just
+    # priced at T+1 EXECUTION_HOUR open instead of signal-day close.
     try:
         _cfg           = _load_config(data_dir)
         execution_hour = getattr(_cfg, 'EXECUTION_HOUR', 8)
-        df = _add_execution_pnl(df, closed, execution_hour, end_date, data_dir)
+        df = _add_execution_pnl(df, theo_pairs, execution_hour, end_date, data_dir)
     except Exception as e:
         print(f"build_equity_curve: execution P&L skipped — {e}")
 

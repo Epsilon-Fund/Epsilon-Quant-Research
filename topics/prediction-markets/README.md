@@ -1,4 +1,8 @@
 # Polymarket Prediction Market Research Pipeline
+> Hub: [[COWORK]]
+
+Notebook index: [[topics/prediction-markets/notebooks/README|prediction-markets notebook index]].
+
 
 A data pipeline for collecting and analyzing Polymarket prediction market data via the Falcon API. Built to support two trading strategies: whale copy-trading and tail harvesting on weather markets, with a schema general enough to expand to any market category.
 

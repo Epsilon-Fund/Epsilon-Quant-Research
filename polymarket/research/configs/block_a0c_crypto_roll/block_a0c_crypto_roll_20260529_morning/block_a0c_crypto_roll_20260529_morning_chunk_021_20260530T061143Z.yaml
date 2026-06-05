@@ -1,0 +1,1756 @@
+run:
+  run_id: block_a0c_crypto_roll_20260529_morning_chunk_021_20260530T061143Z
+  label: block_a0c_crypto_roll
+  duration_hours: 1.0
+  rotate_minutes: 60
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 900
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning
+prepared_at: '2026-05-30T06:11:48.527Z'
+notes:
+- Rolling A0c companion capture; keep separate from the main A0c targeted panel.
+- The supervisor refreshes discovery between chunks to pick up newly listed 4h windows.
+- 'Refresh interval minutes: 60.0; lookahead hours: 28.0.'
+markets:
+- id: '2384185'
+  condition_id: '0xbad2647784b23b2eec5472ff705fb2c415044dbf8ccf8afad9048abcc561fc56'
+  question: Bitcoin Up or Down - May 30, 12:00AM-4:00AM ET
+  group_item_title: Bitcoin Up or Down - May 30, 12:00AM-4:00AM ET
+  event_slug: btc-updown-4h-1780113600
+  slug: btc-updown-4h-1780113600
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T08:00:00Z'
+  volume: 5786.019542000002
+  volume24hr: 5786.019541999999
+  liquidity: 1061.0392
+  best_bid: 0.54
+  best_ask: 0.57
+  mid: 0.5549999999999999
+  spread: 0.029999999999999916
+  neg_risk: false
+  clob_token_ids:
+  - '24469453602470089387141112887100632961704866718463094528304948847103016800026'
+  - '29773667891778011993726011162664379007454086153561891881553211964256380607628'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '24469453602470089387141112887100632961704866718463094528304948847103016800026'
+        o: Up
+      - t: '29773667891778011993726011162664379007454086153561891881553211964256380607628'
+        o: Down
+      c: '0xbad2647784b23b2eec5472ff705fb2c415044dbf8ccf8afad9048abcc561fc56'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T04:07:28Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-30T04:00:00Z to 2026-05-30T08:00:00Z'
+  selection_metrics:
+    book_bids: 19
+    book_asks: 15
+    book_best_bid: 0.54
+    book_best_ask: 0.57
+    book_mid: 0.5549999999999999
+    book_spread: 0.029999999999999916
+    book_spread_bps: 540.5405405405392
+    book_top_bid_size: 31.13
+    book_top_ask_size: 25.0
+    book_touch_notional: 31.060200000000002
+    trades_24h: 320
+    trades_48h: 320
+    usd_24h: 2963.53
+    usd_48h: 2963.53
+    last_trade_ts: 1780121322
+    last_trade_minutes_ago: 3.0
+    trade_sides:
+      BUY: 267
+      SELL: 53
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T04:00:00Z'
+    roll_window_end: '2026-05-30T08:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: true
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2384180'
+  condition_id: '0x13ea28d39981f7e45ecace16b19e318afd83bbe97028c0e7925b4dd8cc0a34e5'
+  question: Ethereum Up or Down - May 30, 12:00AM-4:00AM ET
+  group_item_title: Ethereum Up or Down - May 30, 12:00AM-4:00AM ET
+  event_slug: eth-updown-4h-1780113600
+  slug: eth-updown-4h-1780113600
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T08:00:00Z'
+  volume: 2392.701857
+  volume24hr: 2392.7018569999996
+  liquidity: 447.1836
+  best_bid: 0.3
+  best_ask: 0.38
+  mid: 0.33999999999999997
+  spread: 0.08000000000000002
+  neg_risk: false
+  clob_token_ids:
+  - '111738707539683570645511198557852857281369108037006622459163723586472099484992'
+  - '105438949376375586119268632709641132849048985770373197047651351590505638685163'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '111738707539683570645511198557852857281369108037006622459163723586472099484992'
+        o: Up
+      - t: '105438949376375586119268632709641132849048985770373197047651351590505638685163'
+        o: Down
+      c: '0x13ea28d39981f7e45ecace16b19e318afd83bbe97028c0e7925b4dd8cc0a34e5'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T04:07:07Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-30T04:00:00Z to 2026-05-30T08:00:00Z'
+  selection_metrics:
+    book_bids: 11
+    book_asks: 13
+    book_best_bid: 0.3
+    book_best_ask: 0.38
+    book_mid: 0.33999999999999997
+    book_spread: 0.08000000000000002
+    book_spread_bps: 2352.941176470589
+    book_top_bid_size: 98.44
+    book_top_ask_size: 50.0
+    book_touch_notional: 48.532
+    trades_24h: 70
+    trades_48h: 70
+    usd_24h: 1210.08
+    usd_48h: 1210.08
+    last_trade_ts: 1780121317
+    last_trade_minutes_ago: 3.1
+    trade_sides:
+      BUY: 65
+      SELL: 5
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T04:00:00Z'
+    roll_window_end: '2026-05-30T08:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: true
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2384176'
+  condition_id: '0x6af956fc6b0fc172930e8f58add0df55423607d507d990960bfa3a71f9de4286'
+  question: Solana Up or Down - May 30, 12:00AM-4:00AM ET
+  group_item_title: Solana Up or Down - May 30, 12:00AM-4:00AM ET
+  event_slug: sol-updown-4h-1780113600
+  slug: sol-updown-4h-1780113600
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T08:00:00Z'
+  volume: 745.9808690000001
+  volume24hr: 745.9808690000001
+  liquidity: 523.1611
+  best_bid: 0.06
+  best_ask: 0.34
+  mid: 0.2
+  spread: 0.28
+  neg_risk: false
+  clob_token_ids:
+  - '81962740449456116675141685266233388629999805249127453154050144557432276799286'
+  - '8922382331269579705209552459049472303260121267908381827400443053398041191948'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '81962740449456116675141685266233388629999805249127453154050144557432276799286'
+        o: Up
+      - t: '8922382331269579705209552459049472303260121267908381827400443053398041191948'
+        o: Down
+      c: '0x6af956fc6b0fc172930e8f58add0df55423607d507d990960bfa3a71f9de4286'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T04:06:58Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-30T04:00:00Z to 2026-05-30T08:00:00Z'
+  selection_metrics:
+    book_bids: 6
+    book_asks: 10
+    book_best_bid: 0.06
+    book_best_ask: 0.34
+    book_mid: 0.2
+    book_spread: 0.28
+    book_spread_bps: 14000.000000000002
+    book_top_bid_size: 130.0
+    book_top_ask_size: 445.85
+    book_touch_notional: 159.38900000000004
+    trades_24h: 31
+    trades_48h: 31
+    usd_24h: 510.08
+    usd_48h: 510.08
+    last_trade_ts: 1780116049
+    last_trade_minutes_ago: 90.9
+    trade_sides:
+      SELL: 2
+      BUY: 29
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T04:00:00Z'
+    roll_window_end: '2026-05-30T08:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2385052'
+  condition_id: '0x644ea6eecd0fcc6923752fb031566953d4686276019d322cf66dccbff335543b'
+  question: Bitcoin Up or Down - May 30, 4:00AM-8:00AM ET
+  group_item_title: Bitcoin Up or Down - May 30, 4:00AM-8:00AM ET
+  event_slug: btc-updown-4h-1780128000
+  slug: btc-updown-4h-1780128000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T12:00:00Z'
+  volume: 39.411762
+  volume24hr: 39.411762
+  liquidity: 6247.0081
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '56922454285019781320072373116905637998895482923658006842978493819233344856652'
+  - '70091537273096287438589764042865772793944140664704314745801602960084447153332'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '56922454285019781320072373116905637998895482923658006842978493819233344856652'
+        o: Up
+      - t: '70091537273096287438589764042865772793944140664704314745801602960084447153332'
+        o: Down
+      c: '0x644ea6eecd0fcc6923752fb031566953d4686276019d322cf66dccbff335543b'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T08:06:57Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-30T08:00:00Z to 2026-05-30T12:00:00Z'
+  selection_metrics:
+    book_bids: 42
+    book_asks: 42
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 30.0
+    book_top_ask_size: 40.0
+    book_touch_notional: 35.099999999999994
+    trades_24h: 2
+    trades_48h: 2
+    usd_24h: 20.0
+    usd_48h: 20.0
+    last_trade_ts: 1780113731
+    last_trade_minutes_ago: 129.6
+    trade_sides:
+      BUY: 2
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T08:00:00Z'
+    roll_window_end: '2026-05-30T12:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2385051'
+  condition_id: '0xa253337068bd50e1f28b65c75abb0aeaf61273c5cbaf9574ceabb7da81979a9f'
+  question: Ethereum Up or Down - May 30, 4:00AM-8:00AM ET
+  group_item_title: Ethereum Up or Down - May 30, 4:00AM-8:00AM ET
+  event_slug: eth-updown-4h-1780128000
+  slug: eth-updown-4h-1780128000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T12:00:00Z'
+  volume: 9.80392
+  volume24hr: 9.80392
+  liquidity: 5088.366
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '23352322422685976793147262123619321408595436907871807411166062032464636060163'
+  - '90454424369393484498382018735489377847402957703412808274511715380510840503993'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '23352322422685976793147262123619321408595436907871807411166062032464636060163'
+        o: Up
+      - t: '90454424369393484498382018735489377847402957703412808274511715380510840503993'
+        o: Down
+      c: '0xa253337068bd50e1f28b65c75abb0aeaf61273c5cbaf9574ceabb7da81979a9f'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T08:07:15Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-30T08:00:00Z to 2026-05-30T12:00:00Z'
+  selection_metrics:
+    book_bids: 46
+    book_asks: 45
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 20.0
+    book_top_ask_size: 20.0
+    book_touch_notional: 20.0
+    trades_24h: 1
+    trades_48h: 1
+    usd_24h: 5.0
+    usd_48h: 5.0
+    last_trade_ts: 1780115554
+    last_trade_minutes_ago: 99.2
+    trade_sides:
+      BUY: 1
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T08:00:00Z'
+    roll_window_end: '2026-05-30T12:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2385068'
+  condition_id: '0x06dfdb1654b818d3cb9b019d710606653e1a09c31ee44c196d63eb59363fa5d1'
+  question: Solana Up or Down - May 30, 4:00AM-8:00AM ET
+  group_item_title: Solana Up or Down - May 30, 4:00AM-8:00AM ET
+  event_slug: sol-updown-4h-1780128000
+  slug: sol-updown-4h-1780128000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T12:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 1168.826
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '101630818944996385136870973084176465629069359748577796509910212644635074881619'
+  - '93095545585086111981901072034698319333987464375041517819617938574661875236681'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '101630818944996385136870973084176465629069359748577796509910212644635074881619'
+        o: Up
+      - t: '93095545585086111981901072034698319333987464375041517819617938574661875236681'
+        o: Down
+      c: '0x06dfdb1654b818d3cb9b019d710606653e1a09c31ee44c196d63eb59363fa5d1'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T08:06:59Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-30T08:00:00Z to 2026-05-30T12:00:00Z'
+  selection_metrics:
+    book_bids: 36
+    book_asks: 35
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 10.0
+    book_top_ask_size: 10.0
+    book_touch_notional: 10.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T08:00:00Z'
+    roll_window_end: '2026-05-30T12:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2385901'
+  condition_id: '0x23a44c4e983b475cc2c41db632f7717b08065e4dfacaa4d3cd646c3772bd3e22'
+  question: Bitcoin Up or Down - May 30, 8:00AM-12:00PM ET
+  group_item_title: Bitcoin Up or Down - May 30, 8:00AM-12:00PM ET
+  event_slug: btc-updown-4h-1780142400
+  slug: btc-updown-4h-1780142400
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T16:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5271.109
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '6896904445011893832028051262045697280536566982983523565418675204941227835626'
+  - '5194962700554331477285180598423200646768115889626239062672992468607095228270'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '6896904445011893832028051262045697280536566982983523565418675204941227835626'
+        o: Up
+      - t: '5194962700554331477285180598423200646768115889626239062672992468607095228270'
+        o: Down
+      c: '0x23a44c4e983b475cc2c41db632f7717b08065e4dfacaa4d3cd646c3772bd3e22'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T12:07:07Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-30T12:00:00Z to 2026-05-30T16:00:00Z'
+  selection_metrics:
+    book_bids: 32
+    book_asks: 31
+    book_best_bid: 0.5
+    book_best_ask: 0.51
+    book_mid: 0.505
+    book_spread: 0.010000000000000009
+    book_spread_bps: 198.0198019801982
+    book_top_bid_size: 10.0
+    book_top_ask_size: 77.0
+    book_touch_notional: 44.27
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T12:00:00Z'
+    roll_window_end: '2026-05-30T16:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: true
+    touch_notional_ge_500: false
+- id: '2385900'
+  condition_id: '0xab240562deb9301305fb1d356f5cae92462ab1a04fe1a087d758f9f7465d6b60'
+  question: Ethereum Up or Down - May 30, 8:00AM-12:00PM ET
+  group_item_title: Ethereum Up or Down - May 30, 8:00AM-12:00PM ET
+  event_slug: eth-updown-4h-1780142400
+  slug: eth-updown-4h-1780142400
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T16:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 4303.8294
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '5685276598359181116665684087313662627569537803242474637535208637001273270099'
+  - '31171673531515605010675506996892175643000581838479463699284475808280263262552'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '5685276598359181116665684087313662627569537803242474637535208637001273270099'
+        o: Up
+      - t: '31171673531515605010675506996892175643000581838479463699284475808280263262552'
+        o: Down
+      c: '0xab240562deb9301305fb1d356f5cae92462ab1a04fe1a087d758f9f7465d6b60'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T12:07:05Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-30T12:00:00Z to 2026-05-30T16:00:00Z'
+  selection_metrics:
+    book_bids: 30
+    book_asks: 30
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T12:00:00Z'
+    roll_window_end: '2026-05-30T16:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2385892'
+  condition_id: '0xc359320599ec052f41f871b5367d390ac66619aecf8cd5c3126ac8cd2c46e857'
+  question: Solana Up or Down - May 30, 8:00AM-12:00PM ET
+  group_item_title: Solana Up or Down - May 30, 8:00AM-12:00PM ET
+  event_slug: sol-updown-4h-1780142400
+  slug: sol-updown-4h-1780142400
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T16:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 1390.7084
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '12745546950138024073768216451491769068798270069408450067736532921103106873110'
+  - '60426730102919034822097600866818797232064463334442165048221172991141008828988'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '12745546950138024073768216451491769068798270069408450067736532921103106873110'
+        o: Up
+      - t: '60426730102919034822097600866818797232064463334442165048221172991141008828988'
+        o: Down
+      c: '0xc359320599ec052f41f871b5367d390ac66619aecf8cd5c3126ac8cd2c46e857'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T12:06:53Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-30T12:00:00Z to 2026-05-30T16:00:00Z'
+  selection_metrics:
+    book_bids: 49
+    book_asks: 49
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 37.0
+    book_top_ask_size: 37.0
+    book_touch_notional: 37.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T12:00:00Z'
+    roll_window_end: '2026-05-30T16:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2386927'
+  condition_id: '0xf84271cff716acf845f0bf768f26517ac2dd1710c80b25bc50f354d0886c2d7f'
+  question: Bitcoin Up or Down - May 30, 12:00PM-4:00PM ET
+  group_item_title: Bitcoin Up or Down - May 30, 12:00PM-4:00PM ET
+  event_slug: btc-updown-4h-1780156800
+  slug: btc-updown-4h-1780156800
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5778.059
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '109379056368425280738855980167293572646807199569196641961585255387427845243945'
+  - '101978735149751211561866083602605680354478787417869242267741163816392147015583'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '109379056368425280738855980167293572646807199569196641961585255387427845243945'
+        o: Up
+      - t: '101978735149751211561866083602605680354478787417869242267741163816392147015583'
+        o: Down
+      c: '0xf84271cff716acf845f0bf768f26517ac2dd1710c80b25bc50f354d0886c2d7f'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T16:07:09Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-30T16:00:00Z to 2026-05-30T20:00:00Z'
+  selection_metrics:
+    book_bids: 29
+    book_asks: 27
+    book_best_bid: 0.5
+    book_best_ask: 0.51
+    book_mid: 0.505
+    book_spread: 0.010000000000000009
+    book_spread_bps: 198.0198019801982
+    book_top_bid_size: 10.0
+    book_top_ask_size: 57.0
+    book_touch_notional: 34.07
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T16:00:00Z'
+    roll_window_end: '2026-05-30T20:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: true
+    touch_notional_ge_500: false
+- id: '2386942'
+  condition_id: '0xfa15a18f2d7e2b074dd4883f3e6be8b8c0b65dbf9fe2753aa5c933afca5e0042'
+  question: Ethereum Up or Down - May 30, 12:00PM-4:00PM ET
+  group_item_title: Ethereum Up or Down - May 30, 12:00PM-4:00PM ET
+  event_slug: eth-updown-4h-1780156800
+  slug: eth-updown-4h-1780156800
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5293.979
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '105743727705446545275479810139733429969605774513229043672020005235294744421026'
+  - '24137651601362718273340875869715832624463864955383585871354995917250371790313'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '105743727705446545275479810139733429969605774513229043672020005235294744421026'
+        o: Up
+      - t: '24137651601362718273340875869715832624463864955383585871354995917250371790313'
+        o: Down
+      c: '0xfa15a18f2d7e2b074dd4883f3e6be8b8c0b65dbf9fe2753aa5c933afca5e0042'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T16:08:26Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-30T16:00:00Z to 2026-05-30T20:00:00Z'
+  selection_metrics:
+    book_bids: 49
+    book_asks: 49
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T16:00:00Z'
+    roll_window_end: '2026-05-30T20:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2386934'
+  condition_id: '0x1935e3d278f24e394da8bcba4ade09a2946f6c672b47a79a925a60bfb5a33047'
+  question: Solana Up or Down - May 30, 12:00PM-4:00PM ET
+  group_item_title: Solana Up or Down - May 30, 12:00PM-4:00PM ET
+  event_slug: sol-updown-4h-1780156800
+  slug: sol-updown-4h-1780156800
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-30T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 919.2096
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '52258810954051621638438481514730185245727452234480001822152129089658024663635'
+  - '86360294435361800624609906386570764896508652512216302433756825610874901880918'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '52258810954051621638438481514730185245727452234480001822152129089658024663635'
+        o: Up
+      - t: '86360294435361800624609906386570764896508652512216302433756825610874901880918'
+        o: Down
+      c: '0x1935e3d278f24e394da8bcba4ade09a2946f6c672b47a79a925a60bfb5a33047'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T16:07:18Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-30T16:00:00Z to 2026-05-30T20:00:00Z'
+  selection_metrics:
+    book_bids: 18
+    book_asks: 21
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 37.0
+    book_top_ask_size: 37.0
+    book_touch_notional: 37.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T16:00:00Z'
+    roll_window_end: '2026-05-30T20:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2387962'
+  condition_id: '0x590fc59d01c79393b878dae5ba2c93bade02b0806493361b7ada6f7905d08434'
+  question: Bitcoin Up or Down - May 30, 4:00PM-8:00PM ET
+  group_item_title: Bitcoin Up or Down - May 30, 4:00PM-8:00PM ET
+  event_slug: btc-updown-4h-1780171200
+  slug: btc-updown-4h-1780171200
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T00:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5684.0494
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '72148224273336482053888499097240163272703733518130582490424825256405300062680'
+  - '19318446374570367905620880417268978905582290812131686563634883906157909903056'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '72148224273336482053888499097240163272703733518130582490424825256405300062680'
+        o: Up
+      - t: '19318446374570367905620880417268978905582290812131686563634883906157909903056'
+        o: Down
+      c: '0x590fc59d01c79393b878dae5ba2c93bade02b0806493361b7ada6f7905d08434'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T20:07:19Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-30T20:00:00Z to 2026-05-31T00:00:00Z'
+  selection_metrics:
+    book_bids: 33
+    book_asks: 33
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T20:00:00Z'
+    roll_window_end: '2026-05-31T00:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2387955'
+  condition_id: '0x3997fbbef6f871e91bb23f7b7446896084f84a949116e55deb002fbf35891f71'
+  question: Ethereum Up or Down - May 30, 4:00PM-8:00PM ET
+  group_item_title: Ethereum Up or Down - May 30, 4:00PM-8:00PM ET
+  event_slug: eth-updown-4h-1780171200
+  slug: eth-updown-4h-1780171200
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T00:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5005.7694
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '4637715568700726968801207432640390456831724808485394855883676692065501944207'
+  - '33405886869177889422436829655647832074025949358274058196054619195014989266860'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '4637715568700726968801207432640390456831724808485394855883676692065501944207'
+        o: Up
+      - t: '33405886869177889422436829655647832074025949358274058196054619195014989266860'
+        o: Down
+      c: '0x3997fbbef6f871e91bb23f7b7446896084f84a949116e55deb002fbf35891f71'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T20:07:12Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-30T20:00:00Z to 2026-05-31T00:00:00Z'
+  selection_metrics:
+    book_bids: 45
+    book_asks: 40
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T20:00:00Z'
+    roll_window_end: '2026-05-31T00:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2387960'
+  condition_id: '0x877ecbba7fec01e35e6b47b7135ebd9b2fc9b604ac67bb11a8f85e1a5300cac3'
+  question: Solana Up or Down - May 30, 4:00PM-8:00PM ET
+  group_item_title: Solana Up or Down - May 30, 4:00PM-8:00PM ET
+  event_slug: sol-updown-4h-1780171200
+  slug: sol-updown-4h-1780171200
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T00:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 1276.5492
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '99449897885448296238732270564637750361231566750616420329431457713326049497646'
+  - '11458422477333603009266956227068953489227687532429784785878659129418325180534'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '99449897885448296238732270564637750361231566750616420329431457713326049497646'
+        o: Up
+      - t: '11458422477333603009266956227068953489227687532429784785878659129418325180534'
+        o: Down
+      c: '0x877ecbba7fec01e35e6b47b7135ebd9b2fc9b604ac67bb11a8f85e1a5300cac3'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-29T20:06:53Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-30T20:00:00Z to 2026-05-31T00:00:00Z'
+  selection_metrics:
+    book_bids: 35
+    book_asks: 34
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 37.0
+    book_top_ask_size: 37.0
+    book_touch_notional: 37.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-30T20:00:00Z'
+    roll_window_end: '2026-05-31T00:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2390046'
+  condition_id: '0x3fbcbe3d43e0b952be8997b0bd61ca45545f5ad062e56647297fd314cf2c0900'
+  question: Bitcoin Up or Down - May 30, 8:00PM-12:00AM ET
+  group_item_title: Bitcoin Up or Down - May 30, 8:00PM-12:00AM ET
+  event_slug: btc-updown-4h-1780185600
+  slug: btc-updown-4h-1780185600
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T04:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5429.6694
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '40395219916849754208471210130455557186403703761363930189070115351833386060621'
+  - '19071633781933255226218368600070891067711865441851776471546684041814637869084'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '40395219916849754208471210130455557186403703761363930189070115351833386060621'
+        o: Up
+      - t: '19071633781933255226218368600070891067711865441851776471546684041814637869084'
+        o: Down
+      c: '0x3fbcbe3d43e0b952be8997b0bd61ca45545f5ad062e56647297fd314cf2c0900'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-30T00:07:09Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-31T00:00:00Z to 2026-05-31T04:00:00Z'
+  selection_metrics:
+    book_bids: 25
+    book_asks: 25
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-31T00:00:00Z'
+    roll_window_end: '2026-05-31T04:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2390047'
+  condition_id: '0xeca8270f9df94405efe805f38ed5f6f4ca3fde861dc8b89ad1e16964430ca67c'
+  question: Ethereum Up or Down - May 30, 8:00PM-12:00AM ET
+  group_item_title: Ethereum Up or Down - May 30, 8:00PM-12:00AM ET
+  event_slug: eth-updown-4h-1780185600
+  slug: eth-updown-4h-1780185600
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T04:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 4775.9676
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '83706939120313815756024310535024007573287149881019823208676453932131153506384'
+  - '92032373581502523435625386089719356873553400817112145536706956761700870783306'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '83706939120313815756024310535024007573287149881019823208676453932131153506384'
+        o: Up
+      - t: '92032373581502523435625386089719356873553400817112145536706956761700870783306'
+        o: Down
+      c: '0xeca8270f9df94405efe805f38ed5f6f4ca3fde861dc8b89ad1e16964430ca67c'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-30T00:07:06Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-31T00:00:00Z to 2026-05-31T04:00:00Z'
+  selection_metrics:
+    book_bids: 46
+    book_asks: 18
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-31T00:00:00Z'
+    roll_window_end: '2026-05-31T04:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2390039'
+  condition_id: '0xa6b452444479ce53f617c644b2256c1c5b7dd414f5789fe9e8557a8eb214fa85'
+  question: Solana Up or Down - May 30, 8:00PM-12:00AM ET
+  group_item_title: Solana Up or Down - May 30, 8:00PM-12:00AM ET
+  event_slug: sol-updown-4h-1780185600
+  slug: sol-updown-4h-1780185600
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T04:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 1121.4892
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '78497713062602998660503496207431585929869057730808108713879736903968851352874'
+  - '71173809038610125182999096171215592680787375296213693032811613430283068411001'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '78497713062602998660503496207431585929869057730808108713879736903968851352874'
+        o: Up
+      - t: '71173809038610125182999096171215592680787375296213693032811613430283068411001'
+        o: Down
+      c: '0xa6b452444479ce53f617c644b2256c1c5b7dd414f5789fe9e8557a8eb214fa85'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-30T00:06:50Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-31T00:00:00Z to 2026-05-31T04:00:00Z'
+  selection_metrics:
+    book_bids: 28
+    book_asks: 28
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 37.0
+    book_top_ask_size: 37.0
+    book_touch_notional: 37.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-31T00:00:00Z'
+    roll_window_end: '2026-05-31T04:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2391699'
+  condition_id: '0xdaf92abefbe012e106bdbe291862a9e1d2d24d9fd57230b46ad97500e121a8cf'
+  question: Bitcoin Up or Down - May 31, 12:00AM-4:00AM ET
+  group_item_title: Bitcoin Up or Down - May 31, 12:00AM-4:00AM ET
+  event_slug: btc-updown-4h-1780200000
+  slug: btc-updown-4h-1780200000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T08:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 5575.5994
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '69537415585882254620240324686105291563019212365146551678123851681228643257875'
+  - '59738918021387691481017041903561313927554598823783151556855410541754520137618'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '69537415585882254620240324686105291563019212365146551678123851681228643257875'
+        o: Up
+      - t: '59738918021387691481017041903561313927554598823783151556855410541754520137618'
+        o: Down
+      c: '0xdaf92abefbe012e106bdbe291862a9e1d2d24d9fd57230b46ad97500e121a8cf'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-30T04:09:12Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: BTC 4h window 2026-05-31T04:00:00Z to 2026-05-31T08:00:00Z'
+  selection_metrics:
+    book_bids: 36
+    book_asks: 36
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-31T04:00:00Z'
+    roll_window_end: '2026-05-31T08:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2391673'
+  condition_id: '0xead0aba1a4fb2b45b2fe298390eaf83ae1d2dccd8ada61ceefe25360444e1f64'
+  question: Ethereum Up or Down - May 31, 12:00AM-4:00AM ET
+  group_item_title: Ethereum Up or Down - May 31, 12:00AM-4:00AM ET
+  event_slug: eth-updown-4h-1780200000
+  slug: eth-updown-4h-1780200000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T08:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 4384.9994
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '21799863873429130779914017434610816099866293059113903113827781487345445754107'
+  - '91948215885769058773951398338065391691143936127117876894525108368164774845413'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '21799863873429130779914017434610816099866293059113903113827781487345445754107'
+        o: Up
+      - t: '91948215885769058773951398338065391691143936127117876894525108368164774845413'
+        o: Down
+      c: '0xead0aba1a4fb2b45b2fe298390eaf83ae1d2dccd8ada61ceefe25360444e1f64'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-30T04:08:55Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: ETH 4h window 2026-05-31T04:00:00Z to 2026-05-31T08:00:00Z'
+  selection_metrics:
+    book_bids: 16
+    book_asks: 16
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 47.0
+    book_top_ask_size: 47.0
+    book_touch_notional: 47.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-31T04:00:00Z'
+    roll_window_end: '2026-05-31T08:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2391679'
+  condition_id: '0x06e5b95d095eae3c9d53f821679fcb2ddf01487ac716691670024e1c23ef9058'
+  question: Solana Up or Down - May 31, 12:00AM-4:00AM ET
+  group_item_title: Solana Up or Down - May 31, 12:00AM-4:00AM ET
+  event_slug: sol-updown-4h-1780200000
+  slug: sol-updown-4h-1780200000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-31T08:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 753.9788
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '96976414293220387789752963676740649830440256078473696088424874827610275732346'
+  - '39909104955081700516997055008412226428749368702050468163237644234545494986413'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '96976414293220387789752963676740649830440256078473696088424874827610275732346'
+        o: Up
+      - t: '39909104955081700516997055008412226428749368702050468163237644234545494986413'
+        o: Down
+      c: '0x06e5b95d095eae3c9d53f821679fcb2ddf01487ac716691670024e1c23ef9058'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-30T04:08:58Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'crypto_4h_roll: SOL 4h window 2026-05-31T04:00:00Z to 2026-05-31T08:00:00Z'
+  selection_metrics:
+    book_bids: 13
+    book_asks: 13
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 37.0
+    book_top_ask_size: 37.0
+    book_touch_notional: 37.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+    roll_window_start: '2026-05-31T04:00:00Z'
+    roll_window_end: '2026-05-31T08:00:00Z'
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false

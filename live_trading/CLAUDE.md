@@ -1,5 +1,7 @@
 # Epsilon Fund — live_trading/ Architecture & Strategy Guide
 
+> Data/artifact map: [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]]
+
 ## Purpose of this file
 This memory gives a new Claude Code session full context on how `live_trading/` is
 structured and exactly what to build when adding a new strategy (Stat Arb, BB Breakout,
@@ -415,3 +417,11 @@ python3 live_trading/dashboards/statarb/optimise.py --asset ETHUSDT
 | 2_Trade_Log tab | ✅ render_strategy_tab | ❌ info stub | ❌ info stub |
 | 3_Portfolio tab | ✅ render_strategy_portfolio | ❌ info stub | ❌ info stub |
 | app.py summary | ✅ counted | ✅ skipped (no trades) | ✅ skipped (no trades) |
+
+---
+
+## Adding notes to this cluster
+
+- Live-trading notes belong here when they describe app architecture, dashboard wiring, shared component contracts, trade/position schemas, Streamlit behavior, or operational patterns for `live_trading/`.
+- Prefer appending durable architecture notes to this file. If a standalone note is clearer, place it under `live_trading/` with a name like `live_<area>_<topic>.md`, `dashboard_<strategy>_<topic>.md`, or `ops_<workflow>_runbook.md`.
+- Add `> Hub: [[live_trading/CLAUDE|CLAUDE]]` near the top of each standalone live-trading note, and add a path wikilink to that note in the relevant section of this file.

@@ -1,0 +1,44 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": true,
+  "showAttachments": true,
+  "hideUnresolved": false,
+  "showOrphans": false,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:brain  ",
+      "color": {
+        "a": 1,
+        "rgb": 15231080
+      }
+    },
+    {
+      "query": "path:polymarket  ",
+      "color": {
+        "a": 1,
+        "rgb": 13458396
+      }
+    },
+    {
+      "query": "path:topics  ",
+      "color": {
+        "a": 1,
+        "rgb": 7892181
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 2,
+  "nodeSizeMultiplier": 1.00109809027778,
+  "lineSizeMultiplier": 0.506206597222222,
+  "collapse-forces": false,
+  "centerStrength": 0.399479166666667,
+  "repelStrength": 8.04600694444444,
+  "linkStrength": 0.249001736111111,
+  "linkDistance": 302,
+  "scale": 0.0568649086132698,
+  "close": true
+}
