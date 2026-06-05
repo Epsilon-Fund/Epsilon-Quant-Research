@@ -1,4 +1,6 @@
 # Statistical Arbitrage — Pairs Trading Portfolio
+> Hub: [[STRATEGY_REFERENCE]]
+
 
 A daily-bar pairs trading strategy built on cointegrated cryptocurrency pairs, validated through walk-forward optimisation and combined into a 4-pair inverse-volatility-weighted portfolio.
 
@@ -431,6 +433,16 @@ testing/
 ```
 
 ### Notebook Structure (each pair)
+
+## Notebook Map
+
+- [[topics/statistical-arbitrage/strategies/testing/ETH&BNB.ipynb|ETH / BNB]]
+- [[topics/statistical-arbitrage/strategies/testing/AVAX&FIL.ipynb|AVAX / FIL]]
+- [[topics/statistical-arbitrage/strategies/testing/ATOM&ARB.ipynb|ATOM / ARB]]
+- [[topics/statistical-arbitrage/strategies/testing/Fil&SNX.ipynb|FIL / SNX]]
+- [[topics/statistical-arbitrage/strategies/testing/LINK&TRX.ipynb|LINK / TRX]]
+- [[topics/statistical-arbitrage/strategies/testing/LTC&APT.ipynb|LTC / APT]]
+- [[topics/statistical-arbitrage/strategies/testing/testing playground copy 6.ipynb|testing playground copy 6]]
 
 Each notebook follows the same cell structure:
 

@@ -1,4 +1,6 @@
 # Midas
+> Hub: [[COWORK]]
+
 
 Epsilon Fund quantitative trading system for Polymarket.
 

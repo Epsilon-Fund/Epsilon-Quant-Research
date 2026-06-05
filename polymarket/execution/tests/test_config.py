@@ -115,11 +115,11 @@ def test_max_real_orders_default_is_5() -> None:
     assert cfg.max_real_orders == 5
 
 
-def test_max_real_orders_zero_raises() -> None:
+def test_max_real_orders_zero_is_observe_only() -> None:
     env = dict(_FULL_ENV)
     env["POLYMARKET_MAX_REAL_ORDERS"] = "0"
-    with pytest.raises(ValueError, match="POLYMARKET_MAX_REAL_ORDERS"):
-        ExecutionConfig.from_env(env=env)
+    cfg = ExecutionConfig.from_env(env=env)
+    assert cfg.max_real_orders == 0
 
 
 def test_max_real_orders_negative_raises() -> None:

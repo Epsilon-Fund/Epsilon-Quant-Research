@@ -69,6 +69,7 @@ def _full_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
 def test_build_venue_adapter_fake_returns_print_adapter() -> None:
     adapter = cli.build_venue_adapter("fake", _config())
     assert hasattr(adapter, "submit_order")
+    assert hasattr(adapter, "cancel_order")
     # Sanity check the print adapter actually returns a SubmitResult-shaped object.
     result = adapter.submit_order(
         client_order_id="coid", condition_id="0xcond", asset_id="42",
@@ -76,6 +77,7 @@ def test_build_venue_adapter_fake_returns_print_adapter() -> None:
     )
     assert result.accepted is True
     assert result.fill_size_shares == 10.0
+    assert adapter.cancel_order(client_order_id="coid") == {"ambiguous": False}
 
 
 def test_build_venue_adapter_real_raises_on_placeholder_credentials() -> None:

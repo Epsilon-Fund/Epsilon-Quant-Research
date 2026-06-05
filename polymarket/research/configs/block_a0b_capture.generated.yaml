@@ -1,0 +1,527 @@
+run:
+  run_id: block_a0b_replacements_20260527
+  label: block_a0b
+  duration_hours: 12.0
+  rotate_minutes: 60
+  print_every_events: 500
+  heartbeat_seconds: 60
+  stale_warning_seconds: 900
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/block_a0b
+prepared_at: '2026-05-27T21:16:21Z'
+notes:
+- A0b is a parallel replacement capture; do not merge it with A0 as one balanced panel.
+- 'BTC 4h includes three explicit listed windows: current plus the next two 4h windows.'
+- UCL winner is a negative-risk event; only the PSG binary leg is included.
+markets:
+- id: '1971905'
+  condition_id: '0x348cd9adf4f6855f58bd9c6dbf9ff251c4142ef77233a5dc95c65b4b61cd2187'
+  question: Strait of Hormuz traffic returns to normal by end of June?
+  group_item_title: Strait of Hormuz traffic returns to normal by end of June?
+  event_slug: strait-of-hormuz-traffic-returns-to-normal-by-end-of-june
+  slug: strait-of-hormuz-traffic-returns-to-normal-by-end-of-june
+  family: geopolitics_policy
+  category: Geopolitics
+  end_date: '2026-06-30T00:00:00Z'
+  volume: 10332818.32615103
+  volume24hr: 308261.2133729998
+  liquidity: 215357.6363
+  best_bid: 0.4
+  best_ask: 0.41
+  mid: 0.405
+  spread: 0.009999999999999953
+  neg_risk: false
+  clob_token_ids:
+  - '46130022848920611732202507184264902690726361824951579816156441452797397798181'
+  - '77669758102929718590160851391714019116736856202333459817343190730743895177270'
+  fee:
+    fees_enabled: false
+    fee_rate: null
+    fee_exponent: null
+    taker_only: null
+    maker_base_fee_bps: null
+    taker_base_fee_bps: null
+    fee_schedule: null
+    peak_effective_rate_estimate: 0.0
+    clob_market_info:
+      r:
+        mi: 200
+        ma: 3.5
+        e: true
+        moas: 4
+      t:
+      - t: '46130022848920611732202507184264902690726361824951579816156441452797397798181'
+        o: 'Yes'
+      - t: '77669758102929718590160851391714019116736856202333459817343190730743895177270'
+        o: 'No'
+      c: '0x348cd9adf4f6855f58bd9c6dbf9ff251c4142ef77233a5dc95c65b4b61cd2187'
+      mos: 5
+      mts: 0.01
+      ao: true
+      cbos: true
+      aot: '2026-04-13T22:15:39Z'
+      ibce: true
+  selection_rationale: High trade density, tight spread, clean binary geopolitics
+    market.
+- id: '2176262'
+  condition_id: '0xb8e6d129a06d0ccb21d7b32eb529ea455eddba3cf29bfa097112202cbdf5bf21'
+  question: Strait of Hormuz traffic returns to normal by July 31?
+  group_item_title: Strait of Hormuz traffic returns to normal by July 31?
+  event_slug: strait-of-hormuz-traffic-returns-to-normal-by-july-31
+  slug: strait-of-hormuz-traffic-returns-to-normal-by-july-31
+  family: geopolitics_policy
+  category: Geopolitics
+  end_date: '2026-07-31T00:00:00Z'
+  volume: 1637720.1592400065
+  volume24hr: 146377.8627919999
+  liquidity: 134407.4774
+  best_bid: 0.61
+  best_ask: 0.62
+  mid: 0.615
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '106929013576622300718402895513457875547556389240247806666273814836599548721421'
+  - '35600405023007026690792769618276046675588493623969149550929635257490271313011'
+  fee:
+    fees_enabled: false
+    fee_rate: null
+    fee_exponent: null
+    taker_only: null
+    maker_base_fee_bps: null
+    taker_base_fee_bps: null
+    fee_schedule: null
+    peak_effective_rate_estimate: 0.0
+    clob_market_info:
+      r:
+        mi: 200
+        ma: 4.5
+        e: true
+        moas: 30
+      t:
+      - t: '106929013576622300718402895513457875547556389240247806666273814836599548721421'
+        o: 'Yes'
+      - t: '35600405023007026690792769618276046675588493623969149550929635257490271313011'
+        o: 'No'
+      c: '0xb8e6d129a06d0ccb21d7b32eb529ea455eddba3cf29bfa097112202cbdf5bf21'
+      mos: 5
+      mts: 0.01
+      ao: true
+      cbos: true
+      aot: '2026-05-11T13:13:53Z'
+      ibce: true
+  selection_rationale: High trade density, tight spread, clean binary geopolitics
+    market.
+- id: '2362124'
+  condition_id: '0x602f533fadc0f022f2f19e87675effdca59f951c559b1d6465bcb3497e6539b8'
+  question: Bitcoin Up or Down on May 28?
+  group_item_title: Bitcoin Up or Down on May 28?
+  event_slug: bitcoin-up-or-down-on-may-28-2026
+  slug: bitcoin-up-or-down-on-may-28-2026
+  family: daily_crypto_up_down
+  category: Crypto
+  end_date: '2026-05-28T16:00:00Z'
+  volume: 28093.907824000005
+  volume24hr: 28135.130889000007
+  liquidity: 36160.5511
+  best_bid: 0.46
+  best_ask: 0.47
+  mid: 0.46499999999999997
+  spread: 0.009999999999999953
+  neg_risk: false
+  clob_token_ids:
+  - '114150606988471582597747389169550542367038097845735207261082522949604591671198'
+  - '13297267752556103098221741091234603749389138382382574481854654410062275010103'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        e: true
+        moas: 30
+      t:
+      - t: '114150606988471582597747389169550542367038097845735207261082522949604591671198'
+        o: Up
+      - t: '13297267752556103098221741091234603749389138382382574481854654410062275010103'
+        o: Down
+      c: '0x602f533fadc0f022f2f19e87675effdca59f951c559b1d6465bcb3497e6539b8'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-05-26T16:02:01Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: Active daily crypto up/down baseline with tight visible spread.
+- id: '2362186'
+  condition_id: '0x36eb6f04afafc3769cb8729b41f8ddb9690a670f88f86b76bfe40c753ecf5400'
+  question: Ethereum Up or Down on May 28?
+  group_item_title: Ethereum Up or Down on May 28?
+  event_slug: ethereum-up-or-down-on-may-28-2026
+  slug: ethereum-up-or-down-on-may-28-2026
+  family: daily_crypto_up_down
+  category: Crypto
+  end_date: '2026-05-28T16:00:00Z'
+  volume: 5152.587560000001
+  volume24hr: 5152.587560000001
+  liquidity: 21599.8504
+  best_bid: 0.38
+  best_ask: 0.39
+  mid: 0.385
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '57449998465780526963946723695497864104683329797216789976761459239280514477638'
+  - '4692939084840080880184736331371791200209143149631538291362545113400834673815'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '57449998465780526963946723695497864104683329797216789976761459239280514477638'
+        o: Up
+      - t: '4692939084840080880184736331371791200209143149631538291362545113400834673815'
+        o: Down
+      c: '0x36eb6f04afafc3769cb8729b41f8ddb9690a670f88f86b76bfe40c753ecf5400'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-05-26T16:23:43Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: Paired daily crypto up/down baseline; less active than BTC
+    but still useful.
+- id: '2364426'
+  condition_id: '0x7742790f9e60ff6d0d84b754731286235ea835c2bde4dd07bf6501f83816419b'
+  question: Bitcoin Up or Down - May 27, 4:00PM-8:00PM ET
+  group_item_title: Bitcoin Up or Down - May 27, 4:00PM-8:00PM ET
+  event_slug: btc-updown-4h-1779912000
+  slug: btc-updown-4h-1779912000
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-28T00:00:00Z'
+  volume: 3434.7260229999997
+  volume24hr: 3434.7260230000006
+  liquidity: 3391.7214
+  best_bid: 0.68
+  best_ask: 0.69
+  mid: 0.685
+  spread: 0.009999999999999898
+  neg_risk: false
+  clob_token_ids:
+  - '54638667467795103942919344658899051222233748969751722393702313751430270949020'
+  - '59800512307735602117203176064534696396232526997095132388264352903106469633957'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '54638667467795103942919344658899051222233748969751722393702313751430270949020'
+        o: Up
+      - t: '59800512307735602117203176064534696396232526997095132388264352903106469633957'
+        o: Down
+      c: '0x7742790f9e60ff6d0d84b754731286235ea835c2bde4dd07bf6501f83816419b'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-26T20:06:47Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: BTC 4h up/down window 1 of 3 for the 12h A0b crypto lane.
+- id: '2366225'
+  condition_id: '0x6c1e4d16d0a833e265597a4243f756ea2c38899d3458fe782f1bceaf09d1c97e'
+  question: Bitcoin Up or Down - May 27, 8:00PM-12:00AM ET
+  group_item_title: Bitcoin Up or Down - May 27, 8:00PM-12:00AM ET
+  event_slug: btc-updown-4h-1779926400
+  slug: btc-updown-4h-1779926400
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-28T04:00:00Z'
+  volume: 98.121566
+  volume24hr: 98.121566
+  liquidity: 6632.0335
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '57002273482033280721839622478534627014440728395460975787498862542808463593638'
+  - '46566059453591419260330436200645277885540876953455676346961833507104857061378'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '57002273482033280721839622478534627014440728395460975787498862542808463593638'
+        o: Up
+      - t: '46566059453591419260330436200645277885540876953455676346961833507104857061378'
+        o: Down
+      c: '0x6c1e4d16d0a833e265597a4243f756ea2c38899d3458fe782f1bceaf09d1c97e'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-27T00:07:29Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: BTC 4h up/down window 2 of 3 for the 12h A0b crypto lane.
+- id: '2367777'
+  condition_id: '0xc9027e5c826164e3403195f79f6639282a2a9d181b084b0885992b5523e56035'
+  question: Bitcoin Up or Down - May 28, 12:00AM-4:00AM ET
+  group_item_title: Bitcoin Up or Down - May 28, 12:00AM-4:00AM ET
+  event_slug: btc-updown-4h-1779940800
+  slug: btc-updown-4h-1779940800
+  family: crypto_4h_up_down
+  category: Crypto
+  end_date: '2026-05-28T08:00:00Z'
+  volume: 9.80392
+  volume24hr: 9.80392
+  liquidity: 5941.0127
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '4232459946114527369233364666120060576718740155408509275218351758327293913757'
+  - '113314870622477192844549328638780032362370258925396053274542027196916473144902'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '4232459946114527369233364666120060576718740155408509275218351758327293913757'
+        o: Up
+      - t: '113314870622477192844549328638780032362370258925396053274542027196916473144902'
+        o: Down
+      c: '0xc9027e5c826164e3403195f79f6639282a2a9d181b084b0885992b5523e56035'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-05-27T04:08:38Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: BTC 4h up/down window 3 of 3 for the 12h A0b crypto lane.
+- id: '2327929'
+  condition_id: '0x3904885b86a86a2e20b76d92e3eb91ba5e9d6cd3ed294ee759c5f638fe8ec9bb'
+  question: Thunder vs. Spurs
+  group_item_title: Thunder vs. Spurs
+  event_slug: nba-okc-sas-2026-05-28
+  slug: nba-okc-sas-2026-05-28
+  family: sports_game_lines
+  category: Sports
+  end_date: '2026-05-29T00:30:00Z'
+  volume: 509627.9305730048
+  volume24hr: 485803.96368899837
+  liquidity: 1534246.6372
+  best_bid: 0.41
+  best_ask: 0.42
+  mid: 0.415
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '2575019569713867230163687809334189476608940225482792735183279931653015476505'
+  - '61461447860448952786750800001237009214559735577696427265090936934040779183611'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.03
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.03
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.0075
+    clob_market_info:
+      gst: '2026-05-29T00:30:00Z'
+      r:
+        mi: 50
+        ma: 4.5
+        e: true
+        moas: 30
+      t:
+      - t: '2575019569713867230163687809334189476608940225482792735183279931653015476505'
+        o: Thunder
+      - t: '61461447860448952786750800001237009214559735577696427265090936934040779183611'
+        o: Spurs
+      c: '0x3904885b86a86a2e20b76d92e3eb91ba5e9d6cd3ed294ee759c5f638fe8ec9bb'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-05-22T04:06:33Z'
+      ibce: true
+      fd:
+        r: 0.03
+        e: 1
+        to: true
+  selection_rationale: Main Thunder vs. Spurs moneyline; very active same-day sports
+    flow.
+- id: '566136'
+  condition_id: '0x6e9f90a6f471b52d03499a81586ca478519474eb152f1327c8c767f020d62529'
+  question: "Will PSG win the 2025\u201326 Champions League?"
+  group_item_title: PSG
+  event_slug: uefa-champions-league-winner
+  slug: will-psg-win-the-202526-champions-league
+  family: sports_neg_risk_outright
+  category: Sports
+  end_date: '2026-05-31T00:00:00Z'
+  volume: 10478795.314892879
+  volume24hr: 104150.75231200007
+  liquidity: 1108162.9699
+  best_bid: 0.57
+  best_ask: 0.58
+  mid: 0.575
+  spread: 0.010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '104259436423064082971150541232006260758664018969024622611484550356541952860834'
+  - '17522237181479319953129418683394157683167669858670412329571078616243234898741'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.03
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.03
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.0075
+    clob_market_info:
+      r:
+        mi: 10000
+        ma: 1.5
+        e: true
+        moas: 4
+      t:
+      - t: '104259436423064082971150541232006260758664018969024622611484550356541952860834'
+        o: 'Yes'
+      - t: '17522237181479319953129418683394157683167669858670412329571078616243234898741'
+        o: 'No'
+      c: '0x6e9f90a6f471b52d03499a81586ca478519474eb152f1327c8c767f020d62529'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2025-07-28T16:36:47Z'
+      ibce: true
+      fd:
+        r: 0.03
+        e: 1
+        to: true
+  selection_rationale: Most active UCL winner negative-risk leg, PSG.

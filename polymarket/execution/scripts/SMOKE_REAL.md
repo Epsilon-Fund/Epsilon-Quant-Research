@@ -1,4 +1,7 @@
 # Real-money smoke procedure — first run after wiring lands
+> Hub: [[COWORK]]
+> Table terms: [[polymarket_table_dictionary]]
+
 
 Operator runbook for the first end-to-end real-venue test of the
 Polymarket copy-trading bot. Read top to bottom before doing
@@ -131,6 +134,7 @@ Check `ORDER_REJECTED` and `RISK_HALT` events in the journal first:
 | `OrderRejected reason="no_orderbook_price"` | `current_book` mode + thin asks | switch to `leader_fill` mode |
 | `OrderRejected reason="venue_rejected"` detail mentioning auth | API key / signature mismatch | re-derive API key, verify funder ↔ private_key linkage |
 | `OrderRejected reason="venue_rejected"` detail mentioning size/price | min_order_size violated, or tick rounding | bump `POLYMARKET_SIZING_USD`, check tick_size for the market |
+| `OrderRejected reason="cannot_classify_market"` | Gamma API unreachable from current network, or `condition_id` has no Gamma metadata (rare, brand-new market) | Verify VPN is active and gamma-api.polymarket.com is reachable: `curl -s "https://gamma-api.polymarket.com/markets?condition_ids=<a-recent-cid-from-journal>"`. If Gamma is reachable, the market metadata may need a warm-up call before submission — wait a few minutes and retry. |
 | `RiskHalt reason="kill_switch"` | `/tmp/polymarket_killswitch` exists | `rm /tmp/polymarket_killswitch` |
 | `RiskHalt reason="size_cap"` | `sizing_usd > per_trade_cap_usd` | raise per_trade_cap or shrink sizing |
 | `RiskHalt reason="max_real_orders"` | hit the harness limit | expected; raise `POLYMARKET_MAX_REAL_ORDERS` |

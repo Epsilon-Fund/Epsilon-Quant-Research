@@ -148,6 +148,8 @@ class ExecutionConfig:
             )
 
         # Safety harness for real venue (only consulted when POLYMARKET_VENUE=real).
+        # 0 is observe-only: real venue can be wired for reads, but no submits
+        # are permitted.
         max_real_orders_raw = _optional("POLYMARKET_MAX_REAL_ORDERS")
         try:
             max_real_orders_value = int(max_real_orders_raw)
@@ -156,9 +158,9 @@ class ExecutionConfig:
                 "POLYMARKET_MAX_REAL_ORDERS must be an int "
                 f"(got {max_real_orders_raw!r})"
             ) from None
-        if max_real_orders_value < 1:
+        if max_real_orders_value < 0:
             raise ValueError(
-                "POLYMARKET_MAX_REAL_ORDERS must be >= 1 "
+                "POLYMARKET_MAX_REAL_ORDERS must be >= 0 "
                 f"(got {max_real_orders_value})"
             )
 

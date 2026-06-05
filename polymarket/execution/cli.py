@@ -75,6 +75,18 @@ class _PrintVenueAdapter:
             fill_size_shares=size_shares,
         )
 
+    def cancel_order(
+        self,
+        *,
+        client_order_id: str | None = None,
+        venue_order_id: str | None = None,
+    ) -> dict[str, object]:
+        print(
+            f"[fake_venue] cancel coid={client_order_id} venue_order_id={venue_order_id}",
+            flush=True,
+        )
+        return {"ambiguous": False}
+
 
 _PLACEHOLDER_VALUES: frozenset[str] = frozenset({
     "", "dummy", "placeholder", "todo", "xxx", "test",
@@ -131,20 +143,28 @@ def build_venue_adapter(venue_mode: str, config: ExecutionConfig,
             PolymarketAdapterConfig,
             PolymarketVenueAdapter,
         )
-        from polymarket.execution._kernel.polymarket_sdk_signer import (
-            PyClobClientOrderSigner,
-            PyClobClientOrderSignerConfig,
-        )
         from polymarket.execution.mirror.clob_http_client import (
             ClobHttpClient,
             ClobHttpClientConfig,
+        )
+        from polymarket.execution.mirror.clob_signer import (
+            ClobSigner,
+            ClobSignerConfig,
+        )
+        from polymarket.execution.mirror.market_metadata import (
+            MarketMetadataCache,
         )
         from polymarket.execution.mirror.real_venue_adapter import (
             RealVenueAdapter,
         )
 
-        signer = PyClobClientOrderSigner(
-            PyClobClientOrderSignerConfig(
+        # ClobSigner replaces the kernel signer so we can pass
+        # `neg_risk` (and `tick_size`) through to py-clob-client's
+        # PartialCreateOrderOptions at signing time — the kernel
+        # signer ignores those flags, which would make every NegRisk
+        # order get rejected as "invalid signature".
+        signer = ClobSigner(
+            ClobSignerConfig(
                 api_url=config.clob_url,
                 chain_id=config.chain_id,
                 signature_type=config.signature_type,
@@ -158,6 +178,7 @@ def build_venue_adapter(venue_mode: str, config: ExecutionConfig,
                 api_secret=config.api_secret,
                 passphrase=config.passphrase,
                 private_key=config.private_key,
+                chain_id=config.chain_id,
             ),
             signer=signer,
         )
@@ -165,12 +186,14 @@ def build_venue_adapter(venue_mode: str, config: ExecutionConfig,
             client=http_client,
             config=PolymarketAdapterConfig(api_url=config.clob_url),
         )
+        market_metadata = MarketMetadataCache(gamma_url=config.gamma_url)
         wrapper = RealVenueAdapter(
             kernel_adapter=kernel_adapter,
             http_client=http_client,
             journal=journal,
             clob_url=config.clob_url,
             bot_proxy_wallet=config.funder,
+            market_metadata=market_metadata,
         )
         wrapper.start()
         return wrapper

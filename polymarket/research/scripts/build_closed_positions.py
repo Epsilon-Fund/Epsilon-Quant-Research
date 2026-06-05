@@ -5,7 +5,7 @@ For each (address, market_id, outcome_index) on resolved markets:
   - Synthesise redemption at resolution price
   - Compute realised_pnl
 
-Run from polymarket-copy/ as:
+Run from polymarket/research/ as:
     PYTHONPATH=. uv run python scripts/build_closed_positions.py
 
 Design note — predicate-pushdown and the UNION-ALL inside trader_actions:

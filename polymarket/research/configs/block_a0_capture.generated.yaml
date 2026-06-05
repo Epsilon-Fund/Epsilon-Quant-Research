@@ -1,0 +1,652 @@
+run:
+  run_id: block_a0_20260528_morning
+  label: block_a0
+  duration_hours: 24
+  rotate_minutes: 60
+  print_every_events: 500
+  heartbeat_seconds: 60
+  stale_warning_seconds: 900
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/block_a0
+selection:
+  candidates_csv: data/analysis/csv_outputs/dali/dali_gamma_current_future_candidate_markets.csv
+  max_markets: 12
+  min_mid: 0.15
+  max_mid: 0.85
+  min_days_to_end: 7
+  max_spread: 0.05
+  min_liquidity: 500
+  families:
+    geopolitics_policy: 4
+    ai_product: 4
+    sports_game_lines: 2
+    daily_equity_index: 1
+    daily_single_stock: 1
+markets:
+- id: '1090496'
+  condition_id: '0xf2bf04609e7458df56c9bb4b1e051286dea11da1c944bbc1dafbcc6b76904e52'
+  question: NATO x Russia military clash by December 31, 2026?
+  slug: nato-x-russia-military-clash-by-december-31-2026-244
+  family: geopolitics_policy
+  category: Geopolitics
+  end_date: '2026-12-31T00:00:00Z'
+  volume: 203476.36783700009
+  liquidity: 40557.5812
+  best_bid: 0.22
+  best_ask: 0.23
+  mid: 0.225
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '105031123790227090351610621121319179238510007553875150023320472711583933704999'
+  - '76326875711147697076353707331532227929486722415800396469798548611383212234361'
+  fee:
+    fees_enabled: false
+    fee_rate: null
+    fee_exponent: null
+    taker_only: null
+    maker_base_fee_bps: null
+    taker_base_fee_bps: null
+    fee_schedule: null
+    peak_effective_rate_estimate: 0.0
+    clob_market_info:
+      r:
+        e: true
+        moas: 4
+      t:
+      - t: '105031123790227090351610621121319179238510007553875150023320472711583933704999'
+        o: 'Yes'
+      - t: '76326875711147697076353707331532227929486722415800396469798548611383212234361'
+        o: 'No'
+      c: '0xf2bf04609e7458df56c9bb4b1e051286dea11da1c944bbc1dafbcc6b76904e52'
+      mos: 5
+      mts: 0.01
+      ao: true
+      cbos: true
+      aot: '2026-01-13T19:23:46Z'
+      ibce: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '1633611'
+  condition_id: '0xe6d5e5da83874cd82c9b651a8a5d4fc541a800a295fb62e85124b4f5a04a4b7d'
+  question: Will China invade Taiwan by December 31, 2027?
+  slug: will-china-invade-taiwan-by-december-31-2027
+  family: geopolitics_policy
+  category: Geopolitics
+  end_date: '2027-12-31T00:00:00Z'
+  volume: 625306.1193040002
+  liquidity: 123071.2532
+  best_bid: 0.16
+  best_ask: 0.17
+  mid: 0.165
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '99308764485765552888542373236405354280486342174935314281037215048612491168324'
+  - '32952048155093419718055060819712841482842350791391116195205201413217889733414'
+  fee:
+    fees_enabled: false
+    fee_rate: null
+    fee_exponent: null
+    taker_only: null
+    maker_base_fee_bps: null
+    taker_base_fee_bps: null
+    fee_schedule: null
+    peak_effective_rate_estimate: 0.0
+    clob_market_info:
+      r:
+        e: true
+        moas: 4
+      t:
+      - t: '99308764485765552888542373236405354280486342174935314281037215048612491168324'
+        o: 'Yes'
+      - t: '32952048155093419718055060819712841482842350791391116195205201413217889733414'
+        o: 'No'
+      c: '0xe6d5e5da83874cd82c9b651a8a5d4fc541a800a295fb62e85124b4f5a04a4b7d'
+      mos: 5
+      mts: 0.01
+      ao: true
+      cbos: true
+      aot: '2026-03-17T23:30:55Z'
+      ibce: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '665325'
+  condition_id: '0x182390641d3b1b47cc64274b9da290efd04221c586651ba190880713da6347d9'
+  question: US-Iran nuclear deal before 2027?
+  slug: us-iran-nuclear-deal-before-2027
+  family: geopolitics_policy
+  category: Geopolitics
+  end_date: '2026-12-31T00:00:00Z'
+  volume: 1411370.585654006
+  liquidity: 114803.5008
+  best_bid: 0.58
+  best_ask: 0.59
+  mid: 0.585
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '102936224134271070189104847090829839924697394514566827387181305960175107677216'
+  - '45763018441764333771124945243746174684578244015331389396782339063349542289693'
+  fee:
+    fees_enabled: false
+    fee_rate: null
+    fee_exponent: null
+    taker_only: null
+    maker_base_fee_bps: null
+    taker_base_fee_bps: null
+    fee_schedule: null
+    peak_effective_rate_estimate: 0.0
+    clob_market_info:
+      r:
+        mi: 200
+        ma: 4.5
+        e: true
+        moas: 4
+      t:
+      - t: '102936224134271070189104847090829839924697394514566827387181305960175107677216'
+        o: 'Yes'
+      - t: '45763018441764333771124945243746174684578244015331389396782339063349542289693'
+        o: 'No'
+      c: '0x182390641d3b1b47cc64274b9da290efd04221c586651ba190880713da6347d9'
+      mos: 5
+      mts: 0.01
+      ao: true
+      cbos: true
+      aot: '2025-11-05T16:47:55Z'
+      ibce: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '1469737'
+  condition_id: '0x25fb28382075f418a944a781a9f8840e2f541152eea0d9798d1cabfa1466adbb'
+  question: Will Mojtaba Khamenei be head of state in Iran end of 2026?
+  slug: will-mojtaba-khamenei-be-head-of-state-in-iran-end-of-2026
+  family: geopolitics_policy
+  category: Geopolitics
+  end_date: '2026-12-31T00:00:00Z'
+  volume: 2306046.997970004
+  liquidity: 89137.01511
+  best_bid: 0.655
+  best_ask: 0.658
+  mid: 0.6565000000000001
+  spread: 0.0030000000000000027
+  clob_token_ids:
+  - '111988618077786263362718284278451225707405623288593888751575373086664059387290'
+  - '42006549920912635238720143234628794318400295281074422564226738635663399130499'
+  fee:
+    fees_enabled: false
+    fee_rate: null
+    fee_exponent: null
+    taker_only: null
+    maker_base_fee_bps: null
+    taker_base_fee_bps: null
+    fee_schedule: null
+    peak_effective_rate_estimate: 0.0
+    clob_market_info:
+      r:
+        mi: 100
+        ma: 4.5
+        e: true
+        moas: 4
+      t:
+      - t: '111988618077786263362718284278451225707405623288593888751575373086664059387290'
+        o: 'Yes'
+      - t: '42006549920912635238720143234628794318400295281074422564226738635663399130499'
+        o: 'No'
+      c: '0x25fb28382075f418a944a781a9f8840e2f541152eea0d9798d1cabfa1466adbb'
+      mos: 5
+      mts: 0.001
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2026-03-01T00:14:05Z'
+      ibce: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '573647'
+  condition_id: '0x0ea8005efbc460378340a2f28a6d97b0d1d9d9d7fba4d16f529b8a415dca77a2'
+  question: Will GPT-6 be released before GTA VI?
+  slug: will-gpt-6-be-released
+  family: ai_product
+  category: Tech
+  end_date: '2026-07-31T12:00:00Z'
+  volume: 628778.6817549984
+  liquidity: 39715.308
+  best_bid: 0.65
+  best_ask: 0.66
+  mid: 0.655
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '71552623345730992280501476931299615437386807576519105089437764117985071980606'
+  - '48266425622404486484896353767723266081505997963592758694068789352158715350186'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.05
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.05
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.01
+    clob_market_info:
+      r:
+        e: true
+        moas: 4
+      t:
+      - t: '71552623345730992280501476931299615437386807576519105089437764117985071980606'
+        o: 'Yes'
+      - t: '48266425622404486484896353767723266081505997963592758694068789352158715350186'
+        o: 'No'
+      c: '0x0ea8005efbc460378340a2f28a6d97b0d1d9d9d7fba4d16f529b8a415dca77a2'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2025-08-07T14:21:13Z'
+      ibce: true
+      fd:
+        r: 0.05
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '631140'
+  condition_id: '0xa4d72632ac0ddadcac5247ffc586a193f1bc3bc839cf9ce993c2471e0d599cca'
+  question: Will Anthropic have the best AI model at the end of June 2026?
+  slug: will-anthropic-have-the-best-ai-model-at-the-end-of-june-2026
+  family: ai_product
+  category: Tech
+  end_date: '2026-06-30T00:00:00Z'
+  volume: 991303.2234189982
+  liquidity: 34509.62243
+  best_bid: 0.714
+  best_ask: 0.715
+  mid: 0.7144999999999999
+  spread: 0.0010000000000000009
+  clob_token_ids:
+  - '31257690721782087545855558909530748024291398703956697759040950846127149299962'
+  - '30662373172786599831266104485692607706499745571163346900841435096131975532212'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.04
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.04
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.01
+    clob_market_info:
+      r:
+        e: true
+        moas: 4
+      t:
+      - t: '31257690721782087545855558909530748024291398703956697759040950846127149299962'
+        o: 'Yes'
+      - t: '30662373172786599831266104485692607706499745571163346900841435096131975532212'
+        o: 'No'
+      c: '0xa4d72632ac0ddadcac5247ffc586a193f1bc3bc839cf9ce993c2471e0d599cca'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2025-10-10T21:52:34Z'
+      ibce: true
+      fd:
+        r: 0.04
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '631139'
+  condition_id: '0x0bd1b836a2494f80aaee62927cf01e5f6fceb19114e96fc517c6440aea4576e4'
+  question: Will Google have the best AI model at the end of June 2026?
+  slug: will-google-have-the-best-ai-model-at-the-end-of-june-2026
+  family: ai_product
+  category: Tech
+  end_date: '2026-06-30T00:00:00Z'
+  volume: 649050.1621760011
+  liquidity: 24406.0811
+  best_bid: 0.23
+  best_ask: 0.24
+  mid: 0.235
+  spread: 0.009999999999999981
+  clob_token_ids:
+  - '48636515238425021804591740157603774575693183581120073077366926452048719239424'
+  - '55343546711440719852073804567266677523610031228702521608443447223099518953270'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.04
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.04
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.01
+    clob_market_info:
+      r:
+        moas: 4
+      t:
+      - t: '48636515238425021804591740157603774575693183581120073077366926452048719239424'
+        o: 'Yes'
+      - t: '55343546711440719852073804567266677523610031228702521608443447223099518953270'
+        o: 'No'
+      c: '0x0bd1b836a2494f80aaee62927cf01e5f6fceb19114e96fc517c6440aea4576e4'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2025-10-10T21:52:32Z'
+      ibce: true
+      fd:
+        r: 0.04
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '1295976'
+  condition_id: '0x3ff9124b87f05d7a65ec801f28cb336b86c16a2197afb0139731610d55e21d27'
+  question: Will OpenAI announce earbuds or headphones in 2026?
+  slug: will-openai-announce-earbuds-or-headphones-in-2026
+  family: ai_product
+  category: Tech
+  end_date: '2026-12-31T00:00:00Z'
+  volume: 108693.889015
+  liquidity: 16496.1942
+  best_bid: 0.28
+  best_ask: 0.29
+  mid: 0.28500000000000003
+  spread: 0.009999999999999953
+  clob_token_ids:
+  - '16040470176590332178266575986841073712697460370218768293287706373316090538021'
+  - '2495741164869514855992472185546919768592825594811693043740639350245507358833'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.04
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.04
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.01
+    clob_market_info:
+      r:
+        mi: 20
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '16040470176590332178266575986841073712697460370218768293287706373316090538021'
+        o: 'Yes'
+      - t: '2495741164869514855992472185546919768592825594811693043740639350245507358833'
+        o: 'No'
+      c: '0x3ff9124b87f05d7a65ec801f28cb336b86c16a2197afb0139731610d55e21d27'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-01-30T16:52:58Z'
+      ibce: true
+      fd:
+        r: 0.04
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '558936'
+  condition_id: '0x9b6fef249040fd17e9c107955b37ac2c3e923509b6b0ff01cc463a331ddeb894'
+  question: Will France win the 2026 FIFA World Cup?
+  slug: will-france-win-the-2026-fifa-world-cup-924
+  family: sports_game_lines
+  category: Sports
+  end_date: '2026-07-20T00:00:00Z'
+  volume: 29643498.347696435
+  liquidity: 626884.86321
+  best_bid: 0.177
+  best_ask: 0.178
+  mid: 0.1775
+  spread: 0.0010000000000000009
+  clob_token_ids:
+  - '108233603819467706476318984012158651931658302669301887462181073562758483842092'
+  - '32270411694523539495262303868629477861017829722282576458031815333486368239544'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.03
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.03
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.0075
+    clob_market_info:
+      r:
+        e: true
+        moas: 4
+      t:
+      - t: '108233603819467706476318984012158651931658302669301887462181073562758483842092'
+        o: 'Yes'
+      - t: '32270411694523539495262303868629477861017829722282576458031815333486368239544'
+        o: 'No'
+      c: '0x9b6fef249040fd17e9c107955b37ac2c3e923509b6b0ff01cc463a331ddeb894'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2025-07-02T22:26:29Z'
+      ibce: true
+      fd:
+        r: 0.03
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '558934'
+  condition_id: '0x7976b8dbacf9077eb1453a62bcefd6ab2df199acd28aad276ff0d920d6992892'
+  question: Will Spain win the 2026 FIFA World Cup?
+  slug: will-spain-win-the-2026-fifa-world-cup-963
+  family: sports_game_lines
+  category: Sports
+  end_date: '2026-07-20T00:00:00Z'
+  volume: 23771086.79385316
+  liquidity: 327914.1377
+  best_bid: 0.174
+  best_ask: 0.175
+  mid: 0.1745
+  spread: 0.0010000000000000009
+  clob_token_ids:
+  - '4394372887385518214471608448209527405727552777602031099972143344338178308080'
+  - '112680630004798425069810935278212000865453267506345451433803052322987302357330'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.03
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.03
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.0075
+    clob_market_info:
+      r:
+        e: true
+        moas: 4
+      t:
+      - t: '4394372887385518214471608448209527405727552777602031099972143344338178308080'
+        o: 'Yes'
+      - t: '112680630004798425069810935278212000865453267506345451433803052322987302357330'
+        o: 'No'
+      c: '0x7976b8dbacf9077eb1453a62bcefd6ab2df199acd28aad276ff0d920d6992892'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2025-07-02T22:26:25Z'
+      ibce: true
+      fd:
+        r: 0.03
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '950854'
+  condition_id: '0x5290e1debd1d164f7828f32c9da7747018462293928a8624e27a070b7255f1f1'
+  question: Will the S&P 500 have the best performance in 2026?
+  slug: will-the-sp-500-have-the-best-performance-in-2026-545
+  family: daily_equity_index
+  category: Finance
+  end_date: '2026-12-31T00:00:00Z'
+  volume: 148459.32787799995
+  liquidity: 25162.1199
+  best_bid: 0.33
+  best_ask: 0.34
+  mid: 0.335
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '32825140231045567473519733823753658145488577746690815504132235066565756510499'
+  - '28813397287133996163409607083880820332823404906966723929968780177758254032290'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.04
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.04
+      takerOnly: true
+      rebateRate: 0.25
+    peak_effective_rate_estimate: 0.01
+    clob_market_info:
+      r:
+        moas: 4
+      t:
+      - t: '32825140231045567473519733823753658145488577746690815504132235066565756510499'
+        o: 'Yes'
+      - t: '28813397287133996163409607083880820332823404906966723929968780177758254032290'
+        o: 'No'
+      c: '0x5290e1debd1d164f7828f32c9da7747018462293928a8624e27a070b7255f1f1'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      nr: true
+      cbos: true
+      aot: '2025-12-22T17:41:17Z'
+      ibce: true
+      fd:
+        r: 0.04
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+- id: '665531'
+  condition_id: '0x1c842b91d226266fbe0e55d9bce9c52ce48b825d069e039c24d7fe57a5be6eaa'
+  question: Metamask FDV above $700M one day after launch?
+  slug: metamask-fdv-above-700m-one-day-after-launch-696-977-652-246-632
+  family: daily_single_stock
+  category: Crypto
+  end_date: '2027-01-01T05:00:00Z'
+  volume: 1350960.5382470023
+  liquidity: 5653.1537
+  best_bid: 0.301
+  best_ask: 0.345
+  mid: 0.32299999999999995
+  spread: 0.043999999999999984
+  clob_token_ids:
+  - '27944626213701198119611689981836884300701096451168812471764168520890801988056'
+  - '55509649865325104641531245650537613391494802994578307703136247282221756039109'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        moas: 4
+      t:
+      - t: '27944626213701198119611689981836884300701096451168812471764168520890801988056'
+        o: 'Yes'
+      - t: '55509649865325104641531245650537613391494802994578307703136247282221756039109'
+        o: 'No'
+      c: '0x1c842b91d226266fbe0e55d9bce9c52ce48b825d069e039c24d7fe57a5be6eaa'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2025-11-04T22:48:07Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: 'Selected by Block A0 structural screen: mid in band, end date
+    > 7d, two-sided visible top of book, spread/liquidity acceptable. Recent 7d two-sided
+    trade activity should be rechecked after capture/Block E.'
+prepared_at: '2026-05-26T22:09:05Z'

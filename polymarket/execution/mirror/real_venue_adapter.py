@@ -38,12 +38,9 @@ exposes the on-chain tx hash on ``VenueFillEvent``.
 """
 from __future__ import annotations
 
-import json
 import sys
 import threading
 import time
-import urllib.error
-import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -65,12 +62,12 @@ from polymarket.execution._kernel.venue import (
     SubmitOrderStatus,
     VenueOrderIntent,
 )
-from polymarket.execution.journal import FillRecorded, JsonlWriter
+from polymarket.execution.journal import FillRecorded, JsonlWriter, OrderRejected
 from polymarket.execution.mirror.clob_http_client import ClobHttpClient
+from polymarket.execution.mirror.market_metadata import MarketMetadataCache
 from polymarket.execution.mirror.mirror_engine import SubmitResult
 
 
-_TICK_FETCH_TIMEOUT_S = 5.0
 _POLLING_TIMEOUT_MS = 700
 _POLLING_LIMIT = 200
 _STOP_JOIN_TIMEOUT_S = 5.0
@@ -89,6 +86,7 @@ class RealVenueAdapter:
         journal: JsonlWriter,
         clob_url: str,
         bot_proxy_wallet: str,
+        market_metadata: MarketMetadataCache,
         *,
         polling_interval_seconds: float = 0.7,
         tick_size_default: float = 0.01,
@@ -100,6 +98,7 @@ class RealVenueAdapter:
         self._journal: JsonlWriter = journal
         self._clob_url: str = clob_url.rstrip("/")
         self._bot_proxy_wallet: str = bot_proxy_wallet
+        self._market_metadata: MarketMetadataCache = market_metadata
         self._polling_interval: float = polling_interval_seconds
         self._tick_default: float = tick_size_default
         self._quantity_scale: int = quantity_scale
@@ -107,7 +106,7 @@ class RealVenueAdapter:
         # Journal-backed state.
         self._coid_to_fields: dict[str, tuple[str, str, str]] = {}
         self._venue_to_coid: dict[str, str] = {}
-        self._tick_cache: dict[str, float] = {}
+        self._negrisk_cache: dict[str, bool] = {}
 
         # Polling thread.
         self._stop_event: threading.Event = threading.Event()
@@ -133,9 +132,39 @@ class RealVenueAdapter:
         price: float,
         order_type: str,
     ) -> SubmitResult:
-        # 1. Tick size — mandatory; populate the HTTP client side channel.
-        tick_size = self._get_tick_size(asset_id)
+        # 1. Per-market metadata lookup. Mandatory: both tick_size
+        # (for price encoding) AND is_neg_risk (for EIP-712 verifying-
+        # contract) must be known before signing. A miss is fatal —
+        # we refuse to submit rather than fall back to defaults, since
+        # silent mis-classification means the signature uses the wrong
+        # exchange contract and the order is rejected as
+        # "invalid signature" downstream anyway.
+        metadata = self._market_metadata.get_by_asset(asset_id, condition_id)
+        if metadata is None:
+            self._journal.write(OrderRejected(
+                ts_utc=datetime.now(timezone.utc),
+                client_order_id=client_order_id,
+                reason="cannot_classify_market",
+                detail=(
+                    f"Gamma fetch failed for condition_id={condition_id}; "
+                    f"cannot determine NegRisk status or tick size"
+                ),
+            ))
+            return SubmitResult(
+                accepted=False,
+                ambiguous=False,
+                message="cannot_classify_market: Gamma fetch failed",
+            )
+        tick_size = metadata.tick_size
+        condition_key = condition_id.lower()
+        is_neg_risk = self._negrisk_cache.setdefault(
+            condition_key, metadata.is_neg_risk
+        )
+        # Side-channel both flags into the HTTP client before signing.
+        # Order doesn't matter; both must be set before kernel.submit_order
+        # runs.
         self._http_client.set_tick_size(asset_id, tick_size)
+        self._http_client.set_neg_risk(asset_id, is_neg_risk)
 
         # 2. Encode for the kernel.
         quantity_int = int(round(size_shares * self._quantity_scale))
@@ -268,6 +297,14 @@ class RealVenueAdapter:
             "message": result.message,
         }
 
+    def reconcile_open_orders(
+        self, expected_open_client_order_ids: set[str] | None = None
+    ) -> Any:
+        """Read venue-open orders through the kernel without submitting."""
+        return self._kernel.reconcile_open_orders(
+            expected_open_client_order_ids or set()
+        )
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -356,9 +393,12 @@ class RealVenueAdapter:
 
         # Decode shares from the kernel's int representation.
         shares = event.fill_qty / self._quantity_scale
-        # Decode dollar price from ticks * tick_size. Cache was populated
-        # at submit time; fall back to default if missing.
-        tick_size = self._tick_cache.get(asset_id, self._tick_default)
+        # Decode dollar price from ticks * tick_size. The metadata cache
+        # owns tick_size now; fall back to default if the asset somehow
+        # isn't cached (shouldn't happen — submit_order populates it
+        # before the kernel call, and the fill must follow a submit).
+        meta = self._market_metadata.get_by_asset(asset_id, condition_id)
+        tick_size = meta.tick_size if meta is not None else self._tick_default
         price = event.fill_price_ticks * tick_size
 
         # Synthetic transaction_hash placeholder until kernel exposes
@@ -430,36 +470,6 @@ class RealVenueAdapter:
                 for v in stale:
                     self._venue_to_coid.pop(v, None)
 
-    def _get_tick_size(self, asset_id: str) -> float:
-        cached = self._tick_cache.get(asset_id)
-        if cached is not None:
-            return cached
-        tick = self._fetch_tick_size(asset_id)
-        self._tick_cache[asset_id] = tick
-        return tick
-
-    def _fetch_tick_size(self, asset_id: str) -> float:
-        url = f"{self._clob_url}/book?token_id={asset_id}"
-        try:
-            with urllib.request.urlopen(url, timeout=_TICK_FETCH_TIMEOUT_S) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-            data = json.loads(body)
-            tick = data.get("tick_size")
-            if tick is not None:
-                value = float(tick)
-                if value > 0:
-                    return value
-        except (
-            urllib.error.URLError,
-            urllib.error.HTTPError,
-            json.JSONDecodeError,
-            ValueError,
-            TypeError,
-            OSError,
-        ) as exc:
-            print(
-                f"[real_venue] tick_size fetch failed for asset={asset_id}: "
-                f"{type(exc).__name__}: {exc} — using default {self._tick_default}",
-                file=sys.stderr, flush=True,
-            )
-        return self._tick_default
+    # _get_tick_size / _fetch_tick_size removed: tick lookup now lives
+    # in MarketMetadataCache (mirror/market_metadata.py), which fetches
+    # from Gamma in the same call that returns the NegRisk flag.

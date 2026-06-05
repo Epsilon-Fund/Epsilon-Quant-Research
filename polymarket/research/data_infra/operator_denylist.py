@@ -1,19 +1,32 @@
-"""Operator/MM-bot deny-list, sourced from the validation report.
+"""Operator/MM-bot deny-list, sourced from validation plus relayer re-dig.
 
 Every address listed here is excluded from `traders_filtered` by default.
 The cohort-selection layer (Phase 4+) reads `traders_filtered`; raw
 metric data for these addresses still lives in `traders_raw` for analysis.
 
-Categories follow the validation report's clustering:
-  - Cluster A (PURE_RELAYERS):   matcher/relayer; 0 maker fills, ~2M counterparties
-  - Cluster B (PURE_MM_BOTS):    pure liquidity providers; maker:taker > 50
-  - Cluster C (HFT):             matched arb flow; ratio ~1.0, >95% sub-second clustering
+Categories:
+  - EXCHANGE_INTERNAL_LEG: Polymarket exchange contracts, not relayers, UI
+    routers, or MM bots. They appear in the `taker` slot because `_matchOrders`
+    in CTF Exchange `Trading.sol` emits `OrderFilled` with
+    `taker = address(this)` for the exchange-internal active leg of two-sided
+    matches. Filtering these addresses does not remove a trader population; it
+    removes a settlement-event-decoding artifact. See
+    notes/relayer_dig_findings.md and notes/block_b_reinterpretation.md.
+  - PURE_MM_BOTS: pure liquidity providers; maker:taker > 50
+  - HFT: matched arb flow; ratio ~1.0, >95% sub-second clustering
 """
 
-PURE_RELAYERS = frozenset({
-    "0x4bfb41d5b3570defd03c39a9a4d8de6bd8b8982e",  # 305M fills, $17.3B
-    "0xc5d563a36ae78145c45a50134d48a1215220f80a",  # 100M fills, $12.6B
+EXCHANGE_INTERNAL_LEG_V1 = frozenset({
+    "0x4bfb41d5b3570defd03c39a9a4d8de6bd8b8982e",  # standard CTF Exchange v1
+    "0xc5d563a36ae78145c45a50134d48a1215220f80a",  # neg-risk CTF Exchange v1
 })
+
+EXCHANGE_INTERNAL_LEG_V2 = frozenset({
+    "0xe111180000d2663c0091e4f400237545b87b996b",  # standard CTF Exchange v2 (post 2026-04-28)
+    "0xe2222d279d744050d28e00520010520000310f59",  # neg-risk CTF Exchange v2 (post 2026-04-28)
+})
+
+EXCHANGE_INTERNAL_LEG = EXCHANGE_INTERNAL_LEG_V1 | EXCHANGE_INTERNAL_LEG_V2
 
 PURE_MM_BOTS = frozenset({
     "0x297fbd45782af37d899015aebbc52437f3d55103",  # ratio 870k:1
@@ -31,7 +44,7 @@ HFT = frozenset({
     "0xe3726a1b9c6ba2f06585d1c9e01d00afaedaeb38",  # ratio 1.07, 97% sub-sec
 })
 
-OPERATOR_ADDRESSES: frozenset[str] = PURE_RELAYERS | PURE_MM_BOTS | HFT
+OPERATOR_ADDRESSES: frozenset[str] = EXCHANGE_INTERNAL_LEG | PURE_MM_BOTS | HFT
 
 
 def is_operator_like(

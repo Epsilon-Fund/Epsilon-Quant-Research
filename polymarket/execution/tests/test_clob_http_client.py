@@ -25,7 +25,7 @@ def _config(**overrides: Any) -> ClobHttpClientConfig:
     base = dict(
         api_url="https://clob.polymarket.com",
         api_key="apikey",
-        api_secret="apisecret",
+        api_secret="YXBpc2VjcmV0",
         passphrase="passphrase",
         private_key="0x" + "a" * 64,
         quantity_scale=10_000,
@@ -231,6 +231,29 @@ def test_get_open_orders_parses_list() -> None:
     assert items[0]["client_order_id"] == "a"
 
 
+def test_get_open_orders_uses_data_orders_endpoint_and_l2_headers() -> None:
+    captured: dict[str, Any] = {}
+    body = json.dumps({"data": [], "next_cursor": "LTE="})
+
+    def fake_urlopen(request, timeout):  # noqa: ARG001
+        captured["url"] = request.full_url
+        captured["headers"] = dict(request.headers)
+        return _FakeResponse(status=200, body=body)
+
+    client = ClobHttpClient(_config(), urlopen_fn=fake_urlopen)
+    assert client.get_open_orders(timeout_ms=500) == tuple()
+    assert captured["url"] == (
+        "https://clob.polymarket.com/data/orders?next_cursor=MA%3D%3D"
+    )
+    headers = captured["headers"]
+    assert "Poly_address" in headers
+    assert "Poly_signature" in headers
+    assert "Poly_timestamp" in headers
+    assert headers["Poly_api_key"] == "apikey"
+    assert headers["Poly_passphrase"] == "passphrase"
+    assert "X-api-key" not in headers
+
+
 def test_get_open_orders_4xx_raises() -> None:
     client = ClobHttpClient(_config(), urlopen_fn=lambda *a, **k: _FakeResponse(status=403, body="{}"))
     with pytest.raises(OSError):
@@ -289,3 +312,78 @@ def test_set_tick_size_rejects_non_positive() -> None:
     client = ClobHttpClient(_config())
     with pytest.raises(ValueError, match="tick_size"):
         client.set_tick_size("T1", 0)
+
+
+# ---------------------------------------------------------------------------
+# NegRisk side channel
+# ---------------------------------------------------------------------------
+
+
+def test_set_neg_risk_stores_per_asset_flag() -> None:
+    client = ClobHttpClient(_config())
+    client.set_neg_risk("asset-A", True)
+    client.set_neg_risk("asset-B", False)
+    assert client._neg_risk_by_token["asset-A"] is True
+    assert client._neg_risk_by_token["asset-B"] is False
+
+
+def test_create_signed_order_passes_neg_risk_true_through_unsigned() -> None:
+    seen: dict[str, object] = {}
+
+    def fake_signer(unsigned, pk):
+        seen.update(unsigned)
+        return {"order": dict(unsigned)}
+
+    client = ClobHttpClient(_config(), signer=fake_signer)
+    client.set_tick_size("asset-NR", 0.01)
+    client.set_neg_risk("asset-NR", True)
+    request = PolymarketOrderRequest(
+        market_id="cond-NR", token_id="asset-NR", side="BUY",
+        size="50000", price="42", tif="IOC",
+        client_order_id="coid-x", expiration_ts=None,
+    )
+    client.create_signed_order(request)
+    assert seen["_neg_risk"] is True
+    assert seen["_tick_size"] == 0.01
+
+
+def test_create_signed_order_passes_neg_risk_false_through_unsigned() -> None:
+    seen: dict[str, object] = {}
+
+    def fake_signer(unsigned, pk):
+        seen.update(unsigned)
+        return {"order": dict(unsigned)}
+
+    client = ClobHttpClient(_config(), signer=fake_signer)
+    client.set_tick_size("asset-B", 0.01)
+    client.set_neg_risk("asset-B", False)
+    request = PolymarketOrderRequest(
+        market_id="cond-B", token_id="asset-B", side="SELL",
+        size="100000", price="42", tif="IOC",
+        client_order_id="coid-y", expiration_ts=None,
+    )
+    client.create_signed_order(request)
+    assert seen["_neg_risk"] is False
+
+
+def test_create_signed_order_warns_if_neg_risk_unset(capsys) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_signer(unsigned, pk):
+        seen.update(unsigned)
+        return {"order": dict(unsigned)}
+
+    client = ClobHttpClient(_config(), signer=fake_signer)
+    # NB: deliberately NOT calling set_neg_risk for this token_id.
+    client.set_tick_size("asset-unset", 0.01)
+    request = PolymarketOrderRequest(
+        market_id="cond-unset", token_id="asset-unset", side="BUY",
+        size="50000", price="42", tif="IOC",
+        client_order_id="coid-z", expiration_ts=None,
+    )
+    client.create_signed_order(request)
+    # Defaults to False.
+    assert seen["_neg_risk"] is False
+    # Stderr warning surfaced.
+    captured = capsys.readouterr()
+    assert "set_neg_risk not called" in captured.err

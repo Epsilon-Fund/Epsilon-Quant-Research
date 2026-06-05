@@ -1,29 +1,37 @@
-"""Main loop. Consumes signals, applies risk and sizing, submits via _kernel adapter.
+"""Orchestrator: signal → risk → sizing → kernel submit.
 
-Pipeline per signal (handle_signal):
-  1. Build CandidateOrder from MirrorSignal (ENTRY → fixed-USD sizing,
-     EXIT → target_size_shares × leader_fill_price as USD value).
-  2. Fetch current best price from CLOB (orderbook.get_best_price).
-     If unavailable, drop with reason "no_orderbook_price".
-  3. Build a RiskState snapshot from current bot ledgers + kill-switch
-     file presence.
-  4. Run risk breakers (run_all_checks). On veto, journal RiskHalt
-     (the historical event name — see PLAN.md naming reconciliation).
-     The kill_switch breaker firing is the only veto that halts the
-     bot; other vetos are soft skips.
-  5. Compute submission price by widening current_price by
-     ±price_deviation_pct (slippage tolerance — distinct from the
-     guard in step 4 which compared current to leader's price).
-  6. Compute target_shares = size_usd / submission_price.
-  7. Submit via venue adapter. Catch any exception → OrderRejected
-     reason "submit_exception", halt.
-  8. Handle SubmitResult: ambiguous → AmbiguousSubmit + halt;
-     not accepted → OrderRejected reason "venue_rejected" (no halt);
-     accepted → OrderAcknowledged + (if immediate FOK fill info)
-     FillRecorded + in-process bot_positions update.
+Submission price is determined by ``config.pricing_mode``:
 
-Position math is duplicated from signal/classifier.py per PLAN.md
-note: kept separate during PoC, refactor when patterns are clearer.
+  - ``leader_fill`` (default): submit at the leader's exact fill
+    price. No orderbook consultation, no slippage adjustment. Suited
+    to information-driven leaders where the price level itself is
+    the signal. The price_deviation breaker becomes a no-op in this
+    mode (state.current_market_price == leader_fill_price ⇒ 0%
+    diff); that's an explicit trade-off documented in PLAN.md.
+  - ``current_book``: fetch best bid/ask via orderbook.get_best_price,
+    widen by ±price_deviation_pct for slippage tolerance, submit at
+    the resulting price. Suited to speed-driven leaders where copying
+    the leader's price level would be wrong because the level has
+    already moved. If the book lookup returns None, journal
+    OrderRejected reason="no_orderbook_price" and drop.
+
+See the inline ``# 2. Pricing dispatch`` block in handle_signal for
+the branching itself. Risk runs after pricing on the resulting
+CandidateOrder; the kill_switch breaker firing is the only veto
+that halts the bot (other vetos are soft skips). Real-venue safety
+harness (max_real_orders, operator_confirm) gates submits behind
+``venue.is_real_venue()`` — never fires on fake venues.
+
+Position state is journal-backed: ``_rebuild_state_from_journal``
+reads today's + yesterday's FillRecorded events on startup. Daily
+realised PnL is reconstructed the same way. Position math is
+duplicated from signal/classifier.py per PLAN.md note (kept
+separate during PoC; refactor when patterns are clearer).
+
+This module does not run the polling thread that handles
+asynchronous fill events from real venues — that lives in
+RealVenueAdapter (real venue) or is synthesised inline by
+_PrintVenueAdapter (fake venue, immediate FOK fill info).
 """
 from __future__ import annotations
 

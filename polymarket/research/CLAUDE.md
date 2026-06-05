@@ -1,4 +1,7 @@
 # Polymarket Copy-Trading: Data Infrastructure
+
+> Hub: [[POLYMARKET_BRAIN]] · [[COWORK]]
+
 ## Repo context
 This module lives inside the Epsilon-Quant-Research repo, alongside an
 existing crypto momentum trading framework. The two projects are independent
@@ -33,6 +36,9 @@ WebSockets, no execution. Just historical data + trader ranking.
   aggregating, never assume current-state data.
 - Storage: append-only Parquet shards. New data → new shard. Reads union
   shards via DuckDB's glob support.
+- `notebooks/weather_tail_analysis.ipynb` is generated from
+  `scripts/build_weather_notebook.py`. Edit the builder and re-run, do not
+  edit the .ipynb directly.
 - Reference repo for patterns (DO NOT copy code, GPL-3.0 license):
   https://github.com/warproxxx/poly_data
   Use it to understand the Goldsky query shape and trade-processing logic,

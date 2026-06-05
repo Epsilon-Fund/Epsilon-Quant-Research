@@ -60,6 +60,7 @@ class ClobHttpClientConfig:
     api_secret: str
     passphrase: str
     private_key: str
+    chain_id: int = 137
     quantity_scale: int = 10_000
     default_tick_size: float = 0.01
     request_timeout_ms: int = 1_500
@@ -68,14 +69,17 @@ class ClobHttpClientConfig:
     submit_path: str = "/order"
     cancel_path: str = "/cancel"
     updates_path: str = "/orders/updates"
-    open_orders_path: str = "/orders/open"
+    open_orders_path: str = "/data/orders"
     user_agent: str = "polyexecutor/1.0-substitute"
 
 
 class ClobHttpClient(PolymarketCLOBClient):
     """Wire-format-correct substitute for the kernel's HTTP client."""
 
-    __slots__ = ("_config", "_signer", "_tick_size_by_token", "_urlopen")
+    __slots__ = (
+        "_config", "_signer", "_tick_size_by_token",
+        "_neg_risk_by_token", "_urlopen",
+    )
 
     def __init__(
         self,
@@ -97,6 +101,11 @@ class ClobHttpClient(PolymarketCLOBClient):
         self._config: ClobHttpClientConfig = config
         self._signer: _OrderSigner | None = signer
         self._tick_size_by_token: dict[str, float] = {}
+        # NegRisk flag per token. Populated by the wrapper before each
+        # submit via set_neg_risk(). Default (missing) is False —
+        # treat as binary. The ClobSigner reads this off the unsigned
+        # dict on the reserved `_neg_risk` key.
+        self._neg_risk_by_token: dict[str, bool] = {}
         # Injectable for tests; defaults to stdlib urlopen.
         self._urlopen = urlopen_fn if urlopen_fn is not None else urlopen
 
@@ -108,6 +117,22 @@ class ClobHttpClient(PolymarketCLOBClient):
         if tick_size <= 0:
             raise ValueError("tick_size must be > 0")
         self._tick_size_by_token[token_id] = float(tick_size)
+
+    def set_neg_risk(self, token_id: str, is_neg_risk: bool) -> None:
+        """Stores per-asset NegRisk flag.
+
+        Must be called by the wrapper before each ``submit_order``.
+        Mirrors :meth:`set_tick_size`. The ClobSigner reads this off
+        the unsigned dict on a reserved key and passes it to
+        py-clob-client's :class:`PartialCreateOrderOptions` so the
+        EIP-712 ``verifyingContract`` resolves to the NegRisk CTF
+        Exchange.
+
+        Missing entry defaults to ``False`` (binary). Calling
+        ``set_neg_risk(token_id, False)`` is a no-op semantically
+        but is still recommended for clarity.
+        """
+        self._neg_risk_by_token[token_id] = bool(is_neg_risk)
 
     # ------------------------------------------------------------------
     # Protocol methods.
@@ -140,6 +165,24 @@ class ClobHttpClient(PolymarketCLOBClient):
         size_str = _format_decimal(shares, max_decimals=6)
         price_str = _format_decimal(price_dollars, max_decimals=6)
 
+        # Per-token side-channel reads. The wrapper is responsible for
+        # populating both via set_tick_size() and set_neg_risk() before
+        # each submit; missing entries surface a stderr warning and
+        # fall back to safe defaults (binary + default tick).
+        neg_risk = self._neg_risk_by_token.get(request.token_id)
+        if neg_risk is None:
+            print(
+                f"[clob_http_client] set_neg_risk not called for "
+                f"token_id={request.token_id}; defaulting to False (binary). "
+                "NegRisk orders signed under this default will be rejected "
+                "as invalid signature.",
+                file=__import__("sys").stderr, flush=True,
+            )
+            neg_risk = False
+        tick_size_for_signing = self._tick_size_by_token.get(
+            request.token_id, self._config.default_tick_size
+        )
+
         unsigned: dict[str, object] = {
             "market_id": request.market_id,
             "token_id": request.token_id,
@@ -148,6 +191,11 @@ class ClobHttpClient(PolymarketCLOBClient):
             "price": price_str,
             "tif": request.tif,
             "client_order_id": request.client_order_id,
+            # Reserved keys read by ClobSigner; the kernel's old signer
+            # ignores unknown keys, so this is safe to populate
+            # unconditionally even when a different signer is wired in.
+            "_neg_risk": neg_risk,
+            "_tick_size": tick_size_for_signing,
         }
         if request.expiration_ts is not None:
             unsigned["expiration_ts"] = int(request.expiration_ts)
@@ -229,6 +277,8 @@ class ClobHttpClient(PolymarketCLOBClient):
             method="GET",
             path=self._config.open_orders_path,
             timeout_ms=timeout_ms,
+            params={"next_cursor": "MA=="},
+            use_l2_auth=True,
         )
         if status >= 400:
             raise OSError(f"open orders request failed with http_status={status}")
@@ -246,16 +296,23 @@ class ClobHttpClient(PolymarketCLOBClient):
         timeout_ms: int,
         params: Mapping[str, object] | None = None,
         json_body: Mapping[str, object] | None = None,
+        use_l2_auth: bool = False,
     ) -> tuple[int, object]:
         url = _join_url(self._config.api_url, path)
         url = _append_query(url, params)
 
         payload_bytes: bytes | None = None
+        serialized_body: str | None = None
         if json_body is not None:
-            payload_bytes = json.dumps(dict(json_body), separators=(",", ":")).encode("utf-8")
+            serialized_body = json.dumps(dict(json_body), separators=(",", ":"))
+            payload_bytes = serialized_body.encode("utf-8")
 
         request = Request(url, data=payload_bytes, method=method.upper())
-        for name, value in self._headers().items():
+        headers = (
+            self._l2_headers(method=method.upper(), path=path, body=serialized_body)
+            if use_l2_auth else self._headers()
+        )
+        for name, value in headers.items():
             request.add_header(name, value)
 
         timeout_seconds = max(0.1, max(1, int(timeout_ms)) / 1000.0)
@@ -287,6 +344,34 @@ class ClobHttpClient(PolymarketCLOBClient):
             headers["X-API-SECRET"] = self._config.api_secret
         if self._config.passphrase:
             headers["X-API-PASSPHRASE"] = self._config.passphrase
+        return headers
+
+    def _l2_headers(self, *, method: str, path: str, body: str | None) -> dict[str, str]:
+        try:
+            from py_clob_client.clob_types import ApiCreds, RequestArgs
+            from py_clob_client.headers.headers import create_level_2_headers
+            from py_clob_client.signer import Signer
+        except ImportError as exc:
+            raise RuntimeError("py-clob-client is required for CLOB L2 auth") from exc
+
+        signer = Signer(self._config.private_key, self._config.chain_id)
+        creds = ApiCreds(
+            api_key=self._config.api_key,
+            api_secret=self._config.api_secret,
+            api_passphrase=self._config.passphrase,
+        )
+        request_args = RequestArgs(
+            method=method,
+            request_path=path,
+            body=body,
+            serialized_body=body,
+        )
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": self._config.user_agent,
+        }
+        headers.update(create_level_2_headers(signer, creds, request_args))
         return headers
 
 

@@ -1,4 +1,6 @@
 # Polymarket Code Audit — `midas/` and Adjacent
+> Hub: [[COWORK]]
+
 
 Read-only audit conducted 2026-05-06. No files modified, no code executed beyond `find` / `grep` / `cat`.
 

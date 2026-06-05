@@ -58,6 +58,7 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.tmp/
 
 # OS Files
 Thumbs.db
@@ -74,7 +75,23 @@ topics/momentum/strategies/bb_cpcv/wf_params/oos/*_1h_cpcv.pkl
 **/positions.json
 **/realised_capital.json
 **/mae_cache.json
+**/signals_cache.json
 **/cache/
 cache/
 .streamlit/secrets.toml
 secrets.toml
+# Soak/dry-run journal output (operationally generated, not source-of-truth)
+journal_logs/
+journal_logs_*/
+
+# polymarket/research (was polymarket-copy/.gitignore — consolidated on restructure)
+polymarket/research/data/
+polymarket/research/.env
+polymarket/research/.venv/
+polymarket/research/.tmp/
+
+# Personal Obsidian brain (journals, TODO, glossary — gitignored, not for collaborators)
+brain/
+
+# Obsidian volatile session state (personal window layout)
+.obsidian/workspace.json

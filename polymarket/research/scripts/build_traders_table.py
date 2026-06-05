@@ -8,7 +8,7 @@ One row per address that touched at least one closed market. Metrics:
   - Style profile (style_*)           — maker/taker, fill sizes, holding, sub-sec
   - is_operator_like                  — deny-list ∪ heuristic flag
 
-Run from polymarket-copy/ as:
+Run from polymarket/research/ as:
     PYTHONPATH=. uv run python scripts/build_traders_table.py
 
 Design notes:
@@ -97,7 +97,7 @@ def main() -> None:
     # ---------- 1. Activity + position-level PnL ----------
     with step("1/8 activity + position-level PnL (m_pos)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_pos AS
+            CREATE TABLE IF NOT EXISTS m_pos AS
             WITH base AS (
                 SELECT
                     address,
@@ -183,7 +183,7 @@ def main() -> None:
     # ---------- 2. Market-level PnL + NegRisk volume share ----------
     with step("2/8 market-level PnL (m_mkt)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_mkt AS
+            CREATE TABLE IF NOT EXISTS m_mkt AS
             WITH per_market AS (
                 SELECT
                     address, market_id,
@@ -267,7 +267,7 @@ def main() -> None:
         # Normal directional traders ~1.0; NegRisk arb >> 1.0.
         # Aggregated per address as volume-weighted average over markets.
         con.execute("""
-            CREATE OR REPLACE TABLE m_phantom AS
+            CREATE TABLE IF NOT EXISTS m_phantom AS
             WITH per_market AS (
                 SELECT
                     address, market_id,
@@ -297,7 +297,7 @@ def main() -> None:
     # ---------- 4. Position-level drawdown (window) ----------
     with step("4/8 position-level drawdown (m_dd_pos)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_dd_pos AS
+            CREATE TABLE IF NOT EXISTS m_dd_pos AS
             WITH ordered AS (
                 SELECT address, resolution_ts, realised_pnl,
                     SUM(realised_pnl) OVER (
@@ -322,7 +322,7 @@ def main() -> None:
     # ---------- 5. Market-level drawdown (window) ----------
     with step("5/8 market-level drawdown (m_dd_mkt)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_dd_mkt AS
+            CREATE TABLE IF NOT EXISTS m_dd_mkt AS
             WITH per_market AS (
                 SELECT address, market_id,
                     sum(realised_pnl) AS market_pnl,
@@ -352,19 +352,22 @@ def main() -> None:
         """)
 
     # ---------- 6a. Style summary (per-address fill stats) ----------
-    # Single scan, single GROUP BY 1 (2.6M groups, fits in memory).
-    # approx_quantile (t-digest) instead of exact median to avoid the
-    # full sort over 2 B rows that OOM'd the previous attempt.
+    # Same CROSS JOIN sides pattern that works for m_subsec/m_cps. Removed
+    # approx_quantile and count(*) FILTER — the prior version silently
+    # exited at the start of step 6a (no traceback, no spill). Best guess:
+    # approx_quantile's per-group t-digest state interacted poorly with
+    # the 2.6 M-group hash table. style_median_fill_size_usd ships as NULL
+    # for v1.
     with step("6a/9 style — per-address summary (m_style_summary)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_style_summary AS
+            CREATE TABLE IF NOT EXISTS m_style_summary AS
             SELECT
                 CASE s.role WHEN 'maker' THEN jf.maker ELSE jf.taker END AS address,
-                count(*) FILTER (WHERE s.role = 'maker') AS style_maker_fill_count,
-                count(*) FILTER (WHERE s.role = 'taker') AS style_taker_fill_count,
+                sum(CASE WHEN s.role = 'maker' THEN 1 ELSE 0 END) AS style_maker_fill_count,
+                sum(CASE WHEN s.role = 'taker' THEN 1 ELSE 0 END) AS style_taker_fill_count,
                 avg(jf.usd_amount) AS style_avg_fill_size_usd,
-                approx_quantile(jf.usd_amount, 0.5) AS style_median_fill_size_usd,
-                max(jf.usd_amount) AS style_max_fill_size_usd
+                max(jf.usd_amount) AS style_max_fill_size_usd,
+                CAST(NULL AS DOUBLE) AS style_median_fill_size_usd
             FROM joined_fills jf
             CROSS JOIN (VALUES ('maker'), ('taker')) AS s(role)
             GROUP BY 1
@@ -375,7 +378,7 @@ def main() -> None:
     # because DuckDB would materialise the 2 B-row CTE.
     with step("6b/9 style — buy/sell symmetry (m_style_symmetry)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_style_symmetry AS
+            CREATE TABLE IF NOT EXISTS m_style_symmetry AS
             WITH per_market AS (
                 SELECT
                     CASE s.role WHEN 'maker' THEN jf.maker ELSE jf.taker END AS address,
@@ -401,7 +404,7 @@ def main() -> None:
     # ---------- 7. Sub-second clustering (1-second-bucket approximation) ----------
     with step("7/8 sub-second clustering (m_subsec)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_subsec AS
+            CREATE TABLE IF NOT EXISTS m_subsec AS
             WITH per_addr_sec AS (
                 SELECT
                     CASE s.role WHEN 'maker' THEN jf.maker ELSE jf.taker END
@@ -422,7 +425,7 @@ def main() -> None:
     # ---------- 8. Distinct counterparties (HyperLogLog approx) ----------
     with step("8/8 distinct counterparties (m_cps, approx)"):
         con.execute("""
-            CREATE OR REPLACE TABLE m_cps AS
+            CREATE TABLE IF NOT EXISTS m_cps AS
             SELECT
                 CASE s.role WHEN 'maker' THEN jf.maker ELSE jf.taker END AS address,
                 approx_count_distinct(
@@ -431,6 +434,45 @@ def main() -> None:
             FROM joined_fills jf
             CROSS JOIN (VALUES ('maker'), ('taker')) AS s(role)
             GROUP BY 1
+        """)
+
+    # ---------- 8.5 Approximate bankroll (peak concurrent deployed capital) ----------
+    # Per address, build event series of capital-deployed deltas:
+    #   +total_bought_usd at first_fill_ts (position opens)
+    #   -total_bought_usd at resolution_ts (position closes)
+    # Running cumsum gives concurrent_deployed at each event.
+    # Per address, MAX(concurrent_deployed) ≈ peak bankroll.
+    #
+    # The "30d rolling max" framing in the spec collapses to MAX(concurrent_deployed)
+    # for a single summary number per trader (rolling-max of any window containing
+    # the global peak equals the global peak). We document the approximation as
+    # "peak deployed at entry value, not mark-to-market". For a smoother estimate
+    # — e.g. average over 30-day windows — Phase 4 can refine.
+    with step("8.5/9 approximate bankroll (m_bankroll)"):
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS m_bankroll AS
+            WITH events AS (
+                SELECT address, first_fill_ts AS ts, total_bought_usd AS delta
+                FROM closed_positions
+                WHERE total_bought_usd IS NOT NULL AND total_bought_usd > 0
+                UNION ALL
+                SELECT address, resolution_ts, -total_bought_usd
+                FROM closed_positions
+                WHERE total_bought_usd IS NOT NULL AND total_bought_usd > 0
+                  AND resolution_ts IS NOT NULL
+                  AND resolution_ts >= first_fill_ts  -- skip placeholder pre-fill end_dates
+            ),
+            with_cum AS (
+                SELECT address,
+                    SUM(delta) OVER (
+                        PARTITION BY address ORDER BY ts
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                    ) AS deployed
+                FROM events
+            )
+            SELECT address, MAX(deployed) AS est_bankroll_usd_30d_max_approx
+            FROM with_cum
+            GROUP BY address
         """)
 
     # ---------- 9. Final join + is_operator_like + write parquet ----------
@@ -472,7 +514,7 @@ def main() -> None:
                         AND mp.n_fills_total > 1000000
                     )
                 ) AS is_operator_like,
-                CAST(NULL AS DOUBLE) AS est_bankroll_usd_30d_max
+                mb.est_bankroll_usd_30d_max_approx
             FROM m_pos mp
             LEFT JOIN m_mkt mm USING (address)
             LEFT JOIN m_phantom mph USING (address)
@@ -482,6 +524,7 @@ def main() -> None:
             LEFT JOIN m_cps mc USING (address)
             LEFT JOIN m_dd_pos mdp USING (address)
             LEFT JOIN m_dd_mkt mdm USING (address)
+            LEFT JOIN m_bankroll mb USING (address)
         """)
         con.execute(
             f"COPY traders TO '{OUT_PATH}' "

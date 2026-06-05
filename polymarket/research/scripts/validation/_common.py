@@ -1,6 +1,6 @@
 """Shared DuckDB connection + view setup for validation scripts.
 
-Run from polymarket-copy/ as:
+Run from polymarket/research/ as:
     PYTHONPATH=. uv run python scripts/validation/NN_*.py
 """
 from pathlib import Path

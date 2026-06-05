@@ -1,4 +1,6 @@
 # BTC Regime Classifier
+> Hub: [[STRATEGY_REFERENCE]]
+
 
 A two-stage machine learning pipeline that assigns a daily **market regime label** to BTC and predicts the next day's regime from observable features — enabling forward-looking regime awareness that can be used to gate or size positions in other trading strategies.
 
@@ -39,6 +41,8 @@ Two notebooks test the regime filter on real strategies. Full results in section
 |----------|----------|---------|------------|
 | `topics/momentum/results/moneyin_regime.ipynb` | MoneyIn Long (BTC trend, long-only) | **Filter helps** | Hybrid p>0.70: Return +423%, Sharpe 1.05, MaxDD −22% vs baseline 314% / 0.88 / −30% |
 | `topics/momentum/results/portfolio_bb_regime.ipynb` | BB Breakout portfolio (6 coins) | **Filter hurts** | Baseline 754% Sharpe 2.24 → Bull+Chop 247% Sharpe 1.66 — filter removes the strategy's best vol-expansion trades |
+
+Notebook index: [[topics/regime-classifier/notebooks/README|regime classifier notebook index]].
 
 **Recommended filter configuration for directional long strategies:** Hybrid probability threshold at 0.70 — allow positions when `p_regime_0 > 0.70` OR `pred_regime == 1` (Chop always allowed). Do not apply to volatility or mean-reversion strategies.
 

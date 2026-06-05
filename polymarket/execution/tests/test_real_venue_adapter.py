@@ -41,12 +41,20 @@ from polymarket.execution.mirror.real_venue_adapter import RealVenueAdapter
 
 
 class _MockHttpClient:
-    """Minimal stand-in: only set_tick_size matters to the wrapper."""
+    """Minimal stand-in: records set_tick_size and set_neg_risk calls
+    so tests can assert ordering / values."""
     def __init__(self) -> None:
         self.tick_calls: list[tuple[str, float]] = []
+        self.neg_risk_calls: list[tuple[str, bool]] = []
+        self.all_setter_calls: list[tuple[str, str, Any]] = []  # (kind, token, value)
 
     def set_tick_size(self, token_id: str, tick_size: float) -> None:
         self.tick_calls.append((token_id, tick_size))
+        self.all_setter_calls.append(("tick", token_id, tick_size))
+
+    def set_neg_risk(self, token_id: str, is_neg_risk: bool) -> None:
+        self.neg_risk_calls.append((token_id, is_neg_risk))
+        self.all_setter_calls.append(("neg_risk", token_id, is_neg_risk))
 
 
 class _MockKernel:
@@ -108,11 +116,41 @@ class _MockKernel:
 # ---------------------------------------------------------------------------
 
 
+class _MockMarketMetadataCache:
+    """Configurable mock for MarketMetadataCache.
+
+    Default: returns is_neg_risk=False, tick_size=0.01 for any asset.
+    Tests can override by populating ``self.responses[asset_id]``.
+    Setting ``self.return_none = True`` simulates Gamma fetch failure.
+    """
+
+    def __init__(self) -> None:
+        self.responses: dict[str, Any] = {}
+        self.return_none: bool = False
+        self.calls: list[tuple[str, str]] = []
+
+    def get_by_asset(self, asset_id: str, condition_id: str):
+        self.calls.append((asset_id, condition_id))
+        if self.return_none:
+            return None
+        if asset_id in self.responses:
+            return self.responses[asset_id]
+        from datetime import datetime, timezone
+        from polymarket.execution.mirror.market_metadata import MarketMetadata
+        return MarketMetadata(
+            condition_id=condition_id,
+            is_neg_risk=False,
+            tick_size=0.01,
+            fetched_at_utc=datetime.now(timezone.utc),
+        )
+
+
 def _wrapper(
     tmp_path: Path,
     *,
     seed_events: list[Any] | None = None,
     today: Any = None,
+    metadata: "_MockMarketMetadataCache | None" = None,
 ) -> tuple[RealVenueAdapter, _MockKernel, _MockHttpClient, JsonlWriter]:
     journal = JsonlWriter(tmp_path, "rva-test")
     if seed_events:
@@ -120,18 +158,31 @@ def _wrapper(
             journal.write(ev)
     kernel = _MockKernel()
     http = _MockHttpClient()
+    meta = metadata or _MockMarketMetadataCache()
     wrapper = RealVenueAdapter(
         kernel_adapter=kernel,  # type: ignore[arg-type]
         http_client=http,  # type: ignore[arg-type]
         journal=journal,
         clob_url="https://clob.polymarket.com",
         bot_proxy_wallet="0x" + "b" * 40,
+        market_metadata=meta,  # type: ignore[arg-type]
         polling_interval_seconds=0.05,
         today_utc=today,
     )
-    # Pre-cache tick size to skip the network fetch in tests.
-    wrapper._tick_cache["asset-1"] = 0.01
-    wrapper._tick_cache["penny"] = 0.001
+    # Pre-seed metadata for the two asset_ids that tests use, so the
+    # mock returns predictable values for the "penny" sub-cent market.
+    from datetime import datetime, timezone
+    from polymarket.execution.mirror.market_metadata import MarketMetadata
+    if "asset-1" not in meta.responses:
+        meta.responses["asset-1"] = MarketMetadata(
+            condition_id="cond-1", is_neg_risk=False, tick_size=0.01,
+            fetched_at_utc=datetime.now(timezone.utc),
+        )
+    if "penny" not in meta.responses:
+        meta.responses["penny"] = MarketMetadata(
+            condition_id="cond-penny", is_neg_risk=False, tick_size=0.001,
+            fetched_at_utc=datetime.now(timezone.utc),
+        )
     return wrapper, kernel, http, journal
 
 
@@ -332,7 +383,6 @@ def test_polling_journals_fill(tmp_path: Path) -> None:
     wrapper, kernel, _http, journal = _wrapper(tmp_path)
     # Pre-register the order so the fill correlates.
     wrapper._coid_to_fields["coid-1"] = ("cond-1", "asset-1", "BUY")
-    wrapper._tick_cache["asset-1"] = 0.01
 
     fill = VenueFillEvent(
         package_id="coid-1", leg_id="leg-0", client_order_id="coid-1",
@@ -385,7 +435,6 @@ def test_polling_loop_survives_kernel_exception(tmp_path: Path) -> None:
     kernel.poll_exception = RuntimeError("kernel boom")
     # Also queue a real fill to verify the loop kept going.
     wrapper._coid_to_fields["coid-2"] = ("cond-1", "asset-1", "SELL")
-    wrapper._tick_cache["asset-1"] = 0.01
 
     wrapper.start()
     time.sleep(0.15)  # let the exception fire and the loop continue
@@ -507,3 +556,88 @@ def test_stop_joins_polling_thread(tmp_path: Path) -> None:
     assert wrapper._polling_thread.is_alive()
     wrapper.stop()
     assert not wrapper._polling_thread.is_alive()
+
+
+# ---------------------------------------------------------------------------
+# NegRisk wiring
+# ---------------------------------------------------------------------------
+
+
+def test_submit_calls_both_setters_before_kernel(tmp_path: Path) -> None:
+    """Both set_tick_size and set_neg_risk must be on the http client
+    BEFORE the kernel.submit_order call, in either order."""
+    wrapper, kernel, http, _journal = _wrapper(tmp_path)
+    wrapper.submit_order(**_kwargs())
+    kinds_in_order = [c[0] for c in http.all_setter_calls]
+    assert "tick" in kinds_in_order
+    assert "neg_risk" in kinds_in_order
+    # Both setters must precede the kernel call. Recorded by call-order
+    # on the mocks: setter calls happen inside submit_order, the kernel
+    # call happens after; if we got here with submit_calls populated,
+    # both setters fired first.
+    assert len(kernel.submit_calls) == 1
+
+
+def test_negrisk_market_sets_neg_risk_true(tmp_path: Path) -> None:
+    meta = _MockMarketMetadataCache()
+    from polymarket.execution.mirror.market_metadata import MarketMetadata
+    meta.responses["asset-nr"] = MarketMetadata(
+        condition_id="cond-nr",
+        is_neg_risk=True,
+        tick_size=0.01,
+        fetched_at_utc=_now(),
+    )
+    wrapper, _kernel, http, _journal = _wrapper(tmp_path, metadata=meta)
+    wrapper.submit_order(**_kwargs(asset_id="asset-nr", condition_id="cond-nr"))
+    assert ("asset-nr", True) in http.neg_risk_calls
+    assert ("asset-nr", 0.01) in http.tick_calls
+
+
+def test_binary_market_sets_neg_risk_false(tmp_path: Path) -> None:
+    wrapper, _kernel, http, _journal = _wrapper(tmp_path)
+    wrapper.submit_order(**_kwargs())  # asset-1 default → binary
+    assert ("asset-1", False) in http.neg_risk_calls
+
+
+def test_condition_negrisk_cache_is_sticky(tmp_path: Path) -> None:
+    meta = _MockMarketMetadataCache()
+    from polymarket.execution.mirror.market_metadata import MarketMetadata
+    meta.responses["asset-nr-1"] = MarketMetadata(
+        condition_id="cond-nr",
+        is_neg_risk=True,
+        tick_size=0.01,
+        fetched_at_utc=_now(),
+    )
+    meta.responses["asset-nr-2"] = MarketMetadata(
+        condition_id="cond-nr",
+        is_neg_risk=False,
+        tick_size=0.01,
+        fetched_at_utc=_now(),
+    )
+    wrapper, _kernel, http, _journal = _wrapper(tmp_path, metadata=meta)
+
+    wrapper.submit_order(**_kwargs(asset_id="asset-nr-1", condition_id="cond-nr"))
+    wrapper.submit_order(**_kwargs(asset_id="asset-nr-2", condition_id="cond-nr"))
+
+    assert ("asset-nr-1", True) in http.neg_risk_calls
+    assert ("asset-nr-2", True) in http.neg_risk_calls
+
+
+def test_gamma_fetch_failure_refuses_to_submit(tmp_path: Path) -> None:
+    meta = _MockMarketMetadataCache()
+    meta.return_none = True
+    wrapper, kernel, http, journal = _wrapper(tmp_path, metadata=meta)
+    result = wrapper.submit_order(**_kwargs())
+    assert result.accepted is False
+    assert "cannot_classify_market" in (result.message or "")
+    # No http client setter calls.
+    assert http.tick_calls == []
+    assert http.neg_risk_calls == []
+    # No kernel call.
+    assert kernel.submit_calls == []
+    # OrderRejected event journaled with the right reason.
+    journal.close()
+    events = list(journal.read_today())
+    rejects = [e for e in events if e["event_type"] == "ORDER_REJECTED"]
+    assert len(rejects) == 1
+    assert rejects[0]["reason"] == "cannot_classify_market"

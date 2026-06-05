@@ -243,3 +243,141 @@ class LeaderFillDropped(_BaseEvent):
                 f"{sorted(LEADER_FILL_DROP_REASONS)} "
                 f"(got {self.reason!r}); see LEADER_FILL_DROP_REASONS"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class MarketResolved(_BaseEvent):
+    condition_id: str
+    closed: bool
+    active: bool
+    source: str
+
+    event_type: ClassVar[str] = "MARKET_RESOLVED"
+
+
+@dataclass(frozen=True, slots=True)
+class PositionRedeemable(_BaseEvent):
+    condition_id: str
+    asset_id: str
+    outcome_index: int
+    size: float
+    negative_risk: bool
+
+    event_type: ClassVar[str] = "POSITION_REDEEMABLE"
+
+
+@dataclass(frozen=True, slots=True)
+class PositionRedeemed(_BaseEvent):
+    condition_id: str
+    asset_id: str
+    outcome_index: int
+    size: float
+    tx_hash: str
+
+    event_type: ClassVar[str] = "POSITION_REDEEMED"
+
+
+@dataclass(frozen=True, slots=True)
+class RedemptionFailed(_BaseEvent):
+    condition_id: str
+    asset_id: str
+    reason: str
+    detail: str
+
+    event_type: ClassVar[str] = "REDEMPTION_FAILED"
+
+
+@dataclass(frozen=True, slots=True)
+class BasketInventoryUpdated(_BaseEvent):
+    condition_id: str
+    activity_type: str
+    delta: float
+    exposure: float
+    transaction_hash: str
+
+    event_type: ClassVar[str] = "BASKET_INVENTORY_UPDATED"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerQuotePlaced(_BaseEvent):
+    client_order_id: str
+    condition_id: str
+    asset_id: str
+    side: str
+    size: float
+    price: float
+    order_type: str
+    venue_order_id: str | None
+
+    event_type: ClassVar[str] = "MAKER_QUOTE_PLACED"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerQuoteCanceled(_BaseEvent):
+    client_order_id: str
+    condition_id: str
+    asset_id: str
+    side: str
+    price: float
+    reason: str
+    ambiguous: bool
+
+    event_type: ClassVar[str] = "MAKER_QUOTE_CANCELED"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerQuoteSkipped(_BaseEvent):
+    condition_id: str
+    asset_id: str
+    side: str
+    reason: str
+    detail: str
+
+    event_type: ClassVar[str] = "MAKER_QUOTE_SKIPPED"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerFillTelemetry(_BaseEvent):
+    client_order_id: str
+    condition_id: str
+    asset_id: str
+    side: str
+    size: float
+    price: float
+    top_maker_rank_at_fill: int | None
+    post_fill_price_drift_60s: float | None
+    news_proximate: bool | None
+    fill_share_this_market: float | None
+
+    event_type: ClassVar[str] = "MAKER_FILL_TELEMETRY"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerSessionStarted(_BaseEvent):
+    condition_id: str
+    venue: str
+    size_contracts: float
+
+    event_type: ClassVar[str] = "MAKER_SESSION_STARTED"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerSessionStopped(_BaseEvent):
+    condition_id: str
+    reason: str
+
+    event_type: ClassVar[str] = "MAKER_SESSION_STOPPED"
+
+
+@dataclass(frozen=True, slots=True)
+class MakerMissedFill(_BaseEvent):
+    condition_id: str
+    asset_id: str
+    side: str
+    price: float
+    size: float
+    transaction_hash: str
+    news_proximate: bool | None
+    reason: str
+
+    event_type: ClassVar[str] = "MAKER_MISSED_FILL"

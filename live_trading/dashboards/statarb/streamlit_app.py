@@ -318,85 +318,12 @@ for _r in pair_rows:
     _open_pos = get_open_positions(_r['pair_key'], _positions_for_decisions)
     _r['sig'].update(apply_decision(_r['sig'], _open_pos, _r['pair_capital']))
 
-# ── Auto-log theoretical trades ───────────────────────────────────────────────
-# Reads positions/trades fresh each render to guard against duplicate writes.
-# EXIT/STOP: fires even when exec prices are None (uses close prices as fallback).
-# ENTRY_LONG/ENTRY_SHORT: fires only once both exec_y and exec_x are available.
-_auto_raw     = _load_json(TRADES_PATH, [])
-_auto_exited  = {t['position_id'] for t in _auto_raw if t.get('action') == 'EXIT'}
-_auto_pos_now = _load_json(POSITIONS_PATH, {})
-_auto_open_pks = {
-    p.get('symbol', pid) for pid, p in _auto_pos_now.items() if p.get('in_position')
-}
-_did_auto = False
-
-for _ar in pair_rows:
-    _apk    = _ar['pair_key']
-    _asig   = _ar['sig']
-    _adec   = _asig['decision']
-    _astrat = _ar['strategy']
-    _aey    = _ar['exec_y']
-    _aex    = _ar['exec_x']
-
-    if _adec in ('EXIT', 'STOP'):
-        _apos_file = _load_json(POSITIONS_PATH, {})
-        for _apid, _apos in list(_apos_file.items()):
-            if (
-                _apos.get('symbol', _apid) == _apk
-                and _apos.get('in_position')
-                and _apid not in _auto_exited
-            ):
-                _adir   = _apos.get('direction', 'long')
-                _ads    = 1 if _adir == 'long' else -1
-                _asz    = float(_apos.get('size_usd') or _apos.get('coin_capital') or 0)
-                _apos_ey = float(_apos.get('entry_y_price') or 0)
-                _apos_ex = float(_apos.get('entry_x_price') or 0)
-                _abeta   = float(_apos.get('beta') or 0)
-                _axity   = _aey if _aey is not None else _asig.get('close_y', 1.0)
-                _axitx   = _aex if _aex is not None else _asig.get('close_x', 1.0)
-                if _apos_ey > 0 and _apos_ex > 0 and _axity > 0 and _axitx > 0:
-                    _aspread_pnl = _ads * (
-                        np.log(_axity / _apos_ey) - _abeta * np.log(_axitx / _apos_ex)
-                    )
-                else:
-                    _aspread_pnl = 0.0
-                _write_trade(
-                    position_id=_apid, action='EXIT', strategy=_astrat,
-                    theoretical_price=1.0 + _aspread_pnl * _ads,
-                    actual_price=1.0 + _aspread_pnl * _ads,
-                    size_usd=_asz, discretion_note='',
-                    exit_reason=_adec,
-                    exit_y_price=_axity, exit_x_price=_axitx,
-                )
-                _write_position_exit(_apid, _aspread_pnl, '')
-                _auto_exited.add(_apid)
-                _did_auto = True
-
-    elif _adec in ('ENTRY_LONG', 'ENTRY_SHORT') and _apk not in _auto_open_pks:
-        if _aey is not None and _aex is not None:
-            _adir    = 'long' if _adec == 'ENTRY_LONG' else 'short'
-            _apos_fresh = _load_json(POSITIONS_PATH, {})
-            _anpid   = _next_position_id(_apk, _apos_fresh)
-            _acap    = get_pair_capital(_apk)
-            _abeta   = float(_asig.get('beta') or 0)
-            _write_trade(
-                position_id=_anpid, action='ENTRY', strategy=_astrat,
-                theoretical_price=1.0, actual_price=1.0,
-                size_usd=_acap, discretion_note='',
-                direction=_adir,
-                entry_y_price=_aey, entry_x_price=_aex,
-                pair_capital=_acap,
-            )
-            _write_position_entry(
-                _anpid, _apk, _ar['symbol_y'], _ar['symbol_x'],
-                _astrat, _adir, _acap, _acap,
-                _aey, _aex, _abeta, '',
-            )
-            _auto_open_pks.add(_apk)
-            _did_auto = True
-
-if _did_auto:
-    invalidate_trade_caches()
+# ── No auto-logging ───────────────────────────────────────────────────────────
+# Both auto-open (ENTRY_LONG/ENTRY_SHORT) and auto-exit (EXIT/STOP) were
+# removed to mirror momentum/BB: every trade record must come from an
+# explicit user submission via the trade form below.  Strategy decisions
+# still display in the decisions table — they just no longer write
+# trades.json / positions.json without a click.
 
 generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 

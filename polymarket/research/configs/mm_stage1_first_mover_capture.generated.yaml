@@ -1,0 +1,372 @@
+prepared_at: '2026-06-04T23:47:24Z'
+purpose: 'MM Stage-1 first-mover live book capture: read-only CLOB market-channel
+  recorder, no orders.'
+run:
+  run_id: mm_stage1_first_mover_20260605_night
+  label: mm_stage1_first_mover
+  duration_hours: 1
+  rotate_minutes: 30
+  print_every_events: 100
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_first_mover
+selection:
+  source: live Gamma markets endpoint + CLOB /book smoke enrichment
+  families_targeted:
+    sports_recurring: 6
+    residual_other: 4
+    daily_crypto_control: 4
+    geopolitics_diagnostic: 2
+  lane_boundary: non-politics primary; geopolitics only diagnostic; no orders/auth.
+markets:
+- id: '2439468'
+  condition_id: '0x62a4dbac589cd768838435d8a6d7209b0af583ce115b4897ca6ef8eebb28b728'
+  question: 'Game Handicap: Liquid (-1.5) vs LGD Gaming (+1.5)'
+  slug: dota2-lgd-liquid-2026-06-05-game-handicap-home-1pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-04T23:31:51.795533Z'
+  age_hours_at_prepare: 0.26
+  end_date: '2026-06-05T18:30:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 101.9997
+  best_bid: 0.06
+  best_ask: 0.96
+  spread: 0.9
+  clob_token_ids:
+  - '61195081651155788675874783969948143789508420484730418829182226076105021086755'
+  - '72988576558870966244112118838933340457379100566653770874634223929132649158689'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.19
+    book_bid_size: 20.0
+    book_best_ask: 0.34
+    book_ask_size: 300.0
+    book_spread: 0.15000000000000002
+    token_id: '61195081651155788675874783969948143789508420484730418829182226076105021086755'
+  - book_best_bid: 0.66
+    book_bid_size: 300.0
+    book_best_ask: 0.81
+    book_ask_size: 20.0
+    book_spread: 0.15000000000000002
+    token_id: '72988576558870966244112118838933340457379100566653770874634223929132649158689'
+- id: '2439426'
+  condition_id: '0xbea649e54108a4c14e0202d2a02c0879df0ff59b8a43190802661ecd707dfc2a'
+  question: 'Golden State Valkyries vs. Minnesota Lynx: O/U 165.5'
+  slug: wnba-gsv-min-2026-06-04-total-165pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-04T23:15:11.663752Z'
+  age_hours_at_prepare: 0.54
+  end_date: '2026-06-05T01:00:00Z'
+  volume24hr: 236.421662
+  volume: 236.421662
+  liquidity: 17269.6894
+  best_bid: 0.52
+  best_ask: 0.53
+  spread: 0.01
+  clob_token_ids:
+  - '4965935374686107749033484048953559668914362429392934028004086308516596074555'
+  - '26732282687210743683044657363699485283153236710254887444224393709766863305296'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.52
+    book_bid_size: 4568.6
+    book_best_ask: 0.55
+    book_ask_size: 2642.45
+    book_spread: 0.030000000000000027
+    token_id: '4965935374686107749033484048953559668914362429392934028004086308516596074555'
+  - book_best_bid: 0.45
+    book_bid_size: 2642.45
+    book_best_ask: 0.48
+    book_ask_size: 4568.6
+    book_spread: 0.02999999999999997
+    token_id: '26732282687210743683044657363699485283153236710254887444224393709766863305296'
+- id: '2438996'
+  condition_id: '0xb1d13acf884132e244955ac2cb28d5aae2fa3b4491feb5cee1087b860494ec6b'
+  question: 'ITF Banja Luka: Tea Kovacevic vs Andrea Obradovic'
+  slug: itf-kovacev-obrado-2026-06-05
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-04T22:00:25.292734Z'
+  age_hours_at_prepare: 1.78
+  end_date: '2026-06-12T09:35:00Z'
+  volume24hr: 365.112856
+  volume: 365.11285599999997
+  liquidity: 1226.964
+  best_bid: 0.4
+  best_ask: 0.41
+  spread: 0.01
+  clob_token_ids:
+  - '59035106094081052861755726974993407192242811126239929661808140947911808895270'
+  - '6762011340162738329049718561310363481836913304492993486611359951349794794769'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.4
+    book_bid_size: 260.24
+    book_best_ask: 0.41
+    book_ask_size: 352.26
+    book_spread: 0.009999999999999953
+    token_id: '59035106094081052861755726974993407192242811126239929661808140947911808895270'
+  - book_best_bid: 0.59
+    book_bid_size: 352.26
+    book_best_ask: 0.6
+    book_ask_size: 260.24
+    book_spread: 0.010000000000000009
+    token_id: '6762011340162738329049718561310363481836913304492993486611359951349794794769'
+- id: '2438994'
+  condition_id: '0x2bebe76662948c33c49feb019eaa453207f76ca4332d10b846cd092ecdf1d953'
+  question: 'ITF Szentendre: Yannik Kelm vs Peter Fajta'
+  slug: itf-kelm-fajta-2026-06-05
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-04T22:00:24.773422Z'
+  age_hours_at_prepare: 1.78
+  end_date: '2026-06-12T09:30:00Z'
+  volume24hr: 15.707235
+  volume: 15.707235
+  liquidity: 886.4389
+  best_bid: 0.36
+  best_ask: 0.38
+  spread: 0.02
+  clob_token_ids:
+  - '74990284354952677345264338755998568091857822629255881252921145236935407065080'
+  - '102275503471528985812255453798098250067755908093716785499859225928526875326229'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.36
+    book_bid_size: 11.07
+    book_best_ask: 0.38
+    book_ask_size: 30.0
+    book_spread: 0.020000000000000018
+    token_id: '74990284354952677345264338755998568091857822629255881252921145236935407065080'
+  - book_best_bid: 0.62
+    book_bid_size: 30.0
+    book_best_ask: 0.64
+    book_ask_size: 11.07
+    book_spread: 0.020000000000000018
+    token_id: '102275503471528985812255453798098250067755908093716785499859225928526875326229'
+- id: '2438992'
+  condition_id: '0xc9ca0440ddf51b2349aa36201382811bcccc3b93d5f93ff1fbd1164d3e2a58ec'
+  question: 'ITF Ontinyent: Marianne Argyrokastriti vs Maria Garcia Cid'
+  slug: itf-argyrok-cid-2026-06-05
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-04T22:00:24.209856Z'
+  age_hours_at_prepare: 1.78
+  end_date: '2026-06-12T09:00:00Z'
+  volume24hr: 31.817066
+  volume: 31.817066
+  liquidity: 668.2481
+  best_bid: 0.18
+  best_ask: 0.2
+  spread: 0.02
+  clob_token_ids:
+  - '18781856027182287847320388630301991900754796871122256723053213999362957711486'
+  - '54077896806480289409431720484189522319221555571003243525032765983709853742958'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.18
+    book_bid_size: 5.52
+    book_best_ask: 0.2
+    book_ask_size: 30.0
+    book_spread: 0.020000000000000018
+    token_id: '18781856027182287847320388630301991900754796871122256723053213999362957711486'
+  - book_best_bid: 0.8
+    book_bid_size: 30.0
+    book_best_ask: 0.82
+    book_ask_size: 5.52
+    book_spread: 0.019999999999999907
+    token_id: '54077896806480289409431720484189522319221555571003243525032765983709853742958'
+- id: '2438991'
+  condition_id: '0xd3b4604d246ec7b99b97d2a93d978e0080c44550a1f68fa1623b78e76ba12cff'
+  question: 'Dota 2: LGD Gaming vs Team Liquid - Game 2 Winner'
+  slug: dota2-lgd-liquid-2026-06-05-game2
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-04T22:00:23.939777Z'
+  age_hours_at_prepare: 1.78
+  end_date: '2026-06-05T16:30:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 6628.4398
+  best_bid: 0.48
+  best_ask: 0.52
+  spread: 0.04
+  clob_token_ids:
+  - '23303896898876451925653412133520033007094935245605658294068752615068800201816'
+  - '35304570534373069444331431191992025153753592944897389588637132794559530252453'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.48
+    book_bid_size: 20.0
+    book_best_ask: 0.52
+    book_ask_size: 10.0
+    book_spread: 0.040000000000000036
+    token_id: '23303896898876451925653412133520033007094935245605658294068752615068800201816'
+  - book_best_bid: 0.48
+    book_bid_size: 10.0
+    book_best_ask: 0.52
+    book_ask_size: 20.0
+    book_spread: 0.040000000000000036
+    token_id: '35304570534373069444331431191992025153753592944897389588637132794559530252453'
+- id: '2439551'
+  condition_id: '0x63dbf241b730c1ff3795e0beeae669102dbde0e5a72e8a330afb977f36afeced'
+  question: BNB Up or Down - June 5, 7:35PM-7:40PM ET
+  slug: bnb-updown-5m-1780702500
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-04T23:41:29.189730Z'
+  age_hours_at_prepare: 0.1
+  end_date: '2026-06-05T23:40:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '96806395556404744014323511895391966980138104165116919051845973636441279332698'
+  - '62092117954922190321687635200780295431620737110235641562944178769680718007182'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 81.0
+    book_best_ask: 0.51
+    book_ask_size: 81.0
+    book_spread: 0.020000000000000018
+    token_id: '96806395556404744014323511895391966980138104165116919051845973636441279332698'
+  - book_best_bid: 0.49
+    book_bid_size: 81.0
+    book_best_ask: 0.51
+    book_ask_size: 81.0
+    book_spread: 0.020000000000000018
+    token_id: '62092117954922190321687635200780295431620737110235641562944178769680718007182'
+- id: '2439550'
+  condition_id: '0x002c9b687605c60673e5d353abca35fad2dd405e0b2411ed734db665ab024725'
+  question: Hyperliquid Up or Down - June 5, 7:35PM-7:40PM ET
+  slug: hype-updown-5m-1780702500
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-04T23:41:29.179553Z'
+  age_hours_at_prepare: 0.1
+  end_date: '2026-06-05T23:40:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '7151487086386359799824013384100668677065033737882948063580866558079769166248'
+  - '74909242768428604918868923745158872044662021260682448499149948441122578979572'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 76.0
+    book_best_ask: 0.51
+    book_ask_size: 76.0
+    book_spread: 0.020000000000000018
+    token_id: '7151487086386359799824013384100668677065033737882948063580866558079769166248'
+  - book_best_bid: 0.49
+    book_bid_size: 76.0
+    book_best_ask: 0.51
+    book_ask_size: 76.0
+    book_spread: 0.020000000000000018
+    token_id: '74909242768428604918868923745158872044662021260682448499149948441122578979572'
+- id: '2439549'
+  condition_id: '0xd0b75d3c30ed63f7675a023cebd0b3ddaf4317343c091f33ead5452eb7669167'
+  question: Dogecoin Up or Down - June 5, 7:35PM-7:40PM ET
+  slug: doge-updown-5m-1780702500
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-04T23:41:29.178488Z'
+  age_hours_at_prepare: 0.1
+  end_date: '2026-06-05T23:40:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '4046740226433780971397630022443882124055794501144196378688176059406424743455'
+  - '31621156263716148620257462787976201060985271320460364647396960362206920332726'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 81.0
+    book_best_ask: 0.51
+    book_ask_size: 81.0
+    book_spread: 0.020000000000000018
+    token_id: '4046740226433780971397630022443882124055794501144196378688176059406424743455'
+  - book_best_bid: 0.49
+    book_bid_size: 81.0
+    book_best_ask: 0.51
+    book_ask_size: 81.0
+    book_spread: 0.020000000000000018
+    token_id: '31621156263716148620257462787976201060985271320460364647396960362206920332726'
+- id: '2439548'
+  condition_id: '0x5a6a9a6674561bd5b9cb4026df06cde54830592f0461c2afa41fabf66d2fb859'
+  question: Ethereum above 1,850 on June 4, 9PM ET?
+  slug: ethereum-above-1850-on-june-4-2026-9pm-et
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-04T23:40:09.981842Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-05T01:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '95124726146674469110281304804384536483634569419036039152562540579036183329854'
+  - '42677825553831796214967690056527280119754556303781953843433498324875576489622'
+  neg_risk: false
+  selection_rationale: MM Stage-1 first-mover read-only capture; no orders; selected
+    from current Gamma for recent/new market window and category mix.
+  book_tokens:
+  - book_best_bid: 0.0
+    book_bid_size: 0.0
+    book_best_ask: 0.99
+    book_ask_size: 450.0
+    book_spread: null
+    token_id: '95124726146674469110281304804384536483634569419036039152562540579036183329854'
+  - book_best_bid: 0.01
+    book_bid_size: 450.0
+    book_best_ask: 1.0
+    book_ask_size: 0.0
+    book_spread: null
+    token_id: '42677825553831796214967690056527280119754556303781953843433498324875576489622'

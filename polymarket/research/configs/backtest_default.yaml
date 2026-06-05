@@ -1,0 +1,21 @@
+latency:
+  median_ms: 300
+  p99_ms: 900
+  seed: 7
+  fixed_ms:
+
+execution:
+  order_size: 5
+  tick_size: 0.001
+  fee_rate: 0.0
+  min_fill_size: 1
+  skip_incomplete_book: true
+
+rule:
+  mode: every_last_trade_price
+  allowed_sides: ["BUY", "SELL"]
+  take_profit_ticks: 2
+  stop_loss_ticks: 2
+  time_stop_seconds: 180
+  ofi_reversal_threshold: 0
+  force_close_at_end: true

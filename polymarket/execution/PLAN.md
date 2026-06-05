@@ -1,5 +1,7 @@
 # polymarket/execution/ — Plan
 
+> Hub: [[COWORK]] · [[POLYMARKET_BRAIN]]
+
 This is the rolling plan for the Polymarket copy-trading PoC. Read
 this and CLAUDE.md before starting any work in this module.
 
@@ -164,12 +166,18 @@ See CLAUDE.md "Kernel vendoring status" for context.
     `operator_confirm`.** Two new env vars
     (`POLYMARKET_MAX_REAL_ORDERS=5`, default;
     `POLYMARKET_REQUIRE_OPERATOR_CONFIRM=false`, default) gate
-    real-venue submits in mirror_engine. Both are gated on
+    real-venue submits in mirror_engine and maker_engine. Both are gated on
     `venue.is_real_venue()` (duck-typed; absence treats as fake) so
-    they never affect fake-venue runs. `max_real_orders` halts the
-    bot after N submit *attempts* (accepted or rejected — even
-    rejections consume the budget); writes `RiskHalt` reason
-    `"max_real_orders"`. `require_operator_confirm` blocks on
+    they never affect fake-venue runs. `POLYMARKET_MAX_REAL_ORDERS=0`
+    is valid and means observe-only: real venue can be wired for
+    auth/market/book reads, but no submit attempts are permitted.
+    In mirror_engine, `max_real_orders` halts the bot after N submit
+    *attempts* (accepted or rejected — even rejections consume the
+    budget); writes `RiskHalt` reason `"max_real_orders"`. In
+    maker_engine, the same limit writes `RiskHalt` and
+    `MakerQuoteSkipped` but the loop keeps running so smoke runs can
+    continue observing market lookup/book/pricing without placing
+    orders. `require_operator_confirm` blocks on
     stdin per order; declining writes `RiskHalt` reason
     `"operator_aborted"` but does NOT halt — operator can decline
     individual orders without killing the bot. Both reasons added
@@ -207,6 +215,94 @@ See CLAUDE.md "Kernel vendoring status" for context.
     Cross-referencing journal fills to PolygonScan therefore
     needs a manual `venue_order_id` lookup. Tracked as v2
     enhancement; not blocking PoC.
+
+21. **Politics NegRisk maker Phase-1 is measurement-first.** New
+    `maker/` code is a one-condition scaffold driven by
+    `POLYMARKET_MAKER_CONDITION_ID`. It places one passive GTC bid
+    and one passive GTC ask on the YES token, both sized at
+    `MAKER_SIZE_CONTRACTS=1` by default. It joins the displayed best
+    bid / best ask; it does not improve, chase, peg dynamically, use
+    OD pricing, or orchestrate multiple markets.
+
+22. **Composite basket inventory comes from Data API activity polling.**
+    `maker/negrisk_inventory.py` polls
+    `/activity?user=<funder>&type=SPLIT,MERGE,REDEEM,CONVERSION`,
+    applies split/merge/redeem/convert deltas to an in-memory
+    `basket_inventory[condition_id]`, and persists replayable JSONL.
+    RTDS is not used for these operations because it is silent for
+    split/merge/redeem/convert events. The maker engine consults
+    `get_basket_exposure(condition_id)` and skips the bid side once
+    exposure is at the Phase-2 hard cap of 10 contracts.
+
+23. **Resolution and redemption are polling-driven and non-blocking.**
+    `maker/resolution_handler.py` polls Gamma market rows for the
+    bot's open condition_ids and logs `MarketResolved` when a market
+    is closed/inactive. It also polls
+    `/positions?user=<funder>&redeemable=true`, logs
+    `PositionRedeemable`, and attempts a best-effort
+    `NegRiskAdapter.redeemPositions(bytes32,uint256[])` call via
+    lazy web3 if `POLYMARKET_RPC_URL` and a usable private key are
+    configured. Redemption failures log `RedemptionFailed` and do
+    not halt the loop.
+
+24. **Maker telemetry is the product.** `maker/maker_engine.py` logs
+    quote placement, cancel, fill telemetry, missed fills, and
+    resolution cancels. Fill telemetry includes
+    `top_maker_rank_at_fill`, `post_fill_price_drift_60s`,
+    `news_proximate`, and `fill_share_this_market`. Values may be
+    `None` when the needed calendar or post-fill market data is not
+    available; the field is still journaled so Phase 2 dashboards can
+    distinguish missing telemetry from a false value.
+
+25. **Scheduled events are manual ops input.** `maker/event_calendar.py`
+    loads `maker/politics_events.yaml` (stdlib-only JSON or a tiny YAML
+    subset) and answers event-proximity checks. No scraper, X/Twitter
+    feed, or LLM news reader is part of Phase 2.
+
+26. **Maker fill detection is Data-API-polled, not journal-matched.**
+    `FillRecorded` carries no `client_order_id`, so the maker engine
+    cannot match journal fills to live quotes. `process_fills_once(market)`
+    instead polls `data-api/trades`, keeps rows where
+    `proxyWallet == funder` and `ts >= session_start`, and matches a fill
+    to a resting quote within half a tick of price. Unmatched funder fills
+    (taker fills on orders that already left quote state) are still logged
+    as `MakerFillTelemetry` with `top_maker_rank_at_fill=None`.
+
+27. **NegRisk redemption supports 3+ outcome markets.**
+    `_redeem_amounts` sizes the `uint256[]` vector to `outcome_index + 1`
+    (zero-padded) and only rejects `outcome_index < 0`, instead of the old
+    0-or-1-only guard that broke every NegRisk event with 3+ candidates.
+
+28. **Maker has its own CLI entry point.** `maker/cli.py` wires
+    inventory + resolution + engine, runs their three threads, and shuts
+    down by cancelling quotes then stopping components in reverse start
+    order. It reuses `cli.build_venue_adapter` (so `MAX_REAL_ORDERS` /
+    `REQUIRE_OPERATOR_CONFIRM` apply unchanged) and is reachable via
+    `python -m polymarket.execution --mode maker`. `MakerSessionStarted` /
+    `MakerSessionStopped` journal the session lifecycle.
+
+29. **Maker supports real-venue observe-only mode.**
+    `POLYMARKET_MAX_REAL_ORDERS=0` is accepted by `ExecutionConfig`.
+    On a real-like maker venue the first submit opportunity is blocked
+    by the existing `>= max_real_orders` gate, journals `RiskHalt`
+    reason `"max_real_orders"` plus `MakerQuoteSkipped`, and leaves the
+    loop alive. This is the Phase-2 smoke mode for validating auth,
+    market lookup, book fetch, and quote pricing without submitting.
+
+30. **Maker first smoke is tick-allow-listed.**
+    `MakerEngineConfig.allowed_tick_sizes` defaults to `{0.01}` and can
+    be overridden with comma-separated `POLYMARKET_MAKER_ALLOWED_TICKS`.
+    If Gamma reports a tick outside the allow-set, maker_engine cancels
+    any open quotes for the market and skips both sides with
+    `MakerQuoteSkipped reason="tick_size_not_allowed"` including the
+    observed tick in `detail`.
+
+31. **Auth-only verification is a read path, not a quote path.**
+    `python -m polymarket.execution --mode maker --check-auth` builds
+    the real venue adapter, calls the kernel open-order reconciliation
+    read, prints the open-order count, stops the adapter, and exits. It
+    submits nothing. Exit code 0 means the read succeeded; 5 means the
+    auth/open-order read failed.
 
 ## Done
 
@@ -321,6 +417,111 @@ See CLAUDE.md "Kernel vendoring status" for context.
 - Installed `py-clob-client` to user site-packages (transitive dep
   of the kernel's signer; was previously absent because no test
   exercised the import path until adapter-construction smoke).
+- **NegRisk handling complete.** `mirror/market_metadata.py`
+  (Gamma-backed cache for `negRisk` + `tick_size` per
+  condition_id). `mirror/clob_signer.py` (replaces kernel
+  signer; passes `PartialCreateOrderOptions(neg_risk=…,
+  tick_size=…)` to py-clob-client's `ClobClient.create_order`).
+  `set_neg_risk(token_id, value)` side-channel on the HTTP
+  client, symmetric with `set_tick_size`. Refuses to submit
+  on Gamma fetch failure with `OrderRejected` reason
+  `"cannot_classify_market"`. Tested end-to-end with both
+  flag values; **233 tests total**.
+
+- **Kernel signer dead-code in our path.**
+  `mirror/clob_signer.py` fully replaces
+  `_kernel/polymarket_sdk_signer.py` for our execution chain.
+  Verify with:
+  `grep -rn "PyClobClientOrderSigner" polymarket/execution/ --include="*.py"`
+  Should show only the kernel file itself (untouched) and
+  doc references in `mirror/clob_signer.py` /
+  `mirror/clob_http_client.py` / `cli.py` (which describe
+  the replacement, not import it). The live code path goes
+  `ClobHttpClient → ClobSigner → py-clob-client.ClobClient`,
+  no kernel signer involved.
+
+- NegRisk wire-signing support landed: new
+  `mirror/market_metadata.py` (Gamma-backed `MarketMetadataCache`
+  with permanent in-process caching of `negRisk` + `tick_size`),
+  `set_neg_risk(token_id, …)` side-channel on `ClobHttpClient`
+  symmetric with `set_tick_size`, new `mirror/clob_signer.py`
+  (`ClobSigner` — direct py-clob-client wrapper that passes
+  `PartialCreateOrderOptions(neg_risk=…, tick_size=…)` to
+  `ClobClient.create_order`, replacing the kernel's
+  `PyClobClientOrderSigner` in the real-venue path). cli wiring
+  updated: `build_venue_adapter("real", …)` now constructs the
+  full chain `ClobSigner → ClobHttpClient → kernel adapter →
+  RealVenueAdapter` plus `MarketMetadataCache` from
+  `config.gamma_url`. Gamma fetch failure ⇒ `OrderRejected`
+  reason `"cannot_classify_market"`; refuse-to-submit semantics
+  match the rest of the credential-validation paranoia. **19 new
+  tests** (11 metadata + 4 http_client NegRisk + 4 wrapper NegRisk);
+  full suite **214 → 233 green**. Reference: NegRisk findings doc
+  at `tests/probes/NEGRISK_FINDINGS.md`.
+
+- **Politics NegRisk maker Phase-1 prerequisites landed.**
+  `maker/event_calendar.py`, `maker/negrisk_inventory.py`,
+  `maker/resolution_handler.py`, `maker/maker_engine.py`,
+  `maker/politics_events.yaml`, and `maker/README.md` implement the
+  Phase-2 measurement scaffold. Tests in `tests/maker/` cover the
+  NegRisk verifying-contract acceptance path, event calendar,
+  inventory replay/dedup, resolution/redemption polling, two-sided
+  passive quoting, cancel/replace, resolution cancel, basket exposure
+  cap, and required telemetry fields. Full execution suite:
+  **248 green** via repo-root `PYTHONPATH=. uv run --no-project --with
+  pytest --with py-clob-client python -m pytest
+  polymarket/execution/tests`.
+
+- **Politics NegRisk maker Phase-1 review pass — three targeted fixes
+  (decisions 26–28).** Resolved the blockers found in the Phase-1
+  review handoff (`brain/handoffs/2026-06-03_politics_negrisk_phase1_review.md`)
+  before the Phase-2 smoke:
+  - **Fix A — fill detection (decision 26).** `MakerEngine.process_fills_once`
+    no longer reads `FILL_RECORDED` journal events (which carry no
+    `client_order_id`, so the match always returned `None` and
+    `MakerFillTelemetry` was never logged). It now takes the active
+    `MakerMarket` and polls `data-api/trades`, filtering to rows where
+    `proxyWallet == config.funder` and `ts >= session_start`, matching a
+    fill to a resting quote when `abs(quote.price - fill_price) <=
+    tick_size/2`. Matched quotes are popped from `_quotes`; an unmatched
+    funder fill is still ours and is logged with
+    `top_maker_rank_at_fill=None`. `_log_fill_telemetry` now takes the raw
+    trade row plus a `matched` flag; dead `_coid_from_fill_event` /
+    `_parse_event_ts` helpers deleted.
+  - **Fix B — `_redeem_amounts` for 3+ outcome markets (decision 27).**
+    `resolution_handler._redeem_amounts` previously raised for any
+    `outcomeIndex not in (0, 1)`, breaking redemption on every NegRisk
+    event with 3+ candidates. Now it accepts `outcome_index >= 0` and
+    sizes the amounts vector to `outcome_index + 1` (zero-padded).
+  - **Fix C — maker CLI entry point (decision 28).** New
+    `maker/cli.py` wires `NegRiskInventoryTracker` + `ResolutionHandler`
+    + `MakerEngine`, starts all three background threads, installs
+    SIGINT/SIGTERM handlers, and on shutdown cancels all open quotes then
+    stops the three components in reverse start order (plus the
+    duck-typed venue `stop()`). It reuses `cli.build_venue_adapter` so the
+    `MAX_REAL_ORDERS` / `REQUIRE_OPERATOR_CONFIRM` safety harness is
+    respected identically. `__main__.py` now dispatches `--mode maker`
+    (default `copytrade`). Two additive journal events —
+    `MakerSessionStarted` / `MakerSessionStopped` — record session
+    lifecycle. An optional `POLYMARKET_MAKER_MAX_RUNTIME_SECONDS`
+    auto-stop supports bounded dry smokes.
+  - **Nice-to-fixes.** `DataApiTradeClient.price_after_60s` switched from
+    a symmetric ±10s window to "first trade at or after `fill_ts + 60s`,
+    no upper bound" (illiquid politics markets were yielding too many
+    `None`s); `MakerEngine._top_maker_rank_at_fill` gained a docstring
+    noting it is a fill-order proxy, not a true queue rank.
+  - **Pre-smoke hardening (decisions 29–31).** `MAX_REAL_ORDERS=0`
+    is now an observe-only real-venue mode, maker_engine blocks
+    disallowed ticks via `POLYMARKET_MAKER_ALLOWED_TICKS` (default
+    `{0.01}`), and `--mode maker --check-auth` performs a read-only
+    open-orders auth check with no submit path.
+  - **Tests.** `tests/maker/` updated for the Data-API fill-detection path
+    (matched + unmatched-taker cases), the 3+ outcome and negative-index
+    redemption cases, maker CLI lifecycle, observe-only
+    `MAX_REAL_ORDERS=0`, disallowed-tick skips, and read-only auth check.
+    Maker suite **22 green**; full execution suite **256 green** with
+    `PYTHONPATH=. uv run --no-project --with pytest --with py-clob-client
+    --with websockets python -m pytest polymarket/execution/tests`.
 
 ## Next (in order)
 
@@ -337,22 +538,142 @@ See CLAUDE.md "Kernel vendoring status" for context.
    `RealVenueAdapter` wrapper, polling thread, safety harness,
    credential validation, operator runbook (Prompt 2). 214 tests
    green; fake-venue smoke unchanged.
-8. VPS provisioning + API key creation (region must allow
-   Polymarket order submission; UK dev machine is geo-blocked
-   for the Data API and presumably for order submit too —
-   confirmed empirically during smoke runs). Pre-VPS: confirm
-   geo-block for order submit specifically (Data API confirmed
-   blocked from UK; order submit assumed blocked but not yet
-   directly tested).
-9. Funding a fresh Polymarket account (separate from any
-   research-side wallet; bounded by POLYMARKET_MAX_CAPITAL_USD
-   = $100 per PoC scope). $5 minimum for the first smoke per
-   `scripts/SMOKE_REAL.md`. ← **next**
-10. First real-money run per `scripts/SMOKE_REAL.md`:
+8. ✅ NegRisk handling: `MarketMetadataCache` (Gamma-backed),
+   `ClobSigner` (passes `PartialCreateOrderOptions(neg_risk=…)`
+   to py-clob-client), refuse-to-submit on metadata cache miss.
+   233 tests green.
+9. ✅ Politics NegRisk maker Phase-1: resolution handler,
+   composite inventory tracker, manual event calendar, and minimal
+   one-market passive maker measurement scaffold. 248 tests green.
+10. PLAN.md sync (this update). ← **just completed**
+11. Snapshot commit + tag
+    (`execution-wiring-complete-negrisk` or similar). ← **next**
+12. Slack message to colleague about the kernel encoding bug
+    (`mirror/clob_http_client.py` exists because the kernel's
+    `_build_request` stringifies `int` ticks / integer-shares
+    without the dollar/decimal conversion py-clob-client
+    expects; ours fixes that downstream and also bypasses the
+    kernel signer entirely for NegRisk reasons).
+13. Polymarket account credentials into `.env` (private key
+    from wallet; API key/secret/passphrase via
+    `midas/scripts/derive_api_keys.py` or Polymarket UI;
+    `POLYMARKET_FUNDER` from the Account page).
+14. Auth-only verification path implemented:
+    `python -m polymarket.execution --mode maker --check-auth` hits
+    the CLOB open-orders reconciliation/read and submits nothing.
+    Operator still needs to run it with real credentials before the
+    first live smoke.
+15. First real-money smoke per `scripts/SMOKE_REAL.md`:
     `MAX_REAL_ORDERS=1`, `REQUIRE_OPERATOR_CONFIRM=true`, $5
-    sizing, against a known-active leader. Verify `FILL_RECORDED`
-    in journal lines up with the order on the Polymarket UI;
-    increase budget on subsequent runs.
+    sizing, against a known-active leader. Verify
+    `FILL_RECORDED` in journal lines up with the order on the
+    Polymarket UI; increase budget on subsequent runs.
+16. Post-smoke: medium robustness pass per the
+    "Post-PoC robustness roadmap" section below.
+
+## Known limitations
+
+- **Kernel idempotency-via-client_order_id is bot-side, not
+  venue-side.** py-clob-client generates its own salt per
+  `create_order` call. Resubmitting the same `client_order_id`
+  produces a different on-wire order with a different
+  `venue_order_id`. The kernel adapter maps
+  `client_order_id ↔ venue_order_id` synchronously within
+  each submit call (so a single submit is internally
+  consistent), but this means:
+    * The "idempotency" advertised by the kernel adapter
+      only protects against bot-side double-submission via
+      in-memory tracking — not against the venue receiving
+      two distinct orders if the bot retried after a network
+      hiccup.
+    * Ambiguous-submit handling must remain conservative
+      (halt the bot, don't auto-retry). Auto-retry would
+      risk creating duplicate venue orders.
+    * Acceptable for the PoC (`max_real_orders` cap is small,
+      operator-confirm is on for the first runs) but a real
+      concern for unattended operation with many orders/day.
+
+- **NegRisk per-market cap is structurally correct, but total-deployed
+  cap is over-conservative on diversified NegRisk positions.** Each
+  binary sub-market within a NegRisk event has its own `condition_id`,
+  so the per-market cap (`per_market_cap_usd`) correctly treats positions
+  on different outcomes as separate markets. The over-constraint is on
+  `max_capital_usd`: if a leader spreads $30 across 3 mutually-exclusive
+  outcomes of a NegRisk event, the bot's total-deployed cap counts the
+  full $90 as exposure even though the economic loss is bounded by
+  $1 × shares (NegRisk's convert-floor). Conservative for the PoC; if
+  cap-vetoes start firing surprisingly often on NegRisk leaders,
+  consider a NegRisk-aware deployed-cap that nets across same-event
+  outcomes.
+
+- **No mirroring of leader split / merge / redeem / convert actions.**
+  These are silent on RTDS; the bot would have to poll
+  `data-api.polymarket.com/activity?type=SPLIT,MERGE,REDEEM,CONVERSION`.
+  Skipped for PoC — they're inventory-management moves, not directional
+  signals. See NEGRISK_FINDINGS.md §4 for rationale.
+
+- **Self-redemption is best-effort, not a capital-safety guarantee.**
+  `maker/resolution_handler.py` can call
+  `NegRiskAdapter.redeemPositions` via web3.py, but only when
+  `POLYMARKET_RPC_URL` and a usable private key are configured.
+  Failures are intentionally non-blocking and journaled. Manual UI
+  redemption remains the fallback if the proxy/safe path or gas setup
+  is not ready.
+
+- **Synthetic `transaction_hash` on real-venue `FillRecorded` events.**
+  Format: `f"{client_order_id}:fill:{ts_ns}"`. The kernel's
+  `VenueFillEvent` carries no on-chain tx hash. Cross-referencing
+  journal fills to PolygonScan therefore requires a manual venue
+  order id lookup. v2 enhancement.
+
+## Post-PoC robustness roadmap
+
+First real-money smoke happens *before* any robustness work;
+that smoke produces real-world data about which assumptions
+hold. Colleague's parallel bot had two specific failure modes
+worth designing against — max-size-per-market didn't fire when
+expected, and a separate bug submitted the wrong order. These
+inform what to build next, but only after the smoke. Medium-
+scope investments planned (none of these block PoC):
+
+1. **State verification tools.** Standalone script that reads
+   the journal and reports current bot state — bot positions,
+   leader positions, deployed_usd by market, in-flight
+   orders, daily realised PnL. Disagreement with the
+   Polymarket UI ⇒ state drift detected before it costs
+   money. Lives in `scripts/`.
+
+2. **Pre-submission invariant assertions.** Before any order
+   is submitted, assert that fields are internally consistent:
+    * `size > 0` and within configured cap.
+    * `price ∈ [0, 1]` (Polymarket binary range).
+    * `side ∈ {"BUY", "SELL"}`.
+    * `asset_id` matches a market the leader actually traded
+      (deduce from `signal.source_transaction_hash`).
+    * `condition_id` from signal matches `asset_id`'s parent
+      market in our metadata cache.
+   Cheap assertions; loud failures. Defends against the
+   "wrong order submitted" class of bug.
+
+3. **Cap verification under fault injection.** Tests that
+   deliberately seed corrupted in-memory state (bot positions
+   disagree with journal-derived state) and verify caps still
+   fire correctly. Current tests assume state is correct.
+
+4. **Periodic state snapshots in the journal.** Every N
+   minutes, write a `StateSnapshot` event with the bot's full
+   position state, deployed_usd, halted status, etc. Lets you
+   reconstruct "what was the bot's state at 14:23 yesterday"
+   without piecing together individual fills.
+
+5. **Replay tooling.** Given a journal slice, reconstruct
+   what the bot saw and what it did, second-by-second.
+   Useful for post-mortem. May overlap with the position-
+   rebuild logic in `mirror_engine` and `signal/classifier`;
+   could be a thin layer on top.
+
+Not in scope for PoC; planned for the medium robustness pass
+after the first real-money smoke succeeds.
 
 ## Deferred
 
@@ -360,23 +681,29 @@ See CLAUDE.md "Kernel vendoring status" for context.
 - API-key derivation at startup (currently manual paste in .env).
   Reference: midas/scripts/derive_api_keys.py and the QuickNode
   pattern (deriveApiKey() then createApiKey() fallback).
-- Repo-wide reorganisation merging polymarket-copy/ and
-  polymarket/execution/ under a shared parent. Wait until PoC is
-  running.
+- ~~Repo-wide reorganisation merging polymarket-copy/ and
+  polymarket/execution/ under a shared parent.~~ Done — research
+  moved to polymarket/research/.
 - Re-vendoring _kernel/ against current midas (state_machine.py is
   gone upstream, would require non-trivial migration).
 
 ## Open questions to resolve before real money
 
 - The +100 LOC growth in midas/executor/polymarket_sdk_signer.py
-  since vendoring: bug fix, feature, or refactor? **PARTIALLY
-  RESOLVED:** the vendored signer is sufficient for our use —
-  cli wiring uses `PyClobClientOrderSigner` from `_kernel/`
-  unchanged, and 25 mock-based tests of the wrapper pass.
-  Whether the diff against current upstream contains anything
-  load-bearing for live orders is still untested empirically.
-  Will surface naturally on the first real-money smoke if it
-  matters; not blocking.
+  since vendoring: bug fix, feature, or refactor? **RESOLVED:
+  bypassed entirely.** `mirror/clob_signer.py` replaces the
+  kernel signer in the real-venue path (the kernel signer
+  ignored `PartialCreateOrderOptions`, which made NegRisk
+  signing impossible anyway). The kernel signer file is now
+  dead code in our execution chain — still vendored, still
+  untouched, but never imported from `polymarket/execution/`.
+  Verified by `grep -rn "PyClobClientOrderSigner"
+  polymarket/execution/ --include="*.py"`: only docstring
+  references in the new files and the kernel file itself
+  appear; no live imports. If midas's upstream signer ever
+  gets improvements we want, we'd need to actively pull them
+  into `mirror/clob_signer.py` — they don't propagate
+  automatically.
 - RTDS message latency in practice (probe estimated; needs
   real-world measurement).
 - Maker vs taker coverage in RTDS (whether single fills emit one
@@ -441,17 +768,16 @@ See CLAUDE.md "Kernel vendoring status" for context.
   channel + per-asset cache, `Side`/`TimeInForce` mapped 1:1
   (FOK→IOC per decision 19), `package_id=client_order_id` and
   `leg_id="leg-0"` synthesised since copy-trading is single-leg.
-- **Tick-size lookup robustness.** `RealVenueAdapter._get_tick_size`
-  fetches from `{clob_url}/book?token_id=…` on first use per
-  asset. If the fetch fails (network, 404, malformed response)
-  the wrapper falls back to `tick_size_default=0.01`. This is
-  silently wrong for sub-penny markets (gravia's $0.013 trades
-  are on tick-0.001 markets). On a tick-0.001 market with our
-  fallback, a $0.013 price would round to ticks=1, which the
-  substitute decodes as 1 × 0.01 = $0.01 — a 23% mis-price.
-  First real-money smoke must be on a market with confirmed
-  tick=0.01 (most political/sports markets) until we add
-  explicit-tick configuration or harden the fetch path.
+- **Tick-size lookup robustness.** Tick size now comes through the
+  Gamma-backed metadata path, but missing/malformed Gamma tick fields
+  still fall back to `0.01`. This is silently wrong for sub-penny
+  markets (gravia's $0.013 trades are on tick-0.001 markets). On a
+  tick-0.001 market with a 0.01 fallback, a $0.013 price would round
+  to ticks=1, which the substitute decodes as 1 × 0.01 = $0.01 — a
+  23% mis-price. For the maker Phase-2 smoke, `MakerEngine` now
+  enforces an allowed-tick set (default `{0.01}`) and skips both sides
+  on disallowed ticks. Broader sub-penny support still requires
+  hardening the metadata/fetch path before allowing `0.001`.
 - **Synthetic `transaction_hash` on real-venue `FillRecorded`.**
   The kernel's `VenueFillEvent` has no `transaction_hash` field;
   the wrapper synthesises `f"{client_order_id}:fill:{ts_ns}"`.

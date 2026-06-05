@@ -1,5 +1,7 @@
 # polymarket/execution/ — Claude Code rules
 
+> Hub: [[COWORK]] · [[POLYMARKET_BRAIN]]
+
 This module is a Polymarket copy-trading execution bot. It mirrors
 ONE hardcoded trader's fills with fixed USD sizing and
 mirror-exit logic. The trader address is set via env var
