@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timezone
 
 from executor.fake_venue_adapter import FakeVenueAdapter
 from executor.polymarket_adapter import PolymarketVenueAdapter
@@ -16,12 +17,13 @@ from executor.polymarket_sdk_signer import (
 )
 from executor.risk import ExecutionRiskManager
 from executor.venue import StructuredLogger, VenueAdapter
-from harvester.city_slugs import next_day_slug
+from harvester.city_slugs import date_for_slug, next_day_slug
 from harvester.config import HarvesterConfig
 from harvester.execution import ExecutionEngine
 from harvester.logger import build_logger
 from harvester.market_data import MarketDataClient
 from harvester.oms import OrderManagementSystem
+from harvester.persistence import init_db, set_kill_switch, write_heartbeat
 from harvester.registry import TokenRecord, TokenRegistry
 from harvester.strategy import TailHarvesterStrategy
 
@@ -131,6 +133,7 @@ def _build_adapter(
             api_secret=config.adapter.api_secret,
             passphrase=config.adapter.passphrase,
             private_key=config.private_key,
+            funder=config.funder,
         ),
         signer=signer,
     )
@@ -251,7 +254,25 @@ async def _rolling_slug_manager(
             if ok:
                 del pending_rolls[tomorrow_slug]
 
-        # --- Poll active slugs for close signals ---
+        # --- Date guard: force-roll any slug whose embedded date is before today ---
+        today = datetime.now(timezone.utc).date()
+        for slug in list(active_slugs):
+            if registry.is_closed(slug):
+                continue
+            slug_date = date_for_slug(slug)
+            if slug_date is not None and slug_date < today:
+                registry.mark_closed(slug)
+                logger.info("date_guard_roll", slug=slug, slug_date=str(slug_date))
+                tomorrow_slug = next_day_slug(slug)
+                if tomorrow_slug is None:
+                    continue
+                ok = await _complete_roll(
+                    slug, tomorrow_slug, config, registry, client, logger, active_slugs
+                )
+                if not ok:
+                    pending_rolls[tomorrow_slug] = slug
+
+        # --- Poll active slugs for close signals (and late discovery for empty slots) ---
         for slug in list(active_slugs):
             if registry.is_closed(slug):
                 close_votes.pop(slug, None)
@@ -266,7 +287,51 @@ async def _rolling_slug_manager(
                 close_votes.pop(slug, None)  # reset on poll error — don't count bad data
                 continue
 
-            if not markets or any(m.accepting_orders for m in markets):
+            if not markets:
+                close_votes.pop(slug, None)
+                continue
+
+            if any(m.accepting_orders for m in markets):
+                # Market is open. If this slug has no registry entries it was empty at
+                # startup — add it now so the strategy can start bidding on it.
+                if not registry.token_ids_for_event(slug):
+                    new_records: list[TokenRecord] = []
+                    new_token_ids: list[str] = []
+                    new_condition_ids: list[str] = []
+                    for market in markets:
+                        yes_id = market.yes_token_id
+                        no_id = market.no_token_id
+                        if not yes_id:
+                            continue
+                        new_records.append(TokenRecord(
+                            token_id=yes_id,
+                            event_slug=slug,
+                            condition_id=market.market_id,
+                            end_date_ns=market.end_date_ns,
+                            tick_size=market.tick_size,
+                            is_yes=True,
+                        ))
+                        new_token_ids.append(yes_id)
+                        if no_id and no_id != yes_id:
+                            new_records.append(TokenRecord(
+                                token_id=no_id,
+                                event_slug=slug,
+                                condition_id=market.market_id,
+                                end_date_ns=market.end_date_ns,
+                                tick_size=market.tick_size,
+                                is_yes=False,
+                            ))
+                            new_token_ids.append(no_id)
+                        new_condition_ids.append(market.market_id)
+                    if new_records:
+                        registry.add_records(new_records)
+                        await client.add_token_ids(new_token_ids)
+                        await client.add_condition_ids(new_condition_ids)
+                        logger.info(
+                            "late_discovery_complete",
+                            slug=slug,
+                            new_tokens=len(new_token_ids),
+                        )
                 close_votes.pop(slug, None)  # still open — reset counter
                 continue
 
@@ -318,6 +383,10 @@ async def _run(
     token_ids = list(registry.all_token_ids())
     condition_ids = list({r.condition_id for r in records})
 
+    db = init_db(config.db_path) if config.db_path else None
+    if db:
+        logger.info("persistence_enabled", db_path=config.db_path)
+
     strategy = TailHarvesterStrategy(registry, config.strategy)
     oms = OrderManagementSystem(
         adapter,
@@ -331,6 +400,7 @@ async def _run(
         api_key=config.api_key,
         api_secret=config.api_secret,
         passphrase=config.passphrase,
+        logger=logger,
     )
     engine = ExecutionEngine(
         client=client,
@@ -341,6 +411,7 @@ async def _run(
         config=config.execution,
         logger=logger,
         risk=risk,
+        db=db,
     )
 
     slugs = tuple(config.slugs)
@@ -374,6 +445,24 @@ def main() -> None:
     logger = build_logger()
     dry_run = _is_dry_run()
     config = HarvesterConfig.from_env()
+
+    # Write a startup heartbeat before discovery so the dashboard shows LIVE
+    # immediately rather than DEAD during the ~40s market discovery phase.
+    if config.db_path:
+        try:
+            _startup_db = init_db(config.db_path)
+            set_kill_switch(_startup_db, False)
+            write_heartbeat(
+                _startup_db,
+                ws_market_connected=False,
+                ws_user_connected=False,
+                last_market_msg_age_s=None,
+                active_markets=0,
+                open_orders=0,
+            )
+        except Exception:
+            pass
+
     records = _discover_records(config, logger)
     asyncio.run(_run(config, records, logger, dry_run=dry_run))
 

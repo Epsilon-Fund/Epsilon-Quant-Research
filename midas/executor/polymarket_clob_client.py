@@ -26,6 +26,7 @@ class PolymarketCLOBHttpClientConfig:
     api_key: str | None = None
     api_secret: str | None = None
     passphrase: str | None = None
+    funder: str | None = None   # proxy wallet address; positions are held here, not at the signing key
     request_timeout_ms: int = 10_000
     updates_max_retries: int = 3
     updates_retry_base_ms: int = 100
@@ -33,6 +34,8 @@ class PolymarketCLOBHttpClientConfig:
     cancel_path: str = "/order"
     updates_path: str = "/data/orders"
     open_orders_path: str = "/data/orders"
+    positions_path: str = "/data/positions"   # set to "" to disable position reconciliation
+    data_api_url: str = "https://data-api.polymarket.com"  # Data API base URL for positions
     user_agent: str = "polyexecutor/1.0"
 
 
@@ -185,7 +188,9 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         limit: int,
         timeout_ms: int,
     ) -> Sequence[Mapping[str, object]]:
-        params: dict[str, object] = {"status": "LIVE", "limit": max(1, int(limit))}
+        # No status filter — fetches LIVE (open) and MATCHED (filled) orders so
+        # fills are captured even when the WebSocket is temporarily disconnected.
+        params: dict[str, object] = {"limit": max(1, int(limit))}
 
         attempts = max(1, self._config.updates_max_retries)
         for attempt in range(1, attempts + 1):
@@ -209,15 +214,51 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         return tuple()
 
     def get_open_orders(self, *, timeout_ms: int) -> Sequence[Mapping[str, object]]:
-        status, payload = self._request_json(
+        http_status, payload = self._request_json(
             method="GET",
             path=self._config.open_orders_path,
             timeout_ms=timeout_ms,
-            params={"status": "LIVE"},
+            params=None,
             json_body=None,
         )
+        if http_status >= 400:
+            raise OSError(f"open orders request failed with http_status={http_status}")
+        return tuple(_extract_items(payload))
+
+    def get_positions(self, *, timeout_ms: int) -> Sequence[Mapping[str, object]]:
+        """Fetch positions from the Polymarket Data API.
+
+        Uses https://data-api.polymarket.com/positions (not the CLOB API, which has
+        no positions endpoint). Returns raw dicts with conditionId, outcome, size,
+        avgPrice fields for the adapter to map to VenuePosition.
+        """
+        if not self._config.data_api_url:
+            return tuple()
+
+        # Proxy wallet accounts: positions are held by the funder address, not the signing key.
+        address = self._config.funder or ""
+        if not address and self._config.private_key:
+            try:
+                from eth_account import Account
+                address = Account.from_key(self._config.private_key).address
+            except Exception:
+                pass
+        if not address:
+            return tuple()
+
+        url = _join_url(self._config.data_api_url, "/positions")
+        final_url = _append_query(url, {"user": address})
+        status, body = self._transport.request(
+            method="GET",
+            url=final_url,
+            timeout_ms=max(1, int(timeout_ms)),
+            headers={"Accept": "application/json", "User-Agent": self._config.user_agent},
+        )
         if status >= 400:
-            raise OSError(f"open orders request failed with http_status={status}")
+            raise OSError(f"get_positions (data api) failed with http_status={status}")
+        payload = _decode_json(body)
+        if isinstance(payload, list):
+            return tuple(item for item in payload if isinstance(item, Mapping))
         return tuple(_extract_items(payload))
 
     def _request_json(
@@ -274,6 +315,8 @@ class PolymarketCLOBHttpClient(PolymarketCLOBClient):
         headers["POLY_TIMESTAMP"] = timestamp
         headers["POLY_API_KEY"] = self._config.api_key
         headers["POLY_PASSPHRASE"] = self._config.passphrase
+        if self._config.funder:
+            headers["POLY_FUNDER"] = self._config.funder
         return headers
 
     @staticmethod

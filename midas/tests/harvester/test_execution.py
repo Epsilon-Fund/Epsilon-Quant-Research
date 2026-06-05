@@ -82,6 +82,9 @@ class _Adapter:
         self.poll_calls += 1
         return tuple()
 
+    def get_positions(self):
+        return []
+
     def reconcile_open_orders(self, expected):
         return ReconciliationResult(
             venue_open_client_order_ids=tuple(),

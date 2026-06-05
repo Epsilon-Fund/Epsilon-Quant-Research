@@ -18,6 +18,7 @@ from .venue import (
     SubmitOrderStatus,
     VenueAdapter,
     VenueOrderIntent,
+    VenuePosition,
 )
 
 
@@ -161,6 +162,12 @@ class FakeVenueAdapter(VenueAdapter):
         queued = tuple(self._queued_updates)
         self._queued_updates.clear()
         return queued
+
+    def cancel_all_open_at_venue(self) -> int:
+        return 0
+
+    def get_positions(self) -> list[VenuePosition]:
+        return []
 
     def reconcile_open_orders(self, expected_open_client_order_ids: set[str]) -> ReconciliationResult:
         open_ids = tuple(

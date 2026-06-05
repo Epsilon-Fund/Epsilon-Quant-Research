@@ -67,17 +67,16 @@ class RiskManagerConfig:
         Maximum realised loss (in USDC) before trading halts for the session.
         Default $200. Set to 0 to disable.
 
-    max_notional_per_event_usdc:
-        Maximum total USDC that can be filled on a single event.
-        This is the same as HARVESTER_MAX_NOTIONAL_PER_EVENT in .env.
-        Stored here so the risk manager can enforce it independently.
+    max_position_qty_per_event:
+        Maximum total shares that can be filled on a single event.
+        With order_qty=5 and this set to 10, two orders can fill before stopping.
 
     enable_auto_kill_switch:
         If False, automatic halts from loss cap are suppressed.
         Manual kill switch always works regardless.
     """
     daily_loss_cap_usdc: float = 200.0
-    max_notional_per_event_usdc: float = 20.0
+    max_position_qty_per_event: int = 10
     enable_auto_kill_switch: bool = True
 
 
@@ -139,7 +138,8 @@ class ExecutionRiskManager:
         self,
         *,
         event_slug: str,
-        filled_usdc: float,
+        filled_qty: float,
+        order_qty: int,
         ts_ns: int,
     ) -> RiskDecision:
         """
@@ -148,7 +148,7 @@ class ExecutionRiskManager:
         Checks in order:
           1. Manual kill switch
           2. Auto kill switch (daily loss cap)
-          3. Per-event notional cap
+          3. Per-event position cap: filled_qty + order_qty > max_position_qty_per_event
         """
         if self._manual_kill_active:
             return RiskDecision.deny(
@@ -166,12 +166,12 @@ class ExecutionRiskManager:
                 should_halt_trading=True,
             )
 
-        if filled_usdc >= self._config.max_notional_per_event_usdc:
+        if filled_qty + order_qty > self._config.max_position_qty_per_event:
             return RiskDecision.deny(
                 code=RiskReasonCode.MAX_NOTIONAL_PER_EVENT,
                 reason=(
-                    f"event {event_slug} filled {filled_usdc:.2f} USDC "
-                    f">= cap {self._config.max_notional_per_event_usdc:.2f}"
+                    f"event {event_slug} filled {filled_qty:.1f} + order {order_qty} "
+                    f"= {filled_qty + order_qty:.1f} shares > cap {self._config.max_position_qty_per_event}"
                 ),
                 ts_ns=ts_ns,
             )

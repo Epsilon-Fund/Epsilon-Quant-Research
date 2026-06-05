@@ -5,7 +5,8 @@ websockets>=12.0
 # Environment loading
 python-dotenv>=1.0.0
 
-# Polymarket signing (required for live order submission)
+# Polymarket signing — V2 required for CLOB V2 protocol (active since 2026-04-27)
+py-clob-client-v2
 py-clob-client>=0.18.0
 
 # Testing

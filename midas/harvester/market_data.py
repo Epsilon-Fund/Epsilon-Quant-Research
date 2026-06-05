@@ -52,6 +52,7 @@ class MarketDataConfig:
     ping_interval_s: float = 10.0
     reconnect_delay_s: float = 2.0
     queue_max_size: int = 1_000
+    subscription_chunk_size: int = 200  # max tokens per subscription message
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ class MarketDataClient:
         "_market_task",
         "_user_task",
         "_running",
+        "_logger",
     )
 
     def __init__(
@@ -96,6 +98,7 @@ class MarketDataClient:
         api_key: str | None = None,
         api_secret: str | None = None,
         passphrase: str | None = None,
+        logger: Any | None = None,
     ) -> None:
         self._token_ids = list(token_ids)
         self._condition_ids = list(condition_ids)
@@ -103,6 +106,7 @@ class MarketDataClient:
         self._api_key = api_key
         self._api_secret = api_secret
         self._passphrase = passphrase
+        self._logger = logger
         self._queue: asyncio.Queue[MarketDataEvent] = asyncio.Queue(
             maxsize=self._config.queue_max_size
         )
@@ -181,15 +185,27 @@ class MarketDataClient:
     # WebSocket loops — each reconnects automatically on disconnect
     # ------------------------------------------------------------------
 
+    def _log(self, level: str, event: str, **kw: Any) -> None:
+        if self._logger is None:
+            return
+        getattr(self._logger, level, self._logger.info)(event, **kw)
+
     async def _market_ws_loop(self) -> None:
         while self._running:
+            token_ids = list(self._token_ids)
+            self._log("info", "market_ws_connecting", token_count=len(token_ids))
             try:
                 async with websockets.connect(self._config.market_ws_url) as ws:
                     await ws.send(json.dumps({
-                        "assets_ids": self._token_ids,
+                        "assets_ids": token_ids,
                         "type": "Market",
-                        "custom_feature_enabled": True,  # enables best_bid/best_ask in price_change events
+                        "custom_feature_enabled": True,
                     }))
+                    self._log(
+                        "info", "market_ws_subscribed",
+                        token_count=len(token_ids),
+                        chunks=1,
+                    )
                     ping = asyncio.create_task(self._ping_loop(ws))
                     try:
                         async for raw in ws:
@@ -197,8 +213,9 @@ class MarketDataClient:
                     finally:
                         ping.cancel()
                         await asyncio.gather(ping, return_exceptions=True)
-            except (websockets.exceptions.WebSocketException, OSError):
-                pass
+                self._log("warning", "market_ws_closed", token_count=len(token_ids))
+            except (websockets.exceptions.WebSocketException, OSError) as exc:
+                self._log("warning", "market_ws_error", error=str(exc), token_count=len(token_ids))
             except asyncio.CancelledError:
                 return
             if self._running:
@@ -357,10 +374,10 @@ class MarketDataClient:
         client_order_id = str(
             msg.get("clientOrderId") or msg.get("client_order_id") or ""
         )
-        # For trade/fill messages Polymarket uses taker_order_id / maker_order_id (venue hashes).
-        # We emit the venue order ID as a fallback so the adapter can resolve it via its lookup table.
+        # For trade/fill messages Polymarket uses maker_order_id (our passive GTC bid) and
+        # taker_order_id (the counterparty). Try maker first — we are always the maker.
         venue_order_id = str(
-            msg.get("taker_order_id") or msg.get("maker_order_id")
+            msg.get("maker_order_id") or msg.get("taker_order_id")
             or msg.get("order_id") or msg.get("id") or ""
         )
         if not client_order_id and not venue_order_id:
@@ -372,6 +389,26 @@ class MarketDataClient:
         if status in {"MATCHED", "TRADE"}:
             fill_qty = _to_float(msg.get("size") or msg.get("matched_amount"))
             fill_price = _to_float(msg.get("price"))
+
+        # When a taker hits multiple resting orders, Polymarket delivers a single TRADE event
+        # with a "maker_orders" array listing each maker's portion. Emit individual fill events
+        # per maker so the OMS can attribute the correct amount to our specific order.
+        maker_orders = msg.get("maker_orders")
+        if isinstance(maker_orders, list) and maker_orders and status in {"MATCHED", "TRADE"}:
+            for mo in maker_orders:
+                mo_id = str(mo.get("order_id") or "")
+                mo_amount = _to_float(mo.get("matched_amount"))
+                mo_price = _to_float(mo.get("price")) or fill_price
+                if mo_id and mo_amount:
+                    self._put(UserOrderEvent(
+                        client_order_id=mo_id,
+                        status="MATCHED",
+                        fill_qty=mo_amount,
+                        fill_price=mo_price or 0.0,
+                        ts_ns=ts_ns,
+                    ))
+            return
+
         self._put(UserOrderEvent(
             client_order_id=client_order_id or venue_order_id,
             status=status,

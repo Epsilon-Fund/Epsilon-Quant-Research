@@ -30,10 +30,10 @@ class VenueFillEvent:
     package_id: str
     leg_id: str
     client_order_id: str
-    fill_qty: int
+    fill_qty: float
     fill_price: float
     ts_ns: int
-    cumulative_qty: int | None = None
+    cumulative_qty: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +118,16 @@ class CancelOrderResult:
     events: tuple[NormalizedOrderEvent, ...]
     ambiguous: bool
     message: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class VenuePosition:
+    """A single token position held at the venue."""
+    token_id: str
+    size: float       # shares currently held
+    cost_usdc: float  # total USDC spent to acquire this position
+    condition_id: str = ""  # set when sourced from Data API (conditionId field)
+    outcome: str = ""       # "Yes" or "No" — used with condition_id to resolve token_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,6 +274,10 @@ class VenueAdapter(Protocol):
     ) -> tuple[NormalizedOrderEvent, ...]: ...
 
     def reconcile_open_orders(self, expected_open_client_order_ids: set[str]) -> ReconciliationResult: ...
+
+    def cancel_all_open_at_venue(self) -> int: ...
+
+    def get_positions(self) -> Sequence[VenuePosition]: ...
 
 
 def _sanitize_component(value: str) -> str:

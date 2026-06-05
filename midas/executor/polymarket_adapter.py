@@ -25,6 +25,7 @@ from .venue import (
     SubmitOrderStatus,
     VenueAdapter,
     VenueOrderIntent,
+    VenuePosition,
 )
 
 
@@ -91,8 +92,8 @@ class PolymarketOrderUpdate:
     ts_ns: int
     sequence: int | None
     event_id: str | None
-    fill_delta: int | None = None
-    cumulative_fill: int | None = None
+    fill_delta: float | None = None
+    cumulative_fill: float | None = None
     fill_price: float | None = None
     canceled_qty: int | None = None
     reason: str | None = None
@@ -113,7 +114,7 @@ class _OrderRecord:
     lifecycle: _OrderLifecycle
     last_sequence: int
     last_ts_ns: int
-    cumulative_fill_qty: int
+    cumulative_fill_qty: float
     ambiguous_submit: bool
     ambiguous_cancel: bool
 
@@ -154,6 +155,8 @@ class PolymarketCLOBClient(Protocol):
     ) -> Sequence[Mapping[str, object]]: ...
 
     def get_open_orders(self, *, timeout_ms: int) -> Sequence[Mapping[str, object]]: ...
+
+    def get_positions(self, *, timeout_ms: int) -> Sequence[Mapping[str, object]]: ...
 
 
 class PolymarketVenueAdapter(VenueAdapter):
@@ -625,6 +628,91 @@ class PolymarketVenueAdapter(VenueAdapter):
             generated_events=tuple(generated),
         )
 
+    def cancel_all_open_at_venue(self) -> int:
+        """Fetch all open orders from the venue and cancel each by venue order ID.
+
+        Called once at startup to clear stale orders from previous sessions.
+        Uses venue_order_id directly so it works even when the adapter's
+        in-memory client_order_id maps have been reset after a restart.
+        Returns the number of cancels attempted.
+        """
+        try:
+            raw_open = self._client.get_open_orders(timeout_ms=self._config.poll_timeout_ms)
+        except Exception as exc:
+            self._logger.warning("startup_cancel_fetch_failed", error=str(exc))
+            return 0
+
+        count = 0
+        for item in raw_open:
+            venue_order_id = _as_str(item.get("id") or item.get("orderID") or item.get("order_id"))
+            if not venue_order_id:
+                continue
+            try:
+                self._client.cancel_order(
+                    venue_order_id=venue_order_id,
+                    timeout_ms=self._config.cancel_timeout_ms,
+                )
+                count += 1
+            except Exception:
+                pass
+        if count:
+            self._logger.info("startup_cancelled_stale_orders", count=count)
+        return count
+
+    def get_positions(self) -> list[VenuePosition]:
+        """Fetch current token positions from the venue.
+
+        Maps raw API fields to VenuePosition, trying multiple field-name variants
+        to stay robust across Polymarket API versions.
+
+        cost_usdc is derived from cash_invested if available, otherwise size * avg_price.
+        Only positions with size > 0 are returned.
+        """
+        raw = self._client.get_positions(timeout_ms=self._config.poll_timeout_ms)
+        result: list[VenuePosition] = []
+        for item in raw:
+            size = _as_float(
+                item.get("size") or item.get("position_size")
+                or item.get("amount") or item.get("quantity")
+            )
+            if size is None or size <= 0:
+                continue
+
+            # Prefer cash_invested (exact USDC paid) over reconstructed size * avg_price.
+            cash_invested = _as_float(
+                item.get("cash_invested") or item.get("cashInvested")
+                or item.get("invested") or item.get("total_invested")
+            )
+            avg_price = _as_float(
+                item.get("avg_price") or item.get("average_price") or item.get("avgPrice")
+                or item.get("entry_price") or item.get("avg_entry_price") or item.get("price")
+            )
+            if cash_invested is not None and cash_invested > 0:
+                cost_usdc = cash_invested
+            elif avg_price is not None and avg_price > 0:
+                cost_usdc = size * avg_price
+            else:
+                continue  # can't determine cost basis — skip
+
+            # Data API returns conditionId+outcome; CLOB API returns asset_id/token_id.
+            token_id = _as_str(
+                item.get("asset_id") or item.get("token_id") or item.get("assetId")
+            ) or ""
+            condition_id = _as_str(item.get("conditionId") or item.get("condition_id")) or ""
+            outcome = _as_str(item.get("outcome")) or ""
+
+            if not token_id and not condition_id:
+                continue  # no identifier at all — skip
+
+            result.append(VenuePosition(
+                token_id=token_id,
+                size=size,
+                cost_usdc=cost_usdc,
+                condition_id=condition_id,
+                outcome=outcome,
+            ))
+        return result
+
     def _build_request(self, intent: VenueOrderIntent, client_order_id: str) -> PolymarketOrderRequest:
         # Convert integer ticks to CLOB decimal price: 996 ticks @ 0.001 → "0.996"
         decimal_places = 3 if intent.tick_size <= 0.001 else 2
@@ -680,6 +768,14 @@ class PolymarketVenueAdapter(VenueAdapter):
         if record is None:
             parsed = self._id_factory.parse(client_order_id)
             if parsed and parsed.package_id and parsed.leg_id:
+                # Skip terminal orders unknown to this session — they are from a previous
+                # run and would incorrectly inflate filled_usdc if processed as new fills.
+                terminal = update.status.upper() in {
+                    "MATCHED", "CANCELED", "CANCELLED", "FILLED", "DONE", "REJECTED",
+                }
+                if terminal:
+                    self._metrics.increment("venue.update.unknown_terminal_skipped")
+                    return None
                 record = _OrderRecord(
                     package_id=parsed.package_id,
                     leg_id=parsed.leg_id,
@@ -711,13 +807,22 @@ class PolymarketVenueAdapter(VenueAdapter):
             record.venue_order_id = update.venue_order_id
             self._client_by_venue_id[update.venue_order_id] = client_order_id
 
+        # Compute effective fill_delta.
+        # The REST polling API returns size_matched (cumulative) but not fill_delta
+        # (incremental). Derive the delta from the difference vs last known fill qty.
+        effective_fill_delta = update.fill_delta
+        if effective_fill_delta is None and update.cumulative_fill is not None:
+            delta = update.cumulative_fill - record.cumulative_fill_qty
+            if delta > 0:
+                effective_fill_delta = delta
+
         # Fill updates have priority because they represent realized exposure.
-        if update.fill_delta is not None and update.fill_delta > 0:
+        if effective_fill_delta is not None and effective_fill_delta > 0:
             fill_event = VenueFillEvent(
                 package_id=record.package_id,
                 leg_id=record.leg_id,
                 client_order_id=record.client_order_id,
-                fill_qty=update.fill_delta,
+                fill_qty=effective_fill_delta,
                 fill_price=update.fill_price or 0.0,
                 ts_ns=update.ts_ns,
                 cumulative_qty=update.cumulative_fill,
@@ -762,6 +867,25 @@ class PolymarketVenueAdapter(VenueAdapter):
                 ts_ns=update.ts_ns,
                 client_order_id=record.client_order_id,
                 event=reject,
+            )
+
+        if status in {"MATCHED", "FILLED"}:
+            # Fully filled order — emit a cancel so OMS clears the open slot.
+            # The fill itself was already emitted above via effective_fill_delta.
+            cancel = VenueCancelEvent(
+                package_id=record.package_id,
+                leg_id=record.leg_id,
+                client_order_id=record.client_order_id,
+                canceled_qty=0,
+                reason="fully_matched",
+                ts_ns=update.ts_ns,
+            )
+            return _NormalizedEnvelope(
+                event_key=self._event_key(update, suffix="matched_cancel"),
+                sequence=update.sequence,
+                ts_ns=update.ts_ns,
+                client_order_id=record.client_order_id,
+                event=cancel,
             )
 
         if status in {"CANCELED", "CANCELLED", "DONE"}:
@@ -880,13 +1004,16 @@ def _parse_raw_update(raw: Mapping[str, object]) -> PolymarketOrderUpdate:
         ts_ns=_as_ts_ns(raw),
         sequence=_as_int(raw.get("sequence") or raw.get("seq"), default=None),
         event_id=_as_str(raw.get("event_id") or raw.get("eventId")),
-        fill_delta=_as_int(raw.get("fill_delta") or raw.get("last_fill_qty"), default=None),
+        fill_delta=_as_float(raw.get("fill_delta") or raw.get("last_fill_qty")),
         # Polymarket uses "size_matched" for cumulative matched size in polling responses
-        cumulative_fill=_as_int(
-            raw.get("cumulative_fill") or raw.get("filled_size") or raw.get("size_matched"),
-            default=None,
+        cumulative_fill=_as_float(
+            raw.get("cumulative_fill") or raw.get("filled_size") or raw.get("size_matched")
         ),
-        fill_price=_as_float(raw.get("fill_price") or raw.get("last_fill_price")),
+        # "price" is the limit price — valid fill price for passive GTC bids (filled at bid or better)
+        fill_price=_as_float(
+            raw.get("fill_price") or raw.get("last_fill_price")
+            or raw.get("avg_price") or raw.get("average_price") or raw.get("price")
+        ),
         canceled_qty=_as_int(raw.get("canceled_size"), default=None),
         reason=_as_str(raw.get("reason") or raw.get("error") or raw.get("errorMsg") or raw.get("message")),
     )

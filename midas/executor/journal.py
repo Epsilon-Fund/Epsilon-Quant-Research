@@ -802,7 +802,7 @@ def deserialize_venue_fill_event(data: Mapping[str, Any]) -> VenueFillEvent:
         package_id=str(data["package_id"]),
         leg_id=str(data["leg_id"]),
         client_order_id=str(data["client_order_id"]),
-        fill_qty=int(data["fill_qty"]),
+        fill_qty=float(data["fill_qty"]),
         fill_price=float(raw_price),
         ts_ns=int(data["ts_ns"]),
         cumulative_qty=int(cumulative) if cumulative is not None else None,

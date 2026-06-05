@@ -50,6 +50,9 @@ class HarvesterConfig:
     )
     risk: RiskManagerConfig = field(default_factory=RiskManagerConfig)
 
+    # Persistence
+    db_path: str | None = None  # path to SQLite file; None disables DB entirely
+
     # OMS
     oms_package_id: str = "tail-harvester-v1"
     oms_order_qty: int = 10
@@ -106,13 +109,14 @@ class HarvesterConfig:
 
         # --- Risk ---
         risk_daily_loss_cap = _float("RISK_DAILY_LOSS_CAP_USDC", default=200.0)
-        risk_max_notional = _float("RISK_MAX_NOTIONAL_PER_EVENT_USDC", default=20.0)
+        risk_max_notional = _int("RISK_MAX_NOTIONAL_PER_EVENT_USDC", default=10)
         risk_auto_kill_raw = os.getenv("RISK_ENABLE_AUTO_KILL", "true").strip().lower()
         risk_auto_kill = risk_auto_kill_raw not in {"0", "false", "no"}
 
         # --- Execution ---
-        poll_interval_s = _float("EXECUTION_POLL_INTERVAL_S", default=15.0)
         shutdown_timeout_s = _float("EXECUTION_SHUTDOWN_TIMEOUT_S", default=10.0)
+        stop_loss_price = _float("RISK_MIN_TOKEN_PRICE", default=0.0)
+        position_reconcile_interval_s = _float("EXECUTION_POSITION_RECONCILE_INTERVAL_S", default=10.0)
 
         # --- Signing ---
         # For Polymarket proxy-wallet accounts (the standard web-UI setup):
@@ -124,6 +128,9 @@ class HarvesterConfig:
         signature_type = _int("PM_SIGNATURE_TYPE", default=1)
         _funder_raw = os.getenv("PM_FUNDER", "").strip()
         funder: str | None = _funder_raw if _funder_raw else None
+
+        # --- Persistence ---
+        db_path = os.getenv("DB_PATH", "").strip() or None
 
         # --- Infrastructure URLs ---
         clob_api_url = os.getenv("CLOB_API_URL", "https://clob.polymarket.com")
@@ -142,8 +149,9 @@ class HarvesterConfig:
                 min_reprice_ticks=min_reprice,
             ),
             execution=ExecutionConfig(
-                poll_interval_s=poll_interval_s,
                 shutdown_timeout_s=shutdown_timeout_s,
+                stop_loss_price=stop_loss_price,
+                position_reconcile_interval_s=position_reconcile_interval_s,
             ),
             market_data=MarketDataConfig(),
             discovery=SlugResolutionConfig(
@@ -156,11 +164,12 @@ class HarvesterConfig:
                 passphrase=passphrase,
                 private_key=private_key,
             ),
+            db_path=db_path,
             oms_package_id=oms_package_id,
             oms_order_qty=oms_order_qty,
             risk=RiskManagerConfig(
                 daily_loss_cap_usdc=risk_daily_loss_cap,
-                max_notional_per_event_usdc=risk_max_notional,
+                max_position_qty_per_event=risk_max_notional,
                 enable_auto_kill_switch=risk_auto_kill,
             ),
         )
@@ -199,7 +208,7 @@ def _int(name: str, *, default: int) -> int:
     if not raw:
         return default
     try:
-        return int(raw)
+        return int(float(raw))
     except ValueError:
         raise ValueError(
             f"Environment variable {name!r} must be an integer, got {raw!r}"
