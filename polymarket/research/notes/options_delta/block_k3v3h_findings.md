@@ -3,7 +3,7 @@
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
 
-Generated: 2026-05-31T01:27:07Z
+Generated: 2026-06-06T23:08:35Z
 
 ## Headline
 
@@ -56,8 +56,8 @@ Across strict-source trades, top bucket `far_absz_ge1|late_lt30m` contributes 93
 
 ## Method
 
-- Signal: `dynamic_logit_gap = (pm_logit - fair_logit) - causal_static_logit_gap`, where the static gap is an EWMA using only prior rows in the same market.
-- Fair value: European digital `P=N(z)`, `z=ln(S/K)/(sigma*sqrt(tau))`, with Binance proxy spot, window-open strike, and causal EWMA vol.
+- Signal: `dynamic_logit_gap = (pm_logit - rv_physical_prob_logit) - causal_static_logit_gap`, where the static gap is an EWMA using only prior rows in the same market.
+- RV physical-probability value: European digital `P=N(z)`, `z=ln(S/K)/(sigma*sqrt(tau))`, with Binance proxy spot, window-open strike, and causal EWMA vol. This is a physical forecast probability, not external option-IV fair.
 - Trade direction: negative dynamic gap buys `UP`; positive dynamic gap buys `DOWN`.
 - Hedge: 1 binary share is hedged every second with Binance notional from digital delta; `UP` uses short delta, `DOWN` uses long delta.
 - Flatten: exit on convergence to the exit band, large static basis, or before `abs(z)<0.25` with tau <= 900s.

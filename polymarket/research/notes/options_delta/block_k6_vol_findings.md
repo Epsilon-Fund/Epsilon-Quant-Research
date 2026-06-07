@@ -7,13 +7,13 @@
 
 No strict-source (|z|, tau) bucket clears zero after Polymarket fee plus banded Binance hedge turnover; the vol branch does not pass the falsifier on this IS panel.
 
-Clean-source rows imply PM vol minus causal EWMA of **3.7 vol pts** on average; the ex-post remaining captured-path diagnostic is **4.0 vol pts**. The sign is useful diagnostically, but the tradable test is the banded delta-hedged simulation below.
+Clean-source rows imply PM midpoint-implied vol minus causal EWMA of **3.7 vol pts** on average; the ex-post remaining captured-path diagnostic is **4.0 vol pts**. The sign is useful diagnostically, but the tradable test is the banded delta-hedged simulation below.
 
 Best strict bucket/config by lower CI is `far_absz_ge1|late_lt30m` at latency 5s, entry gap 20.0 vol pts, band 10.00c: mean net -9.39c, CI [-0.1905, -0.0113].
 
 ## Inversion Method
 
-For each row I invert the European digital model `P_up = N(log(S/K)/(sigma*sqrt(tau)))`, with `K` from the Binance window-open reference in the K3 panel. A positive finite implied vol exists only when the PM probability is on the same side of 50% as Binance moneyness. Rows that violate that are marked `no_positive_solution`; they are not forced into a bogus sigma.
+For each row I invert the PM midpoint through the European digital model `P_up = N(log(S/K)/(sigma*sqrt(tau)))`, with `K` from the Binance window-open reference in the K3 panel. This `pm_mid_implied_vol_annualized` is a diagnostic representation of the PM price, not external option-IV fair. A positive finite implied vol exists only when the PM probability is on the same side of 50% as Binance moneyness. Rows that violate that are marked `no_positive_solution`; they are not forced into a bogus sigma.
 
 Implied-vol validity:
 
@@ -29,7 +29,7 @@ Implied-vol validity:
 
 This table uses the clean source sample: strict Chainlink/Pyth-vs-Binance settlement filter, no large static 10c basis rows, and no toxic near-strike/near-expiry rows. `Remaining RV` and `full-window RV` columns are diagnostic/lookahead only.
 
-| bucket | rows | valid IV | PM IV | EWMA | PM-EWMA | PM-EWMA CI | remaining RV | PM-rem RV | full RV | PM-full RV |
+| bucket | rows | valid IV | PM mid-IV | EWMA | PM-EWMA | PM-EWMA CI | remaining RV | PM-rem RV | full RV | PM-full RV |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | far_absz_ge1|early_gt2h | 3743 | 100.00% | 40.6 vol pts | 42.3 vol pts | -1.7 vol pts | [-0.0513, 0.0852] | 40.9 vol pts | -0.3 vol pts | 37.2 vol pts | 3.5 vol pts |
 | far_absz_ge1|late_lt30m | 23138 | 100.00% | 69.3 vol pts | 45.3 vol pts | 24.1 vol pts | [0.1385, 0.3418] | 38.5 vol pts | 30.2 vol pts | 47.2 vol pts | 22.1 vol pts |
@@ -43,7 +43,7 @@ This table uses the clean source sample: strict Chainlink/Pyth-vs-Binance settle
 
 ## Gamma-Scalp Backtest
 
-Rules: for each market/bucket/config, take the first eligible entry on the side implied by the causal IV-EWMA gap; buy the OTM/positive-vega side when PM IV is cheap, or the ITM/negative-vega proxy when PM IV is rich. Hold to resolution, delta-hedge on Binance using the causal K3 digital delta, and rebalance only when target hedge notional moves by the band. Costs are the PM taker fee at entry plus Binance hedge turnover at 6.0bp. Entries exclude invalid IV, large static basis, and toxic near-expiry rows. Bucket entries are diagnostic and may overlap across buckets within the same market.
+Rules: for each market/bucket/config, take the first eligible entry on the side implied by the causal PM-mid-IV-minus-EWMA gap; buy the OTM/positive-vega side when PM midpoint-implied IV is cheap, or the ITM/negative-vega proxy when PM midpoint-implied IV is rich. Hold to resolution, delta-hedge on Binance using the causal K3 digital delta, and rebalance only when target hedge notional moves by the band. Costs are the PM taker fee at entry plus Binance hedge turnover at 6.0bp. Entries exclude invalid PM-mid-IV, large static basis, and toxic near-expiry rows. Bucket entries are diagnostic and may overlap across buckets within the same market.
 
 | bucket | lat | entry gap | band | trades | net | net CI | unhedged | PM fee | hedge cost | win | median hold |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -60,7 +60,7 @@ Rules: for each market/bucket/config, take the first eligible entry on the side 
 
 ## Caveats
 
-- The causal comparison is PM IV versus trailing/EWMA vol available at time `t`.
+- The causal comparison is PM midpoint-implied IV versus trailing/EWMA vol available at time `t`; it is not an external option-IV fair.
 - The remaining-window and full-window realized vol columns are explicitly ex-post diagnostics.
 - The full-window RV is pulled from the earlier K3 full-window pass when present; remaining RV is computed on the captured Binance path after each row, so it can understate unobserved pre/post-capture variance.
 - The trade ledger uses Chainlink/Pyth settlement when available, and the strict source filter removes direction disagreements and small Binance settlement margins.
