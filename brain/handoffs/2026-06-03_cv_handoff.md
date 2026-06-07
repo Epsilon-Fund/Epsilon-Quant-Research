@@ -1,3 +1,18 @@
+---
+title: "CV Handoff — Epsilon Quant Research (Justin Iturregui)"
+created: 2026-06-05
+status: archived
+owner: justin
+project: infra
+para: archive
+hubs:
+  - COWORK
+  - CODEX
+tags:
+  - obsidian
+  - brain
+  - handoff
+---
 # CV Handoff — Epsilon Quant Research (Justin Iturregui)
 
 > Hub: [[COWORK]] · [[STRATEGY_REFERENCE]] · [[POLYMARKET_BRAIN]]

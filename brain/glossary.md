@@ -1,3 +1,18 @@
+---
+title: "glossary"
+created: 2026-06-05
+status: closed
+owner: justin
+project: infra
+para: area
+hubs:
+  - CODEX
+  - COWORK
+tags:
+  - obsidian
+  - brain
+  - infra
+---
 # glossary
 
 Terms and acronyms across Epsilon projects.

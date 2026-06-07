@@ -1,3 +1,16 @@
+---
+title: "Real-money smoke procedure — first run after wiring lands"
+created: 2026-05-18
+status: closed
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - research
+  - execution
+---
 # Real-money smoke procedure — first run after wiring lands
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

@@ -1,3 +1,16 @@
+---
+title: "Politics NegRisk maker smoke procedure - live ladder"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - research
+  - execution
+---
 # Politics NegRisk maker smoke procedure - live ladder
 
 > Hub: [[strat_market_making]] / [[COWORK]]

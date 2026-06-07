@@ -1,7 +1,25 @@
+---
+title: "WebSocket leader-fills probe — findings"
+created: 2026-05-18
+status: watching
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - research
+  - execution
+---
 # WebSocket leader-fills probe — findings
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: WebSocket leader-fills probe — findings in the Polymarket execution area.
+- Existing takeaway/status: Investigation date: 2026-05-07. Read-only desk research + one probe script ([ws_leader_fills_probe.py](ws_leader_fills_probe.py)). No auth used. No orders submitted.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Investigation date: 2026-05-07. Read-only desk research + one probe script
 ([ws_leader_fills_probe.py](ws_leader_fills_probe.py)). No auth used. No
 orders submitted.

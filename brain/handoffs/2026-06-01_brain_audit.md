@@ -1,3 +1,18 @@
+---
+title: "Brain Audit - 2026-06-01"
+created: 2026-06-05
+status: archived
+owner: justin
+project: infra
+para: archive
+hubs:
+  - COWORK
+  - CODEX
+tags:
+  - obsidian
+  - brain
+  - handoff
+---
 # Brain Audit - 2026-06-01
 
 ## Summary

@@ -1,8 +1,26 @@
+---
+title: "Weather FTC TP — state of the strategy (2026-05-15)"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - copytrade
+---
 # Weather FTC TP — state of the strategy (2026-05-15)
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Weather FTC TP — state of the strategy (2026-05-15) in the copytrade area.
+- Existing takeaway/status: State note for the Weather FTC TP strategy after bookkeeping and slippage work. The pre-slippage accounting bugs were fixed; taker execution made the canonical edge negative, while the later WS-passive framing is the relevant branch to read before acting.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Short-form summary of where the FTC take-profit weather strategy stands after the bookkeeping fixes and the next-fill slippage work. Copy/paste into chat or doc as needed. Numbers throughout are for the canonical cell `(p_in=0.60, p_out=0.90, policy='all')` unless noted; n=8,938 entries.
 
 ## TL;DR

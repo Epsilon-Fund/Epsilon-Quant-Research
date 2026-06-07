@@ -1,3 +1,19 @@
+---
+title: "Codex Orientation — Epsilon Quant Research"
+created: 2026-06-05
+status: active
+owner: justin
+project: infra
+para: area
+hubs:
+  - CODEX
+  - COWORK
+  - VAULT_MAP
+tags:
+  - obsidian
+  - brain
+  - infra
+---
 # Codex Orientation — Epsilon Quant Research
 
 > Read this file at the start of every Codex session.
@@ -35,7 +51,7 @@ brain/
 
 Findings and notes live in strategy subfolders under `polymarket/research/notes/` (Polymarket) and `docs/STRATEGY_REFERENCE.md` (crypto). Do not create prompt files or new top-level brain files without a clear reason — append to an existing hub or create a findings note in the right subfolder.
 
-For data artifacts, do not rediscover the file tree from scratch unless the task is explicitly a fresh audit. Use [[polymarket_data_manifest]] for Polymarket Parquet/CSV/JSONL/DuckDB/raw data, [[polymarket_csv_output_audit]] for result-table layout, [[polymarket_plot_gallery_index]] for generated figures, and [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] for crypto/live-trading Parquet, pickle, CSV, and JSONL artifacts.
+For data artifacts, do not rediscover the file tree from scratch unless the task is explicitly a fresh audit. Use [[polymarket_data_manifest]] for Polymarket Parquet/CSV/JSONL/DuckDB/raw data, [[polymarket_csv_output_audit]] for result-table layout, [[polymarket_plot_gallery_index]] for generated figures, [[storage_consolidation_audit_2026_06_05]] for disk-pressure/storage-layout decisions, and [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] for crypto/live-trading Parquet, pickle, CSV, and JSONL artifacts.
 
 ---
 

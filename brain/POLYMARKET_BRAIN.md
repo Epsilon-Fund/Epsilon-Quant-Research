@@ -1,3 +1,18 @@
+---
+title: "Polymarket Brain Map"
+created: 2026-06-05
+status: closed
+owner: justin
+project: infra
+para: area
+hubs:
+  - COWORK
+  - CODEX
+tags:
+  - obsidian
+  - brain
+  - infra
+---
 # Polymarket Brain Map
 
 > Start here when you need the Obsidian-level map of the Polymarket project. For execution details, read the linked notes themselves.
@@ -23,6 +38,7 @@ Wikilinks keep the research memory navigable. A finding is only useful later if 
 - [[block_k_maker_options_research]] — foundation research for maker/options-delta work.
 - [[strat_market_making]] — MM hub.
 - [[strat_options_delta]] — OD hub.
+- [[od_methodology_realism_audit_findings]] — OD-specific realism audit: RV-model fair is physical-probability fair, not option-IV fair; PM implied vol is diagnostic only.
 - [[polymarket/research/RESEARCH_FINDINGS|RESEARCH_FINDINGS]] — copytrade/data-side overview findings.
 - [[METRICS_REFERENCE]] — authoritative metric formulas and caveats.
 - [[dali_literature_synthesis]] and [[dali_factor_construction]] — academic/deep-research foundation for the dali / Polymarket research lineage.
@@ -30,7 +46,10 @@ Wikilinks keep the research memory navigable. A finding is only useful later if 
 - [[polymarket_csv_output_audit]] — CSV output layout and convention for generated result/report tables.
 - [[polymarket_data_manifest]] — family-level manifest for Parquet, CSV, JSONL, DuckDB, and raw Polymarket data artifacts.
 - [[polymarket_table_dictionary]] — shared definitions for compact table columns, bucket labels, filters, and indicators.
+- [[mm_clob_capture_semantics]] — public PM CLOB capture semantics: anonymous L2, trade-print alignment, timestamp handling, and reconstruction limits.
 - [[polymarket_plot_gallery_index]] — wikilinked index of generated Polymarket plot-gallery attachments.
+- [[spacex_ipo_market_map_handoff]] — SpaceX IPO cross-market map for PM, Hyperliquid, TradingView, proxy funds, and agent handoff.
+- [[spacex_ipo_coworker_addendum]] — companion note from the coworker DOCX/PNG covering Class A vs Class B, `xyz:SPCX` vs `vntl:SPACEX`, Trade Republic, TradingView, and the PCHIP distribution.
 
 ## Strategy Folders
 
@@ -50,6 +69,7 @@ Folder index: [[INDEX]].
 - dali is not globally closed; its original direct local microstructure continuation branch was falsified/redesigned via [[block_p3prime_oos_findings]], [[block_a0c_holdout_retest_findings]], [[block_a14h_maker_non_overlap_findings]], and [[block_a17_lightgbm_findings]].
 - Single-venue Polymarket market-making is closed; surviving maker value is in [[block_k5_findings]], [[block_k5b_findings]], and the copy/learn route.
 - Continuous/banded options-delta gamma scalp is closed; static-hedge Strategy A moved through [[block_k6_strategy_a_static_hedge_findings]] into [[od_strategy_a_v2_lifecycle_findings]], where the primary OOS lifecycle gate failed and the hedge overlay stayed gated.
+- OD pricing-method caveat is now explicit in [[od_methodology_realism_audit_findings]]: old `fair` language often meant causal realized-vol physical probability, not external option-implied fair.
 - Cross-project Binance daily momentum plus Polymarket BTC/ETH binary overlay is closed in [[2026-06-02_binance_momentum_polymarket_hybrid]]: the [[STRATEGY_REFERENCE]] daily momentum baseline keeps the best CAGR and Sharpe, while the PM hedge only improves drawdown by paying away too much return and the alpha sleeve fails even under proxy quote-edge assumptions.
 - Latest politics NegRisk live-loop handoffs: [[2026-06-03_politics_negrisk_live_loop]] and [[2026-06-03_politics_negrisk_phase1_review]].
 - Latest graph cleanup context: [[2026-06-04_obsidian_orphan_link_pass]].

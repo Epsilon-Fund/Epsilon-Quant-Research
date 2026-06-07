@@ -1,3 +1,16 @@
+---
+title: "Polymarket Code Audit — `midas/` and Adjacent"
+created: 2026-05-18
+status: archived
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+tags:
+  - research
+  - polymarket
+---
 # Polymarket Code Audit — `midas/` and Adjacent
 > Hub: [[COWORK]]
 

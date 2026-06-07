@@ -1,8 +1,26 @@
+---
+title: "Phase 5 — Walk-Forward Cohort Backtesting"
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - copytrade
+---
 # Phase 5 — Walk-Forward Cohort Backtesting
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Phase 5 — Walk-Forward Cohort Backtesting in the copytrade area.
+- Existing takeaway/status: Locked design specification for Phase 5 walk-forward cohort backtesting. It defines walk-forward mechanics, cohort definitions, per-trade filters, sizing, fill/slippage modeling, and latency documentation; implementation was pending when written.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 **Status:** Design specification, locked. Implementation pending.
 **Prerequisite:** Phases 1-4 complete. `bankroll_timeseries.parquet` materialised. All cohort pools in `data/cohorts/*.parquet`.
 

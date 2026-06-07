@@ -1,8 +1,26 @@
+---
+title: "Research Findings"
+created: 2026-06-05
+status: generated
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - research
+  - polymarket
+---
 # Research Findings
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Research Findings in the research area.
+- Existing takeaway/status: Consolidated research log across phases 1–4. What we've **learned** about the data and the trader population. For repo orientation and "how to reproduce", see [`README.md`](README.md). For per-column formulas, see [`docs/METRICS_REFERENCE.md`](docs/METRICS_REFERENCE.md).
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Consolidated research log across phases 1–4. What we've **learned** about
 the data and the trader population. For repo orientation and "how to
 reproduce", see [`README.md`](README.md). For per-column formulas, see

@@ -61,3 +61,24 @@ The scanner surfaced three orphans after generated outputs moved fully under ign
 - The task text referenced `brain/GENERATED_INDEX.md`, but the current scanner source writes `brain/generated/GENERATED_INDEX.md` and excludes `brain/generated/` from analysis. I used the generated path as source of truth.
 - No missing strategy hub was found for rows that [[VAULT_MAP]] references. `[[strat_market_making]]` and `[[strat_options_delta]]` exist; copytrade and Dali intentionally route through [[COWORK]].
 - Frontmatter and summary backfill is not complete. The next Janitor pass should prioritize remaining durable `polymarket/research/notes/` files, then `brain/` hub files, and leave archives/data dumps for last.
+
+## Phase 2 Follow-Up Backfill - 2026-06-07
+
+Follow-up Janitor pass completed the actionable Phase 2 backlog after the quick wins and first note batches.
+
+| checkpoint | files | duplicate basenames | broken links | orphans | missing hub | missing frontmatter | findings w/o Summary |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| before follow-up pass | 215 | 0 | 0 | 0 | 0 | 119 | 68 |
+| after follow-up pass | 215 | 0 | 0 | 0 | 0 | 12 | 0 |
+
+What changed:
+
+- Added standard YAML frontmatter to actionable durable notes across `brain/`, `docs/`, `topics/`, `polymarket/research/notes/`, and `polymarket/research/data/**` write-ups.
+- Added `## Summary` sections to all remaining scanner-flagged findings/notes without changing research conclusions, numbers, CIs, or link targets.
+- Normalized two old one-line pseudo-frontmatter blocks into real YAML: [[strat_options_delta]] and [[od_equities_index_pricing_scope_findings]].
+- Left 12 frontmatter misses intentionally untouched because they are empty, GitHub-facing, or generic convention docs: `2026-06-07.md`, root `README.md`, `live_trading/CLAUDE.md`, `meetings/README.md`, `midas/README.md`, `newsletters/README.md`, `polymarket/execution/CLAUDE.md`, `polymarket/execution/PLAN.md`, `polymarket/execution/README.md`, `polymarket/execution/maker/README.md`, `polymarket/research/CLAUDE.md`, and `polymarket/research/README.md`.
+
+Graph audit after the pass:
+
+- `python3 tools/brain_graph_audit.py` reported **182 nodes**, **1045 edges**, **1 connected component**, **0 orphans**, and **0 topic islands**.
+- The only dead-end is [[2026-06-07]], an empty root daily-note shell. It is inbound-linked and does not split the graph; leave it empty unless we decide to delete or turn it into a real daily note.

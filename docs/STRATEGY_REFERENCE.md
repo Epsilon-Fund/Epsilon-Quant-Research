@@ -1,3 +1,16 @@
+---
+title: "Crypto-Momentum Research Stack — Strategy Reference"
+created: 2026-06-05
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+---
 # Crypto-Momentum Research Stack — Strategy Reference
 
 _Compiled 2026-05-11. Re-stamp this header on any major refactor of the engine, metrics, or active strategy set._

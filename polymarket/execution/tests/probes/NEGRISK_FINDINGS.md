@@ -1,8 +1,26 @@
+---
+title: "NegRisk markets — investigation findings"
+created: 2026-06-05
+status: watching
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - research
+  - execution
+---
 # NegRisk markets — investigation findings
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: NegRisk markets — investigation findings in the Polymarket execution area.
+- Existing takeaway/status: Existing bot is **95% NegRisk-ready**: the watcher → signal → risk pipeline handles NegRisk markets transparently because position keying is `(condition_id, asset_id)` and each NegRisk sub-market is a normal binary condition. **One critical gap blocks real-money submission on NegRisk markets**: the order signer must encode `verifyingContract = NegRiskCtfExchange` (`0xC5d563…f80a`) instead of `CtfExchange`...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 **Investigation date:** 2026-05-10. Read-only — no orders submitted, no on-chain state changed.
 **Probed market:** `elc-sot-mid-2026-05-12` (NegRisk, 3 binary sub-markets, ~$2.2M 24h volume).
 **Most-active trader observed:** `0x84ad9c5c547a82ec9a08547b94bd922446e5bfb7` (19 fills in 90 s on the target event).

@@ -1,3 +1,16 @@
+---
+title: "Crypto Data And Artifact Manifest"
+created: 2026-06-05
+status: closed
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+---
 # Crypto Data And Artifact Manifest
 
 > Hub: [[STRATEGY_REFERENCE]] · [[topics/momentum/README|momentum README]]
