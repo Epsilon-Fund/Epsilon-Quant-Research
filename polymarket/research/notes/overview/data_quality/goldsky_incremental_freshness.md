@@ -1,7 +1,26 @@
+---
+title: "Goldsky Incremental Freshness Note"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - data-quality
+---
 # Goldsky Incremental Freshness Note
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Goldsky Incremental Freshness Note in the Polymarket data-quality area.
+- Existing takeaway/status: Local parquet tail before this freshness work: `2026-04-24 00:00:00 UTC`. Latest public Goldsky indexed `OrderFilled` observed in the freshness probe: `2026-04-28 11:00:40 UTC`. Goldsky incremental shard written: `data/trades/trades_delta_shardinc_20260424T000000Z_20260428T110040Z.parquet`. Goldsky shard validation: 18,842,358 rows, min timestamp `2026-04-24 00:00:02 UTC`, max timestamp `2026-04-27 00:10:40 UTC`,
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Generated: 2026-05-23
 Updated: 2026-05-26
 

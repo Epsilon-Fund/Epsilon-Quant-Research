@@ -1,8 +1,27 @@
+---
+title: "Polymarket CSV Output Audit"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - data-quality
+---
 # Polymarket CSV Output Audit
 
 > Hub: [[POLYMARKET_BRAIN]] / [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: Polymarket CSV Output Audit in the Polymarket data-quality area.
+- Existing takeaway/status: Polymarket CSV outputs are now organized by research cluster instead of being spread across the root of `polymarket/research/data/analysis/`. The cleanup makes generated result tables easier to trace back to their notes and keeps future Codex/Cowork sessions from treating one flat folder as a mystery pile.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Plain-English Headline
 
 Polymarket CSV outputs are now organized by research cluster instead of being spread across the root of `polymarket/research/data/analysis/`. The cleanup makes generated result tables easier to trace back to their notes and keeps future Codex/Cowork sessions from treating one flat folder as a mystery pile.

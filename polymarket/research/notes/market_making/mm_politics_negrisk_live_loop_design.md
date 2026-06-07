@@ -11,6 +11,11 @@ status: phase-1-ready — decisions locked, Codex prompt drafted
 > Anchor: [[mm_politics_negrisk_accounting_findings]] (2,290 bps, CI [1,020, 3,621])
 > Handoff that spawned this: [[2026-06-03_politics_negrisk_live_loop]]
 
+## Summary
+
+- Scope: MM Politics NegRisk Live Loop — Design Decisions in the MM/market-making area.
+- Existing takeaway/status: This note records the four design decisions made in the kickoff chat. It is the pre-registration anchor for Phase-2 measurement.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 This note records the four design decisions made in the kickoff chat. It is the pre-registration anchor for Phase-2 measurement.
 
 ---

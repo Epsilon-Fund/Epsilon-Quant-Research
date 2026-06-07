@@ -9,6 +9,11 @@ status: merits-live-measurement-loop
 
 > Hub: [[strat_market_making]] · [[COWORK]]
 
+## Summary
+
+- Scope: MM Politics NegRisk Accounting Findings in the MM/market-making area.
+- Existing takeaway/status: MERITS-LIVE-MEASUREMENT-LOOP.** The `politics_negrisk` structured-non-top3 maker cell survives true NegRisk accounting. The original token-level K5-STRESS row was not a conversion artifact; after reconstructing merge/split/redeem inventory movements from Polygon receipts, the cell gets stronger on mean PnL and stays positive on market-cluster CI, non-rebate PnL, and median wallet.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Verdict
 
 **MERITS-LIVE-MEASUREMENT-LOOP.** The `politics_negrisk` structured-non-top3 maker cell survives true NegRisk accounting. The original token-level K5-STRESS row was not a conversion artifact; after reconstructing merge/split/redeem inventory movements from Polygon receipts, the cell gets stronger on mean PnL and stays positive on market-cluster CI, non-rebate PnL, and median wallet.

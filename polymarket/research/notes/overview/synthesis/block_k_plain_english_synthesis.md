@@ -11,6 +11,12 @@ relationship: >
 
 # Block K — Plain-English Synthesis
 
+
+## Summary
+
+- Scope: Block K — Plain-English Synthesis in the research area.
+- Existing takeaway/status: We spent Block K asking one question: **can we make money by providing liquidity ("market making") on Polymarket's short-dated crypto markets, instead of betting on direction?** The directional bet was already closed in earlier work; this was the pivot.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > **Now split into two strats.** This doc remains the shared origin + glossary for the whole arc, but
 > active work is tracked under two hubs: **[[strat_market_making]]** (MM — quote for spread + rebate) and
 > **[[strat_options_delta]]** (OD — digital-option vol/basis + delta hedge). "Block K" = the historical

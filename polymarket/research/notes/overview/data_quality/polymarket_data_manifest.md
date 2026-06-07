@@ -1,3 +1,17 @@
+---
+title: "Polymarket Data Manifest"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - data-quality
+---
 # Polymarket Data Manifest
 
 > Hub: [[POLYMARKET_BRAIN]] · [[COWORK]]
@@ -8,11 +22,15 @@
 - This note documents the large Polymarket data artifacts that should be understood as datasets rather than standalone notes.
 - Parquet, DuckDB, and raw compressed files are documented at the family level so the graph stays useful; findings-support CSVs and operational JSONL checkpoints are wikilinked directly.
 - Zip archives are intentionally ignored here: treat them as raw payload containers or transport artifacts, not as Obsidian knowledge nodes.
-- For schemas and formulas, use [[METRICS_REFERENCE]]; for CSV layout rules, use [[polymarket_csv_output_audit]].
+- For schemas and formulas, use [[METRICS_REFERENCE]]; for CSV layout rules, use [[polymarket_csv_output_audit]]; for disk-pressure decisions, use [[storage_consolidation_audit_2026_06_05]].
 
 ## Data Handling Rule
 
 Do not try to link every Parquet shard. Link findings notes, CSV result tables, and dataset-family manifests. Parquet and JSONL raw shards are usually too numerous and too large to be useful as individual graph nodes.
+
+For storage cleanup, do not delete or rewrite data files ad hoc. Use [[storage_consolidation_audit_2026_06_05]] to separate safe temp/Git cleanup from real dataset redesign.
+
+Current storage state as of 2026-06-05: stale DuckDB spill and Git temp-pack garbage are gone; most useful SNAPPY Parquets that got smaller under ZSTD were rewritten in place; `closed_positions.parquet` dictionary rewrite was sampled and rejected because it grew the file. Do not redo those passes unless new data is generated or the storage design changes.
 
 ## Core Parquet Families
 
@@ -27,7 +45,7 @@ Do not try to link every Parquet shard. Link findings notes, CSV result tables, 
 | cohorts | `polymarket/research/data/cohorts/*.parquet` | Six stratified trader pools from `traders_filtered`. | [[RESEARCH_FINDINGS]], cohort notebooks |
 | directionality | [[polymarket/research/data/directionality_classification/traders_directionality.parquet|traders_directionality.parquet]] | Directional/arb-like wallet style sidecar. | [[block_e_audit]], [[mm_politics_negrisk_live_loop_design]] |
 | copyability | [[polymarket/research/data/copyability_candidates/traders_copyability_metrics.parquet|traders_copyability_metrics.parquet]] | Copyability prefilter metrics and deployable-cell counts. | [[block_e_audit]], copytrade candidate screens |
-| live CLOB captures | `polymarket/research/data/live_clob/**/*.jsonl` | Raw captured book/trade events for A0/A0b/A0c/dali replay. | [[block_a0_runbook]], A1/A11/A12/A13/A14+ replay notes |
+| live CLOB captures | `polymarket/research/data/live_clob/**/*.jsonl` | Raw captured public PM CLOB book/trade events for A0/A0b/A0c/dali replay and MM Stage-1 measurement. Public L2 is anonymous; see [[mm_clob_capture_semantics]] before using it for trade-vs-cancel attribution. | [[block_a0_runbook]], [[mm_clob_capture_semantics]], A1/A11/A12/A13/A14+ replay notes |
 | analysis feature panels | [[polymarket/research/data/analysis/block_a1_features.parquet|block_a1_features.parquet]], [[polymarket/research/data/analysis/block_a0c_features.parquet|block_a0c_features.parquet]], [[polymarket/research/data/analysis/block_a0c_roll_features.parquet|block_a0c_roll_features.parquet]], [[polymarket/research/data/analysis/block_a12_mlofi_features.parquet|block_a12_mlofi_features.parquet]], [[polymarket/research/data/analysis/block_a15_features.parquet|block_a15_features.parquet]], [[polymarket/research/data/analysis/block_a17_lightgbm_features.parquet|block_a17_lightgbm_features.parquet]] | Derived replay/feature panels for dali and Block K experiments. | dali A/P notes, MM, OD |
 | external market data | `polymarket/research/data/external/**/*.parquet` | Binance/Deribit/external history used by OD and hybrid tests. | OD notes, [[2026-06-02_binance_momentum_polymarket_hybrid]] |
 | backtest runs | `polymarket/research/data/backtests/**/*.parquet` | Generated replay/backtest outputs and old paper journals. | dali backtest scripts and paper-trading notes |

@@ -14,6 +14,13 @@ relationship: >
 
 # Strat — Market-Making (MM)
 
+
+## Summary
+
+- Scope: Strat — Market-Making (MM) in the MM/market-making area.
+- Existing takeaway/status: Market-making is the execution/lifecycle layer: quote for spread plus rebate while controlling adverse selection, inventory, and resolution risk. Current active value is live measurement around politics NegRisk and related slow-market neutral-MM questions; older single-venue Polymarket maker variants remain closed.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
+
 ## One-line thesis
 
 Stop trading direction; **quote around fair value** and earn `spread + rebate − adverse selection −
@@ -69,6 +76,7 @@ Strategy A. So MM's live value is now (a) explaining the maker moat and (b) copy
 
 - Economics & quoting: [[block_k1_maker_economics_findings]], [[block_k2_quoting_findings]], [[block_k2v2_findings]], [[block_k2v3_findings]]
 - Real-maker reality check: [[block_k5_findings]], [[block_k5_stress_findings]], [[block_k5b_findings]], [[mm_deployable_cells_findings]], [[od_strategy_a_realism_reaudit_findings]], [[mm_politics_negrisk_accounting_findings]], [[mm_equities_updown_structural_scope_findings]], [[mm_lob_gate_findings]]
+- Live data and collection semantics: [[mm_clob_capture_semantics]], [[block_a0_runbook]], [[dali_live_l2_capture_plan]]
 - Maker-fill entry (bridge to OD Strategy A): [[block_kpeg_findings]], [[block_kpeg_robustness_findings]], [[block_kpeg_robustness_review]]
 
 ## Open tasks (authoritative list in `brain/TODO.md` § MM)

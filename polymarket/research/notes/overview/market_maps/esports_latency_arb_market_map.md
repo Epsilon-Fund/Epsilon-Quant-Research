@@ -1,8 +1,27 @@
+---
+title: "Polymarket Esports Market Map"
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - market-map
+---
 # Polymarket Esports Market Map
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Polymarket Esports Market Map in the Polymarket market-map area.
+- Existing takeaway/status: Generated market map for esports latency-arb feasibility, tying Gamma esports metadata back to the local fill and closed-position stack. It ranks sub-market coverage and says future feasibility work should join fresh event metadata onto historical fills instead of starting from a pure API scrape.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 **Generated:** 2026-05-19  
 **Purpose:** grid-search reference for esports latency-arb feasibility analysis  
 **Primary local data:** `data/trades/*.parquet`, `data/markets/markets_2026-05-06.parquet`, `data/closed_positions.parquet`  

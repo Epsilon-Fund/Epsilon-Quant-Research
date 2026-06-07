@@ -1,3 +1,17 @@
+---
+title: "Polymarket API reconciliation — v1"
+created: 2026-06-05
+status: generated
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - data-quality
+---
 # Polymarket API reconciliation — v1
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

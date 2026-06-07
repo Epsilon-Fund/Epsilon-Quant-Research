@@ -1,8 +1,27 @@
+---
+title: "Polymarket Esports Latency Trader Screen"
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - market-map
+---
 # Polymarket Esports Latency Trader Screen
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Polymarket Esports Latency Trader Screen in the Polymarket market-map area.
+- Existing takeaway/status: First-pass screen for wallets with strong esports prop-market performance and possible latency-arb fingerprints. It uses a price-snap proxy rather than true in-game event timestamps, so the note is triage only; the next layer needs external match-event timestamps.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 **Generated:** 2026-05-20  
 **Purpose:** first-pass screen for traders with high win rate, strong prop-market PnL, and possible latency-arb fingerprints in esports markets  
 **Primary local data:** `data/trades/*.parquet`, `data/markets/markets_2026-05-06.parquet`, `data/closed_positions.parquet`, `data/traders.parquet`  

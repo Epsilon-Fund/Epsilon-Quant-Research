@@ -16,6 +16,11 @@ caveat: |
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: OFI / TOB / L2 Mid-Frequency Trading Strategy Research Note in the research area.
+- Existing takeaway/status: The best strategy direction is not “trade every OFI spike.” It is:
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 # OFI / TOB / L2 Mid-Frequency Trading Strategy Research Note
 
 Prepared for: Polymarket / DALI A1-A2 research

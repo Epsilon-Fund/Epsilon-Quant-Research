@@ -1,8 +1,27 @@
+---
+title: "Polymarket trades — validation report"
+created: 2026-05-18
+status: generated
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - data-quality
+---
 # Polymarket trades — validation report
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Polymarket trades — validation report in the Polymarket data-quality area.
+- Existing takeaway/status: This is the Phase 1 position-reconstruction validation gate over the local trades delta shards, seed trades, and 2026-05-06 market snapshot. It checks orphan rates, operator detection, self-trades, outcome-index drift, sign asymmetry, timestamp ties, and sample trader sanity; the core recommendation is to keep the snapshot and route orphans separately.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 **Generated:** 2026-05-08
 **Data scope:** `data/trades/trades_delta_shard*.parquet` + `trades_seed.parquet`
 **Markets snapshot:** `data/markets/markets_2026-05-06.parquet`

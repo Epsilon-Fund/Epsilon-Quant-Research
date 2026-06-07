@@ -1,7 +1,26 @@
+---
+title: "Polymarket Table Dictionary"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - data-quality
+---
 # Polymarket Table Dictionary
 
 > Hub: [[POLYMARKET_BRAIN]] / [[COWORK]]
 
+## Summary
+
+- Scope: Polymarket Table Dictionary in the Polymarket data-quality area.
+- Existing takeaway/status: This is the shared definition note for compact Polymarket table columns, bucket labels, filters, and indicators. Use it to keep findings notes readable without repeating the same glossary everywhere.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Purpose
 
 This is the shared definition note for compact Polymarket table columns, bucket labels, filters, and indicators. Use it to keep findings notes readable without repeating the same glossary everywhere.
@@ -88,6 +107,18 @@ Practical example: if BTC is far above the 4h strike with 20 minutes left, the D
 | `prem retained` | Hedged mean net divided by unhedged mean net. Values near 1 mean most premium survives the hedge. |
 | `var reduced` | `1 - hedged variance / unhedged variance`. Negative values mean the hedge increased variance. |
 | `turnover` / `rebal` | Hedge trading activity. More turnover usually means more cost drag. |
+
+## OD Fair Source And Sizing Terms
+
+| term | plain-English meaning |
+|---|---|
+| `rv_physical_prob_up` | Binance realized-volatility physical probability that the 4h window resolves UP, usually `N(z)` from causal EWMA sigma. This is not option-implied volatility and not Polymarket midpoint fair. |
+| `token_rv_physical_prob_fair` | Token-side version of `rv_physical_prob_up`: UP token uses `rv_physical_prob_up`; DOWN token uses `1 - rv_physical_prob_up`. |
+| `pm_mid_implied_vol_annualized` | Diagnostic annualized sigma obtained by inverting the Polymarket midpoint through the digital model. It represents the PM price, so it must not be treated as an external option fair. |
+| `pm_mid_iv_minus_ewma` | PM-mid implied-vol diagnostic minus causal EWMA realized vol. Useful for describing PM richness, but still circular if used as fair. |
+| `fair_prob_kind` | Source label for a fair-probability column. In OD Strategy A rows this should be `rv_physical_prob` unless a replacement-fair sensitivity explicitly names another fair source. |
+| `rv_edge_scaled` | Strategy A sizing policy that scales size by edge versus RV physical-probability fair, capped at 3x. It is not an IV-edge sizing rule. |
+| `replacement_edge_scaled` | Replacement-fair sensitivity sizing policy that scales size by edge versus the selected fair source, capped at 3x. |
 
 ## OFI, TOB, Decile, And A-Block Terms
 

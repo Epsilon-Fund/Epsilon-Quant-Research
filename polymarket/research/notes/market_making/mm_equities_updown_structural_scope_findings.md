@@ -9,6 +9,11 @@ status: thin-data-live-collector-needed
 
 > Hub: [[strat_market_making]] · [[COWORK]]
 
+## Summary
+
+- Scope: MM Equities Up/Down Structural Scope Findings in the MM/market-making area.
+- Existing takeaway/status: THIN-DATA.** Equity index up/down should not be reopened as an OD pricing branch; [[od_equities_index_pricing_scope_findings]] already closed that angle for SPX close-style markets. The untested question here was MM structural making: can a non-top3 maker earn spread plus carry-to-resolution, using the same K5-STRESS structured playbook that survived in [[mm_politics_negrisk_accounting_findings]]?
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Verdict
 
 **THIN-DATA.** Equity index up/down should not be reopened as an OD pricing branch; [[od_equities_index_pricing_scope_findings]] already closed that angle for SPX close-style markets. The untested question here was MM structural making: can a non-top3 maker earn spread plus carry-to-resolution, using the same K5-STRESS structured playbook that survived in [[mm_politics_negrisk_accounting_findings]]?
