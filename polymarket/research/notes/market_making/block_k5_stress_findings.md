@@ -1,7 +1,29 @@
+---
+title: Block K5-STRESS Findings
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - block-k
+  - k5-stress
+  - paper-candidates
+  - research
+---
+
 # Block K5-STRESS Findings
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K5-STRESS reruns the maker-wallet evidence with survivorship, unresolved inventory, structure, non-top3, rebate, and NegRisk reliability filters. Four categories pass the strict gate and are treated as frozen paper-test candidates, not production green-lights. The note is a key bridge from historical maker PnL to live measurement design.
 
 ## Verdict
 

@@ -1,6 +1,28 @@
+---
+title: MM LOB Gate Findings
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - lob
+  - queue
+  - paper-trading
+  - research
+---
+
 # MM LOB Gate Findings
 
 > Hub: [[strat_market_making]] · [[mm_deployable_cells_findings]]
+
+## Summary
+
+This note checks whether the captured LOB panel can support a historical aggression surface for MM deployable cells. The target coverage gate fails, especially for `other:misc_other`, and the available queue proxy is only an upper bound. The conclusion is to route aggression measurement to live paper quoting rather than build a historical LOB backtest from this panel.
 
 ## Headline
 

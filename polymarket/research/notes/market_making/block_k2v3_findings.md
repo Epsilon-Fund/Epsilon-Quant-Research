@@ -1,7 +1,29 @@
+---
+title: Block K2 v3 Digital-Anchored Maker Mechanism Test
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - block-k
+  - digital-anchor
+  - maker-exit
+  - research
+---
+
 # Block K2 v3: digital-anchored maker mechanism test
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K2 v3 replaces the old Polymarket-mid fair with a lagged Binance digital fair and evaluates taker exits, passive maker exits, and hold-to-resolution variants. No robust bucket clears zero across those exit policies. The result closes the digital-anchored maker mechanism on the tested a0b+a0c_roll crypto-4h universe.
 
 **Verdict:** No robust bucket clears zero across taker, maker-exit, or hold-to-resolution exits.
 

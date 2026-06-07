@@ -1,4 +1,13 @@
 ---
+title: Block K1 Maker-Economics Findings
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_market_making
 tags: [dali, block-k1, maker-economics, gate]
 ---
 
@@ -6,6 +15,10 @@ tags: [dali, block-k1, maker-economics, gate]
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K1 decomposes baseline maker economics by category using spread, rebate, adverse-selection, and inventory/resolution components. Crypto, Geopolitics, Sports, and Tech clear the generous baseline gate, so the note sends the branch onward to K2. It is a candidate screen, not a deployability proof.
 
 ## Headline
 

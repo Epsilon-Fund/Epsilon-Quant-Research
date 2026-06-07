@@ -1,9 +1,31 @@
+---
+title: Block K2 v2 Defensive Maker Findings
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - block-k
+  - defensive-maker
+  - binance-anchor
+  - research
+---
+
 # Block K2 v2 Defensive Maker Findings
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
 
 Generated: 2026-05-31T11:26:36Z
+
+## Summary
+
+K2 v2 checks whether Binance-anchored defensive maker rules can rescue the crypto maker branch. No bucket clears zero after costs, and the pull/widen defense trigger appears in less than 0.1% of simulated fills. The note keeps the maker thesis closed for this crypto universe.
 
 ## Headline
 

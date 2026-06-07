@@ -1,7 +1,29 @@
+---
+title: MM Deployable Cells Findings
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - deployable-cells
+  - paper-trading
+  - k5-stress
+  - research
+---
+
 # MM Deployable Cells Findings
 
 > Hub: [[strat_market_making]] · [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+This note converts the K5-STRESS structured-maker result into paper-trading sub-cells. Eight sub-cells qualify for MM paper-trading, with 2026 run-rate headroom and base EV estimated from historical structured non-top3 behavior. It is the MM-track replacement for a draft K9 prompt and deliberately avoids OD valuation or directional skew.
 
 ## Plain-English Headline
 

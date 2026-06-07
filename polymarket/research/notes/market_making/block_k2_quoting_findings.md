@@ -1,4 +1,13 @@
 ---
+title: Block K2 Logit-Space Quoting Findings
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_market_making
 tags: [dali, block-k2, logit-as, optuna, maker-sim]
 ---
 
@@ -6,6 +15,10 @@ tags: [dali, block-k2, logit-as, optuna, maker-sim]
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K2 tests an optimized logit-space Avellaneda-Stoikov maker ceiling on pooled in-sample data. Both the zero-skew and small-contrarian stages have confidence intervals entirely below zero after modeled fills and exit costs. Under the pre-commit rule, this kills the maker thesis on that universe.
 
 ## Headline
 

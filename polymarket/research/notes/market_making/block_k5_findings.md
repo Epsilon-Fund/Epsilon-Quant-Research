@@ -1,7 +1,29 @@
+---
+title: Block K5 Real Maker PnL Reality Check
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - block-k
+  - real-maker-pnl
+  - wallets
+  - research
+---
+
 # Block K5 Real Maker PnL Reality Check
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K5 compares real maker-wallet PnL and structure against the earlier single-leg maker simulations. The note finds real maker behavior is not captured by the K simulations alone, with top makers showing scale and two-sided structure differences. It becomes a durable reference for deployability and incumbent-capacity questions rather than a standalone trade green-light.
 
 ## Verdict
 

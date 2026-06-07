@@ -1,6 +1,13 @@
 ---
+title: Block K-PEG Robustness and Lookahead Audit
 tags: [dali, block-kpeg, maker, robustness, lookahead, round-trip]
 created: 2026-05-31
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_market_making
 status: cowork audit — pending independent Codex review (notes/market_making/block_kpeg_robustness_review.md)
 relationship: Audits block_kpeg_findings.md (+759.6 bps pooled IS headline). Reconciles the K2-vs-K-PEG contradiction.
 repro: scripts/dali_block_kpeg_robustness.py → data/analysis/{kpeg_robustness.csv, kpeg_robustness_phase.csv, kpeg_robustness_report.txt, kpeg_robustness_fills.parquet}
@@ -10,6 +17,10 @@ repro: scripts/dali_block_kpeg_robustness.py → data/analysis/{kpeg_robustness.
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+This audit reconciles the positive K-PEG mark-to-mid headline with the negative K2 round-trip result. It finds the reproduction is faithful and not a lookahead bug, but the edge depends on marking to mid and not paying a feasible exit cost. The note is an audit artifact later reviewed in [[block_kpeg_robustness_review]].
 
 ## Headline
 

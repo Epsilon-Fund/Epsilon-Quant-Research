@@ -1,7 +1,29 @@
+---
+title: Block K5b Top-Maker Dominance Decomposition
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - block-k
+  - top-maker
+  - capacity
+  - research
+---
+
 # Block K5b Top-Maker Dominance Decomposition
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K5b decomposes top-maker dominance into capital, scale, structure, and fill-share proxies. It does not prove a Rust-speed moat because quote/cancel data and true queue position are absent. The practical takeaway is to prioritize structured quoting, inventory control, market selection, and live telemetry before optimizing for low-level speed.
 
 ## Verdict
 

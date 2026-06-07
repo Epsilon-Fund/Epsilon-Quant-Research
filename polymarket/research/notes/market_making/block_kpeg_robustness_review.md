@@ -1,7 +1,29 @@
+---
+title: Block K-PEG Robustness Review
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_market_making
+tags:
+  - market-making
+  - block-k
+  - kpeg
+  - audit-review
+  - research
+---
+
 # Block K-PEG Robustness Review
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+This review independently checks the K-PEG robustness audit. It confirms faithful reproduction and no arithmetic identity error, but qualifies the round-trip and exit-cost interpretation because many fills lack feasible post-entry exits. The stronger final read is that K-PEG is not a standalone neutral maker edge, rather than pure nonsense.
 
 ## Verdict
 
