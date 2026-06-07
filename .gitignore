@@ -90,8 +90,14 @@ polymarket/research/.env
 polymarket/research/.venv/
 polymarket/research/.tmp/
 
-# Obsidian brain seed is tracked for collaborator onboarding; new local notes stay ignored unless force-added.
-brain/
+# Brain (Obsidian vault): TRACK markdown notes so collaborators see new notes via Git automatically.
+# Only ignore machine-generated reports and fast-moving per-agent scratch (regenerable, not source-of-truth).
+brain/generated/
+brain/agents/*/scratch/
+!brain/agents/*/scratch/.gitkeep
+brain/.obsidian/
+brain/**/.DS_Store
 
 # Obsidian volatile session state (personal window layout)
 .obsidian/workspace.json
+.obsidian/plugins/system3-relay/
