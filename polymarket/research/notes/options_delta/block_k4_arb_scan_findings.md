@@ -1,7 +1,29 @@
+---
+title: Block K4 Intra-Polymarket Arb Scan
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - arbitrage
+  - rebalancing
+  - research
+---
+
 # Block K4 — Intra-Polymarket Arb Scan
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K4 scans the owned universe for intra-Polymarket rebalancing and combinatorial arbitrage intervals. One violation interval is detected, but none survives the p99-latency and minimum-size executability gates. The result closes this owned-universe arb scan while leaving the broader literature thread as a future watch item.
 
 ## Headline
 

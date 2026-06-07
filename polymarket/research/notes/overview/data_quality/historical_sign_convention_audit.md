@@ -1,8 +1,30 @@
+---
+title: Historical Sign Convention Audit
+created: 2026-05-27
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+tags:
+  - data-quality
+  - sign-convention
+  - tfi
+  - audit
+  - research
+---
+
 # Historical Sign Convention Audit
 
+> Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 Generated: 2026-05-27
+
+## Summary
+
+This audit checks whether the historical `maker_side` field needs global inversion before TFI work. The source and empirical checks support the current `historical_to_aggressor()` mapping: `maker_side` is the passive maker token side, and token-side aggressor is the inverse. No normalization code change or downstream sign rerun was required by this audit.
 
 ## Executive Decision
 

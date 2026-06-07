@@ -2,6 +2,12 @@
 title: "ML for Prediction Markets — Literature Synthesis and Strategy Layout"
 tags: [literature, polymarket, microstructure, ofi, market-making, research]
 created: 2026-05-23
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 audience: cowork-handoff
 related: [[dali_factor_construction]], [[block_k_maker_options_research]], [[2026-06-05_novelty_deep_research]], [[2026-06-05_novelty_frontier_map]]
 parent: dali
@@ -9,12 +15,17 @@ parent: dali
 
 # ML for Prediction Markets — Literature Synthesis and Strategy Layout
 
+> Hub: [[COWORK]]
 > **Purpose.** Consolidated handoff document covering academic foundations
 > for Polymarket short-horizon ML strategies, current findings on the Dali
 > project, and the structured roadmap for next-stage research. Designed for
 > a deep-research follow-up agent to extend with primary-source verification
 > and additional gap analysis.
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+This synthesis collects the academic and practical foundations for Polymarket short-horizon ML, maker, and OFI-style strategy work. It separates taker directional prediction from maker liquidity provision and anchors both in microstructure literature. The note remains an active research reference for strategy layout and literature-backed next steps.
 
 ---
 

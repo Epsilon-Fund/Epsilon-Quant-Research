@@ -1,7 +1,29 @@
+---
+title: Block K6 Strategy A Static Hedge
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - static-hedge
+  - strategy-a
+  - research
+---
+
 # Block K6 Strategy A Static Hedge
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+This note runs the missing static-hedge Strategy A gate on K-PEG/K6 crypto fills. The strict OOS far/late cell has positive mean net, but its confidence interval crosses below zero. Under the preregistered gate, that fails to unblock the Kronos/HAR/EWMA forward-vol bake-off.
 
 ## Headline
 

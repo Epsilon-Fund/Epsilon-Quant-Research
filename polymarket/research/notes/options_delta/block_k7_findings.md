@@ -1,7 +1,29 @@
+---
+title: Block K7 Cross-Category Longshot Premium
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - longshot-premium
+  - calibration
+  - research
+---
+
 # Block K7 Cross-Category Longshot Premium
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K7 tests whether a cross-category longshot-premium harvest is deployable from a model-free pass. Some categories show calibration warnings or profitable historical maker-sell overlays, but no category clears all gates once capacity and tail clustering are considered. The note closes the broad branch and recommends returning effort to copytrade unless a narrower category is preregistered.
 
 ## Headline
 

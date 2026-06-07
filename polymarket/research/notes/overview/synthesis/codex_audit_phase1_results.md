@@ -1,6 +1,29 @@
+---
+title: Dali Phase 1 Diagnostics Results
+created: 2026-05-23
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+tags:
+  - dali
+  - diagnostics
+  - audit
+  - phase-1
+  - research
+---
+
 # Dali Phase 1 Diagnostics Results
 
+> Hub: [[COWORK]]
+
 Generated: 2026-05-23
+
+## Summary
+
+This note records the Dali Phase 1 diagnostic tasks and their outcomes. It covers sign-convention inference, TFI magnitude analysis, maintained book state/OFI work, and follow-up requirements. The main status is diagnostic rather than deployable: longer live captures and stronger normalization evidence were needed before downstream reruns.
 
 ## Task 1: Sign Convention Via Inference
 

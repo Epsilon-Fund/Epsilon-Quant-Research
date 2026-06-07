@@ -2,6 +2,14 @@
 title: "Block K Deep Research — Market Making & Binary-Option/Delta Strategies for Polymarket"
 tags: [block-k, maker, avellaneda-stoikov, digital-options, delta-hedge, price-discovery, deep-research]
 created: 2026-05-30
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_market_making
+  - strat_options_delta
 method: deep-research harness (5 parallel search angles → fetch → claim extraction → confidence triage → synthesis)
 relationship: Feeds brain/handoffs/2026-05-30_maker_options_delta_pivot.md. Built AFTER the local Dali directional signal was closed (P3' OOS + A0c holdout retest).
 confidence_legend: "[H] high / primary source; [M] medium; [L] low or practitioner-only; [contested]/[unverified] flagged inline"
@@ -9,9 +17,10 @@ confidence_legend: "[H] high / primary source; [M] medium; [L] low or practition
 
 # Block K — Market Making & Binary-Option/Delta Strategies (Deep Research)
 
+> Hubs: [[COWORK]] | [[strat_market_making]] | [[strat_options_delta]]
 > Table terms: [[polymarket_table_dictionary]]
 
-## Executive summary
+## Summary
 
 The deep-research pass confirms the Block K pivot rests on solid academic foundations, with three findings that
 should reshape how we build it:

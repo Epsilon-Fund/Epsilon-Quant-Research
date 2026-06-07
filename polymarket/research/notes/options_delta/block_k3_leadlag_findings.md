@@ -1,9 +1,31 @@
+---
+title: Block K3 Lead-Lag and Digital-Option Basis Findings
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - lead-lag
+  - basis
+  - research
+---
+
 # Block K3 Lead-Lag + Digital-Option Basis Findings
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
 
 Generated: 2026-05-30T21:08:03Z
+
+## Summary
+
+K3 tests crypto 4h lead-lag and a digital-option basis using Binance fair value versus Polymarket mids. The in-sample post-fee basis survives as a diagnostic lead, but the note explicitly does not validate a hedgeable edge. The main takeaway is that basis rows need causal latency, source, execution, and OOS tests before becoming a deployable OD branch.
 
 ## Headline
 

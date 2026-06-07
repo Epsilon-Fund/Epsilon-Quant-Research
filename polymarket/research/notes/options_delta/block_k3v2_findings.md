@@ -1,9 +1,31 @@
+---
+title: Block K3 v2 Lead-Lag Causal Findings
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - lead-lag
+  - latency
+  - research
+---
+
 # Block K3 v2 Lead-Lag Causal Findings
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
 
 Generated: 2026-05-31T01:11:51Z
+
+## Summary
+
+K3 v2 tightens the lead-lag test to 1-second causal data and explicit latency framing. Cross-correlation peaks at 0s and Hayashi-Yoshida peaks at 1s, which fails the 2-3s action-latency hurdle. The basis screen remains useful for diagnostics, but the naked lead-lag deployment path is closed by this note.
 
 ## Headline
 

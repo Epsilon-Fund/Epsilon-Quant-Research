@@ -1,6 +1,28 @@
+---
+title: Dali Task 5 Trigger Conditions
+created: 2026-05-23
+status: watching
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - dali
+  - trigger-conditions
+  - parameter-search
+  - research
+---
+
 # Dali Task 5 Trigger Conditions
 
+> Hub: [[COWORK]]
+
 Generated: 2026-05-23
+
+## Summary
+
+This note defines when Dali Task 5 parameter search should start. The task is deliberately deferred until capture coverage, trade events, and sign-normalization evidence reach stated thresholds. Until then, Dali work should stay focused on capture volume, OFI correctness, sign normalization, and backtest-engine correctness.
 
 Task 5, parameter search over dumb-baseline rules, is deliberately deferred.
 The current live sample is too small: 5 minutes, 123 raw messages, and only one

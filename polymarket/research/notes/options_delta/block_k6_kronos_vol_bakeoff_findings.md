@@ -1,6 +1,28 @@
+---
+title: Block K6 Kronos Vol Bake-Off Gate
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - volatility
+  - kronos
+  - research
+---
+
 # Block K6 Kronos Vol Bake-Off Gate
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
+
+## Summary
+
+This note checks whether the Kronos/HAR/EWMA forward-vol bake-off should run. It stops at the prerequisite gate because the repo did not yet contain a cleared static-hedge Strategy-A OOS result, and the closest K6 hedge artifact was negative. The later static-hedge note exists, but it also fails the gate, so the bake-off remains blocked.
 
 ## Headline
 

@@ -1,7 +1,29 @@
+---
+title: Block K6 Vol Gap Diagnostic
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - volatility
+  - hedging
+  - research
+---
+
 # Block K6 Vol Gap Diagnostic
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+K6 converts Polymarket midpoint prices into implied-vol diagnostics and tests a gamma-scalp style hedge. The diagnostic vol gap is visible, but no strict-source bucket clears zero after Polymarket fees and banded Binance hedge turnover. The note closes the tradable vol-gap branch on this in-sample panel.
 
 ## Headline
 

@@ -1,9 +1,31 @@
+---
+title: Block K3 v3h2 Persistence-Gated Findings
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - persistence-gate
+  - hedged-basis
+  - research
+---
+
 # Block K3 v3h2 Persistence-Gated Findings
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
 
 Generated: 2026-05-31T01:50:20Z
+
+## Summary
+
+K3 v3h2 is the persistence-gated falsifier for the moderate-delta hedged RV idea. It restricts entries to mid-sized dynamic gaps, requires same-signed persistence, applies strict source filters, and excludes far/late/tail rows. The best hedged and naked regimes remain negative after costs, closing this rescue variant.
 
 ## Headline
 

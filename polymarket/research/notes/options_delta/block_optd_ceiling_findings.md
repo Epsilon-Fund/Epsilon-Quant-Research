@@ -1,10 +1,24 @@
 ---
+title: OPT-D Directional Ceiling Search Findings
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+  - strat_options_delta
 tags: [dali, optd, optuna, ceiling, in-sample, results]
 ---
 
 # OPT-D Directional Ceiling Search Findings
 
+> Hub: [[COWORK]] · [[strat_options_delta]]
 > Table terms: [[polymarket_table_dictionary]]
+
+## Summary
+
+OPT-D searches an in-sample directional ceiling with Optuna over pooled Dali runs. The best trial has positive mean, but the confidence interval is wide and no trial among the minimum-size set has a lower CI above zero. The note is a candidate lead only, not a validated result or permission to trade.
 
 ## Headline
 

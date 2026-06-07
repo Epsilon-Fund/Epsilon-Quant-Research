@@ -2,12 +2,19 @@
 title: "Polymarket — Factor Construction, Models, and Trade-the-Price Architecture"
 tags: [polymarket, factors, ml, strategy, trade-the-price]
 created: 2026-05-19
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 parent: dali
 related: [[dali_literature_synthesis]], [[external_ofi_tob_l2_midfreq_strategy_research]], [[2026-06-05_novelty_deep_research]]
 ---
 
 # Polymarket — Factor Construction & Model Architecture
 
+> Hub: [[COWORK]]
 > **Core thesis (revised).** The hold-to-resolution vs trade-the-price distinction depends on
 > *where the edge lives*, not market characteristics. Hold-to-resolution when your edge is a
 > better terminal probability estimate. Trade-the-price when your edge is information arrival
@@ -19,6 +26,10 @@ related: [[dali_literature_synthesis]], [[external_ofi_tob_l2_midfreq_strategy_r
 
 > **The forcing question.** "If the market price didn't move at all between now and resolution,
 > would I still make money?" If yes → hold-to-resolution. If no → trade-the-price.
+
+## Summary
+
+This foundation note lays out the factor-construction and model architecture for Polymarket research. It reframes strategy choice around where the edge lives: terminal probability for hold-to-resolution, and price dynamics for trade-the-price. The note is an active reference for feature design, model selection, and market/liquidity verification before infrastructure buildout.
 
 ---
 

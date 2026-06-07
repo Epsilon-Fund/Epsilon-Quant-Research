@@ -1,9 +1,31 @@
+---
+title: Block K3 v3h Hedged Dynamic-Basis Findings
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+  - strat_options_delta
+tags:
+  - options-delta
+  - block-k
+  - hedged-basis
+  - crypto
+  - research
+---
+
 # Block K3 v3h Hedged Dynamic-Basis Findings
 
 > **Strat:** [[strat_options_delta]] (Options-Delta). Sibling: [[strat_market_making]]. Arc: [[block_k_plain_english_synthesis]].
 > Table terms: [[polymarket_table_dictionary]]
 
 Generated: 2026-06-06T23:08:35Z
+
+## Summary
+
+K3 v3h tests a two-legged convergence trade: buy the cheap Polymarket leg, delta-hedge on Binance, and exit on gap convergence or timeout. No strict-source bucket clears zero after Polymarket fees, Binance hedge turnover, funding, and source filters. The result points away from the dead naked lead-lag race, but does not rescue the hedged dynamic-basis branch.
 
 ## Headline
 
