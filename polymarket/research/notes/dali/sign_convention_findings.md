@@ -1,8 +1,26 @@
+---
+title: "Dali Sign Convention Findings"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Dali Sign Convention Findings
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Dali Sign Convention Findings in the Dali research lineage area.
+- Existing takeaway/status: Live `last_trade_price.side` is established as token-side aggressor direction, which unblocks live OFI/TFI interpretation. The note documents live CLOB inference, historical fill semantics, YES/NO token nuance, and sample rows.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Generated: 2026-05-23
 
 ## A1 Live Capture Update

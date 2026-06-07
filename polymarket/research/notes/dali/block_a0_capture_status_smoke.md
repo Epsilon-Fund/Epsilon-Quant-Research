@@ -1,7 +1,25 @@
+---
+title: "Block A0 Capture Status"
+created: 2026-06-05
+status: generated
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Block A0 Capture Status
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A0 Capture Status in the Dali research lineage area.
+- Existing takeaway/status: Smoke Block A0 capture-status snapshot covering initial event counts, gap logs, shards, and per-market counts. It records whether the capture path was alive before deeper analyses.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Run dir: `data/live_clob/block_a0/block_a0_smoke_20260527`
 
 ## Total Event Counts

@@ -1,7 +1,25 @@
+---
+title: "Block A0c Crypto Roll Final Status"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Block A0c Crypto Roll Final Status
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A0c Crypto Roll Final Status in the Dali research lineage area.
+- Existing takeaway/status: Final Block A0c crypto-roll status snapshot covering event counts, gap/control counts, and top markets by trades. It records capture health for rolling crypto markets.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Run dir: `data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning`
 Data JSONL files: `24`
 First received: `2026-05-29T09:09:20.722Z`

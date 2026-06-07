@@ -1,7 +1,25 @@
+---
+title: "Dali Live L2 Capture Plan"
+created: 2026-06-05
+status: watching
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Dali Live L2 Capture Plan
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Dali Live L2 Capture Plan in the Dali research lineage area.
+- Existing takeaway/status: Plan and runbook for Dali live L2 capture, connecting prior A0/A0b capture work to the next live smoke and deferring parameter search until capture semantics are stable.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Generated: 2026-05-23
 
 This note is the concrete version of the prior recommendation: use historical
@@ -23,6 +41,8 @@ trade side, market-channel latency, and whether our historical `maker_side`
 sign proxy maps to the live `last_trade_price.side` field.
 
 ## What To Do Now
+
+2026-06-06 collection caveat: public PM CLOB L2 is anonymous aggregate price-level data, not wallet/order-owner truth. Before using live JSONL for cancel-vs-take attribution, read [[mm_clob_capture_semantics]] and report clean vs ambiguous reconstruction rates.
 
 1. Pick a small watchlist from the current Dali universe file.
 

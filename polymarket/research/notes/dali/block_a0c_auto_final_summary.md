@@ -1,8 +1,26 @@
+---
+title: "Block A0c Auto Final Summary"
+created: 2026-06-05
+status: generated
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Block A0c Auto Final Summary
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Block A0c Auto Final Summary in the Dali research lineage area.
+- Existing takeaway/status: Auto-final Block A0c summary recording finalized outputs, disk usage, headline counts, and notes from the capture run. It is a generated operational wrap-up, not a trading verdict.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Finalized at: `2026-05-30T09:10:22Z`
 
 ## Outputs

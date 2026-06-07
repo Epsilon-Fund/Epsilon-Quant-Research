@@ -1,7 +1,25 @@
+---
+title: "Block A0 Capture Status"
+created: 2026-06-05
+status: generated
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Block A0 Capture Status
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A0 Capture Status in the Dali research lineage area.
+- Existing takeaway/status: Final Block A0b capture-status snapshot covering event totals, gap logs, shards, and per-market counts. It documents capture coverage for the A0b replay lineage.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Run dir: `data/live_clob/block_a0b/block_a0b_replacements_v2_20260527`
 
 ## Total Event Counts

@@ -1,8 +1,26 @@
+---
+title: "Dali TFI Baseline Results"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Dali TFI Baseline Results
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 
 
+## Summary
+
+- Scope: Dali TFI Baseline Results in the Dali research lineage area.
+- Existing takeaway/status: Baseline TFI results note covering daily crypto up/down, equity index up/down, and AI/product markets. It records method, outputs, headline results, caveats, and the next step rather than introducing a deployable verdict.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Generated: 2026-05-23
 
 Purpose: first non-ML test of whether historical Polymarket trade-flow
