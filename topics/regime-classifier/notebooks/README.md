@@ -1,3 +1,17 @@
+---
+title: "Regime Classifier Notebook Index"
+created: 2026-06-05
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - regime
+---
 # Regime Classifier Notebook Index
 
 > Hub: [[topics/regime-classifier/README|regime classifier README]] · [[STRATEGY_REFERENCE]]

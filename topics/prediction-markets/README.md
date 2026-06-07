@@ -1,3 +1,16 @@
+---
+title: "Polymarket Prediction Market Research Pipeline"
+created: 2026-02-19
+status: candidate
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+---
 # Polymarket Prediction Market Research Pipeline
 > Hub: [[COWORK]]
 

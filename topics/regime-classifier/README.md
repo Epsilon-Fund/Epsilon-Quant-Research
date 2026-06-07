@@ -1,3 +1,17 @@
+---
+title: "BTC Regime Classifier"
+created: 2026-05-08
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - regime
+---
 # BTC Regime Classifier
 > Hub: [[STRATEGY_REFERENCE]]
 

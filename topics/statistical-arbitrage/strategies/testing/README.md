@@ -1,3 +1,17 @@
+---
+title: "Statistical Arbitrage — Pairs Trading Portfolio"
+created: 2026-04-22
+status: closed
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - stat-arb
+---
 # Statistical Arbitrage — Pairs Trading Portfolio
 > Hub: [[STRATEGY_REFERENCE]]
 

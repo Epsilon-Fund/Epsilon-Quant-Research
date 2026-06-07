@@ -1,3 +1,16 @@
+---
+title: "ML Prediction — Walk-Forward XGBoost Strategy"
+created: 2026-05-02
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+---
 # ML Prediction — Walk-Forward XGBoost Strategy
 > Hub: [[STRATEGY_REFERENCE]]
 
