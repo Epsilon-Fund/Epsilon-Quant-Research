@@ -1,8 +1,23 @@
 ---
 tags: [dali, block-e-lite, results]
+title: Relayer Identification Dig Findings
+created: 2026-05-28
+status: closed
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 ---
 
 # Relayer Identification Dig Findings
+
+> Hub: [[COWORK]]
+
+
+## Summary
+
+This note identifies the two supposed Block E Lite relayer addresses as Polymarket's legacy CTF Exchange v1 contracts, one standard and one NegRisk. The local fingerprint, Polygonscan labels, Polymarket source/docs, and v2 migration timing all agree. The practical conclusion is that filtering these addresses removes exchange-internal settlement/event-decoding legs, not a retail UI or smart-order-router trader population.
 
 Generated: 2026-05-28
 

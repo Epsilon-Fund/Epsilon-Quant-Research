@@ -10,11 +10,23 @@ inputs:
   - block_a15b_decoupled_findings.md (mean-reversion-to-micro-price diagnosis)
   - block_a16_binary_bet_findings.md (overlap-vs-non-overlap kill)
 status: analysis
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 ---
 
 # Reconciliation — External Strategy Library vs A1.4–A1.7
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+This reconciliation corrects the first pass that over-closed the uploaded external OFI/TOB/L2 strategy library. It distinguishes tested-dead directional-continuation uses from genuinely untested framings and data-dependent ideas. The key correction is that A1.x falsified a continuation framing, not the existence of the TOB/OFI signal itself.
 
 ## Correction to v1
 

@@ -1,4 +1,27 @@
+---
+title: Dali Market Universe Screen
+created: 2026-05-23
+status: archived
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+tags:
+  - dali
+  - market-universe
+  - screening
+  - research
+---
+
 # Dali Market Universe Screen
+
+> Hub: [[COWORK]]
+
+
+## Summary
+
+This screen chooses an initial Dali market universe for the first trade-the-price proof of concept. It recommends daily crypto up/down for pipeline baseline, SPX/SPY/QQQ style markets for the external-data track, and selected AI/product/geopolitics markets for Polymarket-native flow. The purpose is universe selection and bad-universe avoidance before TFI/OFI testing, not final edge validation.
 
 Generated: 2026-05-23
 

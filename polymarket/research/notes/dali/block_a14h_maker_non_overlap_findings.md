@@ -1,10 +1,25 @@
 ---
 tags: [dali, block-a14h, maker-thesis, results]
+title: Block A1.4h Maker Non-Overlap Findings
+created: 2026-05-28
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # Block A1.4h Maker Non-Overlap Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+A14h retests the A14c maker-at-mid clue with one open position per market and non-overlapping executed fills. The BTC-4h winner collapses from +554.9 bps overlap math to -451.3 bps with a 0.2% fill rate, and no unique market/grid cell remains robust-positive. The conclusion is that the remaining maker clue was an overlap artifact, so queue/latency would be autopsy rather than likely rescue.
 
 ## Headline
 

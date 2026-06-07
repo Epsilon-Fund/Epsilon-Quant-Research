@@ -1,10 +1,25 @@
 ---
 tags: [dali, p2, micro-price, reversion, results]
+title: P2 Reversion-To-Microprice Findings
+created: 2026-05-31
+status: archived
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # P2 Reversion-To-Microprice Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+P2 tests an explicit passive fade-to-microprice framing for the local Dali signal. It finds eight tail-aware passive survivor rows with CI lower > 0, but none survive the stronger n >= 30 robustness bar and the combined both-tails frontier is empty. The note reopens the signal only as a fragile tail-specific anomaly, not as a clean reusable edge.
 
 ## Headline
 

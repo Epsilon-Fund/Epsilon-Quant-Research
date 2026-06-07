@@ -1,10 +1,25 @@
 ---
 tags: [dali, block-p1, rolling-rank, executable-cost, non-overlap, results]
+title: Block P1 Rolling-Rank Findings
+created: 2026-05-31
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # Block P1 Rolling-Rank Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+P1 compares continuous rolling-rank sizing against decile gating on A0/A0b features under executable non-overlap costs. Continuous sizing consistently beats matched gate rows in relative terms, but no robust overall executable cell has positive mean PnL. The branch improves framing quality but does not produce a standalone edge.
 
 ## Headline
 

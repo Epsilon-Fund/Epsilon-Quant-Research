@@ -1,10 +1,25 @@
 ---
 tags: [dali, block-a14c, maker-thesis, results]
+title: Block A1.4c Maker-at-Mid Findings
+created: 2026-05-28
+status: archived
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # Block A1.4c Maker-at-Mid Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+A14c tests a generous maker-at-mid counterfactual for the TOB imbalance signal, assuming full priority inside the spread. It finds one promising BTC-4h cell with +554.9 bps mean PnL, 9.0% fill rate, and 248.1 bps 5s adverse selection, but flags this as a best-case maker assumption. The note is preserved as the positive clue that later required the non-overlap retest in [[block_a14h_maker_non_overlap_findings]].
 
 ## Headline
 

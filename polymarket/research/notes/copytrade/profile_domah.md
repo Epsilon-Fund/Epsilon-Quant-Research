@@ -1,5 +1,28 @@
+---
+title: Domah Trader Profile
+created: 2026-05-28
+status: candidate
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - copytrade
+  - trader-profile
+  - domah
+  - research
+---
+
 # Trader profile — `0x9d84ce0306f8551e02efef1680475fc0f1dc1344`
+
+> Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+This profile summarizes Domah (`0x9d84...1344`) as a copytrade candidate, including closed-position count, market PnL, style metrics, capital footprint, and market mix. The top verdict is a single-pool candidate in `patient_accumulators`, with qualification in `patient_accumulators` and `high_kelly_edge`. Treat the bankroll and style fields as descriptive diagnostics, not forward sizing rules.
 
 **Verdict:** single-pool candidate (patient_accumulators)
 **Pools qualified (2):** patient_accumulators, high_kelly_edge

@@ -1,10 +1,25 @@
 ---
 tags: [dali, block-a15b, micro-price, results]
+title: Block A1.5b Decoupled Micro-Price Target Findings
+created: 2026-05-28
+status: archived
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 ---
 
 # Block A1.5b Decoupled Micro-Price Target Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+A15b checks whether OFI/TFI signal performance is contaminated by using a target that shares TOB imbalance terms. OFI's 5s hit rate is essentially unchanged against future micro-price versus future mid, while 1s improves and longer horizons weaken; TFI degrades more clearly. The note diagnoses the signal as mostly mean-reversion to micro-price rather than multi-second continuation alpha.
 
 ## Headline
 

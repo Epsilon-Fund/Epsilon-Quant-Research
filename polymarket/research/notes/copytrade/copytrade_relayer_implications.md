@@ -1,10 +1,25 @@
 ---
 tags: [copytrade, relayer-implications, results]
+title: Copytrade Relayer Implications
+created: 2026-05-28
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 ---
 
 # Copytrade Relayer Implications
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+This note tests whether v1 exchange-internal rows hide real taker wallets and would require a copytrade PnL/position rebuild. The recovery probe finds `tx.from` is a relay/submission layer, while source-level checks show the active order wallet is already emitted in the `maker` column. The conclusion is no PnL rebuild is warranted; the remaining caveat is role semantics, so style labels need an active-order-leg flag.
 
 ## Headline
 

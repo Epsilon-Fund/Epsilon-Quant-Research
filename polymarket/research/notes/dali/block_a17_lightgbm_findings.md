@@ -1,10 +1,25 @@
 ---
 tags: [dali, block-a17, lightgbm, results]
+title: Block A1.7 LightGBM Findings
+created: 2026-05-28
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # Block A1.7 LightGBM Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+A1.7 trains a pooled LightGBM classifier over primary-read markets with per-market walk-forward splits and fixed hyperparameters. No market-threshold deployment cell beats the rule-based baselines with CI lower bound above zero after executable costs and non-overlap. The calibration table shows high-confidence probabilities underperform, supporting the conclusion that no Tier 2 ML edge was found.
 
 ## Headline
 

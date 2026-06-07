@@ -5,9 +5,13 @@ created: 2026-05-28
 updated: 2026-05-28
 status: supersedes-partial
 supersedes: [block_b_findings, block_e_lite_findings]
+hubs:
+  - COWORK
 ---
 
 # Block B / Block E Lite Reinterpretation
+
+> Hub: [[COWORK]]
 
 ## Summary
 

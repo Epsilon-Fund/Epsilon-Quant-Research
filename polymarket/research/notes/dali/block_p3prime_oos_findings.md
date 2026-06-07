@@ -1,10 +1,25 @@
 ---
 tags: [dali, p3prime, oos, micro-price, reversion, results]
+title: P3' A0c OOS Reversion Replication Findings
+created: 2026-06-01
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # P3' A0c OOS Reversion Replication Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+P3' tests the P2 reversion idea out-of-sample on A0c deep-book geopolitics rows. No row clears the preregistered bar of CI lower > 0, n >= 30, and fill rate >= 2.0%; even the best row fails on sample size and CI. Under the decision rule, this closes the local Dali microstructure signal and points away from further offline rescue.
 
 ## Headline
 

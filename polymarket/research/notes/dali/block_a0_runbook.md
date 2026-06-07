@@ -1,4 +1,27 @@
+---
+title: Block A0 Runbook
+created: 2026-05-27
+status: archived
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
+tags:
+  - dali
+  - block-a0
+  - runbook
+  - capture
+---
+
 # Block A0 Runbook
+
+> Hub: [[COWORK]]
+
+
+## Summary
+
+This runbook lays out the original Block A0 24-hour gap-tolerant OFI capture plan for the morning of 2026-05-28. It documents prepared configs/scripts, local laptop and VPS/tmux modes, output paths, and restart behavior. The note is historical operating context for the A0 capture lineage rather than an active run instruction.
 
 Generated: 2026-05-27
 

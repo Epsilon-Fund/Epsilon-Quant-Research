@@ -1,10 +1,25 @@
 ---
 tags: [dali, a0c, holdout, oos, retest, results]
+title: A0c Holdout Retest Findings
+created: 2026-05-30
+status: closed
+owner: justin
+project: polymarket
+para: archive
+hubs:
+  - COWORK
 ---
 
 # A0c Holdout Retest Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+This note retests A0c as holdout data for the Dali binary-bet, passive deep-book fade, and TOB hit-rate diagnostics. Retest A fails OOS, Retest B confirms the passive deep-book artifact, and Retest C confirms the A1.3 73.7% TOB point estimate did not replicate. The conclusion closes the local Dali signal with no remaining needs-more-data caveat.
 
 ## Headline
 

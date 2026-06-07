@@ -1,10 +1,25 @@
 ---
 tags: [dali, block-a13, tob-imbalance, results]
+title: Block A1.3 TOB Imbalance Level Deep-Dive
+created: 2026-05-28
+status: archived
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
 ---
 
 # Block A1.3 TOB Imbalance Level Deep-Dive
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+A1.3 tests `tob_imbalance_level` as a standing top-of-book state variable on the Block A1 feature panel. The top-decile current-level signal shows a strong 5s hit rate of 73.7% with caveats around market-specific persistence and execution costs. The note promotes TOB imbalance as a primary candidate signal at this diagnostic stage, while later notes test and narrow its executable use.
 
 ## Headline
 

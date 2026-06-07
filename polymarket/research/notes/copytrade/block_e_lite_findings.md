@@ -1,6 +1,29 @@
+---
+title: Block E Lite Findings
+created: 2026-05-27
+status: archived
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - COWORK
+tags:
+  - copytrade
+  - block-e-lite
+  - relayer
+  - research
+---
+
 # Block E Lite Findings
 
+> Hub: [[COWORK]]
+
 > Table terms: [[polymarket_table_dictionary]]
+
+
+## Summary
+
+Block E Lite attributes the Block B operator-removal effect to hardcoded operator categories, maps those addresses to live RTDS identifier semantics, and snapshots competition in the current Block A target markets. It was later reinterpreted by [[relayer_dig_findings]] and [[copytrade_relayer_implications]], which showed the relayer category is really an exchange-internal leg artifact rather than a trader-flow population. Keep this note as the original diagnostic table and freshness snapshot.
 
 Generated: 2026-05-27
 
