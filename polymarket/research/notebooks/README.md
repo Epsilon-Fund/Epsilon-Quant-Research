@@ -1,3 +1,17 @@
+---
+title: "Polymarket Research Notebook Index"
+created: 2026-06-05
+status: active
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - polymarket
+---
 # Polymarket Research Notebook Index
 
 > Hub: [[POLYMARKET_BRAIN]] · [[COWORK]]

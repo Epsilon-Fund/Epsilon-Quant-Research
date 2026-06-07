@@ -1,3 +1,17 @@
+---
+title: "Metrics reference — derived datasets"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: resource
+hubs:
+  - POLYMARKET_BRAIN
+  - COWORK
+tags:
+  - research
+  - polymarket
+---
 # Metrics reference — derived datasets
 
 > Table terms: [[polymarket_table_dictionary]]
