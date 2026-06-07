@@ -24,25 +24,42 @@ This repo has **two main research branches** plus a shared knowledge layer:
 
 The two branches share a repo, but not a runtime. They use separate environments, separate dependencies, and separate project boundaries. The `brain/` layer is the map that keeps both research programs navigable.
 
-| Branch | What it owns | Main roots |
-|---|---|
-| **Polymarket** | Historical fill research, trader/wallet analysis, strategy notes, live/paper execution, maker engine, CLOB/LOB capture, data manifests | `polymarket/research/`, `polymarket/execution/`, `midas/` |
-| **Crypto** | Binance strategy research, walk-forward/CPCV engines, live Streamlit dashboards, portfolio notebooks, regime/ML/stat-arb experiments | `live_trading/`, `topics/`, `infrastructure/`, `docs/` |
-| **Brain** | Obsidian vault with maps, strategy hubs, TODOs, handoffs, agent lanes, and hygiene tooling | `brain/`, `tools/` |
+**Polymarket**  
+Research and execution for prediction markets: historical fills, trader/wallet analysis, strategy notes, live/paper execution, maker engine, CLOB/LOB capture, and data manifests.  
+Roots: `polymarket/research/`, `polymarket/execution/`, `midas/`
+
+**Crypto**  
+Systematic Binance research and live trading: strategy notebooks, walk-forward/CPCV engines, Streamlit dashboards, portfolio research, regime filters, ML experiments, and statistical arbitrage.  
+Roots: `live_trading/`, `topics/`, `infrastructure/`, `docs/`
+
+**Brain**  
+The Obsidian vault that ties the repo together: maps, strategy hubs, TODOs, handoffs, agent lanes, and hygiene tooling.  
+Roots: `brain/`, `tools/`
 
 ## Documented research
 
-The notes are organized by strategy cluster, but the names only make sense once you know what each cluster is trying to prove or disprove:
+The repo documents research by area, not just by internal code names.
 
-| Cluster | Plain-English purpose | Current shape |
-|---|---|---|
-| **Polymarket copy-trading** | Find cohorts of skilled wallets or trader styles worth following, then validate whether their edge survives historical reconstruction and execution realism. | Trader panels, cohort screens, relayer/identity audits, profile notes, and future execution handoff into Midas. |
-| **Polymarket market-making** | Test whether passive liquidity provision can earn spread, rebate, or carry-to-resolution after adverse selection, queue position, capacity, and incumbent-maker concentration. | Historical maker-wallet studies, K5/K5-STRESS capacity work, politics NegRisk accounting, live measurement design, and maker-engine runbooks. |
-| **Polymarket options-delta / fair value** | Compare Polymarket binary prices to external references such as underlying price, volatility, settlement source, and digital-option style fair values. | Mostly closed as a standalone pricing strategy; the surviving pieces are used as sizing, filtering, or execution diagnostics for market-making. |
-| **Polymarket order-flow / Dali lineage** | Study CLOB/L2 microstructure: OFI, TFI, lead-lag, book state, sign conventions, and whether short-horizon order-flow signals are tradable. | A documented lineage of tests, many falsified, that feeds better data semantics and execution caution into the other Polymarket clusters. |
-| **Crypto live momentum** | Trade a multi-asset Binance momentum universe with a live dashboard and production parameter set. | Active live stack around the 6-asset universe, with walk-forward optimization and dashboard wiring. |
-| **Crypto validation engine** | Make strategy research harder to fool: rolling walk-forward, CPCV, portfolio aggregation, and shared backtest metrics. | Reusable infrastructure used by momentum, BB breakout, cross-sectional momentum, regime filters, and related crypto experiments. |
-| **Crypto exploratory sleeves** | Explore adjacent ideas before they earn live status: BB breakout, stat-arb/pairs, ML prediction, BTC regime classification, long/short, memecoin/DeFi. | Topic folders and notebooks, with mature branches promoted into the validation stack when they deserve it. |
+### Polymarket
+
+| Area | What it is |
+|---|---|
+| **Copy-trading** | Identify skilled wallets or cohorts, reconstruct their historical PnL, and test whether copying them could survive execution realism. |
+| **Market-making** | Test passive quoting: spread capture, rebates, carry-to-resolution, adverse selection, queue position, and incumbent-maker capacity. |
+| **Options / fair value** | Compare Polymarket binary prices to external prices, volatility, settlement sources, and digital-option style fair values. |
+| **Order-flow microstructure** | Study CLOB/L2 behavior: book state, OFI/TFI, lead-lag, sign conventions, and short-horizon tradability. |
+| **Execution** | Midas live/paper stack: copy-trading adapter, maker engine, risk controls, journals, smoke tests, and runbooks. |
+
+### Crypto
+
+| Area | What it is |
+|---|---|
+| **Live momentum** | Multi-asset Binance trend/momentum system with live dashboarding and production parameter sets. |
+| **Breakout research** | Bollinger/volatility-expansion strategies validated through walk-forward and CPCV notebooks. |
+| **Statistical arbitrage** | Crypto pairs and relative-value research, including testing notebooks and strategy stubs. |
+| **Regime and ML filters** | BTC regime classification, XGBoost prediction notebooks, and overlays used to gate or size other strategies. |
+| **Validation infrastructure** | Walk-forward, CPCV, portfolio aggregation, and shared backtest metrics used across crypto strategy research. |
+| **Exploratory sleeves** | Cross-sectional momentum, long/short, memecoin/DeFi, and other ideas before they earn live status. |
 
 <p align="center">
   <img src="docs/assets/notes_by_cluster.png" width="620" alt="Research notes by strategy cluster" />
