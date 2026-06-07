@@ -1,9 +1,60 @@
 # Epsilon — Master TODO
 
 > Single consolidated checklist. Updated from handoffs. Active threads: **copytrade** (Midas bot, per-leader audit), **MM** (market-making) + **OD** (options-delta) — the two strats split out of the former "Block K" — and **dali / Polymarket research lineage**.
-> Last updated: 2026-06-04 (shared MM directional decomposition + non-politics target screen + maker-infra audit + first-mover liquidity scope landed — see [[mm_structural_maker_directional_decomposition_findings]], [[mm_nonpolitics_target_screen_findings]], [[mm_maker_infra_audit_findings]], [[mm_first_mover_liquidity_scope_findings]]).
+> Last updated: 2026-06-06 (PM CLOB capture semantics documented — see [[mm_clob_capture_semantics]]; shared MM directional decomposition + non-politics target screen + maker-infra audit + first-mover liquidity scope landed — see [[mm_structural_maker_directional_decomposition_findings]], [[mm_nonpolitics_target_screen_findings]], [[mm_maker_infra_audit_findings]], [[mm_first_mover_liquidity_scope_findings]]).
 
 > **Naming:** "Block K" is the historical joint arc; it is now two strats. **MM** = market-making (hub [[strat_market_making]]); **OD** = options-delta (hub [[strat_options_delta]]). Shared origin docs: [[block_k_plain_english_synthesis]] · [[block_k_maker_options_research]]. Prompts should name MM or OD.
+
+---
+
+## Brain Infrastructure (Obsidian) — state 2026-06-07
+
+> Implements [[OBSIDIAN_INFRA_ROADMAP]]. Goal: clean 2-person workspace + dynamically-evolving brain with minimal manual upkeep. Maps live in [[VAULT_MAP]] · [[SKILL_MAP]] · [[OPERATING_RHYTHMS]]. Hygiene tooling: `tools/brain_hygiene.py`.
+
+**Phase 0 — Relay + source-of-truth rules**
+
+- [x] `.gitignore` inverted 2026-06-07: `brain/**/*.md` now tracked; only `brain/generated/` + `brain/agents/*/scratch/` ignored (no more force-add).
+- [ ] Relay root share + coworker quick-start confirmed working on both machines (invite key sent directly, not committed).
+
+**Phase 1 — Core maps** (structure built 2026-06-07)
+
+- [x] [[VAULT_MAP]] — start-here surface.
+- [x] [[SKILL_MAP]] — repeatable workflows catalog.
+- [x] [[OPERATING_RHYTHMS]] — hygiene cadence.
+- [x] `brain/agents/codex/` + `brain/agents/cowork/` lanes ([[codex_lane]], [[cowork_lane]]).
+- [x] [[ONBOARDING]] — agent-agnostic collaborator brief.
+- [x] Verify VAULT_MAP active-branches + where-to-write tables match reality (Codex pass).
+
+**Phase 2 — Hygiene scripts** (tooling built 2026-06-07)
+
+- [x] `tools/brain_hygiene.py`: dupes, broken links, orphans, missing hub backlinks, missing frontmatter/summary, stale TODOs, recent-change digest.
+- [x] Outputs moved to ignored `brain/generated/`: `GENERATED_INDEX.md`, `hygiene_report.md`, `stale_notes.md` (not committed; one command to regenerate; durable map is [[VAULT_MAP]]).
+- [x] Weekly scheduled scan wired up (`brain-hygiene-weekly`, Mondays) — read-only, refreshes reports only.
+- [x] Codex Janitor pass — quick wins done: **0 duplicate basenames, 0 broken links, 0 missing hub backlinks** (commits `fa8dd20`, `8fccd47`, `7523b89`, `e763803`; handoff [[2026-06-07_brain_hygiene_cleanup]]).
+- [ ] **Codex Janitor pass — finish frontmatter/summary backfill.** Remaining as of 2026-06-07: ~119 notes w/o frontmatter, ~68 findings w/o Summary (brain/non-note files, generated data dumps, and remaining research notes still to go). Re-run `tools/brain_hygiene.py` to track.
+
+### Phase 3 — Graph layer (separate Codex prompt; build after Phase 2 backlog clears)
+
+> Graphify-style structural audit. A clean graph is only meaningful once frontmatter/links are clean — sequence after Phase 2.
+
+- [ ] Hub-centrality report (which hubs are over/under-connected).
+- [ ] Orphan / dead-end / stale-branch map (extends the current orphan check).
+- [ ] Duplicate-cluster / topic-island detection.
+- [ ] Output: `brain/generated/graph_audit.md` (+ optional Obsidian Canvas).
+- [ ] Delivery: a standalone Codex prompt (Cowork to draft), not folded into the cleanup pass.
+
+### Phase 4 — Agent workflow layer (scheduled agents)
+
+> These are the "systems" from [[SKILL_MAP]] made autonomous. Goal: agents (and humans on offset hours) never get lost in the note pile. **Caveat:** anything that auto-commits brain Markdown must respect the Relay-vs-Git rule — Relay owns live note collaboration; a Git agent must `pull` first and surface conflicts, never force-push. Scope auto-commit to brain/notes; leave code/data to manual Git discipline.
+
+- [ ] **Intraday brief** — light "what changed since this morning" digest from the recent-change list + open TODOs → `brain/generated/daily_brief.md`. Scheduled midday.
+- [ ] **EOD brief** — fuller "what changed today / decisions / what's next"; doubles as a Chronicler prompt. Scheduled end-of-day.
+- [ ] **Commit/push agent** — EOD: `pull` → stage brain + notes → commit with generated message → push; report conflicts instead of forcing. Resolves the offset-hours problem (Justin and colleague work different times).
+- [ ] Decide brief ownership when both agents are active (one chronicler pass, not two).
+
+### Phase 5 — Indeaverse (deferred)
+
+- [ ] Idea graph + strategy branch registry + roadmap index, navigable by concept not folder. See [[OBSIDIAN_INFRA_ROADMAP]] § Indeaverse. Build last.
 
 ---
 
