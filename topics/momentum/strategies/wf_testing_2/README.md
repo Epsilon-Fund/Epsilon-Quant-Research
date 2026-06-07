@@ -1,3 +1,17 @@
+---
+title: "Readme"
+created: 2026-04-15
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 ## Trend Follower with Caution Logic
 > Hub: [[STRATEGY_REFERENCE]]
 

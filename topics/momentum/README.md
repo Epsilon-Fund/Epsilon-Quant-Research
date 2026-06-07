@@ -1,3 +1,17 @@
+---
+title: "Momentum Research Hub"
+created: 2026-02-19
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 # Momentum Research Hub
 
 > Hub: [[STRATEGY_REFERENCE]]

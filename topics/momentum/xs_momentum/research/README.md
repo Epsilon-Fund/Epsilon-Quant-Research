@@ -1,3 +1,17 @@
+---
+title: "Cross-Sectional Momentum Research Iterations"
+created: 2026-06-05
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 # Cross-Sectional Momentum Research Iterations
 
 > Hub: [[topics/momentum/xs_momentum/README|XS momentum README]] · [[topics/momentum/README|momentum README]] · [[STRATEGY_REFERENCE]]

@@ -1,3 +1,17 @@
+---
+title: "Stage 1 — 4H Setup Detection"
+created: 2026-04-15
+status: closed
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 # Stage 1 — 4H Setup Detection
 > Hub: [[STRATEGY_REFERENCE]]
 

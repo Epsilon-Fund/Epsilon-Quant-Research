@@ -1,3 +1,17 @@
+---
+title: "Momentum Output Reports"
+created: 2026-06-05
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 # Momentum Output Reports
 
 > Hub: [[topics/momentum/README|momentum README]] · [[STRATEGY_REFERENCE]]

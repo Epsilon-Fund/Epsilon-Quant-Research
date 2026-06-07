@@ -1,3 +1,17 @@
+---
+title: "Readme"
+created: 2026-04-28
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 ## CPCV Validation Notebooks
 > Hub: [[STRATEGY_REFERENCE]]
 

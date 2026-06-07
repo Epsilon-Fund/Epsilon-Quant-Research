@@ -1,3 +1,17 @@
+---
+title: "Cross-Sectional CPCV Notebook Index"
+created: 2026-06-05
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 # Cross-Sectional CPCV Notebook Index
 
 > Hub: [[topics/momentum/README|momentum README]] · [[STRATEGY_REFERENCE]]

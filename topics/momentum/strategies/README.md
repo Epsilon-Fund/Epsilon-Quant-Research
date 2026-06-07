@@ -1,3 +1,17 @@
+---
+title: "Momentum Strategy Artifact Index"
+created: 2026-06-05
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 # Momentum Strategy Artifact Index
 
 > Hub: [[topics/momentum/README|momentum README]] · [[STRATEGY_REFERENCE]]

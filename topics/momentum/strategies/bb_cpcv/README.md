@@ -1,3 +1,17 @@
+---
+title: "Readme"
+created: 2026-04-29
+status: active
+owner: justin
+project: crypto
+para: resource
+hubs:
+  - STRATEGY_REFERENCE
+tags:
+  - crypto
+  - research
+  - momentum
+---
 CPCV validation notebooks for the BB breakout strategy.
 
 One CPCV notebook per asset/timeframe combination.
