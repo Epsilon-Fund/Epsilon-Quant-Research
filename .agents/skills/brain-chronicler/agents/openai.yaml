@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brain Chronicler"
+  short_description: "Record decisions, closures, and handoffs."
+  default_prompt: "Run a Chronicler pass for this session."

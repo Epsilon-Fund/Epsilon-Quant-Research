@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brain Cartographer"
+  short_description: "Keep vault maps and branch maps current."
+  default_prompt: "Run a Cartographer pass for the current repo state."

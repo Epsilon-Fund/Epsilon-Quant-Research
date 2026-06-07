@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brain Janitor"
+  short_description: "Fix brain hygiene issues from generated reports."
+  default_prompt: "Run a Brain Janitor pass from the hygiene report."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brain Rock Tumbler"
+  short_description: "Turn messy research into canonical findings."
+  default_prompt: "Rock Tumbler this research branch into a canonical findings note."

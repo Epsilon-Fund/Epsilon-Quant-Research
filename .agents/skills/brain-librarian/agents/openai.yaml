@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brain Librarian"
+  short_description: "Maintain glossary and table definitions."
+  default_prompt: "Run a Librarian pass for new reusable terms."
