@@ -65,7 +65,7 @@ The map below mirrors the two tables above: Polymarket areas on the left, crypto
 
 <p align="center">
   <a href="#documented-research">
-    <img src="docs/assets/notes_by_cluster.png" width="860" alt="Documented research map matching the Polymarket and crypto tables above" />
+    <img src="docs/assets/readme_research_map.png" width="860" alt="Documented research map matching the Polymarket and crypto tables above" />
   </a>
 </p>
 <p align="center"><sub>Click the map to jump back to the documented research tables.</sub></p>

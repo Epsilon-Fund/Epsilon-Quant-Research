@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, Rectangle
 
 
-OUT = Path(__file__).with_name("notes_by_cluster.png")
+OUT = Path(__file__).with_name("readme_research_map.png")
 
 POLYMARKET = [
     ("Copy-trading", "Wallet/cohort skill, copied-entry realism, and PnL persistence."),
