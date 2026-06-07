@@ -4,6 +4,11 @@ tags: [dali, block-a1, a1-1, diagnostics]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.1 Segment And L2 Proxy Diagnostics in the Dali research lineage area.
+- Existing takeaway/status: I agree with the A1.1 direction: run segmentation, side-aware cost QA, and OFI component checks before approving A2. The L2 work should start in A1.1 because A0/A0b already contain maintained top-5 depth snapshots. This sidecar uses those snapshots to test whether the A1 signal is a touch-only effect, a broader top-5 depth/imbalance effect, or a spread/depth/regime artifact. It does not replace true multi-level OFI...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.1 Segment And L2 Proxy Diagnostics

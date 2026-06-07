@@ -4,6 +4,11 @@ tags: [dali, block-a14, executable-cost, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.4 Executable Taker Findings in the Dali research lineage area.
+- Existing takeaway/status: A1.4 replaces the A1 mid-return cost overlay with an executable touch-to-touch round trip on the six 5s primary-read pre-cost candidates. 0 of 12 market-horizon cells have positive mean executable PnL after crossing the spread on both entry and exit. At the original A1 5s horizon, 0 of 6 candidates survive; the mean gap versus A1's 5s overlay is -560.8 bps, where positive means executable round-trip PnL was better...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.4 Executable Taker Findings

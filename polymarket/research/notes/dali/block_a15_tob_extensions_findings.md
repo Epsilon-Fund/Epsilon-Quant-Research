@@ -4,6 +4,11 @@ tags: [dali, block-a15, tob-extensions, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.5 TOB Extensions Findings in the Dali research lineage area.
+- Existing takeaway/status: Best multi-level variant is `exp_decay_imbalance_alpha_0p5` at 300s, 74.3%, +4.92 pp vs L1 TOB. TOB survives the micro-price target check; hit-rate deltas are not a material collapse. Best micro-change cell is 5s, 54.2%; it does not beat A1.3 TOB where TOB is strongest. Signal characterization only: no execution simulation, no ML, and no parameter optimization.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.5 TOB Extensions Findings

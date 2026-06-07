@@ -4,6 +4,11 @@ tags: [dali, block-a14i, pyramiding, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.4i Pyramiding K-Cap Sweep in the Dali research lineage area.
+- Existing takeaway/status: Calibration passed: K=1 matched block_a14h_maker_non_overlap_results.csv; K=inf matched block_a14c_maker_at_mid_results.csv. Across 960 market/K/grid cells, 3 had positive mean PnL and no cell cleared the robustness bar at any K. The best cell was K=inf on `a0b:2364426` / `btc-updown-4h-1779912000` with W=10s, H=30s, `exit_symmetric_maker`, 588 fills, mean 554.9 bps, and CI [-329.5 bps, 1054.1 bps].
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.4i Pyramiding K-Cap Sweep

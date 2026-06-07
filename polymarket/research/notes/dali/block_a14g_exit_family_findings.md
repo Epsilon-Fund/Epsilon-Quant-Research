@@ -4,6 +4,11 @@ tags: [dali, block-a14g, executable-cost, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.4g Exit-Family Findings in the Dali research lineage area.
+- Existing takeaway/status: A1.4g tests longer-horizon TOB-imbalance taker exits with a 300s time-stop backstop across all 11 primary-read markets. 0 of 165 market-config rows cross zero on mean PnL, and 0 have bootstrap lower CI above zero. The best row is `a0b:1971905` / `exit_imbalance_recovery_t0.1` at -125.0 bps with CI [-174.1 bps, -61.6 bps] and mean hold 264.0s. Crypto 4h markets have 0 positive mean rows.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.4g Exit-Family Findings

@@ -4,6 +4,11 @@ tags: [dali, block-a1, audit, methodology]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1 Methodology Audit in the Dali research lineage area.
+- Existing takeaway/status: Methodology audit for Block A1. It records confirmed assumptions, corrected assumptions, unknown code paths, and exact OFI/TFI/normalization formulas so later A1-family findings use the same interpretation.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 # Block A1 Methodology Audit
 
 This note documents the current A1 replay and diagnostic implementation as inspected on 2026-05-28. It is an audit note only: no optimization or strategy decision is implied.

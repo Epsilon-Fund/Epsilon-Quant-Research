@@ -6,6 +6,11 @@ tags: [dali, a18, reversion, passive-maker, microprice, results]
 
 > Hub: [[COWORK]]
 
+## Summary
+
+- Scope: Block A18 Passive Reversion-To-Microprice Findings in the Dali research lineage area.
+- Existing takeaway/status: No pooled route clears the pre-registered market-cluster lower-CI > 0 gate. Best pooled row by lower bound: `rolling_rank_sizing` / `passive_maker` / W=5 / H=30 with conditional EV `-1.232c` CI `[-1.631c, -0.924c]`, n `8,540`, executed fill `0.09%`.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Read Trail
 
 - [[block_a1x_external_note_reconciliation]]

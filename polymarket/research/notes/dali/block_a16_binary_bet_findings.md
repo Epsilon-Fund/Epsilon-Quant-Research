@@ -4,6 +4,11 @@ tags: [dali, block-a16, binary-bet, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.6 Binary-Bet Findings in the Dali research lineage area.
+- Existing takeaway/status: A1.6 enforces one open position per market and retests TOB imbalance as a binary-direction timing signal. 0 of 225 market-variant-horizon cells crossed zero with bootstrap CI lower bound above zero; 8 cells had positive mean PnL without clearing that robustness bar. Best cell: `a0b:2364426` / `signal_top_decile` / `fixed_900s` at 1823.7 bps on 8 non-overlapping trades, CI [-1529.2 bps, 4847.0 bps]. The A14f BTC-4h...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.6 Binary-Bet Findings

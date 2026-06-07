@@ -4,6 +4,11 @@ tags: [dali, block-a14f, executable-cost, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.4f Combined Refined-Exit + Tight-Spread Findings in the Dali research lineage area.
+- Existing takeaway/status: A1.4f tests all primary-read markets with per-market top-decile current TOB imbalance, spread-filtered entry, and refined exits. 5 of 660 market-horizon-threshold-exit cells crossed zero by mean PnL; 4 had at least 30 signal events, 0 had a bootstrap CI lower bound above zero, and 0 used a refined dynamic exit. The positive cells are all the same 300s fixed-horizon BTC 4h market from A14d, so the combination does...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.4f Combined Refined-Exit + Tight-Spread Findings

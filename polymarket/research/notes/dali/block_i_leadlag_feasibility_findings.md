@@ -1,7 +1,25 @@
+---
+title: "Block I Lead-Lag Feasibility Findings"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - COWORK
+tags:
+  - research
+  - dali
+---
 # Block I Lead-Lag Feasibility Findings
 
 > Hub: [[COWORK]]
 
+## Summary
+
+- Scope: Block I Lead-Lag Feasibility Findings in the Dali research lineage area.
+- Existing takeaway/status: Block I lead-lag feasibility closes the cross-market lead-lag branch. It checks timestamp alignment, predictive lead-lag, and executable gating, with the recorded verdict: CONFIRM-CLOSE.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 Links: [[block_a1x_external_note_reconciliation]] (#21), [[block_k3_leadlag_findings]], [[block_k3v2_findings]], [[block_k5b_findings]].
 
 Verdict: **CONFIRM-CLOSE**.

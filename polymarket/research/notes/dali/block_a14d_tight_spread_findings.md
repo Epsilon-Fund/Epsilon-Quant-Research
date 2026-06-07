@@ -4,6 +4,11 @@ tags: [dali, block-a14d, executable-cost, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.4d Tight-Spread Entry Findings in the Dali research lineage area.
+- Existing takeaway/status: Positive PnL appears only in 1 market(s), concentrated at 300s. The best interpretable positive row is `a0b:2364426` at 300s with S=500 bps: 843.6 bps mean PnL on 4,324/6,682 events (64.7% trigger), CI [-799.2 bps, 1770.3 bps]. The no_filter baseline for that same market/horizon is 334.1 bps, so the filter amplifies that one cell rather than creating a broad cross-market flip. Spread-conditional entry alone is...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.4d Tight-Spread Entry Findings

@@ -4,6 +4,11 @@ tags: [dali, block-a1, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1 Results in the Dali research lineage area.
+- Existing takeaway/status: The material Block A1 win is sign convention: live `last_trade_price.side` is now established as token-side aggressor direction, which unblocks live OFI/TFI work. The cleanest depth-normalized OFI characterization is the pre-cost 5s top-decile aggregate, 5s/decile 10: 64.1% hit (CI [60.0%, 68.2%], n=156,638), directional return 94.9 bps. Crypto and sports carry the read; geopolitics is useful but thinner; AI/product...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1 Results

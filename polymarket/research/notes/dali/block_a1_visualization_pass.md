@@ -4,6 +4,11 @@ tags: [dali, block-a1, viz, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1 Visualization Pass in the Dali research lineage area.
+- Existing takeaway/status: Rendering pass over existing A1/A1.1 outputs, not a new analysis run. It consolidates family hit-rate surfaces, market-horizon matrices, signal-cost waterfalls, and component comparisons for reviewer scanning.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 # Block A1 Visualization Pass
 
 This is a rendering pass over existing A1/A1.1 outputs, not a new analysis run. It consolidates the live OFI read into charts a reviewer can scan quickly: family surfaces, market-horizon matrices, cost decomposition, and component comparison. The cumulative wall-clock bps timeline requested for this pass is skipped because the allowed CSV inputs do not contain timestamps or per-row returns; that chart requires `block_a1_features.parquet` or a precomputed time-series output.

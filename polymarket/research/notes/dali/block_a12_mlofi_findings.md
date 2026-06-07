@@ -4,6 +4,11 @@ tags: [dali, block-a12, mlofi, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.2 MLOFI Findings in the Dali research lineage area.
+- Existing takeaway/status: A1.2 replayed the existing A0/A0b raw captures into true top-10 per-level OFI and compared MLOFI variants against the current L1 CKS baseline. The load-bearing result is that MLOFI does not beat L1 where A1's signal is cleanest: L1 wins 1s, 5s, and 30s top-decile hit rate, including the 5s headline cell. Best MLOFI-vs-L1 hit-rate deltas by horizon: 1s exp_decay_alpha_0p5 -19.35pp; 5s exp_decay_alpha_0p5 -15.57pp...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.2 MLOFI Findings

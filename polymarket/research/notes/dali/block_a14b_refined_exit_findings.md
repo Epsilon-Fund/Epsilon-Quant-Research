@@ -4,6 +4,11 @@ tags: [dali, block-a14b, executable-cost, results]
 > Hub: [[COWORK]]
 
 
+## Summary
+
+- Scope: Block A1.4b Refined-Exit Taker Findings in the Dali research lineage area.
+- Existing takeaway/status: A1.4b swaps A1.4's OFI trigger for A1.3's current top-of-book imbalance level and tests refined exits on the same six candidate markets. 0 of 36 market-config rows have positive mean executable PnL. The best single row is `a0:665325` with `cfg_signal_reversal` at -348.6 bps. Averaged across markets, the configuration ranking is:
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 > Table terms: [[polymarket_table_dictionary]]
 
 # Block A1.4b Refined-Exit Taker Findings
