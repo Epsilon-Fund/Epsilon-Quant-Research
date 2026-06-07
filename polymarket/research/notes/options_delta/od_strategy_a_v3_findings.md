@@ -1,8 +1,27 @@
+---
+title: "Sell Rich 4h Crypto UP/DOWN Digitals With OD Fair-Value Filters (Strategy A v3)"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # Sell Rich 4h Crypto UP/DOWN Digitals With OD Fair-Value Filters (Strategy A v3)
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: Sell Rich 4h Crypto UP/DOWN Digitals With OD Fair-Value Filters (Strategy A v3) in the OD/options-delta area.
+- Existing takeaway/status: OD Strategy A v3 clears only after the OD/source filter; bare power still fails.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 OD Strategy A v3 clears only after the OD/source filter; bare power still fails.
@@ -17,7 +36,7 @@ Power did not improve under the official assumption: the K3/K6 + K-PEG overlap h
 
 ## Design
 
-This is the OD strat, not a Block K lead-lag race. MM supplies the passive K-PEG lifecycle: eligible maker fills are aggregated into a market episode, inventory can be two-sided, Polymarket positions are carried to resolution, and the late near-50c spike zone remains excluded. OD adds the valuation layer: only accept fills when the token is rich versus the Binance digital fair, when implied vol is above causal EWMA vol, when the Chainlink/Binance source-basis risk is acceptable, and when dollar-delta inventory stays inside a cap.
+This is the OD strat, not a Block K lead-lag race. MM supplies the passive K-PEG lifecycle: eligible maker fills are aggregated into a market episode, inventory can be two-sided, Polymarket positions are carried to resolution, and the late near-50c spike zone remains excluded. OD adds the valuation layer: only accept fills when the token is rich versus Binance RV physical-probability fair, when PM midpoint-implied vol is above causal EWMA vol, when the Chainlink/Binance source-basis risk is acceptable, and when dollar-delta inventory stays inside a cap.
 
 Decision gate: OOS `far_absz_ge1_all_tau`, global market-episode embargo, net-of-cost, lower 95% cluster-bootstrap CI > 0. Phase 1 reports the bare lifecycle baseline; Phase 2 tests whether OD filters lift that lower CI above zero. Costs include maker rebate on Polymarket fills. The hedge rows add Binance costs at `6.0bp` per hedge trade/settlement notional, but hedge is a footnote and cannot create the edge gate.
 
@@ -26,7 +45,7 @@ Decision gate: OOS `far_absz_ge1_all_tau`, global market-episode embargo, net-of
 The three v3 phases that matter for the OD decision are all **unhedged Polymarket lifecycle** tests:
 
 - **Phase 1, power baseline:** replay the bare K-PEG lifecycle and ask whether more assets / wider longshot buckets create enough independent evidence.
-- **Phase 2, OD entry filter:** before accepting a maker fill, ask whether the token is actually overpriced versus the Binance digital fair value or backed by a strict source-basis filter.
+- **Phase 2, OD entry filter:** before accepting a maker fill, ask whether the token is actually overpriced versus Binance RV physical-probability fair or backed by a strict source-basis filter.
 - **Phase 3, risk caps:** keep the same unhedged lifecycle, but skip fills that would push episode dollar-delta exposure above a cap.
 
 The Binance hedge is **Phase 4 only**. It is a variance/cost diagnostic after the unhedged decision has already been made. The v3 PASS/FAIL statement above is therefore about the OD valuation filter, not about hedge PnL.
@@ -59,31 +78,29 @@ Where:
 - `tau` is time left to resolution in years.
 - `N(z)` is the standard normal CDF.
 
-For a specific Polymarket token, the fair is `P_up_fair` for an UP token and `1 - P_up_fair` for a DOWN token. The OD richness test then asks:
+For a specific Polymarket token, the RV physical-probability fair is `P_up_rv_fair` for an UP token and `1 - P_up_rv_fair` for a DOWN token. The OD richness test then asks:
 
 ```text
-short/sell token edge = entry_price - token_fair
-long/buy token edge   = token_fair - entry_price
+short/sell token edge = entry_price - token_rv_physical_prob_fair
+long/buy token edge   = token_rv_physical_prob_fair - entry_price
 ```
 
-The headline v3 filter is deliberately narrow: it keeps short/sell fills only when the token is rich versus fair. That directly tests the OD thesis: sell overpriced longshot/vol tokens and carry them to resolution.
+The headline v3 filter is deliberately narrow: it keeps short/sell fills only when the token is rich versus RV physical-probability fair. That tests the OD thesis as a forecast-selection rule: sell longshot/vol tokens that are expensive versus the causal RV model and carry them to resolution.
 
 ## Practical OD Filter Example
 
-Example fill: `btc-updown-4h-1780041600` sold/shorted the DOWN token at $0.231. The Binance digital fair for that token was $0.035, so the token was rich by 19.67c. A `rich_short >= 1c` filter keeps this fill; if the edge were below `1c`, v3 would skip it even though the K-PEG maker lifecycle would have filled it.
+Example fill: `btc-updown-4h-1780041600` sold/shorted the DOWN token at $0.231. The Binance RV physical-probability fair for that token was $0.035, so the token was rich by 19.67c. A `rich_short >= 1c` filter keeps this fill; if the edge were below `1c`, v3 would skip it even though the K-PEG maker lifecycle would have filled it.
 
 The signed value-edge convention is:
 
 ```text
-long token:  fair - entry_price
-short token: entry_price - fair
+long token:  rv_physical_prob_fair - entry_price
+short token: entry_price - rv_physical_prob_fair
 ```
 
-The headline richness filter is stricter than generic value-edge: it keeps only short/sell fills where the token is overpriced versus fair. That directly tests the OD thesis: sell the overpriced longshot/vol side and carry.
+The headline richness filter is stricter than generic value-edge: it keeps only short/sell fills where the token is overpriced versus RV physical-probability fair. That directly tests the OD thesis as a forecast-selection rule: sell the longshot/vol side that is expensive versus our causal RV model and carry.
 
 ## Table Glossary
-
-Shared definitions live in [[polymarket_table_dictionary]]. The local glossary below defines the columns and filters used in this specific note.
 
 - `filter`: the lifecycle/filter rule. `bare_lifecycle` is v2-style K-PEG with no OD valuation gate.
 - `embargo`: `global` is the official one-position-at-a-time embargo; `per_asset` is a power diagnostic.
@@ -100,8 +117,6 @@ Shared definitions live in [[polymarket_table_dictionary]]. The local glossary b
 - Filter suffixes are compact: `005m` = $0.005 = 0.5c, `010m` = 1c, `050m` = 5c, and `05vp` = 5 annualized vol points. The CSV contains the thinner n<3 rows; the Markdown tables hide them unless no robust row exists.
 
 ## Bucket Glossary
-
-The reusable bucket definitions also live in [[polymarket_table_dictionary#OD Strategy A Bucket Labels]].
 
 Buckets describe the option state at the fill timestamp. They are based on moneyness and time left, not on the eventual winner.
 
@@ -168,9 +183,9 @@ Read: the official global far-|z| gate is the first row. The per-asset rows answ
 | value_edge_ge_005m | global | none | 5 | 24 | 91.97c | [-19.73c, 249.80c] | -2.59c | 80.00% | 166.24c | 40.00% | 42.3 |
 | value_edge_ge_010m | global | none | 5 | 24 | 91.97c | [-19.73c, 249.80c] | -2.59c | 80.00% | 166.24c | 40.00% | 42.3 |
 
-Read: these rows ask whether OD valuation adds independent keep on top of the maker lifecycle. `rich_short` means sell only when the PM token is rich versus Binance digital fair. `vol_premium` means PM implied vol is above causal EWMA vol. `strict` promotes the Chainlink/Binance source-basis filter from diagnostic to official candidate design ingredient.
+Read: these rows ask whether OD valuation adds independent keep on top of the maker lifecycle. `rich_short` means sell only when the PM token is rich versus Binance RV physical-probability fair. `vol_premium` means PM midpoint-implied vol is above causal EWMA vol. `strict` promotes the Chainlink/Binance source-basis filter from diagnostic to official candidate design ingredient.
 
-Non-hedged read: the bare far-|z| lifecycle failed because its lower CI was -17.14c. The strict-source and strict-rich-short filters lift the lower CI above zero before any Binance hedge is applied. This says the OD valuation layer is doing real selection work; it is not just the old lifecycle with a hedge pasted on top.
+Non-hedged read: the bare far-|z| lifecycle failed because its lower CI was -17.14c. The strict-source and strict-rich-short filters lift the lower CI above zero before any Binance hedge is applied. This says the RV valuation filter is doing selection work in this replay; it does not prove external option-IV mispricing.
 
 ## Phase 3 — Dollar-Delta Risk Caps
 

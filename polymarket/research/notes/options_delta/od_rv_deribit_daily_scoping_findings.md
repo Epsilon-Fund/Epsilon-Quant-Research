@@ -1,9 +1,28 @@
+---
+title: "OD-RV Scoping: PM Daily Crypto Digitals Versus Deribit 1-Day Options"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD-RV Scoping: PM Daily Crypto Digitals Versus Deribit 1-Day Options
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
 > Prior notes: [[od_pricing_model_form_findings]] · [[od_v4_calibration_gate_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD-RV Scoping: PM Daily Crypto Digitals Versus Deribit 1-Day Options in the OD/options-delta area.
+- Existing takeaway/status: Phase 0 data verdict: **PARTIAL PASS: degraded Phase 1 ran, but no deployable verdict**.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Phase 0 data verdict: **PARTIAL PASS: degraded Phase 1 ran, but no deployable verdict**.

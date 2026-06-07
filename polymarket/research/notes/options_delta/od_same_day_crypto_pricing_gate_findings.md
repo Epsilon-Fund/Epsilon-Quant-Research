@@ -1,9 +1,28 @@
+---
+title: "Same-Day Crypto Touch And Terminal-Ladder Pricing Gate"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # Same-Day Crypto Touch And Terminal-Ladder Pricing Gate
 
 > Hub: [[strat_options_delta]] · [[COWORK]]
 > Related: [[od_cross_asset_gate0_universe_map_findings]] · [[od_conditional_prob_calibration_findings]] · [[od_pricing_model_form_findings]] · [[od_strategy_a_v3_pnl_risk_findings]] · [[block_k4_arb_scan_findings]] · [[mm_deployable_cells_findings]] · [[block_k5_findings]] · [[block_k5_stress_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: Same-Day Crypto Touch And Terminal-Ladder Pricing Gate in the OD/options-delta area.
+- Existing takeaway/status: Final verdicts after Arm T Tier-1 extension: **Arm T CLOSE** and **Arm E CLOSE**.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Final verdicts after Arm T Tier-1 extension: **Arm T CLOSE** and **Arm E CLOSE**.

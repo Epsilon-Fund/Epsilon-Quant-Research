@@ -1,9 +1,28 @@
+---
+title: "OD Strategy A Realism Re-Audit: Passive Longshot/Vol Harvest Was Killed Too Harshly"
+created: 2026-06-05
+status: watching
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Strategy A Realism Re-Audit: Passive Longshot/Vol Harvest Was Killed Too Harshly
 
 > Hub: [[strat_options_delta]] · [[COWORK]]
 > Related: [[od_strategy_a_v2_lifecycle_findings]] · [[od_strategy_a_v3_findings]] · [[od_strategy_a_v3_pnl_risk_findings]] · [[block_k6_strategy_a_static_hedge_findings]] · [[block_k5_stress_findings]] · [[mm_deployable_cells_findings]] · [[od_conditional_prob_calibration_findings]] · [[od_pricing_model_form_findings]] · [[od_same_day_crypto_pricing_gate_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD Strategy A Realism Re-Audit: Passive Longshot/Vol Harvest Was Killed Too Harshly in the OD/options-delta area.
+- Existing takeaway/status: Final re-audit verdict: **MERITS-LIVE-MEASUREMENT-LOOP** for the source-clean/rich-short Strategy A longshot harvest at small capital, not a production trading system and not a full standalone OD reopen.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Final re-audit verdict: **MERITS-LIVE-MEASUREMENT-LOOP** for the source-clean/rich-short Strategy A longshot harvest at small capital, not a production trading system and not a full standalone OD reopen.
@@ -118,7 +137,7 @@ K5-STRESS category status also needs one wording fix: `politics_negrisk` is **bl
 | Design | Modeled assumptions | Live-only unknowns | Re-audit verdict | Deciding number |
 | --- | --- | --- | --- | --- |
 | Bare Strategy A far, one-position global | Global one-active-episode capital slot; K-PEG fills as passive-fill proxy; one contract per fill; carry to resolution; maker rebate; short OOS holdout. | Whether one global slot is necessary at actual capital; live fill share; queue; missed fills; edge persistence. | **CONFIRM-CLOSE** for this capital model only. | per-contract CI lower **-2.02c** |
-| Source-clean/rich-short Strategy A, concurrent BTC/ETH/SOL | Per-asset capital sleeves; strict source filter; rich-short >=1c; one contract per fill or simple sizing; no PM exit; no mark-to-mid; 5% opportunity haircut only diagnostic. | Passive maker fill rate; real non-incumbent queue share; adverse selection of rich-longshot quotes; source-basis events; capacity at $10-$100 scale; whether source filter or valuation filter owns the edge. | **MERITS-LIVE-MEASUREMENT-LOOP**. | flat per-contract CI lower **+0.25c**; $50 cap lower **+0.48c**; fair-value-scaled lower **+1.94c** |
+| Source-clean/rich-short Strategy A, concurrent BTC/ETH/SOL | Per-asset capital sleeves; strict source filter; rich-short >=1c; one contract per fill or simple sizing; no PM exit; no mark-to-mid; 5% opportunity haircut only diagnostic. | Passive maker fill rate; real non-incumbent queue share; adverse selection of rich-longshot quotes; source-basis events; capacity at $10-$100 scale; whether source filter or valuation filter owns the edge. | **MERITS-LIVE-MEASUREMENT-LOOP**. | flat per-contract CI lower **+0.25c**; $50 cap lower **+0.48c**; rv-edge-scaled lower **+1.94c** |
 | Same-day Arm T Tier-1 touch fade, `pos_z_ge_3/1_4h` | Saved Tier-1 held-out cell; PM touch IV rich versus HAR/Kou; buy high-priced NO / sell unlikely touch; capacity share tested at 5%, 10%, and historical 22.68% non-top3 ceiling. | Real same-day touch queue; adverse jump days; barrier-touch acceleration; whether a 9-cluster all-winner sample survives live adverse days; passive fill share near a 96c NO. | Standalone **CLOSE** remains; as a cluster member **MERITS-LIVE-MEASUREMENT-LOOP**. | raw **3.49c** CI **[2.29c, 5.43c]**; deployable **0.17c / 0.35c / 0.79c** at 5% / 10% / 22.68% |
 | K6 static-hedge far family | Strict source; first eligible far fill per market; one static Binance hedge at entry delta; 6 bp Binance cost; hold hedge to resolution. | Hedge execution/slippage; fill/queue; whether far/mid survives more markets; whether live IV/vol state persists without overfitting. | **MERITS-LIVE-MEASUREMENT-LOOP** as overlay evidence, not Kronos unblock. | far all-tau lower **+0.43c**; far/mid lower **+0.96c** |
 | MM structured non-top3 capacity | Structured-playbook thresholds; top-3 exclusion; entrant capture formula; median structured-wallet bps; 2026 active-day run-rate. | Real quote/cancel queue; missed fills; actual entrant share; speed versus structure; whether `other:misc_other` is reproducible; NegRisk accounting. | **MERITS-LIVE-MEASUREMENT-LOOP** for capacity/moat measurement; MM standalone base case remains sub-scale. | base **$78/day**; 1% non-top3 2026 sensitivity **$304/day** |
@@ -220,7 +239,7 @@ Arm B and the extended Binance history improve tail probabilities for the strict
 
 ### Tail Verdict
 
-**CONFIRM MERITS-LIVE-MEASUREMENT-LOOP**, narrowed by sizing. The cluster still has real per-contract edge after explicit tail adjustment, but not at every size. The 4h sleeve should enter live measurement as **fair-value-scaled sizing only**, with flat one-contract, $50 cap, and Kelly rows logged as shadow policies until they survive adverse-regime lower-CI tests. The same-day touch member can share the loop, but its live risk budget must be tiny and explicitly event/touch-gated because the offline sample has zero adverse touches.
+**CONFIRM MERITS-LIVE-MEASUREMENT-LOOP**, narrowed by sizing. The cluster still has real per-contract edge after explicit tail adjustment, but not at every size. The 4h sleeve should enter live measurement as **rv-edge-scaled sizing only**, with flat one-contract, $50 cap, and Kelly rows logged as shadow policies until they survive adverse-regime lower-CI tests. The same-day touch member can share the loop, but its live risk budget must be tiny and explicitly event/touch-gated because the offline sample has zero adverse touches.
 
 ## OD Pure-Taker Attribution
 

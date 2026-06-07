@@ -1,3 +1,17 @@
+---
+title: "OD Strategy A v3 PnL/Risk Deep-Dive"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Strategy A v3 PnL/Risk Deep-Dive
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
@@ -5,6 +19,11 @@
 > MM benchmark notes: [[mm_deployable_cells_findings]] · [[block_k5_stress_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD Strategy A v3 PnL/Risk Deep-Dive in the OD/options-delta area.
+- Existing takeaway/status: OD Strategy A v3 **FAIL** under the new strict gate: survive the priced-in left tail **and** beat the same-market MM/structural baseline with lower-CI > 0.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 OD Strategy A v3 **FAIL** under the new strict gate: survive the priced-in left tail **and** beat the same-market MM/structural baseline with lower-CI > 0.
@@ -72,12 +91,12 @@ All sizing policies use the same OOS far-|z| strict-rich/source-filtered fill se
 
 | policy | markets | mean net | median net | CI | mean ROC | PnL std | CVaR 5% | worst | weighted fills |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| fair_value_scaled | 7 | 31.72c | 10.55c | [1.70c, 73.21c] | -29.82% | 57.87c | -8.07c | -8.07c | 2.25 |
+| rv_edge_scaled | 7 | 31.72c | 10.55c | [1.70c, 73.21c] | -29.82% | 57.87c | -8.07c | -8.07c | 2.25 |
 | dollar_delta_cap_50 | 7 | 21.68c | 12.31c | [0.71c, 51.45c] | 71.28% | 40.54c | -5.92c | -5.92c | 1.40 |
 | flat_1_contract | 7 | 57.71c | 14.17c | [0.48c, 151.00c] | -25.34% | 125.58c | -8.76c | -8.76c | 3.14 |
 | fractional_kelly_25pct | 7 | 2.73c | 1.10c | [-0.49c, 7.12c] | -30.15% | 6.03c | -1.78c | -1.78c | 1.26 |
 
-Sizing definitions: `flat_1_contract` buys one synthetic complement per accepted fill. `fair_value_scaled` sizes roughly proportional to OD edge, capped at 3x. `dollar_delta_cap_50` clips fills once running episode dollar-delta reaches $50. `fractional_kelly_25pct` uses a quarter-Kelly binary-contract proxy from causal fair value, also capped at 3x.
+Sizing definitions: `flat_1_contract` buys one synthetic complement per accepted fill. `rv_edge_scaled` sizes roughly proportional to edge versus RV physical-probability fair, capped at 3x. `dollar_delta_cap_50` clips fills once running episode dollar-delta reaches $50. `fractional_kelly_25pct` uses a quarter-Kelly binary-contract proxy from RV physical-probability fair, also capped at 3x.
 
 ## Task 4 — Left Tail
 
@@ -102,7 +121,7 @@ MM benchmark used here: K5-STRESS crypto_4h structured-non-top3 median `2.4 bps`
 | strict_rich_short_global_sensitivity | 4 | 105.20c | 33.89c | [16.19c, 258.69c] | 29.66% | 1790.7 | 1788.3 |
 | strict_rich_short_minus_strict_source_same_markets | 7 | -40.47c | 0.59c | [-120.93c, 1.49c] | - | - | - |
 
-The key line is `strict_rich_short_minus_strict_source_same_markets`. If it is not lower-CI positive, OD has not proven that fair-value richness adds EV beyond simply selecting the same source-filtered/structural markets. In that case this should fold back into MM as a quote-selection feature rather than stand alone as a separate OD edge.
+The key line is `strict_rich_short_minus_strict_source_same_markets`. If it is not lower-CI positive, OD has not proven that RV-richness adds EV beyond simply selecting the same source-filtered/structural markets. In that case this should fold back into MM as a quote-selection feature rather than stand alone as a separate OD edge.
 
 ## Gate Verdict
 

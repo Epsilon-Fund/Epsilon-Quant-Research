@@ -1,3 +1,17 @@
+---
+title: "OD Conditional Resolution-Probability Calibration: Binance-Only Reopen-Or-Close Test"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Conditional Resolution-Probability Calibration: Binance-Only Reopen-Or-Close Test
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
@@ -5,13 +19,18 @@
 > ML discipline gate: [[2026-05-31_kronos_hermes_eval]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD Conditional Resolution-Probability Calibration: Binance-Only Reopen-Or-Close Test in the OD/options-delta area.
+- Existing takeaway/status: Final verdict: **CLOSE**.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Final verdict: **CLOSE**.
 
 OD **CLOSES as a standalone strategy** in this time-boxed test. Arm B does not prove that OD fair-value richness adds robust incremental edge beyond the structural/source quote-selection baseline.
 
-Arm B, the Binance-only empirical conditional probability model, predicts 52.22% ITM on the same 23-fill v4 far-|z| strict-rich short set. The tokens actually paid 39.13%. The mean Arm-B model edge is 3.83c, CI [1.94c, 5.73c]; realized net EV is 17.05c, CI [-1.84c, 26.49c]. After the K5 top-3 maker capacity haircut, the market-level incremental lower CI versus the v4 structural 0c-edge baseline is -2.11c.
+Arm B, the Binance-only empirical conditional probability model, predicts 52.22% ITM on the same 23-fill v4 far-|z| strict-rich short set. The tokens actually paid 39.13%. The mean Arm-B model edge is 3.83c, CI [1.94c, 5.73c]; realized net EV is 17.05c, CI [-1.84c, 26.49c]. After the K5 top-3 maker capacity haircut, the market-level lower CI is -0.13c versus a 0c baseline and -2.11c after subtracting the borrowed v4 structural queue baseline.
 
 Plain-English read: Binance history says the far-|z| states are not absurd longshots. In the exact PM set, the empirical conditional probability is close enough to the traded price that the OD richness gap is not independently decisive. The positive realized cents are still small-sample/concentration-sensitive, and the structural 0c-edge replay remains the better explanation than a standalone OD valuation edge.
 
@@ -26,7 +45,7 @@ z = ln(S_t / K) / (causal_EWMA_sigma_t * sqrt(tau))
 outcome = 1 if Binance close > K else 0
 ```
 
-Arm A is the old control: `N(z)`. Arm B is model-free: expanding-time CV estimates empirical `P(resolve UP | signed z bucket, time-left bucket)` from prior Binance history. For the PM token side, UP uses that probability directly and DOWN uses `1 - P(resolve UP)`.
+Arm A is the old RV physical-probability control: `N(z)`. Arm B is model-free: expanding-time CV estimates empirical `P(resolve UP | signed z bucket, time-left bucket)` from prior Binance history. For the PM token side, UP uses that probability directly and DOWN uses `1 - P(resolve UP)`.
 
 Historical sample: 1,234,539 Binance 5-minute states, 26,268 asset-window 4h outcomes across 8,756 UTC time slots, assets `BTC, ETH, SOL`. Expanding-CV validation rows: 927,075.
 
@@ -44,10 +63,7 @@ Plain-English read: the 5-minute historical panel is a good truth-table prior; t
 
 For the pricing-model-form reopen test, the preferred ordering should be:
 
-1. Use the historical 5-minute panel only as the background calibration/control for `P(resolve | z, tau)`.
-2. For the actual PM validation rows, rebuild the state at 1s granularity from the captured windows where available.
-3. Estimate jump/OFI features from the local live window around each fill, not only from multi-year unconditional Binance history.
-4. Treat Deribit BTC/ETH as an illustrative market-IV anchor for the same captured days, not as a powered gate.
+1. Use the historical 5-minute panel only as the background calibration/control for `P(resolve | z, tau)`. 2. For the actual PM validation rows, rebuild the state at 1s granularity from the captured windows where available. 3. Estimate jump/OFI features from the local live window around each fill, not only from multi-year unconditional Binance history. 4. Treat Deribit BTC/ETH as an illustrative market-IV anchor for the same captured days, not as a powered gate.
 
 This caveat does not overturn this note's close verdict. It narrows what kind of evidence would be allowed to reopen OD: a stronger pricing-model-form test should show residual EV on the **captured-window/live 1s panel**, not merely on a smoother 5-minute historical lookup.
 
@@ -72,14 +88,14 @@ Read: this is the truth-teller independent of the tiny Polymarket sample. If Arm
 
 ## PM v4 Far-|z| Short Set
 
-| label | fills | markets | mean_short_price | mean_pred_itm_prob | realized_itm_rate | obs - pred | mean_model_edge | edge CI | mean net EV | net EV CI | after-top3 market net | after-top3 CI | structural baseline | incremental vs structural | incremental CI | primary lookup share |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| arm_a_ewma_nd2_original_set | 23 | 8 | 56.05c | 52.53% | 39.13% | -13.40% | 3.53c | [2.45c, 4.34c] | 17.05c | [-1.84c, 26.49c] | 2.45c | [-0.13c, 6.76c] | 1.98c | 0.48c | [-2.11c, 4.79c] | 100.00% |
-| arm_b_empirical_conditional_original_set | 23 | 8 | 56.05c | 52.22% | 39.13% | -13.09% | 3.83c | [1.94c, 5.73c] | 17.05c | [-1.84c, 26.49c] | 2.45c | [-0.13c, 6.76c] | 1.98c | 0.48c | [-2.11c, 4.79c] | 100.00% |
-| arm_b_empirical_conditional_rich_ge_1c | 15 | 6 | 36.81c | 30.71% | 26.67% | -4.04% | 6.10c | [3.52c, 7.19c] | 10.29c | [2.28c, 14.52c] | 1.29c | [0.17c, 2.55c] | 1.98c | -0.69c | [-1.80c, 0.58c] | 100.00% |
-| arm_b_empirical_conditional_rich_ge_5c | 10 | 4 | 15.32c | 7.47% | 0.00% | -7.47% | 7.85c | [7.34c, 8.21c] | 15.50c | [14.54c, 17.20c] | 1.94c | [0.81c, 3.07c] | 1.98c | -0.04c | [-1.17c, 1.09c] | 100.00% |
+| label | fills | markets | mean_short_price | mean_pred_itm_prob | realized_itm_rate | obs - pred | mean_model_edge | edge CI | mean net EV | net EV CI | after-top3 market net | after-top3 CI | incremental vs 0c | inc vs 0c CI | borrowed baseline | incremental vs borrowed | inc vs borrowed CI | primary lookup share |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| arm_a_ewma_nz_original_set | 23 | 8 | 56.05c | 52.53% | 39.13% | -13.40% | 3.53c | [2.45c, 4.34c] | 17.05c | [-1.84c, 26.49c] | 2.45c | [-0.13c, 6.76c] | 2.45c | [-0.13c, 6.76c] | 1.98c | 0.48c | [-2.11c, 4.79c] | 100.00% |
+| arm_b_empirical_conditional_original_set | 23 | 8 | 56.05c | 52.22% | 39.13% | -13.09% | 3.83c | [1.94c, 5.73c] | 17.05c | [-1.84c, 26.49c] | 2.45c | [-0.13c, 6.76c] | 2.45c | [-0.13c, 6.76c] | 1.98c | 0.48c | [-2.11c, 4.79c] | 100.00% |
+| arm_b_empirical_conditional_rich_ge_1c | 15 | 6 | 36.81c | 30.71% | 26.67% | -4.04% | 6.10c | [3.52c, 7.19c] | 10.29c | [2.28c, 14.52c] | 1.29c | [0.17c, 2.55c] | 1.29c | [0.17c, 2.55c] | 1.98c | -0.69c | [-1.80c, 0.58c] | 100.00% |
+| arm_b_empirical_conditional_rich_ge_5c | 10 | 4 | 15.32c | 7.47% | 0.00% | -7.47% | 7.85c | [7.34c, 8.21c] | 15.50c | [14.54c, 17.20c] | 1.94c | [0.81c, 3.07c] | 1.94c | [0.81c, 3.07c] | 1.98c | -0.04c | [-1.17c, 1.09c] | 100.00% |
 
-Column read: `mean_model_edge` is `short price - predicted ITM probability`. `mean net EV` is the actual resolution PnL per fill after maker rebate. `after-top3 market net` applies the 5% non-incumbent capacity haircut used in v4. `incremental vs structural` subtracts the best v4 0c-edge queue replay baseline.
+Column read: `mean_model_edge` is `short price - predicted ITM probability`. `mean net EV` is the actual resolution PnL per fill after maker rebate. `after-top3 market net` applies the 5% non-incumbent capacity haircut used in v4. `incremental vs 0c` is the raw capacity-adjusted read. `incremental vs borrowed` subtracts the best v4 0c-edge queue replay baseline. Live-measured baseline is not filled in this run because there is no separate live queue baseline artifact for the same validation rows yet.
 
 ![PM EV by arm](/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/data/analysis/plots/options_delta/od_conditional_prob_pm_ev.png)
 

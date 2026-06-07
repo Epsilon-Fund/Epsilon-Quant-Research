@@ -1,8 +1,27 @@
+---
+title: "OD Cross-Asset Up/Down Expansion Scoping"
+created: 2026-06-05
+status: candidate
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Cross-Asset Up/Down Expansion Scoping
 
 > Hub: [[strat_options_delta]] · [[strat_market_making]] · [[POLYMARKET_BRAIN]]
 > Related: [[od_pricing_model_form_findings]] · [[od_rv_deribit_daily_scoping_findings]] · [[block_k5b_findings]] · [[mm_deployable_cells_findings]]
 
+## Summary
+
+- Scope: OD Cross-Asset Up/Down Expansion Scoping in the OD/options-delta area.
+- Existing takeaway/status: The 2026-06-02 OD close is narrow: our standalone fair-value model did not prove a deployable edge on PM crypto-4h digitals after better probability calibration, jump tails, structural queue baseline, and top-maker capacity haircuts. It does **not** prove that PM up/down markets are untradeable, that top-maker share is impossible to steal, or that OD cannot work on other reference assets with better external...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Thesis
 
 The 2026-06-02 OD close is narrow: our standalone fair-value model did not prove a deployable edge on PM crypto-4h digitals after better probability calibration, jump tails, structural queue baseline, and top-maker capacity haircuts. It does **not** prove that PM up/down markets are untradeable, that top-maker share is impossible to steal, or that OD cannot work on other reference assets with better external price/option APIs.

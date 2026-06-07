@@ -1,9 +1,28 @@
---- title: "OD Equities Index Pricing Scope Findings" tags: [options-delta, equities, index, gate-0, capacity] created: 2026-06-03 status: capacity-pass-pricing-confirm-close-no-opra-build-iv-swing-blocked-spx-open-scope-live-collector ---
-
+---
+title: "OD Equities Index Pricing Scope Findings"
+created: 2026-06-03
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+  - equities
+  - index-updown
+---
 # OD Equities Index Pricing Scope Findings
 
 > Hub: [[strat_options_delta]] · [[COWORK]]
 
+## Summary
+
+- Scope: OD Equities Index Pricing Scope Findings in the OD/options-delta area.
+- Existing takeaway/status: SPX daily up/down clears the small-capital capacity and persistence scope, but the cheap pricing gate closes the branch.** This revises the old [[od_cross_asset_gate0_universe_map_findings]] deferral only on capacity: index up/down was thin under the prior `$50k/day` operation-scale bar, not under the `$10-$100` measurement scale now used for OD/MM live loops. The appended N(z) / realized-vol pricing gate below then...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Verdict
 
 **SPX daily up/down clears the small-capital capacity and persistence scope, but the cheap pricing gate closes the branch.** This revises the old [[od_cross_asset_gate0_universe_map_findings]] deferral only on capacity: index up/down was thin under the prior `$50k/day` operation-scale bar, not under the `$10-$100` measurement scale now used for OD/MM live loops. The appended N(z) / realized-vol pricing gate below then answers the pricing question: **CONFIRM-CLOSE / no Cboe-OPRA build**.

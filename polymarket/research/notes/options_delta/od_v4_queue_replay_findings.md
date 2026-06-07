@@ -1,3 +1,17 @@
+---
+title: "OD v4 Exploratory Queue Replay: Can Passive Rich-Short Quotes Actually Fill?"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD v4 Exploratory Queue Replay: Can Passive Rich-Short Quotes Actually Fill?
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
@@ -5,6 +19,11 @@
 > MM benchmark: [[mm_deployable_cells_findings]] · [[block_k5_stress_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD v4 Exploratory Queue Replay: Can Passive Rich-Short Quotes Actually Fill? in the OD/options-delta area.
+- Existing takeaway/status: Official gate context: Phase 0 failed: 23 fills / 8 markets, gross EV 16.92c, CI [-1.43c, 26.38c], realized ITM 39.13%.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Official gate context: Phase 0 failed: 23 fills / 8 markets, gross EV 16.92c, CI [-1.43c, 26.38c], realized ITM 39.13%.

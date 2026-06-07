@@ -1,9 +1,28 @@
+---
+title: "OD-RV Daily Settlement Check and 08:00 UTC Aligned Capture"
+created: 2026-06-05
+status: watching
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD-RV Daily Settlement Check and 08:00 UTC Aligned Capture
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
 > Prior notes: [[od_rv_deribit_daily_scoping_findings]] · [[od_pricing_model_form_findings]]
 > Status: original PM daily-vs-Deribit daily is parked; 08:00 UTC aligned PM 4h/hourly capture is implemented.
 
+## Summary
+
+- Scope: OD-RV Daily Settlement Check and 08:00 UTC Aligned Capture in the OD/options-delta area.
+- Existing takeaway/status: Park the original PM daily-vs-Deribit daily branch.** Polymarket daily BTC/ETH resolves at 12:00 ET, which is 16:00 UTC during the checked June 2026 markets, from Binance 1 minute candle close prices. Deribit BTC/ETH option instruments returned by the public API all expire at 08:00 UTC. That leaves an 8-hour tail where the Polymarket daily binary can flip after the Deribit option has already expired.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Phase 0 Verdict
 
 **Park the original PM daily-vs-Deribit daily branch.** Polymarket daily BTC/ETH resolves at 12:00 ET, which is 16:00 UTC during the checked June 2026 markets, from Binance 1 minute candle close prices. Deribit BTC/ETH option instruments returned by the public API all expire at 08:00 UTC. That leaves an 8-hour tail where the Polymarket daily binary can flip after the Deribit option has already expired.

@@ -1,9 +1,28 @@
+---
+title: "PM Financial-Binary Gate 0 Universe And Capacity Map"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # PM Financial-Binary Gate 0 Universe And Capacity Map
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
 > Related: [[od_cross_asset_updown_scoping]] · [[od_pricing_model_form_findings]] · [[mm_deployable_cells_findings]]
 > CSV: `data/analysis/csv_outputs/options_delta/od_cross_asset_gate0_universe_map.csv`
 
+## Summary
+
+- Scope: PM Financial-Binary Gate 0 Universe And Capacity Map in the OD/options-delta area.
+- Existing takeaway/status: Ranked by non-incumbent headroom times clean-reference availability, **only crypto-daily clears Gate 0 for a future external-fair-value test**. That is a universe/capacity pass, not permission to ignore settlement: the parallel OD-RV settlement check parks literal PM daily BTC/ETH vs Deribit daily because PM settles at 16:00 UTC and Deribit expires at 08:00 UTC. Index up/down and single-stock up/down are clean but...
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Ranked by non-incumbent headroom times clean-reference availability, **only crypto-daily clears Gate 0 for a future external-fair-value test**. That is a universe/capacity pass, not permission to ignore settlement: the parallel OD-RV settlement check parks literal PM daily BTC/ETH vs Deribit daily because PM settles at 16:00 UTC and Deribit expires at 08:00 UTC. Index up/down and single-stock up/down are clean but sub-scale under the stated volume/headroom minimum. Close-above/price-band has a lot of volume, but the current volume is mostly crypto hit/barrier style threshold markets rather than clean terminal digitals, so it should not reopen a homemade pricing-model branch. True financial negative-risk baskets were sparse one-offs in this scrape.

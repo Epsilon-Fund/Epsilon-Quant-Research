@@ -1,16 +1,35 @@
+---
+title: "OD Touch-Risk Filter Findings"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Touch-Risk Filter Findings
 
 > Hub: [[strat_options_delta]] · [[COWORK]]
 > Related: [[od_strategy_a_realism_reaudit_findings]] · [[block_k6_vol_findings]] · [[od_same_day_crypto_pricing_gate_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD Touch-Risk Filter Findings in the OD/options-delta area.
+- Existing takeaway/status: Verdict: **LOG FEATURE ONLY**.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Verdict: **LOG FEATURE ONLY**.
 
 The cheap offline test does **not** justify adding a Binance touch-risk skip gate to the longshot-harvest live loop. The held-out score has only weak separation: bad-touch AUC **0.616**, CI **[0.603, 0.628]**. Jump-driven touches, the exact events this idea most wanted to catch, are not cleanly forecastable either: AUC **0.634**, CI **[0.606, 0.659]**.
 
-On the tiny PM fair-value-scaled fill set, take-all stress EV is 4.19c [0.55c, 6.46c]. The best skip row is `skip_top_20pct` at 4.19c [0.82c, 6.66c], retaining 100.00% of weighted fills. This is a diagnostic over only 7 kept PM market clusters, not a powered gate.
+On the tiny PM rv-edge-scaled fill set, take-all stress EV is 4.19c [0.55c, 6.46c]. The best skip row is `skip_top_20pct` at 4.19c [0.82c, 6.66c], retaining 100.00% of weighted fills. This is a diagnostic over only 7 kept PM market clusters, not a powered gate.
 
 The result is useful precisely because it is cheap: causal momentum, taker-flow imbalance, and Lee-Mykland jump features can be logged as descriptive live telemetry, but the offline evidence does not support a hard skip rule.
 
@@ -69,15 +88,15 @@ The PM overlay uses `od_strategy_a_tail_sizing_weighted_fills.parquet`, the same
 | flat_1_contract | skip_top_20pct | 22 | 7 | 100.00% | 1.74c | -0.72c | 5.44c | 4.14c | 18.36c |
 | flat_1_contract | skip_top_10pct | 22 | 7 | 100.00% | 1.74c | -0.36c | 5.45c | 4.14c | 18.36c |
 | flat_1_contract | skip_top_5pct | 22 | 7 | 100.00% | 1.74c | -0.37c | 5.44c | 4.14c | 18.36c |
-| fair_value_scaled | take_all | 22 | 7 | 100.00% | 4.19c | 0.55c | 6.46c | 5.79c | 14.07c |
-| fair_value_scaled | skip_top_30pct | 22 | 7 | 100.00% | 4.19c | 0.68c | 6.54c | 5.79c | 14.07c |
-| fair_value_scaled | skip_top_20pct | 22 | 7 | 100.00% | 4.19c | 0.82c | 6.66c | 5.79c | 14.07c |
-| fair_value_scaled | skip_top_10pct | 22 | 7 | 100.00% | 4.19c | 0.32c | 6.15c | 5.79c | 14.07c |
-| fair_value_scaled | skip_top_5pct | 22 | 7 | 100.00% | 4.19c | 0.68c | 6.35c | 5.79c | 14.07c |
+| rv_edge_scaled | take_all | 22 | 7 | 100.00% | 4.19c | 0.55c | 6.46c | 5.79c | 14.07c |
+| rv_edge_scaled | skip_top_30pct | 22 | 7 | 100.00% | 4.19c | 0.68c | 6.54c | 5.79c | 14.07c |
+| rv_edge_scaled | skip_top_20pct | 22 | 7 | 100.00% | 4.19c | 0.82c | 6.66c | 5.79c | 14.07c |
+| rv_edge_scaled | skip_top_10pct | 22 | 7 | 100.00% | 4.19c | 0.32c | 6.15c | 5.79c | 14.07c |
+| rv_edge_scaled | skip_top_5pct | 22 | 7 | 100.00% | 4.19c | 0.68c | 6.35c | 5.79c | 14.07c |
 
 ![PM skip stress EV](/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/data/analysis/plots/options_delta/od_touch_risk_filter_pm_skip_stress_ev.png)
 
-Caption: fair-value-scaled PM stress EV after train-threshold skip rules. Error bars are market-cluster bootstrap CIs over the tiny PM sample.
+Caption: rv-edge-scaled PM stress EV after train-threshold skip rules. Error bars are market-cluster bootstrap CIs over the tiny PM sample.
 
 Read: no PM skip row earns promotion. The train-set thresholds do not drop any of the observed flat/fair Strategy-A fills, so the unchanged point estimate and small CI wiggle are bootstrap noise over the same kept rows. This is not enough to alter the live-loop sizing recommendation from [[od_strategy_a_realism_reaudit_findings]].
 

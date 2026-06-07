@@ -1,16 +1,35 @@
+---
+title: "OD Pricing-Model-Form Test: Do Jumps Explain The Far-OTM Longshot Result?"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Pricing-Model-Form Test: Do Jumps Explain The Far-OTM Longshot Result?
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
 > Prior notes: [[od_v4_calibration_gate_findings]] · [[od_v4_queue_replay_findings]] · [[od_conditional_prob_calibration_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD Pricing-Model-Form Test: Do Jumps Explain The Far-OTM Longshot Result? in the OD/options-delta area.
+- Existing takeaway/status: Final verdict: **CLOSE remains**.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Final verdict: **CLOSE remains**.
 
-This run tested the prompt's model-form hypothesis: maybe the old Gaussian `N(z)` digital underpriced short-dated OTM tail probability because it had no jump mass. The test repriced the same v4 far-|z| strict-rich short set with causal jump parameters from the captured 1s Binance/K3 panel, then checked whether any residual OD model edge survives the v4 structural baseline.
+This run tested the prompt's model-form hypothesis: maybe the old Gaussian `N(z)` digital underpriced short-dated OTM tail probability because it had no jump mass. The test repriced the same v4 far-|z| strict-rich short set with causal jump parameters from the captured 1s Binance/K3 panel, then checked whether any residual OD model edge survives both a 0c baseline and the borrowed v4 structural queue baseline.
 
-It does **not** reopen OD. The live 1s jump and higher-moment models do add tail mass in the OTM shape diagnostic, but on the actual 23-fill PM set they do not create a deployable incremental edge. Merton original-set model edge is 1.03c, CI [-2.84c, 2.59c]; Kou original-set model edge is 0.85c, CI [-3.39c, 2.53c]; Edgeworth higher-moment model edge is 3.47c, CI [2.40c, 4.31c]. The best after-top3 incremental lower CI across tested pricing-model rows is -1.07c, and Deribit's best illustrative after-top3 lower CI is -2.45c, so the branch still fails the structural-baseline bar.
+It does **not** reopen OD. The live 1s jump and higher-moment models do add tail mass in the OTM shape diagnostic, but on the actual 23-fill PM set they do not create a deployable incremental edge. Merton original-set model edge is 1.03c, CI [-2.84c, 2.59c]; Kou original-set model edge is 0.85c, CI [-3.39c, 2.53c]; Edgeworth higher-moment model edge is 3.47c, CI [2.40c, 4.31c]. The best after-top3 lower CI after subtracting the borrowed v4 baseline is -1.07c, and Deribit's best illustrative borrowed-baseline lower CI is -2.45c, so the branch still fails the structural-baseline bar.
 
 Plain-English read: jumps make the tail model more honest, but they do not turn the OD rich-short signal into a standalone trade. The apparent upside is still explained better as source/structure/queue selection with tiny capacity, not a distinct pricing-model edge.
 
@@ -36,30 +55,30 @@ realized EV = short price - realized payoff + maker rebate
 
 The arms:
 
-- **Arm A, Gaussian control:** the old EWMA `N(z)` digital.
+- **Arm A, Gaussian control:** the old EWMA `N(z)` RV physical-probability digital.
 - **Arm B, Merton:** compound-Poisson normal jumps fitted causally from prior captured 1s Binance returns.
 - **Arm B, Kou-style:** asymmetric up/down exponential jump moments, also fitted causally from prior captured 1s returns. This is a moment-matched Kou-style approximation, used because the repo environment has NumPy/Pandas but not SciPy for full closed-form calibration.
 - **Arm C, higher moments:** run as a cheap higher-moment / Edgeworth extension. Full Bates or calibrated VG were still not attempted because the environment lacks SciPy/Arch/Torch and the PM validation set is only 23 fills, but this arm directly tests whether causal 1s skew/kurtosis changes the OTM digital probability enough to reopen the gate.
 - **Arm D, Deribit DVOL:** BTC/ETH-only illustrative anchor. It is now reported with the same MM-incremental columns, but it is still not gate-grade because DVOL is a 30-day index rather than a historical 4h option surface.
 
-CI columns are market-cluster bootstraps. `incremental vs structural` applies the K5 non-incumbent 5% capacity haircut and subtracts the best v4 structural queue baseline of 1.98c per market. That is the MM integration check: a pricing model can have positive raw realized EV and still fail if, after realistic non-incumbent capacity, it does not beat the already-known MM/structural quote-selection result.
+CI columns are market-cluster bootstraps. `incremental vs 0c` applies only the K5 non-incumbent 5.00% capacity haircut. `incremental vs borrowed` then subtracts the best v4 structural queue baseline of 1.98c per market. Live-measured baseline is not populated here because there is no separate live queue baseline artifact aligned to these 23 validation fills yet.
 
 ## PM Far-|z| Short Set Results
 
-| arm / subset | fills | markets | price | model P(ITM) | realized ITM | model edge | edge CI | realized net EV | realized CI | incremental vs structural | incremental CI |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| arm_a_ewma_nd2_original_set | 23 | 8 | 56.05c | 52.53% | 39.13% | 3.53c | [2.49c, 4.34c] | 17.05c | [-1.50c, 26.62c] | 0.47c | [-2.08c, 4.84c] |
-| arm_b_merton_live1s_original_set | 23 | 8 | 56.05c | 55.02% | 39.13% | 1.03c | [-2.84c, 2.59c] | 17.05c | [-1.50c, 26.62c] | 0.47c | [-2.08c, 4.84c] |
-| arm_b_kou_live1s_original_set | 23 | 8 | 56.05c | 55.20% | 39.13% | 0.85c | [-3.39c, 2.53c] | 17.05c | [-1.50c, 26.62c] | 0.47c | [-2.08c, 4.84c] |
-| arm_c_edgeworth_higher_moment_original_set | 23 | 8 | 56.05c | 52.59% | 39.13% | 3.47c | [2.40c, 4.31c] | 17.05c | [-1.50c, 26.62c] | 0.47c | [-2.08c, 4.84c] |
-| arm_b_merton_live1s_rich_ge_1c | 14 | 5 | 55.31c | 51.99% | 50.00% | 3.32c | [1.78c, 4.06c] | 5.42c | [-4.49c, 9.57c] | -1.22c | [-2.29c, 0.35c] |
-| arm_b_kou_live1s_rich_ge_1c | 14 | 5 | 61.73c | 58.52% | 57.14% | 3.21c | [1.64c, 4.23c] | 4.69c | [-3.94c, 9.36c] | -1.32c | [-2.30c, 0.04c] |
-| arm_c_edgeworth_higher_moment_rich_ge_1c | 22 | 8 | 54.06c | 50.48% | 36.36% | 3.58c | [2.63c, 4.33c] | 17.83c | [-1.68c, 26.75c] | 0.47c | [-2.08c, 4.84c] |
-| arm_b_merton_live1s_rich_ge_5c | 2 | 1 | 55.05c | 49.60% | 50.00% | 5.45c | [5.45c, 5.45c] | 5.18c | [5.18c, 5.18c] | -1.46c | [-1.46c, -1.46c] |
-| arm_b_kou_live1s_rich_ge_5c | 4 | 2 | 74.56c | 69.16% | 75.00% | 5.40c | [5.39c, 5.42c] | -0.34c | [-8.76c, 2.47c] | -2.01c | [-2.42c, -1.61c] |
-| arm_c_edgeworth_higher_moment_rich_ge_5c | 5 | 2 | 15.60c | 9.45% | 0.00% | 6.15c | [5.89c, 7.20c] | 15.78c | [15.18c, 18.21c] | -0.01c | [-1.07c, 1.06c] |
+| arm / subset | fills | markets | price | model P(ITM) | realized ITM | model edge | edge CI | realized net EV | realized CI | incremental vs 0c | inc vs 0c CI | incremental vs borrowed | inc vs borrowed CI |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| arm_a_ewma_nz_original_set | 23 | 8 | 56.05c | 52.53% | 39.13% | 3.53c | [2.49c, 4.34c] | 17.05c | [-1.50c, 26.62c] | 2.45c | [-0.10c, 6.82c] | 0.47c | [-2.08c, 4.84c] |
+| arm_b_merton_live1s_original_set | 23 | 8 | 56.05c | 55.02% | 39.13% | 1.03c | [-2.84c, 2.59c] | 17.05c | [-1.50c, 26.62c] | 2.45c | [-0.10c, 6.82c] | 0.47c | [-2.08c, 4.84c] |
+| arm_b_kou_live1s_original_set | 23 | 8 | 56.05c | 55.20% | 39.13% | 0.85c | [-3.39c, 2.53c] | 17.05c | [-1.50c, 26.62c] | 2.45c | [-0.10c, 6.82c] | 0.47c | [-2.08c, 4.84c] |
+| arm_c_edgeworth_higher_moment_original_set | 23 | 8 | 56.05c | 52.59% | 39.13% | 3.47c | [2.40c, 4.31c] | 17.05c | [-1.50c, 26.62c] | 2.45c | [-0.10c, 6.82c] | 0.47c | [-2.08c, 4.84c] |
+| arm_b_merton_live1s_rich_ge_1c | 14 | 5 | 55.31c | 51.99% | 50.00% | 3.32c | [1.78c, 4.06c] | 5.42c | [-4.49c, 9.57c] | 0.76c | [-0.31c, 2.33c] | -1.22c | [-2.29c, 0.35c] |
+| arm_b_kou_live1s_rich_ge_1c | 14 | 5 | 61.73c | 58.52% | 57.14% | 3.21c | [1.64c, 4.23c] | 4.69c | [-3.94c, 9.36c] | 0.66c | [-0.32c, 2.02c] | -1.32c | [-2.30c, 0.04c] |
+| arm_c_edgeworth_higher_moment_rich_ge_1c | 22 | 8 | 54.06c | 50.48% | 36.36% | 3.58c | [2.63c, 4.33c] | 17.83c | [-1.68c, 26.75c] | 2.45c | [-0.10c, 6.82c] | 0.47c | [-2.08c, 4.84c] |
+| arm_b_merton_live1s_rich_ge_5c | 2 | 1 | 55.05c | 49.60% | 50.00% | 5.45c | [5.45c, 5.45c] | 5.18c | [5.18c, 5.18c] | 0.52c | [0.52c, 0.52c] | -1.46c | [-1.46c, -1.46c] |
+| arm_b_kou_live1s_rich_ge_5c | 4 | 2 | 74.56c | 69.16% | 75.00% | 5.40c | [5.39c, 5.42c] | -0.34c | [-8.76c, 2.47c] | -0.03c | [-0.44c, 0.37c] | -2.01c | [-2.42c, -1.61c] |
+| arm_c_edgeworth_higher_moment_rich_ge_5c | 5 | 2 | 15.60c | 9.45% | 0.00% | 6.15c | [5.89c, 7.20c] | 15.78c | [15.18c, 18.21c] | 1.97c | [0.91c, 3.04c] | -0.01c | [-1.07c, 1.06c] |
 
-Read: a positive `model edge` means the model says the token is overpriced at our short price. `realized net EV` is what happened on this tiny PM sample. `incremental vs structural` is the MM integration check. To reopen OD, the residual after the top-maker haircut also had to beat the structural queue baseline with lower-CI > 0. It does not.
+Read: a positive `model edge` means the model says the token is overpriced at our short price. `realized net EV` is what happened on this tiny PM sample. `incremental vs 0c` is the raw capacity-adjusted read; `incremental vs borrowed` is the MM integration check against the v4 queue baseline. To reopen OD, the residual after the top-maker haircut also had to beat the borrowed structural baseline with lower-CI > 0. It does not.
 
 ![PM model edge](/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/data/analysis/plots/options_delta/od_pricing_model_form_pm_edge.png)
 
@@ -69,12 +88,12 @@ This table uses the K3 captured 1s panel downsampled to one row per minute per m
 
 | arm | probability bucket | rows | markets | mean pred | observed | obs - pred |
 | --- | --- | --- | --- | --- | --- | --- |
-| arm_a_ewma_nd2 | 0_5c | 409 | 17 | 1.46% | 14.67% | 13.21% |
-| arm_a_ewma_nd2 | 5_10c | 153 | 16 | 7.69% | 49.02% | 41.32% |
-| arm_a_ewma_nd2 | 10_25c | 592 | 17 | 17.67% | 40.54% | 22.87% |
-| arm_a_ewma_nd2 | 75_90c | 416 | 14 | 82.59% | 45.67% | -36.91% |
-| arm_a_ewma_nd2 | 90_95c | 143 | 10 | 92.36% | 51.75% | -40.61% |
-| arm_a_ewma_nd2 | 95_100c | 405 | 10 | 98.70% | 90.62% | -8.09% |
+| arm_a_ewma_nz | 0_5c | 409 | 17 | 1.46% | 14.67% | 13.21% |
+| arm_a_ewma_nz | 5_10c | 153 | 16 | 7.69% | 49.02% | 41.32% |
+| arm_a_ewma_nz | 10_25c | 592 | 17 | 17.67% | 40.54% | 22.87% |
+| arm_a_ewma_nz | 75_90c | 416 | 14 | 82.59% | 45.67% | -36.91% |
+| arm_a_ewma_nz | 90_95c | 143 | 10 | 92.36% | 51.75% | -40.61% |
+| arm_a_ewma_nz | 95_100c | 405 | 10 | 98.70% | 90.62% | -8.09% |
 | arm_b_merton_live1s | 0_5c | 476 | 17 | 1.62% | 19.75% | 18.12% |
 | arm_b_merton_live1s | 5_10c | 233 | 16 | 7.60% | 57.94% | 50.34% |
 | arm_b_merton_live1s | 10_25c | 667 | 18 | 17.70% | 54.72% | 37.02% |
@@ -117,20 +136,20 @@ Read: the jump forms do what they are supposed to do mechanically: they redistri
 
 Deribit is BTC/ETH only. The public historical anchor used here is DVOL, extrapolated down to the PM horizon by using the annualized DVOL level inside the same digital formula. That is deliberately labeled illustrative: it is a 30-day options-market IV index, not a 4h binary-resolution surface, and SOL has no Deribit analogue.
 
-| row | n | markets | price | Deribit P/fair | edge/diff | CI / p95 | realized net EV / read | incremental vs structural | incremental CI |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| arm_d_deribit_dvol_btc_eth_original_set | 15 | 5 | 55.23c | 51.89% | 3.33c | [-2.78c, 5.06c] | 22.04c | 1.33c | [-2.45c, 8.25c] |
-| arm_d_deribit_dvol_btc_eth_rich_ge_1c | 8 | 3 | 32.67c | 22.11% | 10.56c | [6.47c, 11.68c] | 7.82c | -0.94c | [-2.57c, 2.18c] |
-| daily_24h_deribit_illustrative_btc | 82801 | n/a | n/a | 14.38% | 1.18c | p95 abs 8.86c | illustrative | illustrative | illustrative |
-| daily_24h_deribit_illustrative_eth | 82801 | n/a | n/a | 11.35% | 0.55c | p95 abs 11.86c | illustrative | illustrative | illustrative |
+| row | n | markets | price | Deribit P/fair | edge/diff | CI / p95 | realized net EV / read | incremental vs 0c | inc vs 0c CI | incremental vs borrowed | inc vs borrowed CI |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| arm_d_deribit_dvol_btc_eth_original_set | 15 | 5 | 55.23c | 51.89% | 3.33c | [-2.78c, 5.06c] | 22.04c | 3.31c | [-0.47c, 10.23c] | 1.33c | [-2.45c, 8.25c] |
+| arm_d_deribit_dvol_btc_eth_rich_ge_1c | 8 | 3 | 32.67c | 22.11% | 10.56c | [6.47c, 11.68c] | 7.82c | 1.04c | [-0.59c, 4.16c] | -0.94c | [-2.57c, 2.18c] |
+| daily_24h_deribit_illustrative_btc | 82801 | n/a | n/a | 14.38% | 1.18c | p95 abs 8.86c | illustrative | illustrative | illustrative | illustrative | illustrative |
+| daily_24h_deribit_illustrative_eth | 82801 | n/a | n/a | 11.35% | 0.55c | p95 abs 11.86c | illustrative | illustrative | illustrative | illustrative | illustrative |
 
 ![Deribit anchor](/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/data/analysis/plots/options_delta/od_pricing_model_form_deribit.png)
 
-Read: Deribit is helpful as a sanity anchor, not a decision gate. The BTC/ETH Deribit-rich subset has a positive model edge, but it is only 8 fills / 3 markets and its structural-incremental CI is still not a deployable lower-CI-positive OD result. A real Deribit option-surface comparison would need historical per-instrument IV/mark snapshots aligned to the PM fills; this run only uses the public DVOL index plus the local captured PM/Binance rows.
+Read: Deribit is helpful as a sanity anchor, not a decision gate. The BTC/ETH Deribit-rich subset has a positive model edge, but it is only 8 fills / 3 markets and its borrowed-baseline CI is still not a deployable lower-CI-positive OD result. A real Deribit option-surface comparison would need historical per-instrument IV/mark snapshots aligned to the PM fills; this run only uses the public DVOL index plus the local captured PM/Binance rows.
 
 ## Decision
 
-OD stays **closed as a standalone strategy**. The pricing-model-form hypothesis is informative but not enough: Merton/Kou jump-aware pricing and the higher-moment Edgeworth extension do not leave a lower-CI-positive residual that beats the structural queue baseline, and the Deribit anchor is too small/indirect to reopen the branch.
+OD stays **closed as a standalone strategy**. The pricing-model-form hypothesis is informative but not enough: Merton/Kou jump-aware pricing and the higher-moment Edgeworth extension do not leave a lower-CI-positive residual that beats the borrowed structural queue baseline, and the Deribit anchor is too small/indirect to reopen the branch.
 
 Recommended routing: fold the useful pieces back into [[strat_market_making]] as weak quote-selection features. In practice that means: avoid pretending far-|z| Gaussian richness is alpha by itself; prefer source-clean, liquid, queue-realistic cells; and use live 1s jump/OFI flags as caution filters around tail states.
 

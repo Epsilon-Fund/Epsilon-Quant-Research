@@ -1,8 +1,27 @@
+---
+title: "OD Strategy A v2 Lifecycle"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD Strategy A v2 Lifecycle
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD Strategy A v2 Lifecycle in the OD/options-delta area.
+- Existing takeaway/status: Gate 1 fails: unhedged K5 winner lifecycle does not clear OOS lower-CI on this replay.
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Headline
 
 Gate 1 fails: unhedged K5 winner lifecycle does not clear OOS lower-CI on this replay.

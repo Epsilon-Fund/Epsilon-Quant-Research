@@ -1,3 +1,17 @@
+---
+title: "OD v4 Calibration Gate: Is The Rich Longshot Signal Real Enough To Build Queue Replay?"
+created: 2026-06-05
+status: closed
+owner: justin
+project: polymarket
+para: project
+hubs:
+  - strat_options_delta
+  - COWORK
+tags:
+  - research
+  - options-delta
+---
 # OD v4 Calibration Gate: Is The Rich Longshot Signal Real Enough To Build Queue Replay?
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
@@ -5,6 +19,11 @@
 > MM benchmark notes: [[mm_deployable_cells_findings]] · [[block_k5_stress_findings]]
 > Table terms: [[polymarket_table_dictionary]]
 
+## Summary
+
+- Scope: OD v4 Calibration Gate: Is The Rich Longshot Signal Real Enough To Build Queue Replay? in the OD/options-delta area.
+- Existing takeaway/status: Phase 0 **FAIL**. The full-panel strict-rich far-\|z\| short set has 23 fills across 8 markets. Mean short price is 56.05c, realized ITM is 39.13%, gross EV `p - P_itm` is 16.92c with market-cluster CI [-1.43c, 26.38c]; net of maker rebate it is 17.05c, CI [-1.49c, 26.80c].
+- Evidence lives in the detailed sections below; this summary is only a navigation layer over the existing note.
 ## Phase 0 Verdict
 
 Phase 0 **FAIL**. The full-panel strict-rich far-|z| short set has 23 fills across 8 markets. Mean short price is 56.05c, realized ITM is 39.13%, gross EV `p - P_itm` is 16.92c with market-cluster CI [-1.43c, 26.38c]; net of maker rebate it is 17.05c, CI [-1.49c, 26.80c].
