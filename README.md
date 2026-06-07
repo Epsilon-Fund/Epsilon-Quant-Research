@@ -61,8 +61,21 @@ The repo documents research by area, not just by internal code names.
 | **Validation infrastructure** | Walk-forward, CPCV, portfolio aggregation, and shared backtest metrics used across crypto strategy research. |
 | **Exploratory sleeves** | Cross-sectional momentum, long/short, memecoin/DeFi, and other ideas before they earn live status. |
 
+The map below mirrors the two tables above: Polymarket areas on the left, crypto areas on the right. It is not a size or priority chart.
+
 <p align="center">
-  <img src="docs/assets/notes_by_cluster.png" width="620" alt="Research notes by strategy cluster" />
+  <a href="#documented-research">
+    <img src="docs/assets/readme_research_map.png" width="860" alt="Documented research map matching the Polymarket and crypto tables above" />
+  </a>
+</p>
+<p align="center"><sub>Click the map to jump back to the documented research tables.</sub></p>
+
+### Current note coverage
+
+The map above shows the research taxonomy. These donuts show where markdown research coverage currently concentrates; they are generated from repository paths and are not priority or edge-strength charts.
+
+<p align="center">
+  <img src="docs/assets/readme_note_coverage_donuts.png" width="860" alt="Polymarket and crypto markdown note coverage donut charts" />
 </p>
 
 ## At a glance
