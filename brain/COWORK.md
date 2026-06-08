@@ -7,7 +7,15 @@ purpose: Fast, token-cheap orientation for any Cowork session opening this repo
 
 # Cowork Orientation
 
-This file exists so any new Cowork session can load **one short doc** and know where everything lives. If you're Cowork and you're reading this: start here, then load `brain/CODEX.md`, `brain/TODO.md`, and `brain/POLYMARKET_BRAIN.md` before drafting Codex prompts. Every Cowork-authored Codex prompt must explicitly redirect Codex to `brain/CODEX.md` first.
+This file is the shared Cowork law: repo invariants, strategic state, prompt discipline, and where things live. If you're Cowork and you're reading this, run Agent Bootstrap first so your local personal overlay is loaded, then obey this shared law. Every Cowork-authored Codex prompt must explicitly redirect Codex to run its bootstrap and read `brain/CODEX.md` first.
+
+## Agent Bootstrap (do this before anything else)
+
+1. Determine your role: Codex -> `local_agents/codex.md`; Cowork/Claude Code -> `local_agents/cowork.md`.
+2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
+3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
+
+Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
 
 ## Active threads
 
@@ -85,7 +93,7 @@ SpaceX IPO cross-market handoff: [[spacex_ipo_market_map_handoff]] maps PM, Hype
 
 ### Cowork prompt discipline
 
-Every Cowork-authored Codex prompt must start with a context preamble that tells Codex to read, in order: `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md`, `brain/POLYMARKET_BRAIN.md`, then the relevant strategy hub. The first item is always `brain/CODEX.md`; do not skip it because it is the implementation-agent README for the repo.
+Every Cowork-authored Codex prompt must start with a context preamble that tells Codex to run the Agent Bootstrap first, then read `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md`, `brain/POLYMARKET_BRAIN.md`, then the relevant strategy hub. The shared law still includes `brain/CODEX.md`; do not skip it because it is the implementation-agent README for the repo.
 
 For data-heavy prompts, add one short line after the read-order preamble instead of listing raw folders manually: "For data artifacts, use [[polymarket_data_manifest]], [[polymarket_csv_output_audit]], [[polymarket_plot_gallery_index]], [[storage_consolidation_audit_2026_06_05]], and/or [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] as applicable; do not relink raw shards one by one." This keeps prompts short while pointing Codex at the durable map.
 
@@ -93,11 +101,12 @@ Required preamble template:
 
 ```markdown
 Before doing anything else, read:
-1. `brain/CODEX.md`
-2. `brain/TODO.md`
-3. `brain/COWORK.md`
-4. `brain/POLYMARKET_BRAIN.md`
-5. The relevant strategy hub for this task
+1. Run the Agent Bootstrap: seed/read `local_agents/codex.md` from `brain/agents/templates/codex.local.template.md` if missing.
+2. `brain/CODEX.md`
+3. `brain/TODO.md`
+4. `brain/COWORK.md`
+5. `brain/POLYMARKET_BRAIN.md`
+6. The relevant strategy hub for this task
 ```
 
 Optional data-artifact line:

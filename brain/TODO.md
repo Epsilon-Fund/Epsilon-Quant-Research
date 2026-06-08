@@ -29,8 +29,12 @@ tags:
 
 **Phase 0 — Relay + source-of-truth rules**
 
-- [x] `.gitignore` inverted 2026-06-07: `brain/**/*.md` now tracked; only `brain/generated/` + `brain/agents/*/scratch/` ignored (no more force-add).
-- [ ] Relay root share + coworker quick-start confirmed working on both machines (invite key sent directly, not committed).
+- [x] `.gitignore` inverted 2026-06-07: `brain/**/*.md` now tracked; only `brain/generated/`, `brain/agents/locks/*.lock.md`, top-level `local_agents/`, and top-level `scratch/` ignored (no more force-add).
+- [x] Relay scope **simplified 2026-06-08**: shares the research folders + **all of `brain/`** (so [[VAULT_MAP]], [[TODO]], hubs, handoffs, generated reports, shared templates/lane docs, and edit locks are live for both). Only per-person `local_agents/<agent>.md` overlays and `scratch/<agent>/` (top-level) stay local — never Relay, never Git. Concurrent canonical edits coordinated by `tools/brain_edit_guard.py`. See [[ONBOARDING]] § Sync model.
+- [x] Per-person local agent overlays implemented 2026-06-08: shared templates [[codex.local.template.md|codex.local.template]] / [[cowork.local.template.md|cowork.local.template]] seed ignored `local_agents/codex.md` and `local_agents/cowork.md`; Agent Bootstrap documented across shared start-here docs. See [[2026-06-08_per_person_agent_overlays]].
+- [x] Apply the simplified Relay folder set on Justin's machine (share `brain` as one folder; drop the redundant `brain/handoffs` + `brain/agents/locks` sub-shares; confirm `scratch/` is not shared). Restart/reload Relay.
+- [ ] Coworker shares the same folder set (research + `brain`), keeps his own `local_agents/` overlays and `scratch/` local, and confirms two-way sync (invite key sent directly, not committed).
+- [ ] Coworker sets up his own `brain-commit-push` task so his control-plane/notes commits push too.
 
 **Phase 1 — Core maps** (structure built 2026-06-07)
 
@@ -54,7 +58,7 @@ tags:
 > Graphify-style structural audit. Built as a script by Cowork (it's tooling, not note-cleanup).
 
 - [x] `tools/brain_graph_audit.py` → `brain/generated/graph_audit.md`: hub authorities + index hubs, orphans, dead-ends, weakly-connected components / topic islands, over-connected hubs.
-- [x] Review first audit; graph remains one connected component with **0 orphans / 0 topic islands**. Only dead-end is the intentionally empty [[2026-06-07]] root daily shell; no link-repair pass warranted unless we decide to delete or fill it.
+- [x] Review first audit; graph is one connected component with **0 orphans / 0 dead-ends / 0 topic islands**. (The empty `2026-06-07.md` root daily shell that was the lone dead-end has since been removed.)
 - [ ] Optional: Obsidian Canvas for a spatial branch view.
 
 ### Phase 4 — Agent workflow layer (scheduled agents)

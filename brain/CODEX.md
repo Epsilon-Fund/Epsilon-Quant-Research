@@ -22,6 +22,14 @@ tags:
 
 ---
 
+## Agent Bootstrap (do this before anything else)
+
+1. Determine your role: Codex -> `local_agents/codex.md`; Cowork/Claude Code -> `local_agents/cowork.md`.
+2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
+3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
+
+Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
+
 ## What this repo is
 
 Two independent research projects, one repo:
@@ -44,6 +52,7 @@ brain/
 ├── TODO.md       ← AUTHORITATIVE live task list — read before suggesting next actions
 ├── POLYMARKET_BRAIN.md ← Obsidian map for Polymarket strategy clusters
 ├── glossary.md   ← term definitions across both projects
+├── agents/templates/ ← shared templates for local-only agent overlays
 ├── handoffs/     ← dated cross-thread snapshots (Obsidian wikilinks, human-readable)
 ```
 
@@ -216,7 +225,7 @@ Latest research lives in CPCV notebooks:
 
 Codex results get saved as `*_results.md` or `*_findings.md` in the appropriate notes subfolder, then linked from the relevant hub. Cowork interprets and updates `brain/TODO.md`.
 
-When Cowork drafts a prompt for Codex, the prompt must instruct Codex to read, in this order: `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md`, `brain/POLYMARKET_BRAIN.md`, then the relevant strategy hub. Prompt text should stay in chat, not in repo files.
+When Cowork drafts a prompt for Codex, the prompt must instruct Codex to run the Agent Bootstrap first, then read `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md`, `brain/POLYMARKET_BRAIN.md`, and the relevant strategy hub. Prompt text should stay in chat, not in repo files.
 
 If the task touches generated datasets, result tables, notebooks, plots, or "orphan"/attachment cleanup, the prompt does not need a full file inventory. It should simply add: "For data artifacts, use [[polymarket_data_manifest]], [[polymarket_csv_output_audit]], [[polymarket_plot_gallery_index]], and/or [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] as applicable; do not relink raw shards one by one."
 

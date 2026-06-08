@@ -21,6 +21,8 @@ hubs:
 
 Hub links: [[CODEX]] | [[COWORK]] | [[POLYMARKET_BRAIN]] | [[TODO]] | [[glossary]]
 
+> **Implementation update (2026-06-08, current):** the Relay model below originally recommended a **root share**, and an interim build used a lane-separated/git-only-control-plane scheme. The **current, simplified setup** is: Relay shares the research folders + **all of `brain/`** (so [[VAULT_MAP]], [[TODO]], the hubs, handoffs, generated reports, shared agent templates/role conventions, and edit locks are live for both collaborators). The surfaces kept off Relay are each person's local agent overlays in **top-level `local_agents/<agent>.md`** and scratch in **top-level `scratch/<agent>/`** — never added to Relay and never committed, so per-person instructions and WIP can't collide. Concurrent edits to shared canonical notes are coordinated by `tools/brain_edit_guard.py` (cooperative locks that sync live via Relay). The live boundary of record is [[ONBOARDING]] § Sync model and [[VAULT_MAP]]; treat the "root share" language below as original rationale, not current config.
+
 ## Executive Recommendation
 
 Use **Relay Free for the live Markdown layer**, keep **GitHub as backup/version history**, and build an **AI-readable navigation layer** on top of the existing repo layout.
@@ -156,9 +158,9 @@ Recommended layers:
 | Layer | Purpose | Who edits | Example files |
 |---|---|---|---|
 | Canonical shared brain | Durable research truth, roadmaps, decisions, status | one owner at a time, usually via chronicler pass | `brain/VAULT_MAP.md`, `brain/TODO.md`, strategy hubs |
-| Codex lane | Codex-specific startup, prompting, formatting, scratch | Codex only by default | `brain/CODEX.md`, `brain/agents/codex/` |
-| Cowork lane | Cowork/Claude Code-specific startup, prompting, formatting, scratch | Cowork only by default | `brain/COWORK.md`, `brain/agents/cowork/` |
-| Scratch/session notes | Fast-moving work-in-progress | the active agent only | `brain/agents/<agent>/scratch/YYYY-MM-DD.md` |
+| Codex lane | Shared Codex-type startup, prompting, and formatting rules | Codex-style agents, intentionally | `brain/CODEX.md`, `brain/agents/codex/` |
+| Cowork lane | Shared Cowork/Claude Code-type startup, prompting, and formatting rules | Cowork-style agents, intentionally | `brain/COWORK.md`, `brain/agents/cowork/` |
+| Scratch/session notes | Fast-moving work-in-progress | the active agent only | `scratch/<agent>/YYYY-MM-DD.md` |
 | Chronicled outputs | Clean summaries promoted from scratch | assigned chronicler | `brain/handoffs/`, findings notes, branch summaries |
 
 Rules:
@@ -348,7 +350,7 @@ Candidate skills:
 | Skill | Purpose | Output |
 |---|---|---|
 | Daily Brief | Summarize what changed, what matters, and what is next | `brain/generated/daily_brief.md` |
-| Agent Scratch Log | Let each agent write fast without colliding with another agent | `brain/agents/<agent>/scratch/YYYY-MM-DD.md` |
+| Agent Scratch Log | Let each agent write fast without colliding with another agent | `scratch/<agent>/YYYY-MM-DD.md` |
 | Daily Log | Record what happened today in a durable shared note | `brain/daily/YYYY-MM-DD.md` |
 | Sherpa System | Route a human/agent to the right context for a task | context pack and suggested reads |
 | Rock Tumbler System | Turn messy findings into polished canonical notes | cleaned findings note with links and decisions |
@@ -590,7 +592,7 @@ Outcome:
 | Should root Relay remain the default? | root share vs selective folders | Root share unless noisy Markdown becomes a real problem |
 | Should the brain be split per agent? | separate whole brains vs shared canonical brain plus agent lanes | Shared canonical brain plus separate agent lanes |
 | Where should generated reports live? | `brain/generated/` vs `docs/obsidian/generated/` | `brain/generated/` for Obsidian, force-add important files if Git backup matters |
-| Where should daily logs live? | `brain/daily/`, existing `journal_logs/`, or `brain/agents/<agent>/scratch/` | Agent scratch in agent lanes; shared daily log only after chronicler pass |
+| Where should daily logs live? | `brain/daily/`, existing `journal_logs/`, or `scratch/<agent>/` | Agent scratch in `scratch/<agent>/`; shared daily log only after chronicler pass |
 | Should PARA be folder-based? | full migration vs metadata overlay | Metadata overlay first |
 | Should invite keys live in notes? | yes vs no | No; send directly |
 | Should attachments sync through Relay? | Free `.md` workflow vs paid attachment workflow | Free `.md` now, upgrade only if attachments become central |
@@ -600,7 +602,7 @@ Outcome:
 1. Create `[[VAULT_MAP]]`.
 2. Create `[[SKILL_MAP]]`.
 3. Create `[[OPERATING_RHYTHMS]]`.
-4. Create `brain/agents/codex/` and `brain/agents/cowork/` scratch/operating lanes.
+4. Create `brain/agents/codex/` and `brain/agents/cowork/` operating lanes; keep scratch in top-level `scratch/<agent>/`.
 5. Add a small hygiene script or query that reports duplicate basenames, orphan notes, and notes missing hub backlinks.
 6. Decide which core infra files should be tracked in Git even though `brain/` ignores new files.
 7. Run one janitor pass and one chronicler pass after a normal workday to prove the cadence.

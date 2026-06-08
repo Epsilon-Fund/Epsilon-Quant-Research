@@ -27,7 +27,7 @@ Hub links: [[VAULT_MAP]] | [[SKILL_MAP]] | [[TODO]] | [[CODEX]] | [[COWORK]]
 | Cadence | Skill | What it does | Output |
 |---|---|---|---|
 | Daily (start) | Daily Brief | Read changed notes, [[TODO]], recent git state | screen-length brief |
-| During active work | Agent Scratch Log | Keep Codex/Cowork WIP separate until promoted | `brain/agents/<agent>/scratch/` |
+| During active work | Agent Scratch Log | Keep Codex/Cowork WIP separate until promoted | `scratch/<agent>/` (local-only) |
 | Daily (end) | Chronicler | Record what changed and why | `brain/handoffs/` or hub status line |
 | On branch close | Rock Tumbler | Convert messy branch work into a canonical findings note | `*_findings.md` |
 | Weekly | Janitor | Link / metadata / duplicate / stale-task cleanup | `brain/generated/hygiene_report.md` |
@@ -63,6 +63,6 @@ When you want this automated rather than manual, wire `tools/brain_hygiene.py` i
 
 - Edit shared Markdown in Obsidian/Relay first; use Git for snapshots, code, and audit history.
 - Don't have two people edit the same canonical note simultaneously across Relay and Git.
-- New `brain/**/*.md` is tracked automatically (gitignore was inverted 2026-06-07). Only `brain/generated/` and `brain/agents/*/scratch/` are ignored.
+- New `brain/**/*.md` is tracked automatically (gitignore was inverted 2026-06-07). Only `brain/generated/`, `brain/agents/locks/*.lock.md`, top-level `local_agents/`, and top-level `scratch/` are ignored.
 - Keep generated data and large artifacts out of the note-collaboration layer.
 - Invite keys go directly to collaborators, never into committed notes.

@@ -5,8 +5,8 @@ brain_hygiene.py — Obsidian/brain hygiene scanner for the epsilon-quant-resear
 Finds issues; it does NOT fix them. Cleanup is a deliberate, reviewable Janitor pass
 (usually handed to Codex). See brain/OPERATING_RHYTHMS.md and brain/SKILL_MAP.md.
 
-Scans all tracked-ish Markdown (excludes .venv, .git, node_modules, .obsidian, and the
-generated/ output dir itself) and reports:
+Scans all tracked-ish Markdown (excludes .venv, .git, node_modules, .obsidian,
+generated/ output, and volatile agent lock files) and reports:
   - duplicate basenames (break wikilink navigation)
   - broken wikilinks (target note/path not found)
   - orphan notes (no inbound wikilinks)
@@ -40,7 +40,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXCLUDE_DIRS = {".venv", ".git", "node_modules", ".obsidian", ".tmp", "__pycache__",
                 ".claude", ".pytest_cache", ".ipynb_checkpoints", ".agents"}
-EXCLUDE_REL_PREFIXES = ("brain/generated",)  # don't analyse our own output
+EXCLUDE_REL_PREFIXES = (
+    "brain/generated",
+    "scratch/",
+    "local_agents/",
+)  # generated output + local-only overlays/scratch (ephemeral brain/agents/locks/*.lock.md skipped in discover_md_files)
 # Per-folder convention files where a shared basename is expected and not a navigation bug.
 EXPECTED_DUP_BASENAMES = {"README", "CLAUDE", "INDEX", "__init__", "PLAN", "TODO"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf", ".webp", ".canvas"}
@@ -65,6 +69,8 @@ def discover_md_files(root: Path) -> list[Path]:
         if any(part in EXCLUDE_DIRS for part in p.relative_to(root).parts):
             continue
         if rel.startswith(EXCLUDE_REL_PREFIXES):
+            continue
+        if rel.startswith("brain/agents/locks/") and rel.endswith(".lock.md"):
             continue
         files.append(p)
     return sorted(files)
@@ -99,7 +105,10 @@ def is_findings_note(rel: str) -> bool:
 
 
 def age_days(p: Path) -> float:
-    return (time.time() - p.stat().st_mtime) / 86400.0
+    try:
+        return (time.time() - p.stat().st_mtime) / 86400.0
+    except FileNotFoundError:
+        return 0.0
 
 
 # ------------------------------------------------------------------------------ scan
@@ -152,6 +161,10 @@ def main() -> int:
             return True
         base = Path(target).stem
         ext = Path(target).suffix.lower()
+        # Obsidian allows basename links with an explicit .md suffix, e.g.
+        # [[codex.local.template.md|template]]. Treat that as the note basename.
+        if ext == ".md" and "/" not in target:
+            return target in rel_paths or base in known_basenames
         # attachment / image link
         if ext in IMAGE_EXTS:
             return target in other_paths or base in other_basenames or target in rel_paths

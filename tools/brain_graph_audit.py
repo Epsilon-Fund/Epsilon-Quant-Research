@@ -33,7 +33,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXCLUDE_DIRS = {".venv", ".git", "node_modules", ".obsidian", ".tmp", "__pycache__",
                 ".claude", ".pytest_cache", ".ipynb_checkpoints", ".agents"}
-EXCLUDE_REL_PREFIXES = ("brain/generated",)
+EXCLUDE_REL_PREFIXES = ("brain/generated", "scratch/", "local_agents/")
 WIKILINK_RE = re.compile(r"!?\[\[([^\]]+)\]\]")
 
 # Notes that are *meant* to be highly connected — don't flag them as smells.
@@ -50,8 +50,11 @@ def discover(root: Path) -> list[Path]:
     for p in root.rglob("*.md"):
         if any(part in EXCLUDE_DIRS for part in p.relative_to(root).parts):
             continue
-        if p.relative_to(root).as_posix().startswith(EXCLUDE_REL_PREFIXES):
+        rel = p.relative_to(root).as_posix()
+        if rel.startswith(EXCLUDE_REL_PREFIXES):
             continue
+        if rel.startswith("brain/agents/locks/") and rel.endswith(".lock.md"):
+            continue  # ephemeral edit locks; keep the agent_edit_locks.md README
         out.append(p)
     return sorted(out)
 
