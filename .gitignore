@@ -93,20 +93,18 @@ polymarket/research/.tmp/
 # Brain (Obsidian vault): TRACK markdown notes so collaborators see new notes via Git automatically.
 # Only ignore machine-generated reports, local overlays, and fast-moving per-agent scratch (not source-of-truth).
 brain/generated/
-brain/agents/locks/*.lock.md
 brain/.obsidian/
 brain/**/.DS_Store
 
-# Per-person agent scratch — LOCAL ONLY: never committed, never Relay-shared.
-# Lives outside brain/ so brain/ can be shared wholesale on Relay without syncing each person's WIP.
+# Per-person agent scratch — LOCAL ONLY: never committed, never on any branch.
+# Per-person isolation that keeps branch merges clean (see brain/MERGE_PROTOCOL.md).
 /scratch/
 
-# Per-person agent instruction overlays — LOCAL ONLY: never committed, never Relay-shared.
+# Per-person agent instruction overlays — LOCAL ONLY: never committed, never on any branch.
 /local_agents/
 
 # Obsidian volatile session state (personal window layout)
 .obsidian/workspace.json
-.obsidian/plugins/system3-relay/
 
 # Safety net: never commit phantom absolute-path trees an agent may create by writing
 # to an absolute path as if it were relative (e.g. a mirrored home dir). 2026-06-07 incident.

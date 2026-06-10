@@ -99,7 +99,7 @@ the cron shown, all **enabled**.
 
 - **brain-hygiene-weekly** — runs `tools/brain_hygiene.py` + `tools/brain_graph_audit.py`, reports counts, and (if dirty per `SKILL_MAP.md` thresholds) emits a ready-to-paste `brain-janitor` prompt. Scan-only; never edits notes.
 - **brain-eod-brief** — refreshes the hygiene/graph reports, gathers today's commits + recently-changed notes + TODO threads, writes `brain/generated/daily_brief.md`, and recommends (not runs) brain-* workflow passes. Read-only on canonical notes.
-- **brain-commit-push** — safe daily commit + push of Markdown/brain only (`brain/`, `polymarket/research/notes/`, `docs/`, `README.md`, `tools/`). Pull-first, never force, stop on conflict. Never stages data/notebooks/secrets/code.
+- **brain-commit-push** — safe daily commit + push of Markdown/brain only (`brain/`, `polymarket/research/notes/`, `docs/`, `README.md`, `tools/`) to the **operator's personal branch** (refuses to run on main; never force; stop on conflict per `brain/MERGE_PROTOCOL.md`). Never stages data/notebooks/secrets/code.
 
 **Dropped (were disabled on the personal account — not recreated):** `daily-journal-seed`,
 `weekly-todo-digest-refresh`, `nightly-inbox-ingest`. Their `SKILL.md` files still exist locally
@@ -135,7 +135,8 @@ won't auto-refresh — re-add that task if you want the weekly rebuild back.
 Once the environment is rebuilt, the *working* contract lives in the vault:
 
 - [[COWORK]] — Cowork's orientation: active threads, the Cowork↔Codex split, prompt discipline, where to write things.
-- [[ONBOARDING]] — workspace structure, the brain layers, Relay+Git sync model, edit-guard protocol.
+- [[ONBOARDING]] — workspace structure, the brain layers, the git branch-per-person collaboration model.
+- [[MERGE_PROTOCOL]] — branch model + merge-to-main procedure + smart-merge-agent prompt.
 - [[VAULT_MAP]] — the start-here map and the "where to write things" table.
 - [[CODEX]] — implementation-agent rules + Markdown quality standard + realism calibration.
 - [[TODO]] — authoritative live task list. Read before suggesting next actions.

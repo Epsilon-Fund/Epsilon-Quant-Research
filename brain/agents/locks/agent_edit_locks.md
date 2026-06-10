@@ -1,22 +1,16 @@
 ---
-title: Agent Edit Locks
+title: Agent Edit Locks (retired)
 created: 2026-06-08
-status: active
+status: archived
 owner: justin
 project: infra
-para: area
+para: archive
 hubs:
   - VAULT_MAP
 tags:
-  - agent-lane
   - collaboration
-  - locks
 ---
 
-# Agent Edit Locks
+# Agent Edit Locks — retired 2026-06-10
 
-Hub links: [[VAULT_MAP]] | [[codex_lane]] | [[cowork_lane]]
-
-This folder is for temporary cooperative edit locks created by `tools/brain_edit_guard.py`.
-
-The volatile `*.lock.md` files are ignored by Git but sync through Relay because `brain/` is shared. That lets another agent see that a canonical Markdown file is being edited. Do not hand-edit lock files. Acquire and release them with the tool.
+The cooperative edit-lock mechanism (`tools/brain_edit_guard.py`, now in `archive/`) was retired with the live-sync layer; the branch-per-person git model makes per-file locks obsolete. See [[MERGE_PROTOCOL]] and [[2026-06-10_relay_retirement_branch_model]].

@@ -63,3 +63,5 @@ Precedence: local overlay controls voice/preferences; shared law and repo invari
 ## Remaining Action
 
 Coworker's machine should use the same Relay shared-folder set, but keep its own top-level `local_agents/` and `scratch/` folders local. On first session, their agent should seed overlays from the shared templates.
+
+> **(Relay retired 2026-06-10 → see [[MERGE_PROTOCOL]]. This handoff is a historical snapshot of the Relay-era setup; the overlay/template mechanics above remain current.)**

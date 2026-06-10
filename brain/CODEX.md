@@ -14,21 +14,17 @@ tags:
   - brain
   - infra
 ---
-# Codex Orientation — Epsilon Quant Research
+# Implementation-Agent Orientation (Codex / Claude Code) — Epsilon Quant Research
 
-> Read this file at the start of every Codex session.
-> It is the single source of truth for what this repo is, where things live, and how Codex should operate.
-> **Also read `brain/COWORK.md`** — it shares the same brain and the active task list lives in `brain/TODO.md`.
+> Read this file at the start of every **implementation-agent** session — whether you are Codex or Claude Code. This law is agent-agnostic; the `CODEX` name is historical. It is timeless and person-agnostic: it carries no dated thread status.
+> It is the single source of truth for how the implementation agent should operate.
+> **Also read `brain/COWORK.md` § Active threads only** — that section maps the live threads; the rest of `COWORK.md` is the *orchestration* agent's law and is not your read. The active task list lives in `brain/TODO.md`.
 
 ---
 
 ## Agent Bootstrap (do this before anything else)
 
-1. Determine your role: Codex -> `local_agents/codex.md`; Cowork/Claude Code -> `local_agents/cowork.md`.
-2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
-3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
-
-Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
+Run the Agent Bootstrap — canonical copy in [[VAULT_MAP]] § Agent Bootstrap.
 
 ## What this repo is
 
@@ -47,8 +43,10 @@ They share **no code**. Separate venvs, separate pyproject/requirements. Never c
 
 ```
 brain/
-├── COWORK.md     ← Cowork session orientation (mirrors this file's strategic state)
-├── CODEX.md      ← THIS FILE — Codex session orientation
+├── COWORK.md     ← Cowork (orchestration) session orientation
+├── CODEX.md      ← THIS FILE — implementation-agent session orientation
+├── VAULT_MAP.md  ← start-here map: bootstrap, where-to-write, active branches
+├── MERGE_PROTOCOL.md ← branch-per-person git collaboration + merge resolution
 ├── TODO.md       ← AUTHORITATIVE live task list — read before suggesting next actions
 ├── POLYMARKET_BRAIN.md ← Obsidian map for Polymarket strategy clusters
 ├── glossary.md   ← term definitions across both projects
@@ -85,32 +83,16 @@ Notes use basename-style wikilinks so the graph connects. This matters because O
 
 ## Where to write things
 
-| Content type | Location |
-|---|---|
-| Polymarket synthesis / plain English | `polymarket/research/notes/overview/synthesis/<topic>.md` |
-| Polymarket foundations / deep research | `polymarket/research/notes/overview/foundations/<topic>.md` |
-| Polymarket data quality / methodology | `polymarket/research/notes/overview/data_quality/<topic>.md` |
-| Polymarket market maps / screens | `polymarket/research/notes/overview/market_maps/<topic>.md` |
-| MM market-making findings | `polymarket/research/notes/market_making/<topic>_findings.md` |
-| OD options-delta findings | `polymarket/research/notes/options_delta/<topic>_findings.md` |
-| copytrade findings | `polymarket/research/notes/copytrade/<topic>_findings.md` |
-| dali / Polymarket research-lineage findings | `polymarket/research/notes/dali/<topic>_findings.md` |
-| Crypto strategy / WF findings | `topics/<strategy>/research/` or `docs/` |
-| Live trading architecture notes | `live_trading/CLAUDE.md` (append) |
-| Strategic snapshots / cross-thread | `brain/handoffs/<YYYY-MM-DD>_<topic>.md` |
-| Task list updates | Edit `brain/TODO.md` directly |
-| Code / scripts | Under the relevant project — never in `brain/` |
-| Codex results | Relevant `polymarket/research/notes/<cluster>/` folder as `*_results.md` or `*_findings.md` |
-| Polymarket CSV report outputs | `polymarket/research/data/analysis/csv_outputs/<cluster>/<topic>.csv`; explain any non-obvious columns in the linked `.md` |
-| Polymarket chart outputs | `polymarket/research/data/analysis/plots/<cluster>/<topic>.<png/svg>` for new figures, unless an existing script already owns a local plot folder |
-| Polymarket data manifests | Update [[polymarket_data_manifest]] for durable data-family changes; do not link every Parquet/JSONL shard individually |
-| Crypto/live-trading data manifests | Update [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] for durable cache/pickle/CSV/JSONL family changes |
+The canonical table is [[VAULT_MAP]] § Where to write things — use it. Implementation-role deltas only:
+
+- Implementation results are saved as `*_results.md` or `*_findings.md` in the relevant `polymarket/research/notes/<cluster>/` folder (or `topics/<strategy>/research/` / `docs/` for crypto), then wikilinked back to the hub.
+- Code / scripts go under the relevant project — **never** in `brain/`.
 
 ---
 
 ## Markdown quality standard
 
-Every `.md` that Codex writes must be understandable to a future human or agent without opening the script first. Do not paste raw tables or terse metrics without explaining what they mean.
+Every `.md` that the implementation agent (Codex or Claude Code) writes must be understandable to a future human or agent without opening the script first. Do not paste raw tables or terse metrics without explaining what they mean.
 
 Required structure for findings/results notes:
 
@@ -134,30 +116,16 @@ Do not manually hard-wrap prose mid-sentence or mid-list-item. Let markdown/edit
 
 ## Project 1 — Polymarket alpha
 
-### Active threads (as of 2026-06-01)
+### Active threads
 
-**MM — Market-Making**
+Thread status is authoritative in [[TODO]] and [[VAULT_MAP]] § Active research branches; this file carries no dated status. Timeless hub map:
 
-Hub: `polymarket/research/notes/market_making/strat_market_making.md`
-Historical Block K maker work is split out. Single-venue Polymarket maker is CLOSED; live value is real-maker moat diagnosis plus copy/learn-the-winners.
-
-Open tasks: decompose why top-3 makers dominate (K5 wallet data) → capacity/moat diagnosis. Paper-trade only after an OOS-cleared design exists.
-
-**OD — Options-Delta**
-
-Hub: `polymarket/research/notes/options_delta/strat_options_delta.md`
-OD Strategy A v2 lifecycle failed the primary OOS far-|z| gate under global time embargo. Phase 2 hedge frontier ran anyway as a diagnostic and did not rescue the unhedged gate; Kronos/HAR forward-vol bake-off stays gated off unless the unhedged lifecycle gate/capital assumption is explicitly reopened.
-
-Open tasks: none on OD execution by default; keep Kronos/Hermes forward-vol work gated until an explicitly reopened OOS design clears.
-
-**copytrade (parallel thread)**
-
-Midas bot, per-leader audit, path to first real-money smoke.
-Hub: `brain/TODO.md` § copytrade + `polymarket/research/notes/` (relayer, Domah audit files).
-
-**dali / Polymarket research lineage**
-
-Not globally closed. The original direct local microstructure continuation branch had multiple negative/falsifying tests, but dali is the broader Polymarket research lineage and redesign trail that fed Block K/MM/OD. Treat individual branches as falsified when the notes say so; do not label the whole line closed unless Justin explicitly says it.
+| Thread | Hub |
+|---|---|
+| MM — market-making | [[strat_market_making]] (`polymarket/research/notes/market_making/`) |
+| OD — options-delta | [[strat_options_delta]] (`polymarket/research/notes/options_delta/`) |
+| copytrade | [[TODO]] § copytrade + `polymarket/research/notes/copytrade/` |
+| dali / research lineage | [[COWORK]] § dali cluster + `polymarket/research/notes/dali/` |
 
 ### Key invariants (never violate)
 - `PYTHONPATH=. uv run python …` from inside `polymarket/research/`
@@ -216,18 +184,18 @@ Latest research lives in CPCV notebooks:
 
 ---
 
-## Cowork vs Codex split
+## Orchestration vs implementation split
 
-| Tool | Role |
-|---|---|
-| **Cowork** | Strategic discussion, prompt drafting, interpretation of Codex outputs, updating `brain/` and `polymarket/research/notes/` docs |
-| **Codex** | Implementation, long-running computation, producing CSVs / findings docs / scripts |
+The implementation role is **agent-agnostic**: Codex and Claude Code both fill it and both follow this file. Cowork is the single orchestration agent.
 
-Codex results get saved as `*_results.md` or `*_findings.md` in the appropriate notes subfolder, then linked from the relevant hub. Cowork interprets and updates `brain/TODO.md`.
+| Role | Agent(s) | Does |
+|---|---|---|
+| **Orchestration** | Cowork | Strategic discussion, prompt drafting, interpretation of implementation outputs, updating `brain/` and `polymarket/research/notes/` docs |
+| **Implementation** | Codex *or* Claude Code | Implementation, long-running computation, producing CSVs / findings docs / scripts |
 
-When Cowork drafts a prompt for Codex, the prompt must instruct Codex to run the Agent Bootstrap first, then read `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md`, `brain/POLYMARKET_BRAIN.md`, and the relevant strategy hub. Prompt text should stay in chat, not in repo files.
+Implementation results get saved as `*_results.md` or `*_findings.md` in the appropriate notes subfolder, then linked from the relevant hub. Cowork interprets and updates `brain/TODO.md`.
 
-If the task touches generated datasets, result tables, notebooks, plots, or "orphan"/attachment cleanup, the prompt does not need a full file inventory. It should simply add: "For data artifacts, use [[polymarket_data_manifest]], [[polymarket_csv_output_audit]], [[polymarket_plot_gallery_index]], and/or [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] as applicable; do not relink raw shards one by one."
+The canonical implementation-prompt preamble (read order, data-artifact line) lives in [[COWORK]] § Cowork prompt discipline — Cowork uses it when drafting prompts for this role; do not maintain a second copy here. Prompt text stays in chat, not in repo files.
 
 ---
 
@@ -261,10 +229,11 @@ Worked anchor: the 2026-06-02 same-day OD Arm T survivor passed OOS+BH (fair) bu
 
 ## On startup — checklist
 
-1. Read this file (`brain/CODEX.md`)
-2. Read `brain/TODO.md` — check active thread, open tasks, blockers
+1. Run the Agent Bootstrap ([[VAULT_MAP]] § Agent Bootstrap — includes the personal-branch rule), then read this file (`brain/CODEX.md`)
+2. Read `brain/TODO.md` — check active thread, open tasks, blockers — and `brain/COWORK.md` § Active threads
 3. Read `brain/POLYMARKET_BRAIN.md` for Polymarket work, then the relevant hub (MM, OD, copytrade, dali, or STRATEGY_REFERENCE as appropriate)
-4. For data-heavy work, read the relevant data/artifact manifest before scanning raw folders
-5. Only then begin implementation
+4. When hunting for prior work or related notes, use the **gbrain MCP tools** (semantic `search` + `traverse_graph`/`get_backlinks`) before grep/folder scans — it indexes this vault and resolves `[[basename]]` links as graph edges. Retrieval only; synthesis stays in-agent. Setup/teardown: `docs/tooling/gbrain_retrieval_layer.md`.
+5. For data-heavy work, read the relevant data/artifact manifest before scanning raw folders
+6. Only then begin implementation
 
 When you produce output (findings, scripts, results), save to the right location and add wikilinks back to the hub.

@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from dali_block_k3v2_leadlag_causal import YEAR_SECONDS, cents, markdown_table, norm_cdf, number, pct
-from od_strategy_a_v3 import normalize_markdown_wrapping
+from od_strategy_a_v3 import normalize_markdown_wrapping, resolve_token_rv_physical_prob_fair
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -131,7 +131,10 @@ def load_pm_fills() -> pd.DataFrame:
             out[col] = pd.to_datetime(out[col], utc=True)
     out["short_price"] = out["entry_price"].astype(float)
     out["realized_itm"] = out["payoff"].astype(float)
-    out["arm_a_token_prob"] = out["token_model_fair"].astype(float)
+    arm_a_prob = resolve_token_rv_physical_prob_fair(out, context="od_pricing_model_form.load_pm_fills")
+    out["arm_a_rv_physical_prob"] = arm_a_prob.astype(float)
+    out["arm_a_token_prob"] = out["arm_a_rv_physical_prob"]  # Legacy alias.
+    out["arm_a_fair_kind"] = "rv_physical_prob"
     out["arm_a_edge"] = out["short_price"] - out["arm_a_token_prob"]
     out["gross_realized_ev"] = out["short_price"] - out["realized_itm"]
     out["net_realized_ev"] = out["gross_realized_ev"] + out["maker_rebate"].astype(float)
@@ -462,7 +465,7 @@ def reliability_table(live: pd.DataFrame) -> pd.DataFrame:
     panel = panel.sort_values("ts").drop_duplicates(["market_slug", "asset", "minute"])
     rows: list[dict[str, Any]] = []
     for arm, col in [
-        ("arm_a_ewma_nd2", "arm_a_p_up"),
+        ("arm_a_ewma_nz", "arm_a_p_up"),
         ("arm_b_merton_live1s", "arm_b_merton_p_up"),
         ("arm_b_kou_live1s", "arm_b_kou_p_up"),
         ("arm_c_edgeworth_higher_moment", "arm_c_edgeworth_p_up"),
@@ -524,6 +527,18 @@ def summarize_arm(pm: pd.DataFrame, label: str, prob_col: str, edge_col: str, *,
         "mean_market_net_after_top3": mean_after_top3,
         "market_net_after_top3_ci_lo": top3_lo,
         "market_net_after_top3_ci_hi": top3_hi,
+        "zero_baseline_mean": 0.0,
+        "incremental_after_top3_vs_zero": mean_after_top3,
+        "incremental_after_top3_vs_zero_ci_lo": top3_lo,
+        "incremental_after_top3_vs_zero_ci_hi": top3_hi,
+        "borrowed_structural_baseline_mean": STRUCTURAL_BASELINE_C,
+        "incremental_after_top3_vs_borrowed_structural": mean_after_top3 - STRUCTURAL_BASELINE_C,
+        "incremental_after_top3_vs_borrowed_structural_ci_lo": top3_lo - STRUCTURAL_BASELINE_C if np.isfinite(top3_lo) else math.nan,
+        "incremental_after_top3_vs_borrowed_structural_ci_hi": top3_hi - STRUCTURAL_BASELINE_C if np.isfinite(top3_hi) else math.nan,
+        "live_measured_baseline_mean": math.nan,
+        "incremental_after_top3_vs_live_measured": math.nan,
+        "incremental_after_top3_vs_live_measured_ci_lo": math.nan,
+        "incremental_after_top3_vs_live_measured_ci_hi": math.nan,
         "structural_baseline_mean": STRUCTURAL_BASELINE_C,
         "incremental_after_top3_vs_structural": mean_after_top3 - STRUCTURAL_BASELINE_C,
         "incremental_after_top3_ci_lo": top3_lo - STRUCTURAL_BASELINE_C if np.isfinite(top3_lo) else math.nan,
@@ -539,7 +554,7 @@ def summarize_arm(pm: pd.DataFrame, label: str, prob_col: str, edge_col: str, *,
 
 def summarize_pm(pm: pd.DataFrame) -> pd.DataFrame:
     rows = [
-        summarize_arm(pm, "arm_a_ewma_nd2_original_set", "arm_a_token_prob", "arm_a_edge"),
+        summarize_arm(pm, "arm_a_ewma_nz_original_set", "arm_a_token_prob", "arm_a_edge"),
         summarize_arm(pm, "arm_b_merton_live1s_original_set", "arm_b_merton_token_prob", "arm_b_merton_edge"),
         summarize_arm(pm, "arm_b_kou_live1s_original_set", "arm_b_kou_token_prob", "arm_b_kou_edge"),
         summarize_arm(pm, "arm_c_edgeworth_higher_moment_original_set", "arm_c_edgeworth_token_prob", "arm_c_edgeworth_edge"),
@@ -858,8 +873,13 @@ def format_summary_table(summary: pd.DataFrame) -> str:
                 fmt_ci(float(r["model_edge_ci_lo"]), float(r["model_edge_ci_hi"])),
                 cents(float(r["mean_net_realized_ev"])),
                 fmt_ci(float(r["net_realized_ev_ci_lo"]), float(r["net_realized_ev_ci_hi"])),
-                cents(float(r["incremental_after_top3_vs_structural"])),
-                fmt_ci(float(r["incremental_after_top3_ci_lo"]), float(r["incremental_after_top3_ci_hi"])),
+                cents(float(r["incremental_after_top3_vs_zero"])),
+                fmt_ci(float(r["incremental_after_top3_vs_zero_ci_lo"]), float(r["incremental_after_top3_vs_zero_ci_hi"])),
+                cents(float(r["incremental_after_top3_vs_borrowed_structural"])),
+                fmt_ci(
+                    float(r["incremental_after_top3_vs_borrowed_structural_ci_lo"]),
+                    float(r["incremental_after_top3_vs_borrowed_structural_ci_hi"]),
+                ),
             ]
         )
     return markdown_table(
@@ -874,8 +894,10 @@ def format_summary_table(summary: pd.DataFrame) -> str:
             "edge CI",
             "realized net EV",
             "realized CI",
-            "incremental vs structural",
-            "incremental CI",
+            "incremental vs 0c",
+            "inc vs 0c CI",
+            "incremental vs borrowed",
+            "inc vs borrowed CI",
         ],
         rows,
     )
@@ -936,8 +958,13 @@ def format_deribit_table(deribit_summary: pd.DataFrame) -> str:
                     cents(float(r["mean_model_edge"])),
                     fmt_ci(float(r["model_edge_ci_lo"]), float(r["model_edge_ci_hi"])),
                     cents(float(r["mean_net_realized_ev"])),
-                    cents(float(r["incremental_after_top3_vs_structural"])),
-                    fmt_ci(float(r["incremental_after_top3_ci_lo"]), float(r["incremental_after_top3_ci_hi"])),
+                    cents(float(r["incremental_after_top3_vs_zero"])),
+                    fmt_ci(float(r["incremental_after_top3_vs_zero_ci_lo"]), float(r["incremental_after_top3_vs_zero_ci_hi"])),
+                    cents(float(r["incremental_after_top3_vs_borrowed_structural"])),
+                    fmt_ci(
+                        float(r["incremental_after_top3_vs_borrowed_structural_ci_lo"]),
+                        float(r["incremental_after_top3_vs_borrowed_structural_ci_hi"]),
+                    ),
                 ]
             )
         elif str(r.get("sample", "")).startswith("daily_24h"):
@@ -953,10 +980,25 @@ def format_deribit_table(deribit_summary: pd.DataFrame) -> str:
                     "illustrative",
                     "illustrative",
                     "illustrative",
+                    "illustrative",
+                    "illustrative",
                 ]
             )
     return markdown_table(
-        ["row", "n", "markets", "price", "Deribit P/fair", "edge/diff", "CI / p95", "realized net EV / read", "incremental vs structural", "incremental CI"],
+        [
+            "row",
+            "n",
+            "markets",
+            "price",
+            "Deribit P/fair",
+            "edge/diff",
+            "CI / p95",
+            "realized net EV / read",
+            "incremental vs 0c",
+            "inc vs 0c CI",
+            "incremental vs borrowed",
+            "inc vs borrowed CI",
+        ],
         rows,
     )
 
@@ -965,10 +1007,12 @@ def write_note(pm: pd.DataFrame, summary: pd.DataFrame, reliability: pd.DataFram
     merton = summary[summary["label"].eq("arm_b_merton_live1s_original_set")].iloc[0]
     kou = summary[summary["label"].eq("arm_b_kou_live1s_original_set")].iloc[0]
     edgeworth = summary[summary["label"].eq("arm_c_edgeworth_higher_moment_original_set")].iloc[0]
-    best_inc_lo = np.nanmax(summary["incremental_after_top3_ci_lo"].to_numpy(dtype=float))
+    best_inc_lo = np.nanmax(summary["incremental_after_top3_vs_borrowed_structural_ci_lo"].to_numpy(dtype=float))
     deribit_inc_lo = (
-        float(np.nanmax(deribit_summary["incremental_after_top3_ci_lo"].to_numpy(dtype=float)))
-        if deribit_summary is not None and "incremental_after_top3_ci_lo" in deribit_summary and deribit_summary["incremental_after_top3_ci_lo"].notna().any()
+        float(np.nanmax(deribit_summary["incremental_after_top3_vs_borrowed_structural_ci_lo"].to_numpy(dtype=float)))
+        if deribit_summary is not None
+        and "incremental_after_top3_vs_borrowed_structural_ci_lo" in deribit_summary
+        and deribit_summary["incremental_after_top3_vs_borrowed_structural_ci_lo"].notna().any()
         else math.nan
     )
     dvol_rows = int(len(dvol)) if dvol is not None and not dvol.empty else 0
@@ -987,9 +1031,9 @@ def write_note(pm: pd.DataFrame, summary: pd.DataFrame, reliability: pd.DataFram
 
 Final verdict: **CLOSE remains**.
 
-This run tested the prompt's model-form hypothesis: maybe the old Gaussian `N(z)` digital underpriced short-dated OTM tail probability because it had no jump mass. The test repriced the same v4 far-|z| strict-rich short set with causal jump parameters from the captured 1s Binance/K3 panel, then checked whether any residual OD model edge survives the v4 structural baseline.
+This run tested the prompt's model-form hypothesis: maybe the old Gaussian `N(z)` digital underpriced short-dated OTM tail probability because it had no jump mass. The test repriced the same v4 far-|z| strict-rich short set with causal jump parameters from the captured 1s Binance/K3 panel, then checked whether any residual OD model edge survives both a 0c baseline and the borrowed v4 structural queue baseline.
 
-It does **not** reopen OD. The live 1s jump and higher-moment models do add tail mass in the OTM shape diagnostic, but on the actual 23-fill PM set they do not create a deployable incremental edge. Merton original-set model edge is {cents(float(merton['mean_model_edge']))}, CI {fmt_ci(float(merton['model_edge_ci_lo']), float(merton['model_edge_ci_hi']))}; Kou original-set model edge is {cents(float(kou['mean_model_edge']))}, CI {fmt_ci(float(kou['model_edge_ci_lo']), float(kou['model_edge_ci_hi']))}; Edgeworth higher-moment model edge is {cents(float(edgeworth['mean_model_edge']))}, CI {fmt_ci(float(edgeworth['model_edge_ci_lo']), float(edgeworth['model_edge_ci_hi']))}. The best after-top3 incremental lower CI across tested pricing-model rows is {cents(float(best_inc_lo))}, and Deribit's best illustrative after-top3 lower CI is {cents(float(deribit_inc_lo)) if np.isfinite(deribit_inc_lo) else 'n/a'}, so the branch still fails the structural-baseline bar.
+It does **not** reopen OD. The live 1s jump and higher-moment models do add tail mass in the OTM shape diagnostic, but on the actual 23-fill PM set they do not create a deployable incremental edge. Merton original-set model edge is {cents(float(merton['mean_model_edge']))}, CI {fmt_ci(float(merton['model_edge_ci_lo']), float(merton['model_edge_ci_hi']))}; Kou original-set model edge is {cents(float(kou['mean_model_edge']))}, CI {fmt_ci(float(kou['model_edge_ci_lo']), float(kou['model_edge_ci_hi']))}; Edgeworth higher-moment model edge is {cents(float(edgeworth['mean_model_edge']))}, CI {fmt_ci(float(edgeworth['model_edge_ci_lo']), float(edgeworth['model_edge_ci_hi']))}. The best after-top3 lower CI after subtracting the borrowed v4 baseline is {cents(float(best_inc_lo))}, and Deribit's best illustrative borrowed-baseline lower CI is {cents(float(deribit_inc_lo)) if np.isfinite(deribit_inc_lo) else 'n/a'}, so the branch still fails the structural-baseline bar.
 
 Plain-English read: jumps make the tail model more honest, but they do not turn the OD rich-short signal into a standalone trade. The apparent upside is still explained better as source/structure/queue selection with tiny capacity, not a distinct pricing-model edge.
 
@@ -1015,19 +1059,19 @@ realized EV = short price - realized payoff + maker rebate
 
 The arms:
 
-- **Arm A, Gaussian control:** the old EWMA `N(z)` digital.
+- **Arm A, Gaussian control:** the old EWMA `N(z)` RV physical-probability digital.
 - **Arm B, Merton:** compound-Poisson normal jumps fitted causally from prior captured 1s Binance returns.
 - **Arm B, Kou-style:** asymmetric up/down exponential jump moments, also fitted causally from prior captured 1s returns. This is a moment-matched Kou-style approximation, used because the repo environment has NumPy/Pandas but not SciPy for full closed-form calibration.
 - **Arm C, higher moments:** {arm_c_decision}.
 - **Arm D, Deribit DVOL:** BTC/ETH-only illustrative anchor. It is now reported with the same MM-incremental columns, but it is still not gate-grade because DVOL is a 30-day index rather than a historical 4h option surface.
 
-CI columns are market-cluster bootstraps. `incremental vs structural` applies the K5 non-incumbent 5% capacity haircut and subtracts the best v4 structural queue baseline of {cents(STRUCTURAL_BASELINE_C)} per market. That is the MM integration check: a pricing model can have positive raw realized EV and still fail if, after realistic non-incumbent capacity, it does not beat the already-known MM/structural quote-selection result.
+CI columns are market-cluster bootstraps. `incremental vs 0c` applies only the K5 non-incumbent {pct(NON_TOP3_AVAILABLE_SHARE)} capacity haircut. `incremental vs borrowed` then subtracts the best v4 structural queue baseline of {cents(STRUCTURAL_BASELINE_C)} per market. Live-measured baseline is not populated here because there is no separate live queue baseline artifact aligned to these 23 validation fills yet.
 
 ## PM Far-|z| Short Set Results
 
 {format_summary_table(summary)}
 
-Read: a positive `model edge` means the model says the token is overpriced at our short price. `realized net EV` is what happened on this tiny PM sample. `incremental vs structural` is the MM integration check. To reopen OD, the residual after the top-maker haircut also had to beat the structural queue baseline with lower-CI > 0. It does not.
+Read: a positive `model edge` means the model says the token is overpriced at our short price. `realized net EV` is what happened on this tiny PM sample. `incremental vs 0c` is the raw capacity-adjusted read; `incremental vs borrowed` is the MM integration check against the v4 queue baseline. To reopen OD, the residual after the top-maker haircut also had to beat the borrowed structural baseline with lower-CI > 0. It does not.
 
 ![PM model edge]({EDGE_PLOT})
 
@@ -1059,11 +1103,11 @@ Deribit is BTC/ETH only. The public historical anchor used here is DVOL, extrapo
 
 ![Deribit anchor]({DERIBIT_PLOT})
 
-Read: Deribit is helpful as a sanity anchor, not a decision gate. The BTC/ETH Deribit-rich subset has a positive model edge, but it is only 8 fills / 3 markets and its structural-incremental CI is still not a deployable lower-CI-positive OD result. A real Deribit option-surface comparison would need historical per-instrument IV/mark snapshots aligned to the PM fills; this run only uses the public DVOL index plus the local captured PM/Binance rows.
+Read: Deribit is helpful as a sanity anchor, not a decision gate. The BTC/ETH Deribit-rich subset has a positive model edge, but it is only 8 fills / 3 markets and its borrowed-baseline CI is still not a deployable lower-CI-positive OD result. A real Deribit option-surface comparison would need historical per-instrument IV/mark snapshots aligned to the PM fills; this run only uses the public DVOL index plus the local captured PM/Binance rows.
 
 ## Decision
 
-OD stays **closed as a standalone strategy**. The pricing-model-form hypothesis is informative but not enough: Merton/Kou jump-aware pricing and the higher-moment Edgeworth extension do not leave a lower-CI-positive residual that beats the structural queue baseline, and the Deribit anchor is too small/indirect to reopen the branch.
+OD stays **closed as a standalone strategy**. The pricing-model-form hypothesis is informative but not enough: Merton/Kou jump-aware pricing and the higher-moment Edgeworth extension do not leave a lower-CI-positive residual that beats the borrowed structural queue baseline, and the Deribit anchor is too small/indirect to reopen the branch.
 
 Recommended routing: fold the useful pieces back into [[strat_market_making]] as weak quote-selection features. In practice that means: avoid pretending far-|z| Gaussian richness is alpha by itself; prefer source-clean, liquid, queue-realistic cells; and use live 1s jump/OFI flags as caution filters around tail states.
 
@@ -1110,7 +1154,19 @@ def main() -> None:
     make_plots(summary, shape_grid, pm)
     write_note(pm, summary, reliability, shape, deribit_summary, dvol)
     print(f"wrote {NOTE}")
-    print(summary[["label", "fills", "markets", "mean_model_edge", "model_edge_ci_lo", "incremental_after_top3_ci_lo"]].to_string(index=False))
+    print(
+        summary[
+            [
+                "label",
+                "fills",
+                "markets",
+                "mean_model_edge",
+                "model_edge_ci_lo",
+                "incremental_after_top3_vs_zero_ci_lo",
+                "incremental_after_top3_vs_borrowed_structural_ci_lo",
+            ]
+        ].to_string(index=False)
+    )
 
 
 if __name__ == "__main__":

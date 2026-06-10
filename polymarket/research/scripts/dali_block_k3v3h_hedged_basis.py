@@ -200,14 +200,19 @@ def add_features(base: pd.DataFrame) -> pd.DataFrame:
     df["tau_years"] = tau_years
     df["digital_z"] = z
     df["abs_z"] = np.abs(z)
-    df["p_model"] = p_model
+    df["rv_physical_prob_up"] = p_model
+    df["p_model"] = p_model  # Legacy alias: RV physical probability, not option-IV fair.
+    df["fair_prob_kind"] = "rv_physical_prob"
     df["digital_delta"] = pdf / (spot * sigma * np.sqrt(tau_years))
     df["pm_logit"] = pm_logit
-    df["fair_logit"] = fair_logit
+    df["rv_physical_prob_logit"] = fair_logit
+    df["fair_logit"] = fair_logit  # Legacy alias.
     df["raw_logit_gap_pm_minus_fair"] = raw_gap
+    df["raw_logit_gap_pm_minus_rv_physical_prob"] = raw_gap
     df["causal_static_logit_gap"] = static_gap
     df["dynamic_logit_gap"] = dynamic_gap
-    df["pmodel_basis"] = df["polymarket_mid"] - df["p_model"]
+    df["rv_physical_prob_basis"] = df["polymarket_mid"] - df["rv_physical_prob_up"]
+    df["pmodel_basis"] = df["rv_physical_prob_basis"]  # Legacy alias.
     df["large_static_basis_10c"] = df["pmodel_basis"].abs() > STATIC_BASIS_CUTOFF
     df["moneyness_bucket"] = moneyness_bucket(df["abs_z"])
     df["time_bucket"] = time_bucket(df["seconds_to_expiry"])
@@ -525,13 +530,17 @@ def write_extended_panel(panel: pd.DataFrame) -> None:
         "binance_strike_spot",
         "ewma_sigma_annualized",
         "polymarket_mid",
+        "rv_physical_prob_up",
         "p_model",
+        "fair_prob_kind",
         "digital_z",
         "abs_z",
         "digital_delta",
+        "raw_logit_gap_pm_minus_rv_physical_prob",
         "raw_logit_gap_pm_minus_fair",
         "causal_static_logit_gap",
         "dynamic_logit_gap",
+        "rv_physical_prob_basis",
         "pmodel_basis",
         "large_static_basis_10c",
         "state_bucket",
@@ -714,8 +723,8 @@ The strict source filter removes {int(source_penalized_markets)} / {panel['marke
 
 ## Method
 
-- Signal: `dynamic_logit_gap = (pm_logit - fair_logit) - causal_static_logit_gap`, where the static gap is an EWMA using only prior rows in the same market.
-- Fair value: European digital `P=N(z)`, `z=ln(S/K)/(sigma*sqrt(tau))`, with Binance proxy spot, window-open strike, and causal EWMA vol.
+- Signal: `dynamic_logit_gap = (pm_logit - rv_physical_prob_logit) - causal_static_logit_gap`, where the static gap is an EWMA using only prior rows in the same market.
+- RV physical-probability value: European digital `P=N(z)`, `z=ln(S/K)/(sigma*sqrt(tau))`, with Binance proxy spot, window-open strike, and causal EWMA vol. This is a physical forecast probability, not external option-IV fair.
 - Trade direction: negative dynamic gap buys `UP`; positive dynamic gap buys `DOWN`.
 - Hedge: 1 binary share is hedged every second with Binance notional from digital delta; `UP` uses short delta, `DOWN` uses long delta.
 - Flatten: exit on convergence to the exit band, large static basis, or before `abs(z)<0.25` with tau <= {TOXIC_TAU_SECONDS}s.

@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Cooperative edit locks for shared Markdown brain files.
+"""DEPRECATED 2026-06-10 — retired with the live-sync collaboration layer.
 
-This guard is intentionally simple: agents acquire a short-lived lock before
-editing canonical Markdown, then release it when done. Lock files are Markdown so
-Relay can sync them between collaborators; Git ignores the volatile lock files.
+Cooperative per-file edit locks are obsolete under the git branch-per-person
+collaboration model (each collaborator edits on their own branch; conflicts are
+resolved at merge time per brain/MERGE_PROTOCOL.md). Kept in archive/ for
+historical reference only. Do not use.
+
+Original purpose: agents acquired a short-lived lock before editing canonical
+Markdown, then released it when done. Lock files were Markdown so the live-sync
+layer could propagate them between collaborators; Git ignored the volatile
+lock files.
 """
 
 from __future__ import annotations

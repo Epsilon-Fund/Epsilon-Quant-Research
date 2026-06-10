@@ -11,6 +11,7 @@ status: "live market map; refresh prices before trading decisions"
 > Hub: [[COWORK]] · [[POLYMARKET_BRAIN]]
 > Table terms: [[polymarket_table_dictionary]]
 > Companion addendum: [[spacex_ipo_coworker_addendum]]
+> Offline go/no-go gate for the long-IPO / short-perp convergence trade: [[spcx_convergence_calc_findings]]
 
 ## Plain-English Summary
 

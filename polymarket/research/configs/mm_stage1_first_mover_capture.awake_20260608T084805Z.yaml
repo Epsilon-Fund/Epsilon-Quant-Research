@@ -1,0 +1,304 @@
+prepared_at: '2026-06-08T08:48:05Z'
+purpose: Stage-1 continuation live CLOB capture for first_mover; observation only; no orders/auth. Refreshed
+  on 20260608T084805Z.
+run:
+  run_id: mm_stage1_first_mover_awake_20260608T084805Z
+  label: mm_stage1_first_mover_awake
+  duration_hours: 16
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_first_mover
+selection:
+  source: fresh current Gamma/CLOB refresh; current same-day finance, sports, crypto controls, and diagnostics
+    as available
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+markets:
+- id: '2466075'
+  condition_id: '0xb523db2e39a90b7847398cc9255f9ddb6f2a42c79f1c4f49cf625754da5903b4'
+  question: 'Counter-Strike: MIBR vs B8 (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-mibr-b8-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:10:42.278453Z'
+  end_date: '2026-06-08T18:00:00Z'
+  volume24hr: 418157.0672370001
+  volume: 418157.0672370008
+  liquidity: 515357.0678
+  best_bid: 0.45
+  best_ask: 0.46
+  mid: 0.455
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '93145073200534282596609280495406580372782577531114271977404257837136366151972'
+  - '3016010467610273489643549941319889084646816112933380537166285526980860263443'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466032'
+  condition_id: '0xd2c03593d3bca01405e8b7952138cd66bc87414caab295baf764940c83f9c93b'
+  question: 'Counter-Strike: TYLOO vs 9z (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-tyloo-9z-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:00:42.552622Z'
+  end_date: '2026-06-08T20:30:00Z'
+  volume24hr: 178390.17223600025
+  volume: 178390.17223599923
+  liquidity: 416490.3446
+  best_bid: 0.44
+  best_ask: 0.45
+  mid: 0.445
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '103992789417221670562199804426600284787548940234551724631729793097639123499440'
+  - '14253703031338068839644100764880737729786104301016656574246747470553078970381'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466097'
+  condition_id: '0xee08a43efb9c556696204333b15f0fd876d3ef5b0d8b1c8a4483e45804e771b5'
+  question: 'Counter-Strike: M80 vs Legacy (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-m80-lgc-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:10:54.294047Z'
+  end_date: '2026-06-08T23:00:00Z'
+  volume24hr: 117481.24119299983
+  volume: 117481.24119299978
+  liquidity: 339416.9326
+  best_bid: 0.23
+  best_ask: 0.24
+  mid: 0.235
+  spread: 0.009999999999999981
+  neg_risk: false
+  clob_token_ids:
+  - '4346387959502362117883114022228997967406338891168092208350597378524398514797'
+  - '12295587771979700285476341116932010938755023187242847125177987495193695173261'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466086'
+  condition_id: '0x284684a278efc87cb49ee1582e2e81a1d03fe428b3f648791102ad456079ed00'
+  question: 'Counter-Strike: G2 vs BIG (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-g2-big5-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:10:46.981181Z'
+  end_date: '2026-06-08T23:00:00Z'
+  volume24hr: 106562.56420900002
+  volume: 106562.56420899997
+  liquidity: 312694.2371
+  best_bid: 0.72
+  best_ask: 0.73
+  mid: 0.725
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '1264965709549577589554805765863332094808313347920577968788093027332805938787'
+  - '6423961787455793426207420331399308608721108902953638790824868558166870482322'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466064'
+  condition_id: '0xe0a067da293edbaed03ba0ca1e1159ee9892f11315b1ea3a263094eddba221fb'
+  question: 'Counter-Strike: Astralis vs paiN (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-ast10-pain-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:10:37.9564Z'
+  end_date: '2026-06-08T18:00:00Z'
+  volume24hr: 99671.10676600003
+  volume: 99671.10676599997
+  liquidity: 190197.5197
+  best_bid: 0.6
+  best_ask: 0.61
+  mid: 0.605
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '46156821669483455116176323108401061932095584804959737226973161917784593455519'
+  - '11048608556185296386440970188730080311482540561484592496390715791404135162353'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466021'
+  condition_id: '0xad4b85c901a42bbadc399ae65af75d86b6bffab92c5875267df646b481788a45'
+  question: 'Counter-Strike: Monte vs BetBoom Team (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-mnte-bb3-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:00:38.23423Z'
+  end_date: '2026-06-08T20:30:00Z'
+  volume24hr: 91620.66828399997
+  volume: 91620.66828399987
+  liquidity: 275510.0031
+  best_bid: 0.31
+  best_ask: 0.32
+  mid: 0.315
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '81431279274849304677112614966490373981817700599061211171003717513787637643043'
+  - '2439307669961514113369782625485831365787148006681782952697240664391949315224'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2464984'
+  condition_id: '0x629ad5b25d13acbc3b9dd6bfa905daf323226125794031bd9895ffcc48f5af11'
+  question: "Valorant: NRG vs Leviat\xE1n Esports (BO3) - VCT Masters London Group Stage"
+  group_item_title: Match Winner
+  event_slug: null
+  slug: val-nrg-lev1-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T19:20:45.294451Z'
+  end_date: '2026-06-08T23:00:00Z'
+  volume24hr: 82466.53652000001
+  volume: 82466.53651999998
+  liquidity: 116123.693
+  best_bid: 0.56
+  best_ask: 0.57
+  mid: 0.565
+  spread: 0.009999999999999898
+  neg_risk: false
+  clob_token_ids:
+  - '78507736708299639101677137028590519678954425970023118128908402450730477899570'
+  - '27904941984835711281921756439015944392456377880718396375682174145775736046486'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2464967'
+  condition_id: '0xc26a3fb2a2008e7ebb9b4dd4c93ac4089db1e479910f4053d8cf09b2fc59cd93'
+  question: 'Valorant: Team Vitality vs FUT Esports (BO3) - VCT Masters London Group Stage'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: val-vit-fut1-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T19:20:37.971292Z'
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 81990.52497100004
+  volume: 81990.52497100004
+  liquidity: 160699.0995
+  best_bid: 0.66
+  best_ask: 0.67
+  mid: 0.665
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '22828292439654306901498139312922021432021766134103544087654330539414496637839'
+  - '98049699355864640995968252753475639646941504237807208836389215006560125276671'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466099'
+  condition_id: '0xb4d3d405cbcc94a5afe499c5cb80072a1a4abe6eb74247ca79760935340ba970'
+  question: 'Map Handicap: LGC (-1.5) vs M80 (+1.5)'
+  group_item_title: 'Map Handicap: LGC (-1.5) vs M80 (+1.5)'
+  event_slug: null
+  slug: cs2-m80-lgc-2026-06-08-map-handicap-home-1pt5
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:10:54.59445Z'
+  end_date: '2026-06-08T23:00:00Z'
+  volume24hr: 71566.551985
+  volume: 71566.55198499998
+  liquidity: 75040.2372
+  best_bid: 0.47
+  best_ask: 0.48
+  mid: 0.475
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '7310301685590790653839800240505037611907315310710749536672964693331675395276'
+  - '27085036070661035031442484353126857326567859647069317389050994570144302150436'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2467110'
+  condition_id: '0xd025a61784a4894d0262a0faf6c06e3e23555f69e2c5c37ebe7bef321743d8b2'
+  question: 'Counter-Strike: Leo Team vs HyperSpirit (BO3) - CCT Europe Closed Qualifier: Series #4 Play-In'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-leo2-hs2-2026-06-08
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-08T01:40:38.048967Z'
+  end_date: '2026-06-08T14:00:00Z'
+  volume24hr: 15252.070698999998
+  volume: 15252.070698999996
+  liquidity: 29597.3619
+  best_bid: 0.88
+  best_ask: 0.9
+  mid: 0.89
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '113480138762109085726486310185261784086367309949414980180138195701016884893745'
+  - '63323375881335776343328598744642449555709971666504710323346274813233459418499'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466088'
+  condition_id: '0x6fcc2a759cbb4ec1b1056deaf082f7585822275d110f2b84f761391017213ae7'
+  question: 'Map Handicap: G2 (-1.5) vs BIG (+1.5)'
+  group_item_title: 'Map Handicap: G2 (-1.5) vs BIG (+1.5)'
+  event_slug: null
+  slug: cs2-g2-big5-2026-06-08-map-handicap-away-1pt5
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:10:47.335476Z'
+  end_date: '2026-06-08T23:00:00Z'
+  volume24hr: 13190.335416
+  volume: 13190.335416
+  liquidity: 44087.6443
+  best_bid: 0.41
+  best_ask: 0.42
+  mid: 0.415
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '43181963682175542571414845896579527316534392776975851482303326544412206369049'
+  - '40537390861072431547415464596613732686028393043631396661418883999121396593877'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.
+- id: '2466115'
+  condition_id: '0x8699b73cf92b9de6f8230fe1d04d8e121d2b4b895942c6ae8401813b1525fefa'
+  question: 'Spread: New York Liberty (-13.5)'
+  group_item_title: Spread -13.5
+  event_slug: null
+  slug: wnba-nyl-conn-2026-06-08-spread-away-13pt5
+  family: sports_recurring
+  category: Sports
+  created_at: '2026-06-07T22:15:14.400605Z'
+  end_date: '2026-06-08T23:00:00Z'
+  volume24hr: 11042.960793000002
+  volume: 11042.960793000002
+  liquidity: 8153.2981
+  best_bid: 0.47
+  best_ask: 0.48
+  mid: 0.475
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '55327296598783390960803282914636238268223046603846083958210677803977005817717'
+  - '17578502914002458023944162361428067555125767547476137821898688618041109859219'
+  selection_rationale: Stage-1 sports/first-mover diagnostic; current Gamma refresh on 20260608T084805Z;
+    observation only; no orders/auth.

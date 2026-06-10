@@ -81,8 +81,7 @@ From [[block_e_audit]] + glossary (last exec commit 2026-05-18):
 2. **Slack you** about the kernel encoding bug workaround before the executor goes live. *(This is literally a TODO item with your name on it.)*
 3. Polymarket creds into `.env` (private key → `derive_api_keys.py` → `.env`; read-only auth check first).
 4. Pre-flight smoke target — profile current open positions via Gamma + RTDS pre-subscription; confirm no NegRisk markets.
-5. **First real-money smoke** per `midas/scripts/SMOKE_REAL.md`: `MAX_REAL_ORDERS=1`, `REQUIRE_OPERATOR_CONFIRM=true`, `SIZING_USD=10`.
-   - Note: `SMOKE_REAL.md` is referenced but may not exist yet — writing/locating it is part of smoke prep.
+5. **First real-money smoke** per `polymarket/execution/scripts/SMOKE_REAL.md`: `MAX_REAL_ORDERS=1`, `REQUIRE_OPERATOR_CONFIRM=true`, `SIZING_USD=10`.
 - Post-smoke hardening: resolution-handler path, tear down the `MAX_REAL_ORDERS`/operator-confirm harness once stable, VPS in a non-blocked region (US East / Frankfurt / Tokyo), `POLYMARKET_LEADER_RANKINGS_PATH` env + read-on-refresh (gates multi-leader).
 
 ### 1.7 The Phase-5 backtest design (locked, not yet implemented)

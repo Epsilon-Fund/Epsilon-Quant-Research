@@ -237,6 +237,7 @@ def walk_forward(
     reject_fn     = None,
     seed_base     = 42,
     save_csv      = None,
+    collect_trials = False,
 ):
     
     print("UPDATED WALK_FORWARD FILE IS RUNNING")
@@ -312,6 +313,7 @@ def walk_forward(
     fold_records    = []
     all_best_params = []
     oos_slices      = []
+    fold_trials     = []   # per-fold per-trial records when collect_trials=True
 
     for i, fold in enumerate(folds):
         print(f"\n{'─'*60}")
@@ -334,6 +336,15 @@ def walk_forward(
 
         best_params = {**fixed_params, **study.best_params}
         all_best_params.append(best_params)
+
+        # per-trial records for the overfitting audit — the study is in-memory
+        # and discarded after this loop (see infrastructure/validation/)
+        if collect_trials:
+            fold_trials.append([
+                {'number': t.number, 'value': t.value,
+                 'params': dict(t.params), **t.user_attrs}
+                for t in study.trials
+            ])
 
         # IS performance
         try:
@@ -458,6 +469,7 @@ def walk_forward(
         'stability_df':     stability_df,
         'oos_combined_df':  oos_combined,
         'oos_metrics':      oos_metrics,
+        **({'fold_trials': fold_trials} if collect_trials else {}),
     }
 
 # ──────────────────────────────────────────────────────────────────────────────

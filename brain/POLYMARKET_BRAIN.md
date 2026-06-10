@@ -50,6 +50,7 @@ Wikilinks keep the research memory navigable. A finding is only useful later if 
 - [[polymarket_plot_gallery_index]] — wikilinked index of generated Polymarket plot-gallery attachments.
 - [[spacex_ipo_market_map_handoff]] — SpaceX IPO cross-market map for PM, Hyperliquid, TradingView, proxy funds, and agent handoff.
 - [[spacex_ipo_coworker_addendum]] — companion note from the coworker DOCX/PNG covering Class A vs Class B, `xyz:SPCX` vs `vntl:SPACEX`, Trade Republic, TradingView, and the PCHIP distribution.
+- [[spacex_pdf_construction_audit]] — methodology stress-test of the coworker PCHIP scripts: the multi-peak shape is an interpolation/differentiation artifact (not crowd belief); central stats (P(close>$135)≈80%, mean≈$167) are method-invariant, but shape/tail stats (mode, excess kurtosis +3.4→+0.8, P1/P99) are distorted; liquidity is unused. Reproduces the full original metric set under a liquidity-weighted lognormal and ships a drop-in replacement builder. Strategy framing intentionally out of scope.
 
 ## Strategy Folders
 

@@ -178,12 +178,18 @@ def add_implied_vol(panel: pd.DataFrame) -> pd.DataFrame:
 
     df["log_spot_moneyness"] = log_m
     df["pm_norm_quantile"] = q
-    df["pm_iv_annualized"] = sigma_pm
-    df["pm_iv_status"] = status
-    df["pm_iv_valid"] = status == "valid"
-    df["pm_delta_up_implied"] = delta_pm
-    df["iv_minus_ewma"] = df["pm_iv_annualized"] - df["ewma_sigma_annualized"]
-    df["iv_minus_trailing"] = df["pm_iv_annualized"] - df["trailing_sigma_annualized"]
+    df["pm_mid_implied_vol_annualized"] = sigma_pm
+    df["pm_mid_iv_status"] = status
+    df["pm_mid_iv_valid"] = status == "valid"
+    df["pm_mid_implied_delta_up"] = delta_pm
+    df["pm_iv_annualized"] = df["pm_mid_implied_vol_annualized"]  # Legacy alias: PM midpoint inverted to vol.
+    df["pm_iv_status"] = df["pm_mid_iv_status"]
+    df["pm_iv_valid"] = df["pm_mid_iv_valid"]
+    df["pm_delta_up_implied"] = df["pm_mid_implied_delta_up"]
+    df["pm_mid_iv_minus_ewma"] = df["pm_mid_implied_vol_annualized"] - df["ewma_sigma_annualized"]
+    df["pm_mid_iv_minus_trailing"] = df["pm_mid_implied_vol_annualized"] - df["trailing_sigma_annualized"]
+    df["iv_minus_ewma"] = df["pm_mid_iv_minus_ewma"]  # Legacy alias.
+    df["iv_minus_trailing"] = df["pm_mid_iv_minus_trailing"]
     return df
 
 
@@ -231,8 +237,10 @@ def add_realized_vol(panel: pd.DataFrame) -> pd.DataFrame:
     else:
         df["full_window_rv_annualized"] = df["captured_path_rv_annualized"]
 
-    df["iv_minus_remaining_captured_rv"] = df["pm_iv_annualized"] - df["remaining_captured_rv_annualized"]
-    df["iv_minus_full_window_rv"] = df["pm_iv_annualized"] - df["full_window_rv_annualized"]
+    df["pm_mid_iv_minus_remaining_captured_rv"] = df["pm_mid_implied_vol_annualized"] - df["remaining_captured_rv_annualized"]
+    df["pm_mid_iv_minus_full_window_rv"] = df["pm_mid_implied_vol_annualized"] - df["full_window_rv_annualized"]
+    df["iv_minus_remaining_captured_rv"] = df["pm_mid_iv_minus_remaining_captured_rv"]  # Legacy alias.
+    df["iv_minus_full_window_rv"] = df["pm_mid_iv_minus_full_window_rv"]
     return df
 
 
@@ -273,8 +281,8 @@ def summarize_vol_gaps(panel: pd.DataFrame) -> pd.DataFrame:
     for sample_name, mask in samples.items():
         sample = panel[mask].copy()
         for state_bucket, g in sample.groupby("state_bucket", sort=True):
-            valid = g[g["pm_iv_valid"].fillna(False)]
-            status_counts = g["pm_iv_status"].value_counts(normalize=True)
+            valid = g[g["pm_mid_iv_valid"].fillna(False)]
+            status_counts = g["pm_mid_iv_status"].value_counts(normalize=True)
             row: dict[str, Any] = {
                 "row_type": "vol_gap_bucket",
                 "sample": sample_name,
@@ -287,6 +295,8 @@ def summarize_vol_gaps(panel: pd.DataFrame) -> pd.DataFrame:
                 "iv_valid_share": float(len(valid) / len(g)) if len(g) else math.nan,
                 "no_positive_solution_share": float(status_counts.get("no_positive_solution", 0.0)),
                 "bad_or_underdetermined_share": float(1.0 - status_counts.get("valid", 0.0)),
+                "mean_pm_mid_implied_vol": finite_mean(valid["pm_mid_implied_vol_annualized"]),
+                "median_pm_mid_implied_vol": float(valid["pm_mid_implied_vol_annualized"].median()) if len(valid) else math.nan,
                 "mean_pm_iv": finite_mean(valid["pm_iv_annualized"]),
                 "median_pm_iv": float(valid["pm_iv_annualized"].median()) if len(valid) else math.nan,
                 "mean_ewma_sigma": finite_mean(valid["ewma_sigma_annualized"]),
@@ -323,9 +333,9 @@ def market_arrays(g: pd.DataFrame) -> dict[str, Any]:
         "ts_ns": timestamp_ns(g["ts"]),
         "spot": g["binance_spot"].to_numpy(dtype=float),
         "delta": g["digital_delta"].to_numpy(dtype=float),
-        "pm_iv_valid": g["pm_iv_valid"].to_numpy(dtype=bool),
+        "pm_iv_valid": g["pm_mid_iv_valid"].to_numpy(dtype=bool),
         "iv_minus_ewma": g["iv_minus_ewma"].to_numpy(dtype=float),
-        "pm_iv": g["pm_iv_annualized"].to_numpy(dtype=float),
+        "pm_iv": g["pm_mid_implied_vol_annualized"].to_numpy(dtype=float),
         "ewma": g["ewma_sigma_annualized"].to_numpy(dtype=float),
         "trailing": g["trailing_sigma_annualized"].to_numpy(dtype=float),
         "remaining_rv": g["remaining_captured_rv_annualized"].to_numpy(dtype=float),
@@ -644,13 +654,13 @@ def gamma_rows(gamma_summary: pd.DataFrame) -> list[list[str]]:
 
 def write_note(panel: pd.DataFrame, trades: pd.DataFrame, vol_summary: pd.DataFrame, gamma_summary: pd.DataFrame) -> None:
     NOTES.mkdir(parents=True, exist_ok=True)
-    valid_share = float(panel["pm_iv_valid"].mean())
-    no_solution_share = float((panel["pm_iv_status"] == "no_positive_solution").mean())
+    valid_share = float(panel["pm_mid_iv_valid"].mean())
+    no_solution_share = float((panel["pm_mid_iv_status"] == "no_positive_solution").mean())
     clean_mask = (
         panel["source_ok_strict"].fillna(False).astype(bool)
         & ~panel["large_static_basis_10c"].fillna(False).astype(bool)
         & ~panel["toxic_near_expiry"].fillna(False).astype(bool)
-        & panel["pm_iv_valid"].fillna(False).astype(bool)
+        & panel["pm_mid_iv_valid"].fillna(False).astype(bool)
     )
     clean = panel[clean_mask]
     clean_iv_gap = float(clean["iv_minus_ewma"].mean()) if len(clean) else math.nan
@@ -693,9 +703,9 @@ def write_note(panel: pd.DataFrame, trades: pd.DataFrame, vol_summary: pd.DataFr
         best_text = "No gamma trades survived the strict diagnostic filters."
 
     invalid_table = (
-        panel["pm_iv_status"].value_counts(normalize=True).rename("share").reset_index().rename(columns={"index": "status"})
+        panel["pm_mid_iv_status"].value_counts(normalize=True).rename("share").reset_index().rename(columns={"index": "status"})
     )
-    invalid_rows = [[str(r["pm_iv_status"]), pct(float(r["share"]))] for _, r in invalid_table.head(8).iterrows()]
+    invalid_rows = [[str(r["pm_mid_iv_status"]), pct(float(r["share"]))] for _, r in invalid_table.head(8).iterrows()]
 
     note = f"""# Block K6 Vol Gap Diagnostic
 
@@ -703,13 +713,13 @@ def write_note(panel: pd.DataFrame, trades: pd.DataFrame, vol_summary: pd.DataFr
 
 {headline}
 
-Clean-source rows imply PM vol minus causal EWMA of **{volpct(clean_iv_gap)}** on average; the ex-post remaining captured-path diagnostic is **{volpct(clean_expost_gap)}**. The sign is useful diagnostically, but the tradable test is the banded delta-hedged simulation below.
+Clean-source rows imply PM midpoint-implied vol minus causal EWMA of **{volpct(clean_iv_gap)}** on average; the ex-post remaining captured-path diagnostic is **{volpct(clean_expost_gap)}**. The sign is useful diagnostically, but the tradable test is the banded delta-hedged simulation below.
 
 {best_text}
 
 ## Inversion Method
 
-For each row I invert the European digital model `P_up = N(log(S/K)/(sigma*sqrt(tau)))`, with `K` from the Binance window-open reference in the K3 panel. A positive finite implied vol exists only when the PM probability is on the same side of 50% as Binance moneyness. Rows that violate that are marked `no_positive_solution`; they are not forced into a bogus sigma.
+For each row I invert the PM midpoint through the European digital model `P_up = N(log(S/K)/(sigma*sqrt(tau)))`, with `K` from the Binance window-open reference in the K3 panel. This `pm_mid_implied_vol_annualized` is a diagnostic representation of the PM price, not external option-IV fair. A positive finite implied vol exists only when the PM probability is on the same side of 50% as Binance moneyness. Rows that violate that are marked `no_positive_solution`; they are not forced into a bogus sigma.
 
 Implied-vol validity:
 
@@ -724,7 +734,7 @@ This table uses the clean source sample: strict Chainlink/Pyth-vs-Binance settle
         "bucket",
         "rows",
         "valid IV",
-        "PM IV",
+        "PM mid-IV",
         "EWMA",
         "PM-EWMA",
         "PM-EWMA CI",
@@ -738,7 +748,7 @@ This table uses the clean source sample: strict Chainlink/Pyth-vs-Binance settle
 
 ## Gamma-Scalp Backtest
 
-Rules: for each market/bucket/config, take the first eligible entry on the side implied by the causal IV-EWMA gap; buy the OTM/positive-vega side when PM IV is cheap, or the ITM/negative-vega proxy when PM IV is rich. Hold to resolution, delta-hedge on Binance using the causal K3 digital delta, and rebalance only when target hedge notional moves by the band. Costs are the PM taker fee at entry plus Binance hedge turnover at {BINANCE_HEDGE_COST_BPS:.1f}bp. Entries exclude invalid IV, large static basis, and toxic near-expiry rows. Bucket entries are diagnostic and may overlap across buckets within the same market.
+Rules: for each market/bucket/config, take the first eligible entry on the side implied by the causal PM-mid-IV-minus-EWMA gap; buy the OTM/positive-vega side when PM midpoint-implied IV is cheap, or the ITM/negative-vega proxy when PM midpoint-implied IV is rich. Hold to resolution, delta-hedge on Binance using the causal K3 digital delta, and rebalance only when target hedge notional moves by the band. Costs are the PM taker fee at entry plus Binance hedge turnover at {BINANCE_HEDGE_COST_BPS:.1f}bp. Entries exclude invalid PM-mid-IV, large static basis, and toxic near-expiry rows. Bucket entries are diagnostic and may overlap across buckets within the same market.
 
 {markdown_table(
     [
@@ -760,7 +770,7 @@ Rules: for each market/bucket/config, take the first eligible entry on the side 
 
 ## Caveats
 
-- The causal comparison is PM IV versus trailing/EWMA vol available at time `t`.
+- The causal comparison is PM midpoint-implied IV versus trailing/EWMA vol available at time `t`; it is not an external option-IV fair.
 - The remaining-window and full-window realized vol columns are explicitly ex-post diagnostics.
 - The full-window RV is pulled from the earlier K3 full-window pass when present; remaining RV is computed on the captured Binance path after each row, so it can understate unobserved pre/post-capture variance.
 - The trade ledger uses Chainlink/Pyth settlement when available, and the strict source filter removes direction disagreements and small Binance settlement margins.

@@ -1,0 +1,373 @@
+prepared_at: '2026-06-06T11:34:00Z'
+purpose: Stage-1 resumed awake-hours live CLOB capture for broad_live; observation
+  only; no orders.
+run:
+  run_id: mm_stage1_broad_live_resume_20260606T113400Z
+  label: mm_stage1_broad_live
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_broad_live
+selection:
+  source: live Gamma active markets + CLOB /book smoke enrichment
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+  families_targeted:
+    crypto_updown_control: 10
+    sports_recurring: 10
+  active_scan_presence:
+    crypto_updown_control: 0
+    sports_recurring: 1483
+markets:
+- id: '2047449'
+  condition_id: '0x3a0cd7cfdbf64375c4d3e49090ba380ee79815670a3ba65c55cb5cc75f4fc4fb'
+  question: Will the Washington Mystics make the 2026 WNBA Playoffs?
+  slug: will-the-washington-mystics-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:58.191259Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1070.0935
+  best_bid: 0.21
+  best_ask: 0.4
+  spread: 0.19000000000000003
+  clob_token_ids:
+  - '13816862319013650051436877310974158686508960101493736595950110856075876624891'
+  - '57080047754124060407824023525537512643278878343829692749043331545899009689470'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '13816862319013650051436877310974158686508960101493736595950110856075876624891'
+    book_best_bid: 0.21
+    book_bid_size: 9.18
+    book_best_ask: 0.4
+    book_ask_size: 100.0
+    book_spread: 0.19000000000000003
+  - token_id: '57080047754124060407824023525537512643278878343829692749043331545899009689470'
+    book_best_bid: 0.6
+    book_bid_size: 100.0
+    book_best_ask: 0.79
+    book_ask_size: 9.18
+    book_spread: 0.19000000000000006
+- id: '2047448'
+  condition_id: '0x0671eb75cd42b21fc1c2ef016453fe62d3d45cb3343dd19f5c71e161583af69f'
+  question: Will the Toronto Tempo make the 2026 WNBA Playoffs?
+  slug: will-the-toronto-tempo-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:57.892970Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 2731.127658
+  liquidity: 1452.0842
+  best_bid: 0.23
+  best_ask: 0.37
+  spread: 0.13999999999999999
+  clob_token_ids:
+  - '10837426124232104940920216986324273155063528646793961639692994622502232653'
+  - '41770338896603216667539238029495370590536509033179223501500330773756496542962'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '10837426124232104940920216986324273155063528646793961639692994622502232653'
+    book_best_bid: 0.23
+    book_bid_size: 5.0
+    book_best_ask: 0.37
+    book_ask_size: 33.87
+    book_spread: 0.13999999999999999
+  - token_id: '41770338896603216667539238029495370590536509033179223501500330773756496542962'
+    book_best_bid: 0.63
+    book_bid_size: 33.87
+    book_best_ask: 0.77
+    book_ask_size: 5.0
+    book_spread: 0.14
+- id: '2047447'
+  condition_id: '0xe1152e834cc7cc42b4e81c9d39df0d209e2b08d86c718aea5332400b98df5c8d'
+  question: Will the Seattle Storm make the 2026 WNBA Playoffs?
+  slug: will-the-seattle-storm-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:57.599041Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1461.2065
+  best_bid: 0.04
+  best_ask: 0.24
+  spread: 0.19999999999999998
+  clob_token_ids:
+  - '57227944749172765853391895403815692093152582625009626531947476611553487584069'
+  - '45736274730887727532406704058742244103817172149821448174639475152592197712779'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '57227944749172765853391895403815692093152582625009626531947476611553487584069'
+    book_best_bid: 0.04
+    book_bid_size: 7.15
+    book_best_ask: 0.24
+    book_ask_size: 100.0
+    book_spread: 0.19999999999999998
+  - token_id: '45736274730887727532406704058742244103817172149821448174639475152592197712779'
+    book_best_bid: 0.76
+    book_bid_size: 100.0
+    book_best_ask: 0.96
+    book_ask_size: 7.15
+    book_spread: 0.19999999999999996
+- id: '2047446'
+  condition_id: '0x20c1efc667905dfcd62276eafc8ea3a88482e218f142c4e31d1a377fbaa11dc0'
+  question: Will the Portland Fire make the 2026 WNBA Playoffs?
+  slug: will-the-portland-fire-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:57.300635Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 1858.392816
+  liquidity: 1761.8027
+  best_bid: 0.2
+  best_ask: 0.36
+  spread: 0.15999999999999998
+  clob_token_ids:
+  - '71620837822087629497081384770409976730521212283126549128119753462355066326058'
+  - '33724853628548289318005428426436037938243437498396834798967581590581135597413'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '71620837822087629497081384770409976730521212283126549128119753462355066326058'
+    book_best_bid: 0.2
+    book_bid_size: 100.0
+    book_best_ask: 0.29
+    book_ask_size: 8.38
+    book_spread: 0.08999999999999997
+  - token_id: '33724853628548289318005428426436037938243437498396834798967581590581135597413'
+    book_best_bid: 0.71
+    book_bid_size: 8.38
+    book_best_ask: 0.8
+    book_ask_size: 100.0
+    book_spread: 0.09000000000000008
+- id: '2047445'
+  condition_id: '0x1e45c72886cd4f505218345b52d73845410b92c1bb2d063c2248b45968aa83f6'
+  question: Will the Phoenix Mercury make the 2026 WNBA Playoffs?
+  slug: will-the-phoenix-mercury-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:57.007403Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1232.0367
+  best_bid: 0.08
+  best_ask: 0.34
+  spread: 0.26
+  clob_token_ids:
+  - '91470991037465470186261762293360360467165039165327404421828768574153899055862'
+  - '6197075183155515282640084079781489605509775565247969035839811151009012850723'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '91470991037465470186261762293360360467165039165327404421828768574153899055862'
+    book_best_bid: 0.08
+    book_bid_size: 13.5
+    book_best_ask: 0.34
+    book_ask_size: 100.0
+    book_spread: 0.26
+  - token_id: '6197075183155515282640084079781489605509775565247969035839811151009012850723'
+    book_best_bid: 0.66
+    book_bid_size: 100.0
+    book_best_ask: 0.92
+    book_ask_size: 13.5
+    book_spread: 0.26
+- id: '2047444'
+  condition_id: '0x3595a1e207c1bd15ec3e06da70f86bc564fee38dd6077dcbc4ffb857d9c327dd'
+  question: Will the New York Liberty make the 2026 WNBA Playoffs?
+  slug: will-the-new-york-liberty-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:56.712455Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1159.5316
+  best_bid: 0.68
+  best_ask: 0.99
+  spread: 0.30999999999999994
+  clob_token_ids:
+  - '66991630562122860538646288442532968173964500438908264191381129900067981240451'
+  - '105106711684576713174153515413339286325208694246724860157547206456878716926962'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '66991630562122860538646288442532968173964500438908264191381129900067981240451'
+    book_best_bid: 0.68
+    book_bid_size: 16.66
+    book_best_ask: 0.99
+    book_ask_size: 22.37
+    book_spread: 0.30999999999999994
+  - token_id: '105106711684576713174153515413339286325208694246724860157547206456878716926962'
+    book_best_bid: 0.01
+    book_bid_size: 22.37
+    book_best_ask: 0.32
+    book_ask_size: 16.66
+    book_spread: 0.31
+- id: '2047443'
+  condition_id: '0x53e6fb720e8883dae2d4ed2ae1129025d69b7ead1133bb9adedd63bf75f4cf3f'
+  question: Will the Minnesota Lynx make the 2026 WNBA Playoffs?
+  slug: will-the-minnesota-lynx-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:56.412082Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1493.5384
+  best_bid: 0.73
+  best_ask: 0.95
+  spread: 0.21999999999999997
+  clob_token_ids:
+  - '95814126308549037734329554911492269402151618676642391817564661142249883614805'
+  - '53180296851204976075140212787228080886040454304491862319938112188129891355836'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '95814126308549037734329554911492269402151618676642391817564661142249883614805'
+    book_best_bid: 0.73
+    book_bid_size: 100.0
+    book_best_ask: 0.95
+    book_ask_size: 15.78
+    book_spread: 0.21999999999999997
+  - token_id: '53180296851204976075140212787228080886040454304491862319938112188129891355836'
+    book_best_bid: 0.05
+    book_bid_size: 15.78
+    book_best_ask: 0.27
+    book_ask_size: 100.0
+    book_spread: 0.22000000000000003
+- id: '2047442'
+  condition_id: '0xb64190d4bda1882d3b4577c76b5907867e4d47ff46b1c7a9c2416c9c4a623d8c'
+  question: Will the Los Angeles Sparks make the 2026 WNBA Playoffs?
+  slug: will-the-los-angeles-sparks-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:56.115722Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 835.4858
+  best_bid: 0.31
+  best_ask: 0.51
+  spread: 0.2
+  clob_token_ids:
+  - '64650972591919098888658717081392627480001280693770320245296514242287214129883'
+  - '73648740871020700300539551631186949978797287423611613001758088277458857796323'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '64650972591919098888658717081392627480001280693770320245296514242287214129883'
+    book_best_bid: 0.31
+    book_bid_size: 8.32
+    book_best_ask: 0.51
+    book_ask_size: 7.64
+    book_spread: 0.2
+  - token_id: '73648740871020700300539551631186949978797287423611613001758088277458857796323'
+    book_best_bid: 0.49
+    book_bid_size: 7.64
+    book_best_ask: 0.69
+    book_ask_size: 8.32
+    book_spread: 0.19999999999999996
+- id: '2047441'
+  condition_id: '0x33870ead201c4541b4f8d39f1582814c4f72e68dc895ec506d6448496ae987e7'
+  question: Will the Las Vegas Aces make the 2026 WNBA Playoffs?
+  slug: will-the-las-vegas-aces-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:55.815904Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1127.8426
+  best_bid: 0.66
+  best_ask: 0.95
+  spread: 0.2899999999999999
+  clob_token_ids:
+  - '110236565559185703407914599249814101059081237090902233644238101549168932924806'
+  - '111201556477938942364380886474322633625173459093836708414863680142565372646409'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '110236565559185703407914599249814101059081237090902233644238101549168932924806'
+    book_best_bid: 0.66
+    book_bid_size: 100.0
+    book_best_ask: 0.95
+    book_ask_size: 15.18
+    book_spread: 0.2899999999999999
+  - token_id: '111201556477938942364380886474322633625173459093836708414863680142565372646409'
+    book_best_bid: 0.05
+    book_bid_size: 15.18
+    book_best_ask: 0.34
+    book_ask_size: 100.0
+    book_spread: 0.29000000000000004
+- id: '2047440'
+  condition_id: '0x832f0ac28d26bbe5e3b84afd24cbdd4acd739d00d46f5ccb8d88c9c10c57726a'
+  question: Will the Indiana Fever make the 2026 WNBA Playoffs?
+  slug: will-the-indiana-fever-make-the-2026-wnba-playoffs
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-04-21T21:35:55.519151Z'
+  age_hours_at_prepare: 1093.97
+  end_date: '2026-09-25T00:00:00Z'
+  volume24hr: 0.0
+  volume: 58.102075
+  liquidity: 1070.3459
+  best_bid: 0.62
+  best_ask: 0.95
+  spread: 0.32999999999999996
+  clob_token_ids:
+  - '47663747060962068946977110212190284039702101830098732273716474929066760004657'
+  - '111918103679928456687404330389761579236591918133394331125206301913492042740408'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '47663747060962068946977110212190284039702101830098732273716474929066760004657'
+    book_best_bid: 0.62
+    book_bid_size: 100.0
+    book_best_ask: 0.95
+    book_ask_size: 26.57
+    book_spread: 0.32999999999999996
+  - token_id: '111918103679928456687404330389761579236591918133394331125206301913492042740408'
+    book_best_bid: 0.05
+    book_bid_size: 26.57
+    book_best_ask: 0.38
+    book_ask_size: 100.0
+    book_spread: 0.33

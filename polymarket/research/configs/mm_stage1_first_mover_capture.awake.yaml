@@ -1,0 +1,406 @@
+prepared_at: '2026-06-05T11:13:31Z'
+purpose: 'MM Stage-1 first-mover awake-hours live book capture: read-only CLOB market-channel
+  recorder, no orders.'
+run:
+  run_id: mm_stage1_first_mover_awake_20260605T111331Z
+  label: mm_stage1_first_mover_awake
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_first_mover
+selection:
+  source: live Gamma markets endpoint + CLOB /book smoke enrichment
+  lane_boundary: non-politics primary; no orders/auth; refreshed for awake-hours run
+  families_targeted:
+    sports_recurring: 8
+    daily_crypto_control: 4
+    residual_other: 3
+markets:
+- id: '2442947'
+  condition_id: '0x51cf77c13ab47e72e7e4a1fec55be0b7a102d0985471e2342383ba532bf117c7'
+  question: 'Game 2: Any Player Rampage?'
+  slug: dota2-ill-noir-2026-06-05-game2-any-player-rampage
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:57.622889Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-05T22:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '48472262912768666377358579405039365854524527373730285684777429666176443220157'
+  - '52372634684071631415782643556385095437179763633755698808661635378336848310813'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.01
+    book_bid_size: 120.0
+    book_best_ask: 0.5
+    book_ask_size: 40.0
+    book_spread: 0.49
+    token_id: '48472262912768666377358579405039365854524527373730285684777429666176443220157'
+  - book_best_bid: 0.5
+    book_bid_size: 40.0
+    book_best_ask: 0.99
+    book_ask_size: 120.0
+    book_spread: 0.49
+    token_id: '52372634684071631415782643556385095437179763633755698808661635378336848310813'
+- id: '2442942'
+  condition_id: '0xcb4796b9d7bf24cf290888306ca82ecb515d4ec311e578f948d47dcd771dcbbc'
+  question: 'Game 1: Any Player Rampage?'
+  slug: dota2-ill-noir-2026-06-05-game1-any-player-rampage
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:56.953746Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-05T22:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: ''
+  clob_token_ids:
+  - '17804082739845917758737026619014010615355179596721232750764989606905415638382'
+  - '29273591159740003905921957147530342002609851474293393780696317134743526603206'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.02
+    book_bid_size: 44.33
+    book_best_ask: 0.5
+    book_ask_size: 40.0
+    book_spread: 0.48
+    token_id: '17804082739845917758737026619014010615355179596721232750764989606905415638382'
+  - book_best_bid: 0.5
+    book_bid_size: 40.0
+    book_best_ask: 0.98
+    book_ask_size: 44.33
+    book_spread: 0.48
+    token_id: '29273591159740003905921957147530342002609851474293393780696317134743526603206'
+- id: '2442934'
+  condition_id: '0x1485a2cee78f00ab92cf0fabea7b16bf5f0ccc66bf502eab8ffedac23ed88111'
+  question: 'Dota 2: Ilbirs eSports vs Noir Esports (BO3) - European Pro League Group
+    B'
+  slug: dota2-ill-noir-2026-06-05
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:55.412399Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-06T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '5850875937220117901162905942234277608024160066293117375582141845546097289066'
+  - '46188226559130879877896771532922686868088874966399625354290619800393951082578'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.46
+    book_bid_size: 10.0
+    book_best_ask: 0.49
+    book_ask_size: 10.0
+    book_spread: 0.02999999999999997
+    token_id: '5850875937220117901162905942234277608024160066293117375582141845546097289066'
+  - book_best_bid: 0.51
+    book_bid_size: 10.0
+    book_best_ask: 0.54
+    book_ask_size: 10.0
+    book_spread: 0.030000000000000027
+    token_id: '46188226559130879877896771532922686868088874966399625354290619800393951082578'
+- id: '2442910'
+  condition_id: '0x30705b28c922bba583b72a9aea4243e897a8e5cda4210d2efcc8010f4776c139'
+  question: 'Game 3: Ends in Daytime?'
+  slug: dota2-z10-gtime-2026-06-05-game3-ends-in-daytime
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:45.135033Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-05T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '89472979594810287741773365070273206155223270536494730486805760474678169064547'
+  - '55682415090609276776895276459906102381308016862780599904110202432459032618559'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.47
+    book_bid_size: 100.53
+    book_best_ask: 0.57
+    book_ask_size: 98.79
+    book_spread: 0.09999999999999998
+    token_id: '89472979594810287741773365070273206155223270536494730486805760474678169064547'
+  - book_best_bid: 0.43
+    book_bid_size: 98.79
+    book_best_ask: 0.53
+    book_ask_size: 100.53
+    book_spread: 0.10000000000000003
+    token_id: '55682415090609276776895276459906102381308016862780599904110202432459032618559'
+- id: '2442909'
+  condition_id: '0x0a2607fa79656524888f9288169dd0a72eae1052c38bb1d444dbfd909ae13555'
+  question: 'Game 2: Any Player Rampage?'
+  slug: dota2-z10-gtime-2026-06-05-game2-any-player-rampage
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:44.998828Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-05T19:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '69428302860655454014009772374829455109010721910675235402384343055456008413671'
+  - '53698288696371336690368931487756125380061849356685188890433115220986447828732'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.02
+    book_bid_size: 3344.0
+    book_best_ask: 0.5
+    book_ask_size: 40.0
+    book_spread: 0.48
+    token_id: '69428302860655454014009772374829455109010721910675235402384343055456008413671'
+  - book_best_bid: 0.5
+    book_bid_size: 40.0
+    book_best_ask: 0.98
+    book_ask_size: 3344.0
+    book_spread: 0.48
+    token_id: '53698288696371336690368931487756125380061849356685188890433115220986447828732'
+- id: '2442905'
+  condition_id: '0xba9ddf568d7d60fa2ba4f861926b98d7ef4513d0a66ae0cdeba53feaf50614aa'
+  question: 'Game 2: Ends in Daytime?'
+  slug: dota2-z10-gtime-2026-06-05-game2-ends-in-daytime
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:44.401871Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-05T19:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '90317778734372439229944678523735821962244978533153712534556124919926351482004'
+  - '76538494122731560831431052711085571742112663973348516265205642857489725855711'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.47
+    book_bid_size: 100.53
+    book_best_ask: 0.57
+    book_ask_size: 98.79
+    book_spread: 0.09999999999999998
+    token_id: '90317778734372439229944678523735821962244978533153712534556124919926351482004'
+  - book_best_bid: 0.43
+    book_bid_size: 98.79
+    book_best_ask: 0.53
+    book_ask_size: 100.53
+    book_spread: 0.10000000000000003
+    token_id: '76538494122731560831431052711085571742112663973348516265205642857489725855711'
+- id: '2442904'
+  condition_id: '0xaeb62e618a563747d8a2539257c9634d7af3c4255f1aab8c69664a6ed2e9ece4'
+  question: 'Game 1: Any Player Rampage?'
+  slug: dota2-z10-gtime-2026-06-05-game1-any-player-rampage
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:44.236304Z'
+  age_hours_at_prepare: 0.21
+  end_date: '2026-06-05T19:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '8505743305580077152303786019239107708106670465351404137965619178292884905013'
+  - '28213244167163841080501909261644007229088293687886270594162801618350591119244'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.02
+    book_bid_size: 3344.0
+    book_best_ask: 0.5
+    book_ask_size: 40.0
+    book_spread: 0.48
+    token_id: '8505743305580077152303786019239107708106670465351404137965619178292884905013'
+  - book_best_bid: 0.5
+    book_bid_size: 40.0
+    book_best_ask: 0.98
+    book_ask_size: 3344.0
+    book_spread: 0.48
+    token_id: '28213244167163841080501909261644007229088293687886270594162801618350591119244'
+- id: '2443003'
+  condition_id: '0x26c1b5d458cf1bb6a68497ff8d1b455adff1dfc16ca20dba3b838b20c1197582'
+  question: Ethereum Up or Down - June 6, 7:00AM-7:15AM ET
+  slug: eth-updown-15m-1780743600
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-05T11:06:31.299534Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:15:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '17509030570418946793586645783101958041560896664405420846323258896605020434199'
+  - '33802756758557602971372604777841236440807604671564951476753534191506938872084'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 1166.28
+    book_best_ask: 0.51
+    book_ask_size: 1166.28
+    book_spread: 0.020000000000000018
+    token_id: '17509030570418946793586645783101958041560896664405420846323258896605020434199'
+  - book_best_bid: 0.49
+    book_bid_size: 1166.28
+    book_best_ask: 0.51
+    book_ask_size: 1166.28
+    book_spread: 0.020000000000000018
+    token_id: '33802756758557602971372604777841236440807604671564951476753534191506938872084'
+- id: '2443002'
+  condition_id: '0x31c792d58505370e3c621519b13d8dd58cc8d1048df1c4152059cf1bea121a43'
+  question: Ethereum Up or Down - June 6, 7:00AM-7:05AM ET
+  slug: eth-updown-5m-1780743600
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-05T11:06:31.279755Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:05:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '22939210181723039474712291893244023850787539582271491709488864947372535621713'
+  - '42263465672520861748271886156240749715157472662930425545339282505977176723777'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 93.02
+    book_best_ask: 0.51
+    book_ask_size: 93.02
+    book_spread: 0.020000000000000018
+    token_id: '22939210181723039474712291893244023850787539582271491709488864947372535621713'
+  - book_best_bid: 0.49
+    book_bid_size: 93.02
+    book_best_ask: 0.51
+    book_ask_size: 93.02
+    book_spread: 0.020000000000000018
+    token_id: '42263465672520861748271886156240749715157472662930425545339282505977176723777'
+- id: '2443001'
+  condition_id: '0xf91453bd37de0115020d6773b71b60e122ddc40c7df05191b554587f334222f8'
+  question: Solana Up or Down - June 6, 7:00AM-7:05AM ET
+  slug: sol-updown-5m-1780743600
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-05T11:06:31.210217Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:05:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '7192467186268868839917411936511201957945322615515344454388494223194694681420'
+  - '29854741432590517310047062347787501079598361697358302783154668873009872287746'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 37.0
+    book_best_ask: 0.51
+    book_ask_size: 37.0
+    book_spread: 0.020000000000000018
+    token_id: '7192467186268868839917411936511201957945322615515344454388494223194694681420'
+  - book_best_bid: 0.49
+    book_bid_size: 37.0
+    book_best_ask: 0.51
+    book_ask_size: 37.0
+    book_spread: 0.020000000000000018
+    token_id: '29854741432590517310047062347787501079598361697358302783154668873009872287746'
+- id: '2443000'
+  condition_id: '0x7023a1107534b6f9e936ac5f063d92a3abe9c4265ee3310c58dae1dd7a2ef6bd'
+  question: BNB Up or Down - June 6, 7:00AM-7:15AM ET
+  slug: bnb-updown-15m-1780743600
+  family: daily_crypto_control
+  category: daily_crypto_control
+  created_at: '2026-06-05T11:06:31.207625Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:15:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '8701831726630177496328880205035302227747755706311116768515458214946556858990'
+  - '15141110680687931980305472637910335374765212910134363430011239336090744266909'
+  neg_risk: false
+  selection_rationale: MM Stage-1 awake-hours read-only capture; no orders; live Gamma/CLOB
+    refreshed candidate.
+  book_tokens:
+  - book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+    token_id: '8701831726630177496328880205035302227747755706311116768515458214946556858990'
+  - book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+    token_id: '15141110680687931980305472637910335374765212910134363430011239336090744266909'

@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 from dali_block_k3v2_leadlag_causal import YEAR_SECONDS, cents, markdown_table, norm_cdf, number, pct
-from od_strategy_a_v3 import normalize_markdown_wrapping
+from od_strategy_a_v3 import normalize_markdown_wrapping, resolve_token_rv_physical_prob_fair
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -349,7 +349,10 @@ def apply_lookup_to_pm(pm: pd.DataFrame, hist: pd.DataFrame) -> pd.DataFrame:
     out["arm_b_p_up"] = [p.p_up for p in preds]
     out["arm_b_train_n"] = [p.train_n for p in preds]
     out["arm_b_source"] = [p.source for p in preds]
-    out["arm_a_token_prob"] = out["token_model_fair"].astype(float)
+    arm_a_prob = resolve_token_rv_physical_prob_fair(out, context="od_conditional_prob_calibration.apply_lookup_to_pm")
+    out["arm_a_rv_physical_prob"] = arm_a_prob.astype(float)
+    out["arm_a_token_prob"] = out["arm_a_rv_physical_prob"]  # Legacy alias.
+    out["arm_a_fair_kind"] = "rv_physical_prob"
     out["arm_b_token_prob"] = np.where(out["actual_outcome"].astype(str).eq("up"), out["arm_b_p_up"], 1.0 - out["arm_b_p_up"])
     out["arm_a_edge"] = out["short_price"] - out["arm_a_token_prob"]
     out["arm_b_edge"] = out["short_price"] - out["arm_b_token_prob"]
@@ -411,7 +414,7 @@ def structural_baseline() -> dict[str, float]:
 def summarize_pm(pm: pd.DataFrame, baseline: dict[str, float]) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     configs = [
-        ("arm_a_ewma_nd2_original_set", pm, "arm_a_token_prob", "arm_a_edge"),
+        ("arm_a_ewma_nz_original_set", pm, "arm_a_token_prob", "arm_a_edge"),
         ("arm_b_empirical_conditional_original_set", pm, "arm_b_token_prob", "arm_b_edge"),
         ("arm_b_empirical_conditional_rich_ge_1c", pm[pm["arm_b_edge"].ge(0.01)].copy(), "arm_b_token_prob", "arm_b_edge"),
         ("arm_b_empirical_conditional_rich_ge_5c", pm[pm["arm_b_edge"].ge(0.05)].copy(), "arm_b_token_prob", "arm_b_edge"),
@@ -427,6 +430,7 @@ def summarize_pm(pm: pd.DataFrame, baseline: dict[str, float]) -> pd.DataFrame:
         after["net_after_top3"] = after["net_realized_ev"] * NON_TOP3_AVAILABLE_SHARE
         top3_lo, top3_hi = market_sum_ci(after, "net_after_top3", seed_offset=40)
         mean_after_top3 = float(after.groupby("market_id")["net_after_top3"].sum().mean())
+        baseline_mean = baseline["mean"]
         rows.append(
             {
                 "label": label,
@@ -448,10 +452,22 @@ def summarize_pm(pm: pd.DataFrame, baseline: dict[str, float]) -> pd.DataFrame:
                 "mean_market_net_after_top3": mean_after_top3,
                 "market_net_after_top3_ci_lo": top3_lo,
                 "market_net_after_top3_ci_hi": top3_hi,
-                "structural_baseline_mean": baseline["mean"],
-                "incremental_after_top3_vs_structural": mean_after_top3 - baseline["mean"] if np.isfinite(baseline["mean"]) else math.nan,
-                "incremental_after_top3_ci_lo": top3_lo - baseline["mean"] if np.isfinite(baseline["mean"]) and np.isfinite(top3_lo) else math.nan,
-                "incremental_after_top3_ci_hi": top3_hi - baseline["mean"] if np.isfinite(baseline["mean"]) and np.isfinite(top3_hi) else math.nan,
+                "zero_baseline_mean": 0.0,
+                "incremental_after_top3_vs_zero": mean_after_top3,
+                "incremental_after_top3_vs_zero_ci_lo": top3_lo,
+                "incremental_after_top3_vs_zero_ci_hi": top3_hi,
+                "borrowed_structural_baseline_mean": baseline_mean,
+                "incremental_after_top3_vs_borrowed_structural": mean_after_top3 - baseline_mean if np.isfinite(baseline_mean) else math.nan,
+                "incremental_after_top3_vs_borrowed_structural_ci_lo": top3_lo - baseline_mean if np.isfinite(baseline_mean) and np.isfinite(top3_lo) else math.nan,
+                "incremental_after_top3_vs_borrowed_structural_ci_hi": top3_hi - baseline_mean if np.isfinite(baseline_mean) and np.isfinite(top3_hi) else math.nan,
+                "live_measured_baseline_mean": math.nan,
+                "incremental_after_top3_vs_live_measured": math.nan,
+                "incremental_after_top3_vs_live_measured_ci_lo": math.nan,
+                "incremental_after_top3_vs_live_measured_ci_hi": math.nan,
+                "structural_baseline_mean": baseline_mean,
+                "incremental_after_top3_vs_structural": mean_after_top3 - baseline_mean if np.isfinite(baseline_mean) else math.nan,
+                "incremental_after_top3_ci_lo": top3_lo - baseline_mean if np.isfinite(baseline_mean) and np.isfinite(top3_lo) else math.nan,
+                "incremental_after_top3_ci_hi": top3_hi - baseline_mean if np.isfinite(baseline_mean) and np.isfinite(top3_hi) else math.nan,
                 "mean_arm_b_train_n": float(sub["arm_b_train_n"].mean()) if "arm_b_train_n" in sub else math.nan,
                 "primary_lookup_share": float(sub["arm_b_source"].eq("signed_z_time").mean()) if "arm_b_source" in sub else math.nan,
             }
@@ -461,7 +477,7 @@ def summarize_pm(pm: pd.DataFrame, baseline: dict[str, float]) -> pd.DataFrame:
 
 def calibration_bins_cv(cv: pd.DataFrame) -> pd.DataFrame:
     pieces = []
-    for arm, col in [("arm_a_ewma_nd2", "p_model"), ("arm_b_empirical_conditional", "arm_b_p_up")]:
+    for arm, col in [("arm_a_ewma_nz", "p_model"), ("arm_b_empirical_conditional", "arm_b_p_up")]:
         out = cv[["asset", "ts", "cv_year", "time_bucket", "signed_z_bucket", "binance_resolution_up", col]].copy()
         out = out.rename(columns={col: "pred_prob"})
         out["arm"] = arm
@@ -492,7 +508,7 @@ def calibration_bins_cv(cv: pd.DataFrame) -> pd.DataFrame:
 def pm_bins(pm: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for arm, prob_col, edge_col in [
-        ("arm_a_ewma_nd2", "arm_a_token_prob", "arm_a_edge"),
+        ("arm_a_ewma_nz", "arm_a_token_prob", "arm_a_edge"),
         ("arm_b_empirical_conditional", "arm_b_token_prob", "arm_b_edge"),
     ]:
         out = pm.copy()
@@ -572,7 +588,22 @@ def format_table(df: pd.DataFrame, cols: list[str], limit: int | None = None) ->
             v = r.get(col, math.nan)
             if col in {"fills", "markets", "rows"}:
                 row.append(str(int(v)) if pd.notna(v) else "0")
-            elif col in {"mean_short_price", "mean_model_edge", "mean_gross_realized_ev", "mean_net_realized_ev", "mean_market_net_after_top3", "incremental_after_top3_vs_structural", "structural_baseline_mean", "mean_edge", "mean_net_realized_ev"}:
+            elif col in {
+                "mean_short_price",
+                "mean_model_edge",
+                "mean_gross_realized_ev",
+                "mean_net_realized_ev",
+                "mean_market_net_after_top3",
+                "incremental_after_top3_vs_structural",
+                "structural_baseline_mean",
+                "zero_baseline_mean",
+                "incremental_after_top3_vs_zero",
+                "borrowed_structural_baseline_mean",
+                "incremental_after_top3_vs_borrowed_structural",
+                "live_measured_baseline_mean",
+                "incremental_after_top3_vs_live_measured",
+                "mean_edge",
+            }:
                 row.append(cents(float(v)))
             elif col in {"model_edge_ci_lo"}:
                 row.append(fmt_ci(float(r["model_edge_ci_lo"]), float(r["model_edge_ci_hi"])))
@@ -582,6 +613,12 @@ def format_table(df: pd.DataFrame, cols: list[str], limit: int | None = None) ->
                 row.append(fmt_ci(float(r["market_net_after_top3_ci_lo"]), float(r["market_net_after_top3_ci_hi"])))
             elif col in {"incremental_after_top3_ci_lo"}:
                 row.append(fmt_ci(float(r["incremental_after_top3_ci_lo"]), float(r["incremental_after_top3_ci_hi"])))
+            elif col in {"incremental_after_top3_vs_zero_ci_lo"}:
+                row.append(fmt_ci(float(r["incremental_after_top3_vs_zero_ci_lo"]), float(r["incremental_after_top3_vs_zero_ci_hi"])))
+            elif col in {"incremental_after_top3_vs_borrowed_structural_ci_lo"}:
+                row.append(fmt_ci(float(r["incremental_after_top3_vs_borrowed_structural_ci_lo"]), float(r["incremental_after_top3_vs_borrowed_structural_ci_hi"])))
+            elif col in {"incremental_after_top3_vs_live_measured_ci_lo"}:
+                row.append(fmt_ci(float(r["incremental_after_top3_vs_live_measured_ci_lo"]), float(r["incremental_after_top3_vs_live_measured_ci_hi"])))
             elif col in {"realized_itm_rate", "mean_pred_itm_prob", "calibration_gap_obs_minus_pred", "mean_pred", "observed_freq", "obs_minus_pred", "primary_lookup_share"}:
                 row.append(pct(float(v)))
             elif isinstance(v, float):
@@ -635,7 +672,7 @@ def update_docs(verdict: str, arm_b_row: pd.Series) -> None:
 
 def write_note(hist: pd.DataFrame, cv: pd.DataFrame, cv_bins: pd.DataFrame, pm: pd.DataFrame, pm_summary: pd.DataFrame, bins: pd.DataFrame, verdict: str) -> None:
     arm_b = pm_summary[pm_summary["label"].eq("arm_b_empirical_conditional_original_set")].iloc[0]
-    arm_a = pm_summary[pm_summary["label"].eq("arm_a_ewma_nd2_original_set")].iloc[0]
+    arm_a = pm_summary[pm_summary["label"].eq("arm_a_ewma_nz_original_set")].iloc[0]
     arm_b_rich = pm_summary[pm_summary["label"].eq("arm_b_empirical_conditional_rich_ge_1c")].iloc[0]
 
     arm_table = format_table(
@@ -654,9 +691,11 @@ def write_note(hist: pd.DataFrame, cv: pd.DataFrame, cv_bins: pd.DataFrame, pm: 
             "net_realized_ev_ci_lo",
             "mean_market_net_after_top3",
             "market_net_after_top3_ci_lo",
-            "structural_baseline_mean",
-            "incremental_after_top3_vs_structural",
-            "incremental_after_top3_ci_lo",
+            "incremental_after_top3_vs_zero",
+            "incremental_after_top3_vs_zero_ci_lo",
+            "borrowed_structural_baseline_mean",
+            "incremental_after_top3_vs_borrowed_structural",
+            "incremental_after_top3_vs_borrowed_structural_ci_lo",
             "primary_lookup_share",
         ],
     )
@@ -694,7 +733,7 @@ Final verdict: **{verdict}**.
 
 {decision_text}
 
-Arm B, the Binance-only empirical conditional probability model, predicts {pct(float(arm_b['mean_pred_itm_prob']))} ITM on the same 23-fill v4 far-|z| strict-rich short set. The tokens actually paid {pct(float(arm_b['realized_itm_rate']))}. The mean Arm-B model edge is {cents(float(arm_b['mean_model_edge']))}, CI {fmt_ci(float(arm_b['model_edge_ci_lo']), float(arm_b['model_edge_ci_hi']))}; realized net EV is {cents(float(arm_b['mean_net_realized_ev']))}, CI {fmt_ci(float(arm_b['net_realized_ev_ci_lo']), float(arm_b['net_realized_ev_ci_hi']))}. After the K5 top-3 maker capacity haircut, the market-level incremental lower CI versus the v4 structural 0c-edge baseline is {cents(float(arm_b['incremental_after_top3_ci_lo']))}.
+Arm B, the Binance-only empirical conditional probability model, predicts {pct(float(arm_b['mean_pred_itm_prob']))} ITM on the same 23-fill v4 far-|z| strict-rich short set. The tokens actually paid {pct(float(arm_b['realized_itm_rate']))}. The mean Arm-B model edge is {cents(float(arm_b['mean_model_edge']))}, CI {fmt_ci(float(arm_b['model_edge_ci_lo']), float(arm_b['model_edge_ci_hi']))}; realized net EV is {cents(float(arm_b['mean_net_realized_ev']))}, CI {fmt_ci(float(arm_b['net_realized_ev_ci_lo']), float(arm_b['net_realized_ev_ci_hi']))}. After the K5 top-3 maker capacity haircut, the market-level lower CI is {cents(float(arm_b['incremental_after_top3_vs_zero_ci_lo']))} versus a 0c baseline and {cents(float(arm_b['incremental_after_top3_vs_borrowed_structural_ci_lo']))} after subtracting the borrowed v4 structural queue baseline.
 
 Plain-English read: Binance history says the far-|z| states are not absurd longshots. In the exact PM set, the empirical conditional probability is close enough to the traded price that the OD richness gap is not independently decisive. The positive realized cents are still small-sample/concentration-sensitive, and the structural 0c-edge replay remains the better explanation than a standalone OD valuation edge.
 
@@ -709,9 +748,30 @@ z = ln(S_t / K) / (causal_EWMA_sigma_t * sqrt(tau))
 outcome = 1 if Binance close > K else 0
 ```
 
-Arm A is the old control: `N(z)`. Arm B is model-free: expanding-time CV estimates empirical `P(resolve UP | signed z bucket, time-left bucket)` from prior Binance history. For the PM token side, UP uses that probability directly and DOWN uses `1 - P(resolve UP)`.
+Arm A is the old RV physical-probability control: `N(z)`. Arm B is model-free: expanding-time CV estimates empirical `P(resolve UP | signed z bucket, time-left bucket)` from prior Binance history. For the PM token side, UP uses that probability directly and DOWN uses `1 - P(resolve UP)`.
 
 Historical sample: {len(hist):,} Binance 5-minute states, {asset_windows:,} asset-window 4h outcomes across {hist['window_start'].nunique():,} UTC time slots, assets `{', '.join(sorted(hist['asset'].unique()))}`. Expanding-CV validation rows: {len(cv):,}.
+
+### Granularity Caveat: What The 5-Minute History Is And Is Not
+
+The 2021-to-2026 Binance history is a **broad base-rate calibration**, not a live-execution-quality reconstruction of the exact Polymarket episodes. It answers: "In thousands of historical 4h crypto windows, what is the empirical resolution frequency for this signed moneyness/time-left state?" That is useful for detecting whether the Gaussian `N(z)` model is wildly wrong.
+
+It does **not** replace the captured-window data. For the actual PM windows we also have much richer, more relevant evidence:
+
+- `data/analysis/block_a0c_roll_features.parquet`: crypto-4h Polymarket LOB/WS capture with top-of-book, depth, trade flow, OFI, and exchange timestamps across 38 crypto-4h slugs on 2026-05-29 to 2026-05-30.
+- `data/analysis/block_a0c_features.parquet`: A0c targeted capture with crypto-4h plus daily crypto rows on 2026-05-29.
+- `data/analysis/cache/k2v2_daily_binance_1s.parquet` and `data/analysis/cache/k2v2_daily_model_surface.parquet`: 1s Binance/model surface for the daily BTC/ETH crypto capture on 2026-05-27 to 2026-05-28.
+
+Plain-English read: the 5-minute historical panel is a good truth-table prior; the captured 1s Binance + Polymarket LOB windows are the right place to ask whether the **live market state** had jumps, order-flow pressure, OFI, liquidity depletion, or source-basis risk that the broad 5-minute table cannot see.
+
+For the pricing-model-form reopen test, the preferred ordering should be:
+
+1. Use the historical 5-minute panel only as the background calibration/control for `P(resolve | z, tau)`.
+2. For the actual PM validation rows, rebuild the state at 1s granularity from the captured windows where available.
+3. Estimate jump/OFI features from the local live window around each fill, not only from multi-year unconditional Binance history.
+4. Treat Deribit BTC/ETH as an illustrative market-IV anchor for the same captured days, not as a powered gate.
+
+This caveat does not overturn this note's close verdict. It narrows what kind of evidence would be allowed to reopen OD: a stronger pricing-model-form test should show residual EV on the **captured-window/live 1s panel**, not merely on a smoother 5-minute historical lookup.
 
 ## Arm B Binance Reliability
 
@@ -727,11 +787,11 @@ Read: this is the truth-teller independent of the tiny Polymarket sample. If Arm
 
 ## PM v4 Far-|z| Short Set
 
-| label | fills | markets | mean_short_price | mean_pred_itm_prob | realized_itm_rate | obs - pred | mean_model_edge | edge CI | mean net EV | net EV CI | after-top3 market net | after-top3 CI | structural baseline | incremental vs structural | incremental CI | primary lookup share |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| label | fills | markets | mean_short_price | mean_pred_itm_prob | realized_itm_rate | obs - pred | mean_model_edge | edge CI | mean net EV | net EV CI | after-top3 market net | after-top3 CI | incremental vs 0c | inc vs 0c CI | borrowed baseline | incremental vs borrowed | inc vs borrowed CI | primary lookup share |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {chr(10).join(arm_table.splitlines()[2:])}
 
-Column read: `mean_model_edge` is `short price - predicted ITM probability`. `mean net EV` is the actual resolution PnL per fill after maker rebate. `after-top3 market net` applies the 5% non-incumbent capacity haircut used in v4. `incremental vs structural` subtracts the best v4 0c-edge queue replay baseline.
+Column read: `mean_model_edge` is `short price - predicted ITM probability`. `mean net EV` is the actual resolution PnL per fill after maker rebate. `after-top3 market net` applies the 5% non-incumbent capacity haircut used in v4. `incremental vs 0c` is the raw capacity-adjusted read. `incremental vs borrowed` subtracts the best v4 0c-edge queue replay baseline. Live-measured baseline is not filled in this run because there is no separate live queue baseline artifact for the same validation rows yet.
 
 ![PM EV by arm]({EV_PLOT.resolve()})
 
@@ -748,6 +808,8 @@ Read: the PM set is tiny, so this table is diagnostic rather than decisive. The 
 {decision_text}
 
 {c_text}
+
+Clarification for future reopen prompts: the skipped Arms C/D here refer to the **conditional-probability task's** HAR/Kronos-style forward-vol arms. A separate pricing-model-form diagnostic may still run a small jump-model/Deribit extension, but it should be anchored on the captured 1s/LOB windows. In that framing, Merton/Kou jump diffusion is the cheap first extension; Bates/Variance-Gamma is only worth running if Merton/Kou leaves residual lower-CI-positive EV; Deribit is BTC/ETH-only and illustrative.
 
 Operational next step: fold the source/richness information back into [[strat_market_making]] as a weak quote-selection or caution feature. Do not build new OD queue infrastructure from this result.
 

@@ -1,0 +1,987 @@
+prepared_at: '2026-06-06T11:36:12Z'
+purpose: Stage-1 resumed awake-hours live CLOB capture for slow_crypto_finance; observation
+  only; no orders. Crypto controls added via deterministic rolling slugs.
+run:
+  run_id: mm_stage1_slow_crypto_finance_resume_20260606T113612Z
+  label: mm_stage1_slow_crypto_finance
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_slow_crypto_finance
+selection:
+  source: live Gamma active scan plus deterministic rolling crypto slug lookup plus
+    CLOB /book smoke
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+  families_targeted:
+    crypto_4h: 7
+    crypto_daily: 6
+    finance_index_updown: 5
+    finance_equity_updown: 9
+    finance_close_ladder: 14
+    finance_spx_ladder: 6
+markets:
+- id: '2443339'
+  condition_id: '0x0454dc74bd2517dbf7002b72ab531276e11b04fec844629dcfbdcd1a88acafc7'
+  question: Bitcoin Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: btc-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:32.076201Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 359.547949
+  volume: 359.54794899999996
+  liquidity: 6076.3831
+  best_bid: 0.47
+  best_ask: 0.51
+  spread: 0.040000000000000036
+  clob_token_ids:
+  - '22815396069196791354238924307415726193144255010872359326805703737535147105393'
+  - '103737012875146570220834728906130186214092800709327448434954598051122275751571'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '22815396069196791354238924307415726193144255010872359326805703737535147105393'
+    book_best_bid: 0.46
+    book_bid_size: 214.13
+    book_best_ask: 0.51
+    book_ask_size: 95.14
+    book_spread: 0.04999999999999999
+  - token_id: '103737012875146570220834728906130186214092800709327448434954598051122275751571'
+    book_best_bid: 0.49
+    book_bid_size: 95.14
+    book_best_ask: 0.54
+    book_ask_size: 214.13
+    book_spread: 0.050000000000000044
+- id: '2443344'
+  condition_id: '0xe902bed4c2a77cd5b00e0e3becfbcaf6e7525bde25b5b602350fa0b543eb90f1'
+  question: Ethereum Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: eth-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:32.416849Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 20.0
+  volume: 20.0
+  liquidity: 4803.7203
+  best_bid: 0.51
+  best_ask: 0.52
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '18628950711137878770262710731619207667602648353193683635255524339488593376216'
+  - '992330210414283638713104337354824207807816730193494482560936624537714617910'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '18628950711137878770262710731619207667602648353193683635255524339488593376216'
+    book_best_bid: 0.51
+    book_bid_size: 80.0
+    book_best_ask: 0.52
+    book_ask_size: 5.0
+    book_spread: 0.010000000000000009
+  - token_id: '992330210414283638713104337354824207807816730193494482560936624537714617910'
+    book_best_bid: 0.48
+    book_bid_size: 5.0
+    book_best_ask: 0.49
+    book_ask_size: 80.0
+    book_spread: 0.010000000000000009
+- id: '2443341'
+  condition_id: '0xe635bf6a7d7edab2846e7d8c3b699e2b56b6ddbc5073950768f0acbd2e7bac68'
+  question: Solana Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: sol-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:32.108952Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1131.1991
+  best_bid: 0.49
+  best_ask: 0.51
+  spread: 0.020000000000000018
+  clob_token_ids:
+  - '47748819734170902511601213091230766652292382288097343550117390309002722707766'
+  - '69430773760182571896751381435303734804215363065469082877202321166441101886329'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '47748819734170902511601213091230766652292382288097343550117390309002722707766'
+    book_best_bid: 0.48
+    book_bid_size: 10.0
+    book_best_ask: 0.52
+    book_ask_size: 10.0
+    book_spread: 0.040000000000000036
+  - token_id: '69430773760182571896751381435303734804215363065469082877202321166441101886329'
+    book_best_bid: 0.48
+    book_bid_size: 10.0
+    book_best_ask: 0.52
+    book_ask_size: 10.0
+    book_spread: 0.040000000000000036
+- id: '2443340'
+  condition_id: '0x30055b4ef5fa5098a8b6cfb2b995edf92b766c69adf41253189ff15afcdc1739'
+  question: Dogecoin Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: doge-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:32.079950Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1353.7994
+  best_bid: 0.46
+  best_ask: 0.54
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '95190044392679123576916127753961139827225682837875759236030218293171332499134'
+  - '70279609453502013967677222213885724621056321881165567988735663842821115447026'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '95190044392679123576916127753961139827225682837875759236030218293171332499134'
+    book_best_bid: 0.46
+    book_bid_size: 9.13
+    book_best_ask: 0.54
+    book_ask_size: 9.13
+    book_spread: 0.08000000000000002
+  - token_id: '70279609453502013967677222213885724621056321881165567988735663842821115447026'
+    book_best_bid: 0.46
+    book_bid_size: 9.13
+    book_best_ask: 0.54
+    book_ask_size: 9.13
+    book_spread: 0.08000000000000002
+- id: '2443332'
+  condition_id: '0x25e7112f8088ed477d7cba27f9d6dcfa285155f98e3d1d2922ef657751fed818'
+  question: XRP Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: xrp-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:31.385272Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1830.5704
+  best_bid: 0.49
+  best_ask: 0.51
+  spread: 0.020000000000000018
+  clob_token_ids:
+  - '45880626578290621450817828871943008224647108613839049531277822652118173713738'
+  - '5806085577293642771507028313731165138621354809123841922084313072899581119308'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '45880626578290621450817828871943008224647108613839049531277822652118173713738'
+    book_best_bid: 0.51
+    book_bid_size: 5.0
+    book_best_ask: 0.52
+    book_ask_size: 10.0
+    book_spread: 0.010000000000000009
+  - token_id: '5806085577293642771507028313731165138621354809123841922084313072899581119308'
+    book_best_bid: 0.48
+    book_bid_size: 10.0
+    book_best_ask: 0.49
+    book_ask_size: 5.0
+    book_spread: 0.010000000000000009
+- id: '2443336'
+  condition_id: '0x0967022e18852b71c3bda5cef1957a7e926204b1c764ff8fd89daefe7b7f1348'
+  question: BNB Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: bnb-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:31.685194Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 962.0992
+  best_bid: 0.46
+  best_ask: 0.54
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '63100339657243597234683968072928431290008785930718749340840644668121444406235'
+  - '111415087429264773090112287881359814297729526640685441680057147646015801032897'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '63100339657243597234683968072928431290008785930718749340840644668121444406235'
+    book_best_bid: 0.46
+    book_bid_size: 9.13
+    book_best_ask: 0.54
+    book_ask_size: 9.13
+    book_spread: 0.08000000000000002
+  - token_id: '111415087429264773090112287881359814297729526640685441680057147646015801032897'
+    book_best_bid: 0.46
+    book_bid_size: 9.13
+    book_best_ask: 0.54
+    book_ask_size: 9.13
+    book_spread: 0.08000000000000002
+- id: '2443329'
+  condition_id: '0x468e2597cb9f2cd7f4f41dfa33b80a3150f7f46d1327235854d21e20ddb09203'
+  question: Hyperliquid Up or Down - June 6, 8:00AM-12:00PM ET
+  slug: hype-updown-4h-1780747200
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-05T12:06:31.202026Z'
+  age_hours_at_prepare: 23.49
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 720.3
+  best_bid: 0.46
+  best_ask: 0.54
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '71973684382966510715208846643923237531671876012255331059534131598373223796925'
+  - '86569221765007494004524498809473661149249092135920614729642556783241977563328'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '71973684382966510715208846643923237531671876012255331059534131598373223796925'
+    book_best_bid: 0.46
+    book_bid_size: 9.13
+    book_best_ask: 0.54
+    book_ask_size: 9.13
+    book_spread: 0.08000000000000002
+  - token_id: '86569221765007494004524498809473661149249092135920614729642556783241977563328'
+    book_best_bid: 0.46
+    book_bid_size: 9.13
+    book_best_ask: 0.54
+    book_ask_size: 9.13
+    book_spread: 0.08000000000000002
+- id: '2436809'
+  condition_id: '0xe40647a15d9692bfbfdc628382a3161bbf577013e843cde53cb95acd7bf63b7e'
+  question: Bitcoin Up or Down on June 6?
+  slug: bitcoin-up-or-down-on-june-6-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-04T16:00:00.736841Z'
+  age_hours_at_prepare: 43.6
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 434126.9492289997
+  volume: 434665.3261760001
+  liquidity: 21515.5045
+  best_bid: 0.79
+  best_ask: 0.8
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '50380344457172146782946961926577341948996630433324734134125311518805610374864'
+  - '47096305973951991906601743292528027977396006025999788889630695898845527509512'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '50380344457172146782946961926577341948996630433324734134125311518805610374864'
+    book_best_bid: 0.82
+    book_bid_size: 33.0
+    book_best_ask: 0.83
+    book_ask_size: 980.0
+    book_spread: 0.010000000000000009
+  - token_id: '47096305973951991906601743292528027977396006025999788889630695898845527509512'
+    book_best_bid: 0.17
+    book_bid_size: 980.0
+    book_best_ask: 0.18
+    book_ask_size: 33.0
+    book_spread: 0.009999999999999981
+- id: '2436897'
+  condition_id: '0x9638d2ad1fe302bab6e146654200b7fe2d5f906dfb0724697bcc6ca39cc79826'
+  question: Ethereum Up or Down on June 6?
+  slug: ethereum-up-or-down-on-june-6-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-04T16:00:04.631422Z'
+  age_hours_at_prepare: 43.6
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 52388.891538
+  volume: 52488.891537999996
+  liquidity: 17557.4738
+  best_bid: 0.3
+  best_ask: 0.31
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '3039495649054470257440617361903419342369184619594473984184251520455440159838'
+  - '32383240760381775129811291126844165685450841237868309629034215676284778957506'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '3039495649054470257440617361903419342369184619594473984184251520455440159838'
+    book_best_bid: 0.3
+    book_bid_size: 15.0
+    book_best_ask: 0.31
+    book_ask_size: 103.33
+    book_spread: 0.010000000000000009
+  - token_id: '32383240760381775129811291126844165685450841237868309629034215676284778957506'
+    book_best_bid: 0.69
+    book_bid_size: 103.33
+    book_best_ask: 0.7
+    book_ask_size: 15.0
+    book_spread: 0.010000000000000009
+- id: '2436960'
+  condition_id: '0x8db5432f76babf638a15a511fb24cbd00a9bea1e0671db71e10bd46f870dc01a'
+  question: Solana Up or Down on June 6?
+  slug: solana-up-or-down-on-june-6-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-04T16:00:08.509814Z'
+  age_hours_at_prepare: 43.6
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 5448.592751
+  volume: 5454.475100000003
+  liquidity: 13137.9663
+  best_bid: 0.09
+  best_ask: 0.13
+  spread: 0.04000000000000001
+  clob_token_ids:
+  - '49933715970592565564804990551992161890294259666643274934899612696795283306223'
+  - '3483955049416846983042071245365139943146141349585163676645147184232468771929'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '49933715970592565564804990551992161890294259666643274934899612696795283306223'
+    book_best_bid: 0.12
+    book_bid_size: 8.0
+    book_best_ask: 0.15
+    book_ask_size: 8.0
+    book_spread: 0.03
+  - token_id: '3483955049416846983042071245365139943146141349585163676645147184232468771929'
+    book_best_bid: 0.85
+    book_bid_size: 8.0
+    book_best_ask: 0.89
+    book_ask_size: 100.0
+    book_spread: 0.040000000000000036
+- id: '2437009'
+  condition_id: '0x1f95572bef4be8bf18b76a457c8c9fa53d85f12c2100144214c8b27feca54d38'
+  question: Dogecoin Up or Down on June 6?
+  slug: dogecoin-up-or-down-on-june-6-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-04T16:00:15.584460Z'
+  age_hours_at_prepare: 43.6
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 518.456309
+  volume: 518.456309
+  liquidity: 2358.9446
+  best_bid: 0.39
+  best_ask: 0.45
+  spread: 0.06
+  clob_token_ids:
+  - '19222650549049289529233175483504216823025412889703061653804423128136863500710'
+  - '25327690349604704773633864215030422640867920431179117930961453138737888269177'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '19222650549049289529233175483504216823025412889703061653804423128136863500710'
+    book_best_bid: 0.43
+    book_bid_size: 40.0
+    book_best_ask: 0.5
+    book_ask_size: 151.26
+    book_spread: 0.07
+  - token_id: '25327690349604704773633864215030422640867920431179117930961453138737888269177'
+    book_best_bid: 0.5
+    book_bid_size: 151.26
+    book_best_ask: 0.57
+    book_ask_size: 40.0
+    book_spread: 0.06999999999999995
+- id: '2436983'
+  condition_id: '0xbbf3711dc2ba7551edd15a1a93a428ea33c13461c8f06cb5934af3d432cedc8c'
+  question: XRP Up or Down on June 6?
+  slug: xrp-up-or-down-on-june-6-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-04T16:00:12.040469Z'
+  age_hours_at_prepare: 43.6
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 4106.652932999999
+  volume: 4106.652932999999
+  liquidity: 11394.8176
+  best_bid: 0.25
+  best_ask: 0.32
+  spread: 0.07
+  clob_token_ids:
+  - '27439761580187119018465641399103617070224817361111641566126510127774462160668'
+  - '48799179931399127134603403787262552795645356222513092976698008052390791599891'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '27439761580187119018465641399103617070224817361111641566126510127774462160668'
+    book_best_bid: 0.29
+    book_bid_size: 50.0
+    book_best_ask: 0.33
+    book_ask_size: 217.79
+    book_spread: 0.040000000000000036
+  - token_id: '48799179931399127134603403787262552795645356222513092976698008052390791599891'
+    book_best_bid: 0.67
+    book_bid_size: 217.79
+    book_best_ask: 0.71
+    book_ask_size: 50.0
+    book_spread: 0.039999999999999925
+- id: '2437066'
+  condition_id: '0xb7efddb7ae9b6cb9f39fb84636cd7744e9bf2b790125ff5cf2ff2b0711f729f4'
+  question: BNB Up or Down on June 6?
+  slug: bnb-up-or-down-on-june-6-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-04T16:00:22.585446Z'
+  age_hours_at_prepare: 43.6
+  end_date: '2026-06-06T16:00:00Z'
+  volume24hr: 702.8880939999999
+  volume: 702.8880939999999
+  liquidity: 3405.3432
+  best_bid: 0.39
+  best_ask: 0.46
+  spread: 0.07
+  clob_token_ids:
+  - '15730590681441877185293155080166336763562960785314856118258166536532835492086'
+  - '32034949545886573437253907684100950205947560264430100811963288532708979816632'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '15730590681441877185293155080166336763562960785314856118258166536532835492086'
+    book_best_bid: 0.43
+    book_bid_size: 100.0
+    book_best_ask: 0.51
+    book_ask_size: 60.0
+    book_spread: 0.08000000000000002
+  - token_id: '32034949545886573437253907684100950205947560264430100811963288532708979816632'
+    book_best_bid: 0.49
+    book_bid_size: 60.0
+    book_best_ask: 0.57
+    book_ask_size: 100.0
+    book_spread: 0.07999999999999996
+- id: '1663141'
+  condition_id: '0x74f19011005f2f2b1f12aa4ffc9efbec07f07d076045201b3912abcfbe9898bd'
+  question: "Tech Layoffs Up or Down in 20\u200B26?"
+  slug: tech-layoffs-up-or-down-in-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-03-20T16:18:14.976476Z'
+  age_hours_at_prepare: 1867.26
+  end_date: '2027-02-28T00:00:00Z'
+  volume24hr: 0.0
+  volume: 25360.983574
+  liquidity: 6003.4019
+  best_bid: 0.85
+  best_ask: 0.95
+  spread: 0.09999999999999998
+  clob_token_ids:
+  - '15699866962298243375251726885229366865100179372606130416856207898223888111141'
+  - '88904980180945021132064725503078567164899767774967151310125042499926019764513'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '15699866962298243375251726885229366865100179372606130416856207898223888111141'
+    book_best_bid: 0.85
+    book_bid_size: 94.61
+    book_best_ask: 0.95
+    book_ask_size: 23.3
+    book_spread: 0.09999999999999998
+  - token_id: '88904980180945021132064725503078567164899767774967151310125042499926019764513'
+    book_best_bid: 0.05
+    book_bid_size: 23.3
+    book_best_ask: 0.15
+    book_ask_size: 94.61
+    book_spread: 0.09999999999999999
+- id: '1279261'
+  condition_id: '0x2f811bcb722953d3286cd00fec353e9778030dfcbd1d0c59fdb3c6db24beb19d'
+  question: Canada's population Up or Down this year?
+  slug: canadas-population-up-or-down-this-year
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-01-27T20:02:11.489443Z'
+  age_hours_at_prepare: 3111.53
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 1538.0346539999996
+  liquidity: 180.3228
+  best_bid: 0.29
+  best_ask: 0.72
+  spread: 0.43
+  clob_token_ids:
+  - '18081805280351968518309311021935077229594058181825388112411253072091920552469'
+  - '74963141331195062237314572006245034537688531061367030646406821387935283146812'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '18081805280351968518309311021935077229594058181825388112411253072091920552469'
+    book_best_bid: 0.27
+    book_bid_size: 20.0
+    book_best_ask: 0.68
+    book_ask_size: 20.0
+    book_spread: 0.41000000000000003
+  - token_id: '74963141331195062237314572006245034537688531061367030646406821387935283146812'
+    book_best_bid: 0.32
+    book_bid_size: 20.0
+    book_best_ask: 0.73
+    book_ask_size: 20.0
+    book_spread: 0.41
+- id: '667005'
+  condition_id: '0xd450db2ea773df8f91797d594b15333d8e9ed2d74930ac0ffb54c123f78e3d0f'
+  question: Metamask FDV above $4B one day after launch?
+  slug: metamask-fdv-above-4b-one-day-after-launch-851-782-477-258
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-05T20:56:15.919148Z'
+  age_hours_at_prepare: 5102.63
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 312693.82973299955
+  liquidity: 26768.12289
+  best_bid: 0.045
+  best_ask: 0.072
+  spread: 0.026999999999999996
+  clob_token_ids:
+  - '88676221230600953130642189921619099583358737701404992595512476614976486057308'
+  - '70962867555721536468794820816920873482905460253708950137269131341948100258712'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '88676221230600953130642189921619099583358737701404992595512476614976486057308'
+    book_best_bid: 0.045
+    book_bid_size: 300.0
+    book_best_ask: 0.072
+    book_ask_size: 60.0
+    book_spread: 0.026999999999999996
+  - token_id: '70962867555721536468794820816920873482905460253708950137269131341948100258712'
+    book_best_bid: 0.928
+    book_bid_size: 60.0
+    book_best_ask: 0.955
+    book_ask_size: 300.0
+    book_spread: 0.026999999999999913
+- id: '665533'
+  condition_id: '0xb326b78f905b8ff9a1764d42ef3c46bd61b78c9e32a53607ab7245a2da456291'
+  question: Metamask FDV above $3B one day after launch?
+  slug: metamask-fdv-above-3b-one-day-after-launch-363-663-664-569-222
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-04T22:46:55.097042Z'
+  age_hours_at_prepare: 5124.78
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 298140.5790449996
+  liquidity: 26086.6989
+  best_bid: 0.079
+  best_ask: 0.089
+  spread: 0.009999999999999995
+  clob_token_ids:
+  - '81341495887322709056930219084641487717235305340983601089306536463617089758769'
+  - '100885541765991307903032754280870234009741669840630929196757341278043960084869'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '81341495887322709056930219084641487717235305340983601089306536463617089758769'
+    book_best_bid: 0.079
+    book_bid_size: 12.8
+    book_best_ask: 0.089
+    book_ask_size: 249.5
+    book_spread: 0.009999999999999995
+  - token_id: '100885541765991307903032754280870234009741669840630929196757341278043960084869'
+    book_best_bid: 0.911
+    book_bid_size: 249.5
+    book_best_ask: 0.921
+    book_ask_size: 12.8
+    book_spread: 0.010000000000000009
+- id: '667004'
+  condition_id: '0x77399fdf6c5097661705ee1fcf8ad615721ea5dd695871dcae2c9eb192a3d75b'
+  question: Metamask FDV above $2B one day after launch?
+  slug: metamask-fdv-above-2b-one-day-after-launch-222-955-573-228
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-05T20:52:45.346041Z'
+  age_hours_at_prepare: 5102.69
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 385979.24981200113
+  liquidity: 17551.1188
+  best_bid: 0.1
+  best_ask: 0.13
+  spread: 0.03
+  clob_token_ids:
+  - '94120399411978925018563650270691769293212315658863591054992105782706185155787'
+  - '49837632014352686915859208545885869917694907773894605983598473615572060688156'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '94120399411978925018563650270691769293212315658863591054992105782706185155787'
+    book_best_bid: 0.1
+    book_bid_size: 3249.55
+    book_best_ask: 0.13
+    book_ask_size: 87.42
+    book_spread: 0.03
+  - token_id: '49837632014352686915859208545885869917694907773894605983598473615572060688156'
+    book_best_bid: 0.87
+    book_bid_size: 87.42
+    book_best_ask: 0.9
+    book_ask_size: 3249.55
+    book_spread: 0.030000000000000027
+- id: '665532'
+  condition_id: '0xb0dafd2efe994270384d6265f1c62dbfe10880bba15dfda68974898617b5cee8'
+  question: Metamask FDV above $1B one day after launch?
+  slug: metamask-fdv-above-1b-one-day-after-launch-978-851-628-634
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-04T22:46:54.420786Z'
+  age_hours_at_prepare: 5124.78
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 10.0
+  volume: 579494.5845519986
+  liquidity: 10691.1761
+  best_bid: 0.18
+  best_ask: 0.19
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '32625782428938402255128136733519807459769332197090650257160146460579374232757'
+  - '64494546053917393457112995513729031396777330451365750961867310732806049722473'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '32625782428938402255128136733519807459769332197090650257160146460579374232757'
+    book_best_bid: 0.18
+    book_bid_size: 189.03
+    book_best_ask: 0.19
+    book_ask_size: 431.01
+    book_spread: 0.010000000000000009
+  - token_id: '64494546053917393457112995513729031396777330451365750961867310732806049722473'
+    book_best_bid: 0.81
+    book_bid_size: 431.01
+    book_best_ask: 0.82
+    book_ask_size: 189.03
+    book_spread: 0.009999999999999898
+- id: '665531'
+  condition_id: '0x1c842b91d226266fbe0e55d9bce9c52ce48b825d069e039c24d7fe57a5be6eaa'
+  question: Metamask FDV above $700M one day after launch?
+  slug: metamask-fdv-above-700m-one-day-after-launch-696-977-652-246-632
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-04T22:46:53.970488Z'
+  age_hours_at_prepare: 5124.79
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 83.30000000000001
+  volume: 1352794.2028320024
+  liquidity: 8666.92222
+  best_bid: 0.293
+  best_ask: 0.307
+  spread: 0.014000000000000012
+  clob_token_ids:
+  - '27944626213701198119611689981836884300701096451168812471764168520890801988056'
+  - '55509649865325104641531245650537613391494802994578307703136247282221756039109'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '27944626213701198119611689981836884300701096451168812471764168520890801988056'
+    book_best_bid: 0.293
+    book_bid_size: 665.88
+    book_best_ask: 0.307
+    book_ask_size: 920.64
+    book_spread: 0.014000000000000012
+  - token_id: '55509649865325104641531245650537613391494802994578307703136247282221756039109'
+    book_best_bid: 0.693
+    book_bid_size: 920.64
+    book_best_ask: 0.707
+    book_ask_size: 665.88
+    book_spread: 0.014000000000000012
+- id: '1601452'
+  condition_id: '0x0e55d3186ef1c17e5fa42eb570e7feef16a3a56a79358ce910b91933d2985934'
+  question: Metamask FDV above $500M one day after launch?
+  slug: metamask-fdv-above-500m-one-day-after-launch-584-889-774
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-03-15T21:24:56.482341Z'
+  age_hours_at_prepare: 1982.15
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 11388.084855
+  liquidity: 8261.6509
+  best_bid: 0.3
+  best_ask: 0.38
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '1032915009647628241884866833284486320220371161190916251420291592412326949871'
+  - '99794166202586175914106828738501837290172415351697634241911046782011628205892'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '1032915009647628241884866833284486320220371161190916251420291592412326949871'
+    book_best_bid: 0.3
+    book_bid_size: 1162.34
+    book_best_ask: 0.38
+    book_ask_size: 35.0
+    book_spread: 0.08000000000000002
+  - token_id: '99794166202586175914106828738501837290172415351697634241911046782011628205892'
+    book_best_bid: 0.62
+    book_bid_size: 35.0
+    book_best_ask: 0.7
+    book_ask_size: 1162.34
+    book_spread: 0.07999999999999996
+- id: '1601453'
+  condition_id: '0xa38e1f6fe19c46d8117d4fb41662008d856d99e8b578d25b661b0e9361d84694'
+  question: Metamask FDV above $300M one day after launch?
+  slug: metamask-fdv-above-300m-one-day-after-launch-747-257
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-03-15T21:25:23.189808Z'
+  age_hours_at_prepare: 1982.14
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 70647.240138
+  liquidity: 5083.2765
+  best_bid: 0.33
+  best_ask: 0.36
+  spread: 0.02999999999999997
+  clob_token_ids:
+  - '100463364281600463917162923535716593254627752680239892527128357625123655869336'
+  - '105018318954583804294848266930382622536653186286251188529978805918910659246719'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '100463364281600463917162923535716593254627752680239892527128357625123655869336'
+    book_best_bid: 0.33
+    book_bid_size: 2.75
+    book_best_ask: 0.36
+    book_ask_size: 15.0
+    book_spread: 0.02999999999999997
+  - token_id: '105018318954583804294848266930382622536653186286251188529978805918910659246719'
+    book_best_bid: 0.64
+    book_bid_size: 15.0
+    book_best_ask: 0.67
+    book_ask_size: 2.75
+    book_spread: 0.030000000000000027
+- id: '2055344'
+  condition_id: '0x0a1a5f0cd3445aee7ec41eb2756dada597876031c718f31a9bf6ddde8250be6f'
+  question: Amazon 2026 capex above $180B?
+  slug: amazon-2026-capex-above-180b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:15.326441Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 730.1805209999998
+  liquidity: 1459.8252
+  best_bid: 0.9
+  best_ask: 0.92
+  spread: 0.020000000000000018
+  clob_token_ids:
+  - '31844421127747452247920361772593140342967161564902355004027803194678743954899'
+  - '19761407945575467697425027016535859352446216855295385543700170871219997242769'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '31844421127747452247920361772593140342967161564902355004027803194678743954899'
+    book_best_bid: 0.9
+    book_bid_size: 476.55
+    book_best_ask: 0.92
+    book_ask_size: 454.9
+    book_spread: 0.020000000000000018
+  - token_id: '19761407945575467697425027016535859352446216855295385543700170871219997242769'
+    book_best_bid: 0.08
+    book_bid_size: 454.9
+    book_best_ask: 0.1
+    book_ask_size: 476.55
+    book_spread: 0.020000000000000004
+- id: '2055343'
+  condition_id: '0x0ff76aa8f6cc2365ca8d38dd7ef9f93b04623048d85b832dc6f218351a1f5691'
+  question: Amazon 2026 capex above $170B?
+  slug: amazon-2026-capex-above-170b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:14.782602Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 437.42546499999986
+  liquidity: 1246.83271
+  best_bid: 0.946
+  best_ask: 0.96
+  spread: 0.014000000000000012
+  clob_token_ids:
+  - '21341191118489485215971595567500838489745713128031366103331704899034054634037'
+  - '47981437402840582153626239211939570982390805001244377544989908123693529267354'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '21341191118489485215971595567500838489745713128031366103331704899034054634037'
+    book_best_bid: 0.946
+    book_bid_size: 17.72
+    book_best_ask: 0.959
+    book_ask_size: 7.28
+    book_spread: 0.013000000000000012
+  - token_id: '47981437402840582153626239211939570982390805001244377544989908123693529267354'
+    book_best_bid: 0.041
+    book_bid_size: 7.28
+    book_best_ask: 0.054
+    book_ask_size: 17.72
+    book_spread: 0.012999999999999998
+- id: '2055345'
+  condition_id: '0xc912d612601be1e8327b80a1913aea4acc2f4e704eb308f892c84e2d245e7fe5'
+  question: Amazon 2026 capex above $190B?
+  slug: amazon-2026-capex-above-190b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:15.670322Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 892.707141
+  liquidity: 1043.0021
+  best_bid: 0.86
+  best_ask: 0.91
+  spread: 0.050000000000000044
+  clob_token_ids:
+  - '59420811967853660781768939001376860233971887241988320717150415000297807732875'
+  - '100537006709579597978515913064907901000310086923737627451741555863461818393998'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '59420811967853660781768939001376860233971887241988320717150415000297807732875'
+    book_best_bid: 0.86
+    book_bid_size: 167.0
+    book_best_ask: 0.91
+    book_ask_size: 76.7
+    book_spread: 0.050000000000000044
+  - token_id: '100537006709579597978515913064907901000310086923737627451741555863461818393998'
+    book_best_bid: 0.09
+    book_bid_size: 76.7
+    book_best_ask: 0.14
+    book_ask_size: 167.0
+    book_spread: 0.05000000000000002
+- id: '2055346'
+  condition_id: '0xbf0eb943d3f042c9cd56b2fde526ddfb5ce6ed35af9599e30662dd547f1c5e66'
+  question: Amazon 2026 capex above $200B?
+  slug: amazon-2026-capex-above-200b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:16.027837Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 1268.53135
+  liquidity: 719.4725
+  best_bid: 0.73
+  best_ask: 0.93
+  spread: 0.20000000000000007
+  clob_token_ids:
+  - '16372574176667003380277055466119816918996452171937788035525774518759743457905'
+  - '33928905496851388300803609220704479129258251389567457303720462778883817361565'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '16372574176667003380277055466119816918996452171937788035525774518759743457905'
+    book_best_bid: 0.73
+    book_bid_size: 85.29
+    book_best_ask: 0.93
+    book_ask_size: 9.4
+    book_spread: 0.20000000000000007
+  - token_id: '33928905496851388300803609220704479129258251389567457303720462778883817361565'
+    book_best_bid: 0.07
+    book_bid_size: 9.4
+    book_best_ask: 0.27
+    book_ask_size: 85.29
+    book_spread: 0.2
+- id: '2055347'
+  condition_id: '0xefebdb47d94591d0e626a5bee726edcdf6acb5edc1f75547402b1016b9bb4d52'
+  question: Amazon 2026 capex above $210B?
+  slug: amazon-2026-capex-above-210b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:16.561571Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 134.22764600000002
+  liquidity: 11.7467
+  best_bid: 0.09
+  best_ask: 0.96
+  spread: 0.87
+  clob_token_ids:
+  - '31630727038211542372981876711448999623320145140497600039332505255036297029824'
+  - '76021942919825168767594774446466294548408245282264556719558285678534567559311'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '31630727038211542372981876711448999623320145140497600039332505255036297029824'
+    book_best_bid: 0.13
+    book_bid_size: 50.99
+    book_best_ask: 0.91
+    book_ask_size: 9.16
+    book_spread: 0.78
+  - token_id: '76021942919825168767594774446466294548408245282264556719558285678534567559311'
+    book_best_bid: 0.09
+    book_bid_size: 9.16
+    book_best_ask: 0.87
+    book_ask_size: 50.99
+    book_spread: 0.78
+- id: '2055348'
+  condition_id: '0xf1cfb0d018534dbeb4f3ab052a1a0b3de186998cb3e4a75dfecaa447aa7acdb4'
+  question: Amazon 2026 capex above $220B?
+  slug: amazon-2026-capex-above-220b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:16.897401Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 266.896506
+  liquidity: 11.2832
+  best_bid: 0.04
+  best_ask: 0.95
+  spread: 0.9099999999999999
+  clob_token_ids:
+  - '42552961726728364588074066826667714895200201150242795043207828840135607473202'
+  - '94765066126026916664399483578212079740513268391658279812027942409113834268189'
+  neg_risk: false
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '42552961726728364588074066826667714895200201150242795043207828840135607473202'
+    book_best_bid: 0.08
+    book_bid_size: 50.0
+    book_best_ask: 0.91
+    book_ask_size: 100.0
+    book_spread: 0.8300000000000001
+  - token_id: '94765066126026916664399483578212079740513268391658279812027942409113834268189'
+    book_best_bid: 0.09
+    book_bid_size: 100.0
+    book_best_ask: 0.92
+    book_ask_size: 50.0
+    book_spread: 0.8300000000000001

@@ -1,0 +1,1634 @@
+prepared_at: '2026-06-05T12:25:55Z'
+purpose: 'Stage-1 slow crypto + finance capture: read-only CLOB recorder for 4h/daily
+  crypto, SPX/index open/updown, equity up/down, and close-above ladders. No orders.'
+run:
+  run_id: mm_stage1_slow_crypto_finance_20260605T122555Z
+  label: mm_stage1_slow_crypto_finance
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_slow_crypto_finance
+selection:
+  source: live Gamma active markets + finance events nested markets + CLOB /book smoke
+    enrichment
+  lane_boundary: non-politics diagnostics; no orders/auth; includes NegRisk flag as
+    metadata only
+  families_targeted:
+    crypto_4h: 7
+    crypto_daily: 7
+    finance_index_updown: 5
+    finance_equity_updown: 9
+    finance_close_ladder: 14
+    finance_spx_ladder: 6
+markets:
+- id: '2435609'
+  condition_id: '0x0073b39624f7f51c757038ec977a69817e850bd32087a7c5158fc6a05d878858'
+  question: Bitcoin Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: btc-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:33.436617Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 1283.4371469999999
+  volume: 1283.4371469999999
+  liquidity: 4265.3582
+  best_bid: 0.56
+  best_ask: 0.59
+  spread: 0.029999999999999916
+  clob_token_ids:
+  - '84606924870334378617872330359284379266005065290015983903240601315225827410270'
+  - '60384209962331237052242126560967423535663815600607341176597556421327956166271'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '84606924870334378617872330359284379266005065290015983903240601315225827410270'
+    book_best_bid: 0.59
+    book_bid_size: 400.0
+    book_best_ask: 0.61
+    book_ask_size: 5.0
+    book_spread: 0.020000000000000018
+  - token_id: '60384209962331237052242126560967423535663815600607341176597556421327956166271'
+    book_best_bid: 0.39
+    book_bid_size: 5.0
+    book_best_ask: 0.41
+    book_ask_size: 400.0
+    book_spread: 0.019999999999999962
+- id: '2435595'
+  condition_id: '0xbb28fae1e7e6f1aec2af9b05f6aeb616c2ee0a68328dc9845245980a02b8effb'
+  question: Ethereum Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: eth-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:32.201148Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 377.492536
+  volume: 377.492536
+  liquidity: 3390.0081
+  best_bid: 0.48
+  best_ask: 0.53
+  spread: 0.050000000000000044
+  clob_token_ids:
+  - '60901130054292401295998137229326992150303327473554740330234966027927242052655'
+  - '50204218747742874012562373869019115096350931966330061614771109300447236133572'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '60901130054292401295998137229326992150303327473554740330234966027927242052655'
+    book_best_bid: 0.5
+    book_bid_size: 57.34
+    book_best_ask: 0.55
+    book_ask_size: 50.0
+    book_spread: 0.050000000000000044
+  - token_id: '50204218747742874012562373869019115096350931966330061614771109300447236133572'
+    book_best_bid: 0.45
+    book_bid_size: 50.0
+    book_best_ask: 0.5
+    book_ask_size: 57.34
+    book_spread: 0.04999999999999999
+- id: '2435603'
+  condition_id: '0x7d464ade4fc7ac2a3d51e5d2f54172878ef2e519e194a95bdd99633250ee0d40'
+  question: Solana Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: sol-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:33.062217Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 65.93
+  volume: 65.92999999999999
+  liquidity: 1742.8788
+  best_bid: 0.43
+  best_ask: 0.51
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '92184384396759231840078186470766693201600215841389877337436109724926990182840'
+  - '95096403666655901426020209542288545219399980042066280123053820042003926813451'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '92184384396759231840078186470766693201600215841389877337436109724926990182840'
+    book_best_bid: 0.46
+    book_bid_size: 100.0
+    book_best_ask: 0.55
+    book_ask_size: 150.0
+    book_spread: 0.09000000000000002
+  - token_id: '95096403666655901426020209542288545219399980042066280123053820042003926813451'
+    book_best_bid: 0.45
+    book_bid_size: 150.0
+    book_best_ask: 0.54
+    book_ask_size: 100.0
+    book_spread: 0.09000000000000002
+- id: '2435606'
+  condition_id: '0xe6b0050a77051d5d44a0bdc6565a46771e4039cfda0bc4601afb1b265e26e7cb'
+  question: Dogecoin Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: doge-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:33.241885Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 15.96818
+  volume: 15.96818
+  liquidity: 1049.1991
+  best_bid: 0.42
+  best_ask: 0.52
+  spread: 0.10000000000000003
+  clob_token_ids:
+  - '42336421589936042329782664518888350558398437626836373973840838327215372482764'
+  - '80927516672960928982720474062953616945486283521871821365060623105227671858482'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '42336421589936042329782664518888350558398437626836373973840838327215372482764'
+    book_best_bid: 0.44
+    book_bid_size: 40.0
+    book_best_ask: 0.54
+    book_ask_size: 40.0
+    book_spread: 0.10000000000000003
+  - token_id: '80927516672960928982720474062953616945486283521871821365060623105227671858482'
+    book_best_bid: 0.46
+    book_bid_size: 40.0
+    book_best_ask: 0.56
+    book_ask_size: 40.0
+    book_spread: 0.10000000000000003
+- id: '2435596'
+  condition_id: '0x74852b96d669d08d7e07406d53bcc51aa26156dcbd6b67b7fd0d43aa0dc07183'
+  question: XRP Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: xrp-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:32.374883Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1519.8993
+  best_bid: 0.48
+  best_ask: 0.57
+  spread: 0.08999999999999997
+  clob_token_ids:
+  - '77626335792024531045321842431107455156364304062533387091296284660200629930478'
+  - '93492994775376966609608516159110004477374969649052444704942920898909736121701'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '77626335792024531045321842431107455156364304062533387091296284660200629930478'
+    book_best_bid: 0.49
+    book_bid_size: 100.0
+    book_best_ask: 0.59
+    book_ask_size: 100.0
+    book_spread: 0.09999999999999998
+  - token_id: '93492994775376966609608516159110004477374969649052444704942920898909736121701'
+    book_best_bid: 0.41
+    book_bid_size: 100.0
+    book_best_ask: 0.51
+    book_ask_size: 100.0
+    book_spread: 0.10000000000000003
+- id: '2435612'
+  condition_id: '0xec1b22466d3a6df1bd3e3c2bdd543c68e293c843f33cf5ca94081537bfe35559'
+  question: BNB Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: bnb-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:34.112147Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 39.207842
+  volume: 39.207842
+  liquidity: 796.179
+  best_bid: 0.48
+  best_ask: 0.55
+  spread: 0.07000000000000006
+  clob_token_ids:
+  - '107045769726005270000390853609278523337833315524197599218583923108014307180191'
+  - '89133050345068820610623321170771003170021036702642945677197604108325072245098'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '107045769726005270000390853609278523337833315524197599218583923108014307180191'
+    book_best_bid: 0.52
+    book_bid_size: 50.0
+    book_best_ask: 0.6
+    book_ask_size: 50.0
+    book_spread: 0.07999999999999996
+  - token_id: '89133050345068820610623321170771003170021036702642945677197604108325072245098'
+    book_best_bid: 0.4
+    book_bid_size: 50.0
+    book_best_ask: 0.48
+    book_ask_size: 50.0
+    book_spread: 0.07999999999999996
+- id: '2435594'
+  condition_id: '0x1c753e86f513e3a36344632affd1de9a81d87a8e3b78e0ebbcabb57b531f61cb'
+  question: Hyperliquid Up or Down - June 5, 8:00AM-12:00PM ET
+  slug: hype-updown-4h-1780660800
+  family: crypto_4h
+  category: crypto_4h
+  created_at: '2026-06-04T12:06:32.199937Z'
+  age_hours_at_prepare: 24.32
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 420.949
+  best_bid: 0.42
+  best_ask: 0.67
+  spread: 0.25000000000000006
+  clob_token_ids:
+  - '42656609712065530627586756660544094077644721440174102366813383328035239571965'
+  - '75858463548600491284688202265795401458473017644892065618758124424471761161827'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '42656609712065530627586756660544094077644721440174102366813383328035239571965'
+    book_best_bid: 0.51
+    book_bid_size: 525.0
+    book_best_ask: 0.74
+    book_ask_size: 525.0
+    book_spread: 0.22999999999999998
+  - token_id: '75858463548600491284688202265795401458473017644892065618758124424471761161827'
+    book_best_bid: 0.26
+    book_bid_size: 525.0
+    book_best_ask: 0.49
+    book_ask_size: 525.0
+    book_spread: 0.22999999999999998
+- id: '2428431'
+  condition_id: '0xe5841b2972dc200d23ede725279fabe137837f305d2912991cf3735a105c1001'
+  question: Bitcoin Up or Down on June 5?
+  slug: bitcoin-up-or-down-on-june-5-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-03T16:00:00.817611Z'
+  age_hours_at_prepare: 44.43
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 337213.95747400005
+  volume: 337963.99263700045
+  liquidity: 42255.3849
+  best_bid: 0.07
+  best_ask: 0.08
+  spread: 0.009999999999999995
+  clob_token_ids:
+  - '89615842779399627103205562696088173873671309965610572396271140507506876454915'
+  - '112369611883568026386458898154529710700412208791541634262071575750251123819042'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '89615842779399627103205562696088173873671309965610572396271140507506876454915'
+    book_best_bid: 0.07
+    book_bid_size: 3215.69
+    book_best_ask: 0.08
+    book_ask_size: 781.36
+    book_spread: 0.009999999999999995
+  - token_id: '112369611883568026386458898154529710700412208791541634262071575750251123819042'
+    book_best_bid: 0.92
+    book_bid_size: 781.36
+    book_best_ask: 0.93
+    book_ask_size: 3215.69
+    book_spread: 0.010000000000000009
+- id: '2428489'
+  condition_id: '0x8b94b294f7c11c7c4f6d6ec72e64b646a5842f870f32f3264fc61177b7bad504'
+  question: Ethereum Up or Down on June 5?
+  slug: ethereum-up-or-down-on-june-5-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-03T16:00:04.533842Z'
+  age_hours_at_prepare: 44.43
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 58221.62047899999
+  volume: 58221.62047900004
+  liquidity: 22908.97664
+  best_bid: 0.007
+  best_ask: 0.01
+  spread: 0.003
+  clob_token_ids:
+  - '33094693625024674325472396146374215730828695230879281989509345309002777769290'
+  - '111622968362585012827371147893790587709141546960635952441816292114496177358861'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '33094693625024674325472396146374215730828695230879281989509345309002777769290'
+    book_best_bid: 0.006
+    book_bid_size: 5600.0
+    book_best_ask: 0.01
+    book_ask_size: 295.9
+    book_spread: 0.004
+  - token_id: '111622968362585012827371147893790587709141546960635952441816292114496177358861'
+    book_best_bid: 0.99
+    book_bid_size: 295.9
+    book_best_ask: 0.994
+    book_ask_size: 5600.0
+    book_spread: 0.0040000000000000036
+- id: '2428551'
+  condition_id: '0x6d9d80238623e05b4e53ea61f743056cb80be063c12a01e71a76c1996148a609'
+  question: Solana Up or Down on June 5?
+  slug: solana-up-or-down-on-june-5-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-03T16:00:08.149633Z'
+  age_hours_at_prepare: 44.43
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 6322.314995000002
+  volume: 6322.3149950000015
+  liquidity: 14077.97319
+  best_bid: 0.01
+  best_ask: 0.06
+  spread: 0.049999999999999996
+  clob_token_ids:
+  - '58795485690996989237499676153678619695365452082186840178735636567156238279648'
+  - '72775718117243609729661514310673504875275781273000355397506186518238805896773'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '58795485690996989237499676153678619695365452082186840178735636567156238279648'
+    book_best_bid: 0.013
+    book_bid_size: 3900.0
+    book_best_ask: 0.06
+    book_ask_size: 10.0
+    book_spread: 0.047
+  - token_id: '72775718117243609729661514310673504875275781273000355397506186518238805896773'
+    book_best_bid: 0.94
+    book_bid_size: 10.0
+    book_best_ask: 0.987
+    book_ask_size: 3900.0
+    book_spread: 0.04700000000000004
+- id: '2428604'
+  condition_id: '0x229f78f44a9ecdfff7db5a4e63358df83fc84f301b7adb923a4c72be512abf0c'
+  question: Dogecoin Up or Down on June 5?
+  slug: dogecoin-up-or-down-on-june-5-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-03T16:00:15.254099Z'
+  age_hours_at_prepare: 44.43
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 1408.98651
+  volume: 1408.98651
+  liquidity: 103.71972
+  best_bid: 0.01
+  best_ask: 0.022
+  spread: 0.011999999999999999
+  clob_token_ids:
+  - '10298165909064456414688791624919650152923577732212319335602545171629917251161'
+  - '107516332794130932484133133671709213804562226951302075949745111075413764945280'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '10298165909064456414688791624919650152923577732212319335602545171629917251161'
+    book_best_bid: 0.01
+    book_bid_size: 1366.98
+    book_best_ask: 0.022
+    book_ask_size: 40.0
+    book_spread: 0.011999999999999999
+  - token_id: '107516332794130932484133133671709213804562226951302075949745111075413764945280'
+    book_best_bid: 0.978
+    book_bid_size: 40.0
+    book_best_ask: 0.99
+    book_ask_size: 1366.98
+    book_spread: 0.01200000000000001
+- id: '2428580'
+  condition_id: '0x0f5b1ac4a0c9b653a2a2bb37a2d58d0aa7223fae3f81e3c94285181eed16995a'
+  question: XRP Up or Down on June 5?
+  slug: xrp-up-or-down-on-june-5-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-03T16:00:11.715862Z'
+  age_hours_at_prepare: 44.43
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 13579.239349000001
+  volume: 13579.239348999994
+  liquidity: 17413.10552
+  best_bid: 0.011
+  best_ask: 0.042
+  spread: 0.031000000000000003
+  clob_token_ids:
+  - '30546454204258146066273162501907515331251812700614719286775764751916294116651'
+  - '101064088781799353140832069584248549964718977437833469609735490725738491266713'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '30546454204258146066273162501907515331251812700614719286775764751916294116651'
+    book_best_bid: 0.017
+    book_bid_size: 3900.0
+    book_best_ask: 0.044
+    book_ask_size: 74.6
+    book_spread: 0.026999999999999996
+  - token_id: '101064088781799353140832069584248549964718977437833469609735490725738491266713'
+    book_best_bid: 0.956
+    book_bid_size: 74.6
+    book_best_ask: 0.983
+    book_ask_size: 3900.0
+    book_spread: 0.027000000000000024
+- id: '2428638'
+  condition_id: '0x2bb6275c389edeacf14eef54294f74d98135db02d5a36985f027d0a2aca74630'
+  question: BNB Up or Down on June 5?
+  slug: bnb-up-or-down-on-june-5-2026
+  family: crypto_daily
+  category: crypto_daily
+  created_at: '2026-06-03T16:00:22.341532Z'
+  age_hours_at_prepare: 44.43
+  end_date: '2026-06-05T16:00:00Z'
+  volume24hr: 3265.1519000000003
+  volume: 3265.1519000000008
+  liquidity: 301.2521
+  best_bid: 0.05
+  best_ask: 0.11
+  spread: 0.06
+  clob_token_ids:
+  - '36456201736805554884653677197552400579270427503193596272155956431962704648926'
+  - '73945354355389675269941028436277673951605847780833774097001603134453161156320'
+  neg_risk: false
+  selection_rationale: Slow crypto Stage-1 live book diagnostics; read-only; 4h/daily
+    contrast to 5m/15m toxic controls.
+  book_tokens:
+  - token_id: '36456201736805554884653677197552400579270427503193596272155956431962704648926'
+    book_best_bid: 0.13
+    book_bid_size: 22.7
+    book_best_ask: 0.25
+    book_ask_size: 6.89
+    book_spread: 0.12
+  - token_id: '73945354355389675269941028436277673951605847780833774097001603134453161156320'
+    book_best_bid: 0.75
+    book_bid_size: 6.89
+    book_best_ask: 0.87
+    book_ask_size: 22.7
+    book_spread: 0.12
+- id: '2443234'
+  condition_id: '0x9a7af038786376559245eabed432bc3a2822ef4cefa290e58a26ebc728b8753c'
+  question: S&P 500 (SPX) Opens Up or Down on June 8?
+  slug: spx-opens-up-or-down-on-june-8-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-06-05T12:00:02.117005Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 527.9506
+  best_bid: 0.1
+  best_ask: 0.9
+  spread: 0.8
+  clob_token_ids:
+  - '61298184714162746123344486502714729595108236418037126233858045639813476811475'
+  - '107060883773020797202895840087438008738185070735937680423216323883497014036970'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '61298184714162746123344486502714729595108236418037126233858045639813476811475'
+    book_best_bid: 0.1
+    book_bid_size: 2456.85
+    book_best_ask: 0.9
+    book_ask_size: 1920.61
+    book_spread: 0.8
+  - token_id: '107060883773020797202895840087438008738185070735937680423216323883497014036970'
+    book_best_bid: 0.1
+    book_bid_size: 1920.61
+    book_best_ask: 0.9
+    book_ask_size: 2456.85
+    book_spread: 0.8
+- id: '2443224'
+  condition_id: '0x73b467c13d55dc5551e5a423c063bb88b84f23c76af6d035d668148c90719f65'
+  question: S&P 500 (SPX) Up or Down on June 8?
+  slug: spx-up-or-down-on-june-8-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-06-05T12:00:00.997998Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1340.1704
+  best_bid: 0.26
+  best_ask: 0.74
+  spread: 0.48
+  clob_token_ids:
+  - '86576649456913545935323103918885328848269119435750963504898990960346070749242'
+  - '91750089951019490176419660668564681582210689741443106097585130502474691374365'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '86576649456913545935323103918885328848269119435750963504898990960346070749242'
+    book_best_bid: 0.26
+    book_bid_size: 1431.72
+    book_best_ask: 0.74
+    book_ask_size: 1025.49
+    book_spread: 0.48
+  - token_id: '91750089951019490176419660668564681582210689741443106097585130502474691374365'
+    book_best_bid: 0.26
+    book_bid_size: 1025.49
+    book_best_ask: 0.74
+    book_ask_size: 1431.72
+    book_spread: 0.48
+- id: '2443314'
+  condition_id: '0xc5ca091ff42e013f8ec8293bc3692651921d5d1bff495446728e8ddc133ec5a2'
+  question: SPY (SPY) Up or Down on June 8?
+  slug: spy-up-or-down-on-june-8-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-06-05T12:00:57.435454Z'
+  age_hours_at_prepare: 0.42
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 13.9998
+  best_bid: 0.04
+  best_ask: 0.96
+  spread: 0.9199999999999999
+  clob_token_ids:
+  - '90761228621607943578198488018455102353557956173281456348445866902648062415583'
+  - '100504636621819696370099979750541559114112166995373107315480683204335969263206'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '90761228621607943578198488018455102353557956173281456348445866902648062415583'
+    book_best_bid: 0.06
+    book_bid_size: 8.87
+    book_best_ask: 0.94
+    book_ask_size: 8.87
+    book_spread: 0.8799999999999999
+  - token_id: '100504636621819696370099979750541559114112166995373107315480683204335969263206'
+    book_best_bid: 0.06
+    book_bid_size: 8.87
+    book_best_ask: 0.94
+    book_ask_size: 8.87
+    book_spread: 0.8799999999999999
+- id: '2443258'
+  condition_id: '0xf0251437d1e4303faa58e9a2d2298f0dae9bca910f22f7bcd882cf36508ed316'
+  question: Dow Jones (DJIA) Up or Down on June 8?
+  slug: djia-up-or-down-on-june-8-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-06-05T12:00:08.892845Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 18.1584
+  best_bid: 0.04
+  best_ask: 0.96
+  spread: 0.9199999999999999
+  clob_token_ids:
+  - '45203760661686070564664616170489693395870121712198728005642700268395273876218'
+  - '114573791628796592634381056108125753501166260899997507387204713429260575238318'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '45203760661686070564664616170489693395870121712198728005642700268395273876218'
+    book_best_bid: 0.08
+    book_bid_size: 6161.05
+    book_best_ask: 0.92
+    book_ask_size: 5085.24
+    book_spread: 0.8400000000000001
+  - token_id: '114573791628796592634381056108125753501166260899997507387204713429260575238318'
+    book_best_bid: 0.08
+    book_bid_size: 5085.24
+    book_best_ask: 0.92
+    book_ask_size: 6161.05
+    book_spread: 0.8400000000000001
+- id: '2443294'
+  condition_id: '0x7420c0d6e85b44eaf940fef6c615ee8d7ee8082f95fdf6b32957b3aac13aa631'
+  question: Russell 2000 (RUT) Up or Down on June 8?
+  slug: rut-up-or-down-on-june-8-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-06-05T12:00:23.419749Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1046.9026
+  best_bid: 0.1
+  best_ask: 0.9
+  spread: 0.8
+  clob_token_ids:
+  - '47169399840069883105394127629961696502816347295207003922093331884472291607282'
+  - '96289387565350436712385735776946469066391222535230143040560835178151795633605'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '47169399840069883105394127629961696502816347295207003922093331884472291607282'
+    book_best_bid: 0.11
+    book_bid_size: 4195.26
+    book_best_ask: 0.89
+    book_ask_size: 3651.99
+    book_spread: 0.78
+  - token_id: '96289387565350436712385735776946469066391222535230143040560835178151795633605'
+    book_best_bid: 0.11
+    book_bid_size: 3651.99
+    book_best_ask: 0.89
+    book_ask_size: 4195.26
+    book_spread: 0.78
+- id: '2443230'
+  condition_id: '0xeb4ea4589e05747a01f517577638dbea2e8b21dcd76f80725b7da9137442e724'
+  question: Apple (AAPL) Up or Down on June 8?
+  slug: aapl-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:01.863822Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 376.5456
+  best_bid: 0.1
+  best_ask: 0.89
+  spread: 0.79
+  clob_token_ids:
+  - '1483249423107085277343819027878546581924028332446081768655210682247385063145'
+  - '4508022077589401817939063111474180745409689496787358560029810691602660238111'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '1483249423107085277343819027878546581924028332446081768655210682247385063145'
+    book_best_bid: 0.1
+    book_bid_size: 1583.19
+    book_best_ask: 0.9
+    book_ask_size: 1335.13
+    book_spread: 0.8
+  - token_id: '4508022077589401817939063111474180745409689496787358560029810691602660238111'
+    book_best_bid: 0.1
+    book_bid_size: 1335.13
+    book_best_ask: 0.9
+    book_ask_size: 1583.19
+    book_spread: 0.8
+- id: '2443247'
+  condition_id: '0xc8e941c7924ec81e1db088a33785aa39012009bb3baf63cd05b5c6e9a723d78d'
+  question: Microsoft (MSFT) Up or Down on June 8?
+  slug: msft-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:05.568690Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 364.7207
+  best_bid: 0.11
+  best_ask: 0.9
+  spread: 0.79
+  clob_token_ids:
+  - '75666925339874327986001237603032340891744420797272595557743320356188578766335'
+  - '67903495101058195098837270570171168735427808442391438648227660028627549181288'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '75666925339874327986001237603032340891744420797272595557743320356188578766335'
+    book_best_bid: 0.11
+    book_bid_size: 1425.25
+    book_best_ask: 0.9
+    book_ask_size: 1331.48
+    book_spread: 0.79
+  - token_id: '67903495101058195098837270570171168735427808442391438648227660028627549181288'
+    book_best_bid: 0.1
+    book_bid_size: 1331.48
+    book_best_ask: 0.89
+    book_ask_size: 1425.25
+    book_spread: 0.79
+- id: '2443261'
+  condition_id: '0x24c8a3d4b2b781d6f35f18749821f751f511f490616befea3d629baf7cbfa490'
+  question: Amazon (AMZN) Up or Down on June 8?
+  slug: amzn-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:09.158924Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 376.1276
+  best_bid: 0.1
+  best_ask: 0.9
+  spread: 0.8
+  clob_token_ids:
+  - '77563761202566570149624075897693376258221885707631428247043155527818012241668'
+  - '96957708185229590100939559710156784516262630262262142569309362705083289908131'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '77563761202566570149624075897693376258221885707631428247043155527818012241668'
+    book_best_bid: 0.1
+    book_bid_size: 1586.83
+    book_best_ask: 0.9
+    book_ask_size: 1331.48
+    book_spread: 0.8
+  - token_id: '96957708185229590100939559710156784516262630262262142569309362705083289908131'
+    book_best_bid: 0.1
+    book_bid_size: 1331.48
+    book_best_ask: 0.9
+    book_ask_size: 1586.83
+    book_spread: 0.8
+- id: '2443275'
+  condition_id: '0x9b50d19feb4e1aef3bcd9c2ded61bb6c736b92af42c164779f1ebf8851233f9e'
+  question: Google (GOOGL) Up or Down on June 8?
+  slug: googl-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:12.749563Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 363.9676
+  best_bid: 0.1
+  best_ask: 0.9
+  spread: 0.8
+  clob_token_ids:
+  - '115037336710896983571650700736818033319035330970664682219059824350617734291738'
+  - '44213887846214356507310355775952795872034029714819557312848252927152647256953'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '115037336710896983571650700736818033319035330970664682219059824350617734291738'
+    book_best_bid: 0.1
+    book_bid_size: 1590.48
+    book_best_ask: 0.9
+    book_ask_size: 1327.83
+    book_spread: 0.8
+  - token_id: '44213887846214356507310355775952795872034029714819557312848252927152647256953'
+    book_best_bid: 0.1
+    book_bid_size: 1327.83
+    book_best_ask: 0.9
+    book_ask_size: 1590.48
+    book_spread: 0.8
+- id: '2443283'
+  condition_id: '0xfa7efbee0ea2906c1143552304441cc903267087c1c7b75165fe79e377fa313a'
+  question: Meta (META) Up or Down on June 8?
+  slug: meta-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:16.986531Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 307.3346
+  best_bid: 0.1
+  best_ask: 0.9
+  spread: 0.8
+  clob_token_ids:
+  - '55589252924855420631803448024702985963628054710538730298783349631976212368048'
+  - '32294227136350766321297612850697365370395505142269041915295133690878481898944'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '55589252924855420631803448024702985963628054710538730298783349631976212368048'
+    book_best_bid: 0.11
+    book_bid_size: 1108.01
+    book_best_ask: 0.9
+    book_ask_size: 1100.17
+    book_spread: 0.79
+  - token_id: '32294227136350766321297612850697365370395505142269041915295133690878481898944'
+    book_best_bid: 0.1
+    book_bid_size: 1100.17
+    book_best_ask: 0.89
+    book_ask_size: 1108.01
+    book_spread: 0.79
+- id: '2443291'
+  condition_id: '0xaa18e1c1022bcd958470f6ed24deb3d3b44f2a7eee4f002f7827f1e90262b466'
+  question: Tesla (TSLA) Up or Down on June 8?
+  slug: tsla-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:20.625319Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 295.1736
+  best_bid: 0.1
+  best_ask: 0.9
+  spread: 0.8
+  clob_token_ids:
+  - '64643895550826327937610304243093918344090958090383074583024955757359254227735'
+  - '94989131676424933221075884592238604582223564575736357020735199042042589679672'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '64643895550826327937610304243093918344090958090383074583024955757359254227735'
+    book_best_bid: 0.1
+    book_bid_size: 1219.85
+    book_best_ask: 0.9
+    book_ask_size: 1114.8
+    book_spread: 0.8
+  - token_id: '94989131676424933221075884592238604582223564575736357020735199042042589679672'
+    book_best_bid: 0.1
+    book_bid_size: 1114.8
+    book_best_ask: 0.9
+    book_ask_size: 1219.85
+    book_spread: 0.8
+- id: '2443299'
+  condition_id: '0xb12b61871349fc592620bb9985c7a7eb595cdecc1558aa4651681ddb544e1666'
+  question: NVIDIA (NVDA) Up or Down on June 8?
+  slug: nvda-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:24.206741Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 361.3352
+  best_bid: 0.1
+  best_ask: 0.89
+  spread: 0.79
+  clob_token_ids:
+  - '88754795957196444771764153336325812620313779230620489875876949697108861634175'
+  - '83191170221174207257749177401992455646226718415609047208198624682483961406493'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '88754795957196444771764153336325812620313779230620489875876949697108861634175'
+    book_best_bid: 0.1
+    book_bid_size: 1623.31
+    book_best_ask: 0.9
+    book_ask_size: 1295.0
+    book_spread: 0.8
+  - token_id: '83191170221174207257749177401992455646226718415609047208198624682483961406493'
+    book_best_bid: 0.1
+    book_bid_size: 1295.0
+    book_best_ask: 0.9
+    book_ask_size: 1623.31
+    book_spread: 0.8
+- id: '2443311'
+  condition_id: '0x511ba9d3e5274ca961ab27fbc99bdf065bf188a24c8e5f689b65483d2891bb8a'
+  question: Coinbase (COIN) Up or Down on June 8?
+  slug: coin-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:46.236599Z'
+  age_hours_at_prepare: 0.42
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 20.0
+  best_bid: 0.08
+  best_ask: 0.92
+  spread: 0.8400000000000001
+  clob_token_ids:
+  - '85927521252954973745138486405659424920778033812144432937274798622179318623287'
+  - '100291561063034370138890441547111059785962816208924916761848261447367594830339'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '85927521252954973745138486405659424920778033812144432937274798622179318623287'
+    book_best_bid: 0.08
+    book_bid_size: 37.5
+    book_best_ask: 0.92
+    book_ask_size: 37.5
+    book_spread: 0.8400000000000001
+  - token_id: '100291561063034370138890441547111059785962816208924916761848261447367594830339'
+    book_best_bid: 0.08
+    book_bid_size: 37.5
+    book_best_ask: 0.92
+    book_ask_size: 37.5
+    book_spread: 0.8400000000000001
+- id: '2443310'
+  condition_id: '0xbf8bf9c32b4115da05e6e643cb693e02327f78b25443305218593fb27442d9c0'
+  question: Airbnb (ABNB) Up or Down on June 8?
+  slug: abnb-up-or-down-on-june-8-2026
+  family: finance_equity_updown
+  category: finance_equity_updown
+  created_at: '2026-06-05T12:00:42.679801Z'
+  age_hours_at_prepare: 0.42
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 15.9987
+  best_bid: 0.07
+  best_ask: 0.93
+  spread: 0.8600000000000001
+  clob_token_ids:
+  - '89359116771369120960221869148655678784779920798577417355817443954121961948138'
+  - '99422138389325532316571624216649413423246183396156998565761457872036520120209'
+  neg_risk: false
+  selection_rationale: Finance-tab Stage-1 live book diagnostics; read-only; index/equity
+    open/updown/close measurement.
+  book_tokens:
+  - token_id: '89359116771369120960221869148655678784779920798577417355817443954121961948138'
+    book_best_bid: 0.08
+    book_bid_size: 6.82
+    book_best_ask: 0.92
+    book_ask_size: 8.33
+    book_spread: 0.8400000000000001
+  - token_id: '99422138389325532316571624216649413423246183396156998565761457872036520120209'
+    book_best_bid: 0.08
+    book_bid_size: 8.33
+    book_best_ask: 0.92
+    book_ask_size: 6.82
+    book_spread: 0.8400000000000001
+- id: '2443237'
+  condition_id: '0x4d47dc83fcc1f530379fe1d774fff486f4777cd50f27b6c74037bc5795775381'
+  question: S&P 500 (SPY) closes above $760 on June 8?
+  slug: spy-closes-above-760-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:02.488082Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 33.0
+  best_bid: 0.25
+  best_ask: 0.74
+  spread: 0.49
+  clob_token_ids:
+  - '63435915975763449350504309116512977159258973993342985777136110305223206721838'
+  - '95021461632042101694333557449365225648942566973318820133379641981734023939407'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '63435915975763449350504309116512977159258973993342985777136110305223206721838'
+    book_best_bid: 0.25
+    book_bid_size: 9.99
+    book_best_ask: 0.74
+    book_ask_size: 100.0
+    book_spread: 0.49
+  - token_id: '95021461632042101694333557449365225648942566973318820133379641981734023939407'
+    book_best_bid: 0.26
+    book_bid_size: 100.0
+    book_best_ask: 0.75
+    book_ask_size: 9.99
+    book_spread: 0.49
+- id: '2443238'
+  condition_id: '0x9c5b8415363c50fb140dd6f5c960a57cdd91ba9065d3977aae8d87d442a1fb0e'
+  question: S&P 500 (SPY) closes above $755 on June 8?
+  slug: spy-closes-above-755-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:02.657448Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 24.0349
+  best_bid: 0.34
+  best_ask: 0.83
+  spread: 0.48999999999999994
+  clob_token_ids:
+  - '16617057234220722064998977630899173113645257380029204628083820413752361364039'
+  - '59272802377436394614578091240928189681712255566855463090634586546905352461592'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '16617057234220722064998977630899173113645257380029204628083820413752361364039'
+    book_best_bid: 0.34
+    book_bid_size: 7.27
+    book_best_ask: 0.83
+    book_ask_size: 100.0
+    book_spread: 0.48999999999999994
+  - token_id: '59272802377436394614578091240928189681712255566855463090634586546905352461592'
+    book_best_bid: 0.17
+    book_bid_size: 100.0
+    book_best_ask: 0.66
+    book_ask_size: 7.27
+    book_spread: 0.49
+- id: '2443228'
+  condition_id: '0x8c1db0d67df7e8be01f8013a0b8866e37079a8f58866bc7a4bba9f059f839cd8'
+  question: Will Apple (AAPL) close above $310 on June 8?
+  slug: aapl-close-above-310-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:01.743297Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 7.1442
+  best_bid: 0.34
+  best_ask: 0.84
+  spread: 0.49999999999999994
+  clob_token_ids:
+  - '107301941481482642529459728310589926022866582205666867161585177691174526025150'
+  - '101255096926829596439560975583916908223339988508245802392861850232809755162112'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '107301941481482642529459728310589926022866582205666867161585177691174526025150'
+    book_best_bid: 0.35
+    book_bid_size: 100.0
+    book_best_ask: 0.83
+    book_ask_size: 100.0
+    book_spread: 0.48
+  - token_id: '101255096926829596439560975583916908223339988508245802392861850232809755162112'
+    book_best_bid: 0.17
+    book_bid_size: 100.0
+    book_best_ask: 0.65
+    book_ask_size: 100.0
+    book_spread: 0.48
+- id: '2443226'
+  condition_id: '0xf57360f4aa270e52068cc603aacf46a9399b1438536abfda31ca312be73f6946'
+  question: Will Apple (AAPL) close above $300 on June 8?
+  slug: aapl-close-above-300-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:01.263071Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 5.04
+  best_bid: 0.49
+  best_ask: 0.99
+  spread: 0.5
+  clob_token_ids:
+  - '65713950148081773049167691706947413391815090386762396413710484122689407592221'
+  - '4878630025976859649397808165011744589176857463048681634256140449287053645004'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '65713950148081773049167691706947413391815090386762396413710484122689407592221'
+    book_best_bid: 0.5
+    book_bid_size: 100.0
+    book_best_ask: 0.98
+    book_ask_size: 7.5
+    book_spread: 0.48
+  - token_id: '4878630025976859649397808165011744589176857463048681634256140449287053645004'
+    book_best_bid: 0.02
+    book_bid_size: 7.5
+    book_best_ask: 0.5
+    book_ask_size: 100.0
+    book_spread: 0.48
+- id: '2443250'
+  condition_id: '0xfe480f2eb6958708e8114b6d4347611c51ec2fe73437eec53a7368079859077b'
+  question: Will Microsoft (MSFT) close above $430 on June 8?
+  slug: msft-close-above-430-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:06.017311Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 7.1051
+  best_bid: 0.23
+  best_ask: 0.73
+  spread: 0.5
+  clob_token_ids:
+  - '92470325963959094796918664871620405234670058287679190296791562560520141381496'
+  - '79119850129241821686924146753642414389648946070786559695722101628362034962627'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '92470325963959094796918664871620405234670058287679190296791562560520141381496'
+    book_best_bid: 0.24
+    book_bid_size: 100.0
+    book_best_ask: 0.72
+    book_ask_size: 100.0
+    book_spread: 0.48
+  - token_id: '79119850129241821686924146753642414389648946070786559695722101628362034962627'
+    book_best_bid: 0.28
+    book_bid_size: 100.0
+    book_best_ask: 0.76
+    book_ask_size: 100.0
+    book_spread: 0.48
+- id: '2443248'
+  condition_id: '0x44464851be94f0b9cfc3da33f0a12257f47aac53805da1a5265bc9c1787fd44e'
+  question: Will Microsoft (MSFT) close above $410 on June 8?
+  slug: msft-close-above-410-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:05.729837Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 4.92
+  best_bid: 0.47
+  best_ask: 0.99
+  spread: 0.52
+  clob_token_ids:
+  - '3803860357968843432995255964509533526793455617909718791884390831884955097205'
+  - '14606767840244945165446576007990209834813880791169556494058985604349297198958'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '3803860357968843432995255964509533526793455617909718791884390831884955097205'
+    book_best_bid: 0.47
+    book_bid_size: 6.0
+    book_best_ask: 0.99
+    book_ask_size: 110.0
+    book_spread: 0.52
+  - token_id: '14606767840244945165446576007990209834813880791169556494058985604349297198958'
+    book_best_bid: 0.01
+    book_bid_size: 110.0
+    book_best_ask: 0.53
+    book_ask_size: 6.0
+    book_spread: 0.52
+- id: '2443270'
+  condition_id: '0x52cbea0b4984409f812592e4f0cd938a11e901c25c4f9ece3675c4f1361249bb'
+  question: Will Amazon (AMZN) close above $255 on June 8?
+  slug: amzn-close-above-255-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:10.280676Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 7.1
+  best_bid: 0.25
+  best_ask: 0.75
+  spread: 0.5
+  clob_token_ids:
+  - '112803513779507103008979172773753660116774724771059564232601314300743027702727'
+  - '51673513912244601977377835839267004366534049615435519284323452151055899166800'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '112803513779507103008979172773753660116774724771059564232601314300743027702727'
+    book_best_bid: 0.25
+    book_bid_size: 9.93
+    book_best_ask: 0.74
+    book_ask_size: 100.0
+    book_spread: 0.49
+  - token_id: '51673513912244601977377835839267004366534049615435519284323452151055899166800'
+    book_best_bid: 0.26
+    book_bid_size: 100.0
+    book_best_ask: 0.75
+    book_ask_size: 9.93
+    book_spread: 0.49
+- id: '2443268'
+  condition_id: '0x87252f072f6830233b7838ef450e8a6b5454b2701361955d2f3473473878711c'
+  question: Will Amazon (AMZN) close above $245 on June 8?
+  slug: amzn-close-above-245-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:09.997161Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 4.86
+  best_bid: 0.46
+  best_ask: 0.99
+  spread: 0.53
+  clob_token_ids:
+  - '72489851273253949047305287470631487829338723095333031836171046412153999736224'
+  - '96153316477930657928829585232392629112697342174044085542565222131252584083444'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '72489851273253949047305287470631487829338723095333031836171046412153999736224'
+    book_best_bid: 0.46
+    book_bid_size: 6.0
+    book_best_ask: 0.98
+    book_ask_size: 7.5
+    book_spread: 0.52
+  - token_id: '96153316477930657928829585232392629112697342174044085542565222131252584083444'
+    book_best_bid: 0.02
+    book_bid_size: 7.5
+    book_best_ask: 0.54
+    book_ask_size: 6.0
+    book_spread: 0.52
+- id: '2443277'
+  condition_id: '0x931529540dab0d0931137f90779366ab2dab3aeef95ce5087a509b23a0e58d84'
+  question: Will Google (GOOGL) close above $365 on June 8?
+  slug: googl-close-above-365-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:14.330799Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: ''
+  clob_token_ids:
+  - '114455498705753533743573163429134442428476111442639696291299617238166457709083'
+  - '98033829670076707566627530131492939107778368398709643261826971001044755214991'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '114455498705753533743573163429134442428476111442639696291299617238166457709083'
+    book_best_bid: 0.07
+    book_bid_size: 6.12
+    book_best_ask: 0.91
+    book_ask_size: 100.0
+    book_spread: 0.8400000000000001
+  - token_id: '98033829670076707566627530131492939107778368398709643261826971001044755214991'
+    book_best_bid: 0.09
+    book_bid_size: 100.0
+    book_best_ask: 0.93
+    book_ask_size: 6.12
+    book_spread: 0.8400000000000001
+- id: '2443278'
+  condition_id: '0xfecea5b3583dac27399ec3fed64384d095294c7c73a602d325daa932135a74d2'
+  question: Will Google (GOOGL) close above $370 on June 8?
+  slug: googl-close-above-370-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:14.472673Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 4.9722
+  best_bid: 0.33
+  best_ask: 0.83
+  spread: 0.49999999999999994
+  clob_token_ids:
+  - '82691956236432878448547448329001418309299668324794954795911899812970211329965'
+  - '11515219078554647567804014317738511695656964339774810532816652939481696855319'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '82691956236432878448547448329001418309299668324794954795911899812970211329965'
+    book_best_bid: 0.33
+    book_bid_size: 7.68
+    book_best_ask: 0.82
+    book_ask_size: 100.0
+    book_spread: 0.48999999999999994
+  - token_id: '11515219078554647567804014317738511695656964339774810532816652939481696855319'
+    book_best_bid: 0.18
+    book_bid_size: 100.0
+    book_best_ask: 0.67
+    book_ask_size: 7.68
+    book_spread: 0.49000000000000005
+- id: '2443285'
+  condition_id: '0x65a8c71e0db02ecf858600bb3fa7f7ba570d928aa1146590dfe36d9fe9fe5055'
+  question: Will Meta (META) close above $620 on June 8?
+  slug: meta-close-above-620-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:19.123002Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 2.1
+  best_bid: 0.01
+  best_ask: 0.99
+  spread: 0.98
+  clob_token_ids:
+  - '86723914558511602690564901087033048095440963374665422235149830245696921873818'
+  - '96977337542458820005391305125411542287388477602809872437142391778315823162080'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '86723914558511602690564901087033048095440963374665422235149830245696921873818'
+    book_best_bid: 0.07
+    book_bid_size: 100.0
+    book_best_ask: 0.93
+    book_ask_size: 100.0
+    book_spread: 0.8600000000000001
+  - token_id: '96977337542458820005391305125411542287388477602809872437142391778315823162080'
+    book_best_bid: 0.07
+    book_bid_size: 100.0
+    book_best_ask: 0.93
+    book_ask_size: 100.0
+    book_spread: 0.8600000000000001
+- id: '2443286'
+  condition_id: '0x5523127ed363facf35435b4420ec13af30670f9eb6697e9e69bf06ebe09a4c41'
+  question: Will Meta (META) close above $630 on June 8?
+  slug: meta-close-above-630-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:19.352679Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 2.1
+  best_bid: 0.01
+  best_ask: 0.99
+  spread: 0.98
+  clob_token_ids:
+  - '95286180720460738325095739898841629542489249379917127840197901385218622213846'
+  - '59169816003221721087644716947325634677153866743809180312894136958458835267298'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '95286180720460738325095739898841629542489249379917127840197901385218622213846'
+    book_best_bid: 0.06
+    book_bid_size: 100.0
+    book_best_ask: 0.96
+    book_ask_size: 100.0
+    book_spread: 0.8999999999999999
+  - token_id: '59169816003221721087644716947325634677153866743809180312894136958458835267298'
+    book_best_bid: 0.04
+    book_bid_size: 100.0
+    book_best_ask: 0.94
+    book_ask_size: 100.0
+    book_spread: 0.8999999999999999
+- id: '2443295'
+  condition_id: '0xfa49b5bb3a54d3aeeadcef4480997323bb49c4e727c2000a7bd23690a24965eb'
+  question: Will Tesla (TSLA) close above $410 on June 8?
+  slug: tsla-close-above-410-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:23.491040Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 2.1
+  best_bid: 0.01
+  best_ask: 0.99
+  spread: 0.98
+  clob_token_ids:
+  - '92487107684849586118785522543853862616916086237317088373607132310535925622382'
+  - '4520056002392397779366799066528574348735743435428927259890834219845955134080'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '92487107684849586118785522543853862616916086237317088373607132310535925622382'
+    book_best_bid: 0.08
+    book_bid_size: 100.0
+    book_best_ask: 0.94
+    book_ask_size: 100.0
+    book_spread: 0.86
+  - token_id: '4520056002392397779366799066528574348735743435428927259890834219845955134080'
+    book_best_bid: 0.06
+    book_bid_size: 100.0
+    book_best_ask: 0.92
+    book_ask_size: 100.0
+    book_spread: 0.8600000000000001
+- id: '2443296'
+  condition_id: '0x96722f5747ac27506f4b9312dad8800fafea0a47a20d59d010198e04a31e8d75'
+  question: Will Tesla (TSLA) close above $420 on June 8?
+  slug: tsla-close-above-420-on-june-8-2026
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-06-05T12:00:23.633983Z'
+  age_hours_at_prepare: 0.43
+  end_date: '2026-06-08T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 7.0998
+  best_bid: 0.02
+  best_ask: 0.98
+  spread: 0.96
+  clob_token_ids:
+  - '87679505988127232840834943227419590010478556969365779434611954808293430647935'
+  - '100154100448402196975710475143608021275466271461739624350143511705471633728102'
+  neg_risk: false
+  selection_rationale: Finance-tab close-above ladder book diagnostics; read-only;
+    current live quotability measurement.
+  book_tokens:
+  - token_id: '87679505988127232840834943227419590010478556969365779434611954808293430647935'
+    book_best_bid: 0.08
+    book_bid_size: 106.06
+    book_best_ask: 0.92
+    book_ask_size: 106.05
+    book_spread: 0.8400000000000001
+  - token_id: '100154100448402196975710475143608021275466271461739624350143511705471633728102'
+    book_best_bid: 0.08
+    book_bid_size: 106.05
+    book_best_ask: 0.92
+    book_ask_size: 106.06
+    book_spread: 0.8400000000000001
+- id: '1125374'
+  condition_id: '0x0357f760e337c64f62a83f89f0bc99faf22778453188878330cc39a535eaf68a'
+  question: Will S&P 500 (SPX) hit $7,700 (HIGH) in June?
+  slug: spx-hit-7700-high-jun-2026-675
+  family: finance_spx_ladder
+  category: finance_spx_ladder
+  created_at: '2026-01-06T22:32:34.978830Z'
+  age_hours_at_prepare: 3589.89
+  end_date: '2026-06-30T20:00:00Z'
+  volume24hr: 788.929395
+  volume: 22230.450949999988
+  liquidity: 2710.96448
+  best_bid: 0.552
+  best_ask: 0.608
+  spread: 0.05599999999999994
+  clob_token_ids:
+  - '47820239574513396445857690997577322889960018066592635283122534779102751702410'
+  - '32834270835826199894664815921125903500114461739856183056673545901062875158512'
+  neg_risk: false
+  selection_rationale: SPX finance-tab ladder book diagnostics; read-only; not an
+    active trading verdict.
+  book_tokens:
+  - token_id: '47820239574513396445857690997577322889960018066592635283122534779102751702410'
+    book_best_bid: 0.552
+    book_bid_size: 256.48
+    book_best_ask: 0.608
+    book_ask_size: 35.08
+    book_spread: 0.05599999999999994
+  - token_id: '32834270835826199894664815921125903500114461739856183056673545901062875158512'
+    book_best_bid: 0.392
+    book_bid_size: 35.08
+    book_best_ask: 0.448
+    book_ask_size: 256.48
+    book_spread: 0.055999999999999994
+- id: '1125383'
+  condition_id: '0x4da3a5e2a18e682f7b6407ef1c853adf09de0a3e1a5637879827ac11792f5166'
+  question: Will S&P 500 (SPX) hit $6,000 (LOW) in June?
+  slug: spx-hit-6000-low-jun-2026-898-611
+  family: finance_spx_ladder
+  category: finance_spx_ladder
+  created_at: '2026-01-06T22:32:37.112384Z'
+  age_hours_at_prepare: 3589.89
+  end_date: '2026-06-30T20:00:00Z'
+  volume24hr: 7553.72
+  volume: 85455.23760599997
+  liquidity: 11645.4175
+  best_bid: 0.017
+  best_ask: 0.026
+  spread: 0.008999999999999998
+  clob_token_ids:
+  - '82030209461588237212548422286222934800145576427323428140018400527811313819383'
+  - '107587932603242132861671983271040970220026703848076723091415809695401923360406'
+  neg_risk: false
+  selection_rationale: SPX finance-tab ladder book diagnostics; read-only; not an
+    active trading verdict.
+  book_tokens:
+  - token_id: '82030209461588237212548422286222934800145576427323428140018400527811313819383'
+    book_best_bid: 0.017
+    book_bid_size: 2666.0
+    book_best_ask: 0.026
+    book_ask_size: 151.67
+    book_spread: 0.008999999999999998
+  - token_id: '107587932603242132861671983271040970220026703848076723091415809695401923360406'
+    book_best_bid: 0.974
+    book_bid_size: 151.67
+    book_best_ask: 0.983
+    book_ask_size: 2666.0
+    book_spread: 0.009000000000000008
+- id: '2236211'
+  condition_id: '0x1fa18598f50a0667090eaf5c8ce3e8050284d35adfbff2f23c3a63708220766e'
+  question: Will S&P 500 (SPX) hit $6,700 (LOW) in June?
+  slug: will-sp-500-spx-hit-6700-low-in-june-989
+  family: finance_spx_ladder
+  category: finance_spx_ladder
+  created_at: '2026-05-12T00:51:06.574880Z'
+  age_hours_at_prepare: 587.58
+  end_date: '2026-06-30T20:00:00Z'
+  volume24hr: 0.0
+  volume: 6181.900503
+  liquidity: 408.9361
+  best_bid: 0.08
+  best_ask: 0.1
+  spread: 0.020000000000000004
+  clob_token_ids:
+  - '82477523003712138861537511052481053333107475244850333772820242564458440423513'
+  - '70725753375459565414060385864222632012089278803441437433368427863691738912504'
+  neg_risk: false
+  selection_rationale: SPX finance-tab ladder book diagnostics; read-only; not an
+    active trading verdict.
+  book_tokens:
+  - token_id: '82477523003712138861537511052481053333107475244850333772820242564458440423513'
+    book_best_bid: 0.08
+    book_bid_size: 200.0
+    book_best_ask: 0.1
+    book_ask_size: 65.85
+    book_spread: 0.020000000000000004
+  - token_id: '70725753375459565414060385864222632012089278803441437433368427863691738912504'
+    book_best_bid: 0.9
+    book_bid_size: 65.85
+    book_best_ask: 0.92
+    book_ask_size: 200.0
+    book_spread: 0.020000000000000018
+- id: '1126533'
+  condition_id: '0x7988f38c0e67179d5d982b3ad7e7f04ef86d746ae94f6fca3bdc47101837d4a1'
+  question: Will S&P 500 (SPX) close at $7,000-$7,500 in December?
+  slug: spx-close-7000-7500-dec-2026-723
+  family: finance_spx_ladder
+  category: finance_spx_ladder
+  created_at: '2026-01-07T02:09:02.057810Z'
+  age_hours_at_prepare: 3586.28
+  end_date: '2026-12-31T21:00:00Z'
+  volume24hr: 0.0
+  volume: 1570.268257
+  liquidity: 742.0634
+  best_bid: 0.22
+  best_ask: 0.24
+  spread: 0.01999999999999999
+  clob_token_ids:
+  - '90435202834773196240993315892657468525997405548318079246131622571451534760684'
+  - '103623252288483100613609271806096377145802701948370494867780560050501668974340'
+  neg_risk: true
+  selection_rationale: SPX finance-tab ladder book diagnostics; read-only; not an
+    active trading verdict.
+  book_tokens:
+  - token_id: '90435202834773196240993315892657468525997405548318079246131622571451534760684'
+    book_best_bid: 0.22
+    book_bid_size: 5.0
+    book_best_ask: 0.24
+    book_ask_size: 5.0
+    book_spread: 0.01999999999999999
+  - token_id: '103623252288483100613609271806096377145802701948370494867780560050501668974340'
+    book_best_bid: 0.76
+    book_bid_size: 5.0
+    book_best_ask: 0.78
+    book_ask_size: 5.0
+    book_spread: 0.020000000000000018
+- id: '1126565'
+  condition_id: '0xd8fd9e9cec89fc5d5c14c7060752fcf46a98d556550c1533a93168f4052f1a6e'
+  question: Will S&P 500 (SPX) close at $7,500-$8,000 in December?
+  slug: spx-close-7500-8000-dec-2026
+  family: finance_spx_ladder
+  category: finance_spx_ladder
+  created_at: '2026-01-07T02:10:36.800686Z'
+  age_hours_at_prepare: 3586.26
+  end_date: '2026-12-31T21:00:00Z'
+  volume24hr: 0.0
+  volume: 2981.637745
+  liquidity: 982.9372
+  best_bid: 0.19
+  best_ask: 0.21
+  spread: 0.01999999999999999
+  clob_token_ids:
+  - '39088321585602927057502055965891543549721680408946039840513470893669801966110'
+  - '9619039969296586618948839774775571205133816349706550055931145009823341116679'
+  neg_risk: true
+  selection_rationale: SPX finance-tab ladder book diagnostics; read-only; not an
+    active trading verdict.
+  book_tokens:
+  - token_id: '39088321585602927057502055965891543549721680408946039840513470893669801966110'
+    book_best_bid: 0.19
+    book_bid_size: 6.7
+    book_best_ask: 0.21
+    book_ask_size: 5.0
+    book_spread: 0.01999999999999999
+  - token_id: '9619039969296586618948839774775571205133816349706550055931145009823341116679'
+    book_best_bid: 0.79
+    book_bid_size: 5.0
+    book_best_ask: 0.81
+    book_ask_size: 6.7
+    book_spread: 0.020000000000000018
+- id: '1125398'
+  condition_id: '0xffc097fe74b53cb240a4fa60d20cc1f325242f4a98a173f1359b18c20a17a301'
+  question: Will S&P 500 (SPX) close at $6,000-$6,500 in December?
+  slug: spx-close-6000-6500-dec-2026
+  family: finance_spx_ladder
+  category: finance_spx_ladder
+  created_at: '2026-01-06T22:33:25.706623Z'
+  age_hours_at_prepare: 3589.88
+  end_date: '2026-12-31T21:00:00Z'
+  volume24hr: 0.0
+  volume: 1783.6856109999999
+  liquidity: 794.7734
+  best_bid: 0.07
+  best_ask: 0.09
+  spread: 0.01999999999999999
+  clob_token_ids:
+  - '2792788123288811403203119454272357584093254846729813538222043676839593916191'
+  - '18970985509118626108544682561133859118214999393759516007043384723266432197350'
+  neg_risk: true
+  selection_rationale: SPX finance-tab ladder book diagnostics; read-only; not an
+    active trading verdict.
+  book_tokens:
+  - token_id: '2792788123288811403203119454272357584093254846729813538222043676839593916191'
+    book_best_bid: 0.07
+    book_bid_size: 35.0
+    book_best_ask: 0.09
+    book_ask_size: 12.0
+    book_spread: 0.01999999999999999
+  - token_id: '18970985509118626108544682561133859118214999393759516007043384723266432197350'
+    book_best_bid: 0.91
+    book_bid_size: 12.0
+    book_best_ask: 0.93
+    book_ask_size: 35.0
+    book_spread: 0.020000000000000018

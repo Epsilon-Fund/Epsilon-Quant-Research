@@ -7,28 +7,22 @@ purpose: Fast, token-cheap orientation for any Cowork session opening this repo
 
 # Cowork Orientation
 
-This file is the shared Cowork law: repo invariants, strategic state, prompt discipline, and where things live. If you're Cowork and you're reading this, run Agent Bootstrap first so your local personal overlay is loaded, then obey this shared law. Every Cowork-authored Codex prompt must explicitly redirect Codex to run its bootstrap and read `brain/CODEX.md` first.
+This file is the shared Cowork law: repo invariants, prompt discipline, and where things live. It is timeless and person-agnostic: it carries no dated thread status. Cowork is the **orchestration** agent. If you're Cowork and you're reading this, run Agent Bootstrap first so your local personal overlay is loaded, then obey this shared law. Every Cowork-authored prompt for an implementation agent (Codex *or* Claude Code) must explicitly redirect it to run its bootstrap and read `brain/CODEX.md` first.
 
 ## Agent Bootstrap (do this before anything else)
 
-1. Determine your role: Codex -> `local_agents/codex.md`; Cowork/Claude Code -> `local_agents/cowork.md`.
-2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
-3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
-
-Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
+Run the Agent Bootstrap — canonical copy in [[VAULT_MAP]] § Agent Bootstrap.
 
 ## Active threads
 
-Parallel projects, separate venvs, no shared code. **NOTE:** the former single "Block K" thread is now
-**split into two strats** so prompts can target one without disambiguating — **MM** (market-making) and
-**OD** (options-delta). "Block K" remains the historical name for their joint research arc.
+Thread status is authoritative in [[TODO]] and [[VAULT_MAP]] § Active research branches; this file carries no dated status. **NOTE:** the former single "Block K" thread is **split into two strats** so prompts can target one without disambiguating — **MM** (market-making) and **OD** (options-delta). "Block K" remains the historical name for their joint research arc.
 
-| thread | location | purpose | source-of-truth task list |
+| thread | location | hub | source-of-truth task list |
 |---|---|---|---|
-| **copytrade** | `polymarket/research/` + `polymarket/execution/` (Midas) | cohort-based copy trading on Polymarket; per-leader audit; first real-money smoke pending | `brain/TODO.md` § copytrade |
-| **MM — Market-Making** | `polymarket/research/` | single-venue maker **closed**; real-maker playbook validated (K5) but de-biased deployable EV is **sub-scale** ([[mm_deployable_cells_findings]]) → MM reframed as the **execution layer for OD** — hub: [[strat_market_making]] | `brain/TODO.md` § MM |
-| **OD — Options-Delta** | `polymarket/research/` | digital-option valuation/signal layer; standalone OD is closed, and the 2026-06-06 audit says RV-model fair is physical-probability fair, not option-IV fair. Surviving use is cautious sizing/selection inside source-clean passive MM/carry — hub: [[strat_options_delta]] | `brain/TODO.md` § OD |
-| **dali / Polymarket research lineage** | `polymarket/research/` (shared infra) | older short-horizon OFI/TFI work and redesign trail that fed Block K/MM/OD; individual branches can be falsified, but the dali/Polymarket research line is not globally closed | `brain/TODO.md` § dali |
+| **copytrade** | `polymarket/research/` + `polymarket/execution/` (Midas) | [[COWORK]] § copytrade cluster below | `brain/TODO.md` § copytrade |
+| **MM — Market-Making** | `polymarket/research/` | [[strat_market_making]] | `brain/TODO.md` § MM |
+| **OD — Options-Delta** | `polymarket/research/` | [[strat_options_delta]] | `brain/TODO.md` § OD |
+| **dali / Polymarket research lineage** | `polymarket/research/` (shared infra) | [[COWORK]] § dali cluster below | `brain/TODO.md` § dali |
 
 `brain/TODO.md` is the authoritative live task list. Read it before suggesting next actions.
 
@@ -47,7 +41,7 @@ glossary + full arc) and [[block_k_maker_options_research]] (foundation). Target
 - Economics & quoting: [[block_k1_maker_economics_findings]], [[block_k2_quoting_findings]], [[block_k2v2_findings]], [[block_k2v3_findings]]
 - Maker-fill entry (bridge to OD Strategy A): [[block_kpeg_findings]], [[block_kpeg_robustness_findings]], [[block_kpeg_robustness_review]]
 - Real-maker reality check: [[block_k5_findings]], [[block_k5_stress_findings]], [[block_k5b_findings]]
-- Deployability / current standing: [[mm_deployable_cells_findings]] — de-biased gate passes 4 categories, but standalone is **sub-scale** (~$78/active day, ~90% in one grab-bag cell; crypto cells ≈ $0). Moat is scale/structure, **not speed** (defer Rust). **Recommendation: MM folds into OD as the execution/lifecycle layer; consolidate to OD-primary.**
+- Deployability / current standing: [[mm_deployable_cells_findings]] — de-biased gate passes 4 categories, but standalone is **sub-scale** (~$78/active day, ~90% in one grab-bag cell; crypto cells ≈ $0). Moat is scale/structure, **not speed** (defer Rust). **Recommendation (updated 2026-06-04): the durable layer is the MM execution/lifecycle (source-clean passive entry + carry-to-resolution), anchored on the politics NegRisk live loop; OD valuation did NOT independently clear and survives only as cautious sizing/selection. This supersedes the earlier "consolidate to OD-primary" framing — see [[strat_options_delta]] and [[od_strategy_a_realism_reaudit_findings]].**
 
 **OD — Options-Delta (active).** Hub: [[strat_options_delta]].
 - Methodology / realism guardrails: [[od_methodology_realism_audit_findings]]
@@ -67,7 +61,7 @@ glossary + full arc) and [[block_k_maker_options_research]] (foundation). Target
 - Key signal & ML: [[block_a13_tob_imbalance_findings]], [[block_a17_lightgbm_findings]] (full series: block_a14*/a15*/a16/a17)
 - Dali setup + external context: [[dali_live_l2_capture_plan]], [[dali_tfi_baseline_results]], [[external_ofi_tob_l2_midfreq_strategy_research]], [[sign_convention_findings]], [[sign_convention_findings_a1]]
 
-**copytrade (primary thread).** [[copytrade_relayer_implications]], [[relayer_dig_findings]], [[block_b_reinterpretation]], [[block_e_lite_findings]], [[block_e_audit]], [[profile_domah]], [[phase5_design]], [[weather_ftc_state]], [[topics/prediction-markets/README|prediction-markets pipeline]].
+**copytrade (primary thread).** [[copytrade_relayer_implications]], [[copytrade_attribution_repartition_findings]], [[relayer_dig_findings]], [[block_b_reinterpretation]], [[block_e_lite_findings]], [[block_e_audit]], [[profile_domah]], [[phase5_design]], [[weather_ftc_state]], [[topics/prediction-markets/README|prediction-markets pipeline]].
 - Execution + probes: [[midas/README|Midas README]], [[polymarket/execution/README|Polymarket execution README]], [[polymarket/execution/PLAN|execution plan]], [[polymarket/execution/CLAUDE|execution rules]], [[polymarket/execution/scripts/SMOKE_REAL|SMOKE_REAL]], [[polymarket/execution/tests/probes/WS_PROBE_FINDINGS|WS probe findings]], [[polymarket/execution/tests/probes/NEGRISK_FINDINGS|NegRisk findings]], [[archive/midas_audit|Midas audit]].
 - Copy-execution audit artifacts: [[polymarket/research/data/analysis/cross_leader_synthesis_v2|cross-leader synthesis v2]], [[polymarket/research/data/analysis/domah_audit_report|Domah audit]], [[polymarket/research/data/analysis/domah_followups/family_heuristic_validation|family heuristic validation]], [[polymarket/research/data/analysis/domah_followups/leader_ee00ba_audit_report|leader ee00ba audit]], [[polymarket/research/data/analysis/domah_followups/politics_deep_dive|Domah politics deep dive]], [[polymarket/research/data/analysis/leader_dthreed8b71_investigation/dthreed8b71_strategy_profile|dthreed8b71 profile]], [[polymarket/research/data/analysis/leader_high_conviction/leader_high_conviction_audit_report|high-conviction leader audit]], [[polymarket/research/data/analysis/leader_negrisk_directional_1/leader_negrisk_directional_1_audit_report|NegRisk directional 1 audit]], [[polymarket/research/data/analysis/leader_negrisk_directional_2/leader_negrisk_directional_2_audit_report|NegRisk directional 2 audit]], [[polymarket/research/data/analysis/leader_top_leaderboard/leader_top_leaderboard_audit_report|top-leaderboard audit]], [[polymarket/research/data/analysis/leader_ultra_maker/leader_ultra_maker_audit_report|ultra-maker audit]].
 - Copyability + directionality diagnostics: [[polymarket/research/data/copyability_candidates/copyability_metric_distributions|copyability metric distributions]], [[polymarket/research/data/directionality_classification/contamination_crosstabs|directionality contamination crosstabs]], [[polymarket/research/data/directionality_classification/directionality_metric_distributions|directionality metric distributions]], [[polymarket/research/data/directionality_classification/validation_candidates|directionality validation candidates]].
@@ -93,18 +87,22 @@ SpaceX IPO cross-market handoff: [[spacex_ipo_market_map_handoff]] maps PM, Hype
 
 ### Cowork prompt discipline
 
-Every Cowork-authored Codex prompt must start with a context preamble that tells Codex to run the Agent Bootstrap first, then read `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md`, `brain/POLYMARKET_BRAIN.md`, then the relevant strategy hub. The shared law still includes `brain/CODEX.md`; do not skip it because it is the implementation-agent README for the repo.
+**This section is the single canonical implementation-prompt preamble** — [[CODEX]] points here; do not maintain a second copy elsewhere.
+
+Every Cowork-authored implementation prompt must start with a context preamble that tells the agent to run the Agent Bootstrap first, then read `brain/CODEX.md`, `brain/TODO.md`, `brain/COWORK.md` **§ Active threads only**, `brain/POLYMARKET_BRAIN.md`, then the relevant strategy hub. The shared law still includes `brain/CODEX.md`; do not skip it because it is the implementation-agent README for the repo.
 
 For data-heavy prompts, add one short line after the read-order preamble instead of listing raw folders manually: "For data artifacts, use [[polymarket_data_manifest]], [[polymarket_csv_output_audit]], [[polymarket_plot_gallery_index]], [[storage_consolidation_audit_2026_06_05]], and/or [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] as applicable; do not relink raw shards one by one." This keeps prompts short while pointing Codex at the durable map.
+
+For "find prior work on X" subtasks, instruct the agent to use the local **gbrain MCP tools** (semantic `search` + `traverse_graph`/`get_backlinks`) instead of reading hubs end-to-end — it indexes this vault and resolves `[[basename]]` links as a graph. Retrieval only; synthesis stays in-agent. See [[gbrain_retrieval_layer]].
 
 Required preamble template:
 
 ```markdown
 Before doing anything else, read:
-1. Run the Agent Bootstrap: seed/read `local_agents/codex.md` from `brain/agents/templates/codex.local.template.md` if missing.
+1. Run the Agent Bootstrap (canonical copy in brain/VAULT_MAP.md § Agent Bootstrap): seed/read `local_agents/codex.md` from `brain/agents/templates/codex.local.template.md` if missing.
 2. `brain/CODEX.md`
 3. `brain/TODO.md`
-4. `brain/COWORK.md`
+4. `brain/COWORK.md` — § Active threads only
 5. `brain/POLYMARKET_BRAIN.md`
 6. The relevant strategy hub for this task
 ```
@@ -165,39 +163,11 @@ When asked "what else can we check," apply the [[CODEX]] § Realism calibration 
 
 ## Where to write things
 
-- Strategic snapshots / cross-thread context → `brain/handoffs/<date>_<topic>.md`
-- Project-specific findings → the relevant `polymarket/research/notes/<cluster>/` subfolder
-- Task list updates → edit `brain/TODO.md` directly; keep "done (recent)" pruned
-- Code / scripts → never in `brain/`; always under the relevant project (`polymarket/research/scripts/`, `midas/`, etc.)
+The canonical table is [[VAULT_MAP]] § Where to write things — use it. Orchestration-role deltas only:
+
 - **Codex prompts → paste inline in chat as a single copyable markdown code block (```` ```markdown … ``` ````), not saved as repo files.** Justin keeps them in chat history; the repo gets only the *output* of running the prompt (a `*_results.md` or `*_findings.md` in `polymarket/research/notes/`).
+- Task list updates → edit `brain/TODO.md` directly; keep "done (recent)" pruned.
 
-## Strategic state (snapshot, 2026-05-28 post-A14h + A1.7 — original dali direct-trading branch falsified)
+## Strategic state
 
-**Original direct local microstructure continuation branch:** all tiers tested, all execution modes tested, all negative. The 4-quadrant decision matrix from yesterday landed in the bottom-right (both A14h and A1.7 negative).
-
-| tier / mode | result |
-|---|---|
-| Tier 1 taker (8 angles) | Dead under non-overlap math |
-| Tier 1 maker (A14h) | Dead. A14c's +554 bps was overlap artifact (-451 bps non-overlap, fill rate 9.0% → 0.2%) |
-| Tier 2 LightGBM (A1.7) | No edge. Calibration breaks at P≥0.70 (-16pp gap) — model is LESS accurate at high confidence |
-| Tier 3 LSTM/DeepLOB | Foreclosed by calibration diagnosis — gap is structural, not architecture |
-
-**The TOB/OFI signal is REAL but it's structural mean-reversion to fair value on Polymarket's wide-spread universe.** A15b + A1.7 calibration converge on the same diagnosis. No additional capture or model complexity will change this.
-
-**Redesigned forward from dali:** sign convention infrastructure, capture+replay+analysis pipeline, TOB as state variable, Polymarket microstructure facts (exchange-internal-leg, depth != flow, calibration extremes), methodology lessons (non-overlap math by default, Briola caveat is real), and the Block K/MM/OD redesign path.
-
-**Pivot to copytrade primary.** Three candidate directions (recommended ranking):
-1. **Copytrade scaling + smoke deployment** (most shovel-ready, leverages 9 months prior work)
-2. **Block I — Cross-platform arb** (different cost structure may unlock different signal classes)
-3. **Block J — Resolution-criteria LLM signal scanning** (heaviest setup, potentially highest value)
-
-## Immediate next decisions (snapshot, 2026-05-28)
-
-In rough priority order — keep in sync with `brain/TODO.md`:
-
-1. **Begin copytrade smoke deployment path.** PLAN.md sync → Polymarket creds → pre-flight smoke target → first $10 real-money fill. Operationally hours of work.
-2. **Launch A0c 24h capture** as scheduled — data goes into the dali lineage. No further A1.x direct-continuation analysis budget unless explicitly reopened.
-3. **Document dali redesign state** as a research-note artifact for future reference (the 17-block analysis is publishable as a Polymarket microstructure study).
-4. **Defer old direct-continuation follow-ups** (A14e queue+latency, Block I, Block J) unless copytrade hits a clear ceiling and a fresh research bet is needed.
-
-For copytrade: PLAN.md sync → Polymarket creds → pre-flight smoke target → first $10 real-money fill (see `brain/TODO.md` § copytrade; `midas/scripts/SMOKE_REAL.md` is referenced there as the runbook but doesn't exist yet — write or locate it as part of the smoke prep). Copytrade smoke is independent of Dali sequencing; ship when operationally ready.
+Thread status is authoritative in [[TODO]] and [[VAULT_MAP]] § Active research branches; this file carries no dated status. Dated strategic snapshots live in `brain/handoffs/` (latest cross-thread map: [[2026-06-04_state_of_the_arc_and_novelty_frontier]]; the 2026-05-28 dali-falsification snapshot formerly inlined here is preserved in [[2026-06-10_relay_retirement_branch_model]] and [[TODO]] § dali).

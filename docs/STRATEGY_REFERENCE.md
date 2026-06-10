@@ -1118,6 +1118,77 @@ size = position_size.fillna(0).values.astype(float)
 
 ---
 
+## H. Overfitting validation — `infrastructure/validation/overfitting_audit.py`
+
+Every Optuna-searched strategy must clear this harness **before going live**. The CPCV/WF
+stack measures how the *selected* config performs OOS, but says nothing about how much of
+that performance is the selection itself — with `n_trials = 400` per fold/split (G.5), the
+best-of-search Sharpe is upward-biased even on pure noise. This module quantifies that bias.
+
+> **Plain-English explainer:** for what each statistic *means* and how to read a verdict
+> (intuition, toy examples, the DSR×PBO interpretation matrix), see
+> [[OVERFITTING_VALIDATION]]. This section is the terse API/gate reference.
+
+### H.1 The three statistics
+
+| Statistic | Question | Function |
+|---|---|---|
+| **Deflated Sharpe Ratio** (Bailey & López de Prado 2014) | Does the observed OOS Sharpe exceed the expected *maximum* Sharpe of an N-trial search on zero-edge data? | `deflated_sharpe_ratio()` |
+| **PBO via CSCV** (Bailey, Borwein, López de Prado, Zhu 2014) | Across all balanced IS/OOS partitions of time, how often does the IS-best config rank in the bottom half OOS? | `pbo_cscv()` |
+| **White's Reality Check** (White 2000; studentised per Hansen 2005) | Bootstrap p-value that the best config's mean return beats zero *after* accounting for the search | `whites_reality_check()` |
+
+All Sharpe conventions match `performance_metrics.py` (mean/std·√ppy, ddof=1, no risk-free,
+flat bars included — D.2). CIs use the stationary bootstrap (Politis–Romano); the module is
+numpy/pandas-only (no scipy in the root venv).
+
+### H.2 Pre-registered gate
+
+```
+PASS requires ALL of:
+  deflated Sharpe > 0          (DSR prob > 0.5; ≥ 0.95 is the "strong" bar)
+  PBO < 0.5                    (< 0.2 is the "good" bar)
+  post-haircut lower-CI Sharpe > 0.25   (materiality bar, set before results)
+Reality-Check p < 0.05 is reported as supporting evidence, not gated.
+Anything else ⇒ FLAG-FOR-REVIEW (no live deployment).
+```
+
+Statistical survival ≠ economic materiality — verdicts follow `brain/CODEX.md`
+§ Realism calibration and ship an assumption ledger.
+
+### H.3 Trial-data requirement and `collect_trials`
+
+PBO and the Reality Check need the **T × N candidate-return matrix**, and the DSR haircut
+needs the cross-trial Sharpe variance. Historically both engines discarded the Optuna study
+after extracting `best_params` — per-trial data did not survive into `*_cpcv.pkl`. Two fixes:
+
+- `run_cpcv(..., collect_trials=True)` stores per-trial `{number, value, params, user_attrs}`
+  in each `split_results[i]['trials']`; `walk_forward(..., collect_trials=True)` returns the
+  same per fold under `result['fold_trials']`. Cheap (scalars only) — **set it on every new
+  search**. The CPCV template now does.
+- `build_trial_returns_matrix()` re-runs saved trial configs through the standard backtest
+  (deterministic) to rebuild the return matrix; `replay_search_trial_matrix()` replays a
+  same-design TPE study for legacy artifacts that lack trial records (slower; the verdict
+  notes which mode ran).
+
+### H.4 Notebook / template integration
+
+`cpcv_template.ipynb` ends with an **"Overfitting check (required before live)"** cell pair
+calling `audit_cpcv_run(results, df, strategy_fn, score_fn, reject_fn, label=SYMBOL)` and
+asserting the gate. The printed `verdict.to_markdown()` block must be pasted into the
+strategy's findings note. The new-idea workflow hook lives in `brain/START_RESEARCH_IDEA.md`
+step 6. Unit tests (synthetic overfit vs genuine-edge fixtures):
+`./.venv/bin/python -m pytest infrastructure/validation/tests/ -q`.
+
+### H.5 First application — live momentum book
+
+The audit of the live 6-asset book (vs the 2.24 headline Sharpe) lives in
+[[momentum_overfitting_audit_findings]], with the runner at
+`topics/momentum/strategies/momentum_cpcv/run_overfitting_audit.py`. Its verdict
+(`FLAG-FOR-REVIEW`: real edge, but PBO ≈ 0.8 on a flat plateau) is the canonical worked
+example for [[OVERFITTING_VALIDATION]]'s interpretation matrix.
+
+---
+
 ## Contributing notes
 
 - Momentum, BB-breakout, XS-momentum, regime-filter, ML-prediction, and stat-arb research notes belong under the relevant `topics/<strategy>/` subtree or in `docs/` when they synthesize multiple strategy families.

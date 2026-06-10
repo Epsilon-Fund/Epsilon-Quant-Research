@@ -1,0 +1,107 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": true,
+  "showOrphans": false,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:brain -path:brain/generated",
+      "color": {
+        "a": 1,
+        "rgb": 2450411
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/copytrade",
+      "color": {
+        "a": 1,
+        "rgb": 1483594
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/market_making",
+      "color": {
+        "a": 1,
+        "rgb": 1013358
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/options_delta",
+      "color": {
+        "a": 1,
+        "rgb": 8141549
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/dali",
+      "color": {
+        "a": 1,
+        "rgb": 14753096
+      }
+    },
+    {
+      "query": "path:polymarket/research/notes/overview",
+      "color": {
+        "a": 1,
+        "rgb": 14251782
+      }
+    },
+    {
+      "query": "path:polymarket/execution OR path:midas",
+      "color": {
+        "a": 1,
+        "rgb": 16096779
+      }
+    },
+    {
+      "query": "path:topics/momentum",
+      "color": {
+        "a": 1,
+        "rgb": 165063
+      }
+    },
+    {
+      "query": "path:topics/statistical-arbitrage",
+      "color": {
+        "a": 1,
+        "rgb": 561586
+      }
+    },
+    {
+      "query": "path:topics/regime-classifier OR path:topics/ml-prediction",
+      "color": {
+        "a": 1,
+        "rgb": 9647082
+      }
+    },
+    {
+      "query": "path:infrastructure OR path:docs OR path:live_trading",
+      "color": {
+        "a": 1,
+        "rgb": 4674921
+      }
+    },
+    {
+      "query": "path:archive",
+      "color": {
+        "a": 1,
+        "rgb": 6583435
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 2,
+  "nodeSizeMultiplier": 1.00109809027778,
+  "lineSizeMultiplier": 0.506206597222222,
+  "collapse-forces": false,
+  "centerStrength": 0.399479166666667,
+  "repelStrength": 8.04600694444444,
+  "linkStrength": 0.249001736111111,
+  "linkDistance": 302,
+  "scale": 0.1323430487774156,
+  "close": false
+}

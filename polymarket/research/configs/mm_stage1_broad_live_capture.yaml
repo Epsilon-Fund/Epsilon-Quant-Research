@@ -1,0 +1,734 @@
+prepared_at: '2026-06-05T11:58:49Z'
+purpose: 'Broad MM Stage-1 live book capture: read-only CLOB recorder for crypto controls,
+  sports, and equities/index when present. No orders.'
+run:
+  run_id: mm_stage1_broad_live_20260605T115849Z
+  label: mm_stage1_broad_live
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_broad_live
+selection:
+  source: live Gamma active scan + CLOB /book smoke enrichment
+  lane_boundary: non-politics broad diagnostics; no orders/auth; politics/NegRisk
+    deployment remains separate
+  families_targeted:
+    equities_index_updown: 8
+    equities_single_name: 8
+    crypto_updown_control: 10
+    sports_recurring: 10
+  active_scan_presence:
+    equities_index_updown: 0
+    equities_single_name: 0
+    crypto_updown_control: 2529
+    sports_recurring: 1402
+  missing_live_families:
+  - equities_index_updown
+  - equities_single_name
+  excluded_existing_first_mover_slugs:
+  - bnb-updown-15m-1780743600
+  - dota2-ill-noir-2026-06-05
+  - dota2-ill-noir-2026-06-05-game1-any-player-rampage
+  - dota2-ill-noir-2026-06-05-game2-any-player-rampage
+  - dota2-z10-gtime-2026-06-05-game1-any-player-rampage
+  - dota2-z10-gtime-2026-06-05-game2-any-player-rampage
+  - dota2-z10-gtime-2026-06-05-game2-ends-in-daytime
+  - dota2-z10-gtime-2026-06-05-game3-ends-in-daytime
+  - eth-updown-15m-1780743600
+  - eth-updown-5m-1780743600
+  - sol-updown-5m-1780743600
+markets:
+- id: '2443214'
+  condition_id: '0x195ae8baf8126a977acf292feaa302c3758cd7d2be7059692623dc1eb7edc3ca'
+  question: Dogecoin Up or Down - June 6, 7:45AM-7:50AM ET
+  slug: doge-updown-5m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:30.456517Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:50:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '32612721159284337088669435007332760468556921555809685188497665218597205212542'
+  - '89599970070022869971754131036877778879268126203505840453216445717792312963482'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '32612721159284337088669435007332760468556921555809685188497665218597205212542'
+    book_best_bid: 0.49
+    book_bid_size: 37.0
+    book_best_ask: 0.51
+    book_ask_size: 37.0
+    book_spread: 0.020000000000000018
+  - token_id: '89599970070022869971754131036877778879268126203505840453216445717792312963482'
+    book_best_bid: 0.49
+    book_bid_size: 37.0
+    book_best_ask: 0.51
+    book_ask_size: 37.0
+    book_spread: 0.020000000000000018
+- id: '2443213'
+  condition_id: '0x1ab70e52c8072d3acfe9f5b6329a20ce116e1cb1ad7f53b4cf22c012ca7a15df'
+  question: Dogecoin Up or Down - June 6, 7:45AM-8:00AM ET
+  slug: doge-updown-15m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:30.423387Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '13030107023313760457523623891751682018896674268860397387308985013932293267683'
+  - '69198730504780175848712729580431859470264079091325520371863107765112530697522'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '13030107023313760457523623891751682018896674268860397387308985013932293267683'
+    book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+  - token_id: '69198730504780175848712729580431859470264079091325520371863107765112530697522'
+    book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+- id: '2443212'
+  condition_id: '0x7136201c2dd86d2217f112fbebfcba1f96d6ccddf1c5500efa5903ba0aea8715'
+  question: Ethereum Up or Down - June 6, 7:45AM-8:00AM ET
+  slug: eth-updown-15m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:30.359695Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '49746376074701733606095470624617991542019149926114597580920343056099796145628'
+  - '106550040830220180474235153086145762878344300225425852392774701964886109542708'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '49746376074701733606095470624617991542019149926114597580920343056099796145628'
+    book_best_bid: 0.49
+    book_bid_size: 1166.28
+    book_best_ask: 0.51
+    book_ask_size: 1166.28
+    book_spread: 0.020000000000000018
+  - token_id: '106550040830220180474235153086145762878344300225425852392774701964886109542708'
+    book_best_bid: 0.49
+    book_bid_size: 1166.28
+    book_best_ask: 0.51
+    book_ask_size: 1166.28
+    book_spread: 0.020000000000000018
+- id: '2443211'
+  condition_id: '0x4167184eac81b408f21d6ecece5211562234737e82fcf4ecdb94980d166e010d'
+  question: Hyperliquid Up or Down - June 6, 7:45AM-7:50AM ET
+  slug: hype-updown-5m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:30.356036Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:50:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '109886609053472227180577412349401303015505385376961540903556692067145230097971'
+  - '56273999798877578834745070417851513596795637659750231382530857444542036744206'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '109886609053472227180577412349401303015505385376961540903556692067145230097971'
+    book_best_bid: 0.49
+    book_bid_size: 32.0
+    book_best_ask: 0.51
+    book_ask_size: 32.0
+    book_spread: 0.020000000000000018
+  - token_id: '56273999798877578834745070417851513596795637659750231382530857444542036744206'
+    book_best_bid: 0.49
+    book_bid_size: 32.0
+    book_best_ask: 0.51
+    book_ask_size: 32.0
+    book_spread: 0.020000000000000018
+- id: '2443210'
+  condition_id: '0xadad5e80dc857762a7e213e55017e7ecb322e114892e2271b0298200a8f63544'
+  question: Ethereum Up or Down - June 6, 7:45AM-7:50AM ET
+  slug: eth-updown-5m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:30.135972Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:50:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '52548902735876171977973536873100661987509370642998794506628216669056957272042'
+  - '37637562117430381506504414843505462819506907890771744933394804449017187113476'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '52548902735876171977973536873100661987509370642998794506628216669056957272042'
+    book_best_bid: 0.49
+    book_bid_size: 93.02
+    book_best_ask: 0.51
+    book_ask_size: 93.02
+    book_spread: 0.020000000000000018
+  - token_id: '37637562117430381506504414843505462819506907890771744933394804449017187113476'
+    book_best_bid: 0.49
+    book_bid_size: 93.02
+    book_best_ask: 0.51
+    book_ask_size: 93.02
+    book_spread: 0.020000000000000018
+- id: '2443209'
+  condition_id: '0xd7a4b33bc876c898843e9f23a0c3576bf3a1c014cc6085f6b6abf9a8e6b4c804'
+  question: BNB Up or Down - June 6, 7:45AM-8:00AM ET
+  slug: bnb-updown-15m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:30.009721Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '53961069121482031462793474766568099728468235371507081169005319644367968202605'
+  - '51595294782769412145302413953728786708135800218920913661752345221435606037004'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '53961069121482031462793474766568099728468235371507081169005319644367968202605'
+    book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+  - token_id: '51595294782769412145302413953728786708135800218920913661752345221435606037004'
+    book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+- id: '2443208'
+  condition_id: '0x7d12168ef0b532f42ddb917cf1c1aeb6c40cbe223b52830295a1a7c223e37b20'
+  question: XRP Up or Down - June 6, 7:45AM-8:00AM ET
+  slug: xrp-updown-15m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:29.966033Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '36235046351679752458114670934875676602149080080977326280877079351795520009599'
+  - '61625905501992850350806271862578503654264602103426415818399051100876317930821'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '36235046351679752458114670934875676602149080080977326280877079351795520009599'
+    book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+  - token_id: '61625905501992850350806271862578503654264602103426415818399051100876317930821'
+    book_best_bid: 0.49
+    book_bid_size: 42.0
+    book_best_ask: 0.51
+    book_ask_size: 42.0
+    book_spread: 0.020000000000000018
+- id: '2443207'
+  condition_id: '0xaa0fc03968bf72101a294dd4a19201927cb0b5a9e45c8e52bf5aba1683e609eb'
+  question: Hyperliquid Up or Down - June 6, 7:45AM-8:00AM ET
+  slug: hype-updown-15m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:29.919028Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '46830932590688116261735683861302256443780823006054103438624615669714843213332'
+  - '54882299515426900943686402307609487735495496077066890701957741868694677404006'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '46830932590688116261735683861302256443780823006054103438624615669714843213332'
+    book_best_bid: 0.49
+    book_bid_size: 144.04
+    book_best_ask: 0.51
+    book_ask_size: 144.04
+    book_spread: 0.020000000000000018
+  - token_id: '54882299515426900943686402307609487735495496077066890701957741868694677404006'
+    book_best_bid: 0.49
+    book_bid_size: 144.04
+    book_best_ask: 0.51
+    book_ask_size: 144.04
+    book_spread: 0.020000000000000018
+- id: '2443206'
+  condition_id: '0xdb1fe06240a7705e3aa803582b754f6f5a10fc952f7222d5280cef04075ae6f1'
+  question: BNB Up or Down - June 6, 7:45AM-7:50AM ET
+  slug: bnb-updown-5m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:29.841271Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T11:50:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '52397142554913971047061525347858460548152562565898301259998693754694216688906'
+  - '91148975992372574121227670526050550067700086835599682360734344636419088905733'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '52397142554913971047061525347858460548152562565898301259998693754694216688906'
+    book_best_bid: 0.5
+    book_bid_size: 10.0
+    book_best_ask: 0.51
+    book_ask_size: 37.0
+    book_spread: 0.010000000000000009
+  - token_id: '91148975992372574121227670526050550067700086835599682360734344636419088905733'
+    book_best_bid: 0.49
+    book_bid_size: 37.0
+    book_best_ask: 0.5
+    book_ask_size: 10.0
+    book_spread: 0.010000000000000009
+- id: '2443205'
+  condition_id: '0x19e860b0a715b4c66a7bfdc6f8a7f8059b7fd592e779b1daf20cc92a50a45f20'
+  question: Bitcoin Up or Down - June 6, 7:45AM-8:00AM ET
+  slug: btc-updown-15m-1780746300
+  family: crypto_updown_control
+  category: crypto_updown_control
+  created_at: '2026-06-05T11:51:29.502979Z'
+  age_hours_at_prepare: 0.12
+  end_date: '2026-06-06T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '57415922520125295070542255831289760500553216223781930803703820771080777220664'
+  - '39537260244446315510070462812641162529725842100986867285342434999227132587997'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '57415922520125295070542255831289760500553216223781930803703820771080777220664'
+    book_best_bid: 0.5
+    book_bid_size: 10.0
+    book_best_ask: 0.51
+    book_ask_size: 1311.28
+    book_spread: 0.010000000000000009
+  - token_id: '39537260244446315510070462812641162529725842100986867285342434999227132587997'
+    book_best_bid: 0.49
+    book_bid_size: 1311.28
+    book_best_ask: 0.5
+    book_ask_size: 10.0
+    book_spread: 0.010000000000000009
+- id: '2443181'
+  condition_id: '0x301a96f26fe716feb3c66d8997455bacbec5f6eadfc8c10906a4f091e28f72b5'
+  question: 'Dota 2: Team Yandex vs BetBoom Team (BO3) - BLAST Slam Playoffs'
+  slug: dota2-ty-bb4-2026-06-06
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:50:49.751715Z'
+  age_hours_at_prepare: 0.13
+  end_date: '2026-06-06T16:30:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '32977014740437186126891796351940523922009031321841034255521876940848903744551'
+  - '41770358300929007461797744112795036631504973998402291640784509161192988595045'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '32977014740437186126891796351940523922009031321841034255521876940848903744551'
+    book_best_bid: 0.03
+    book_bid_size: 1000.0
+    book_best_ask: 0.51
+    book_ask_size: 5.0
+    book_spread: 0.48
+  - token_id: '41770358300929007461797744112795036631504973998402291640784509161192988595045'
+    book_best_bid: 0.49
+    book_bid_size: 5.0
+    book_best_ask: 0.97
+    book_ask_size: 1000.0
+    book_spread: 0.48
+- id: '2443156'
+  condition_id: '0xfae5f43c2b9188612be62f0ee25cef52f652c791a7c4d6c2d84e96842a2d6d02'
+  question: Total Kills Over/Under 51.5 in Game 2?
+  slug: dota2-flc-aur1-2026-06-05-game2-kill-over-51pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:50:40.879312Z'
+  age_hours_at_prepare: 0.14
+  end_date: '2026-06-05T22:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '12450806466083502689487402520613795233854292487945343333596114116211713478368'
+  - '2174769349614827550776647773585600903093239421453705621770779907693359669079'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '12450806466083502689487402520613795233854292487945343333596114116211713478368'
+    book_best_bid: 0.48
+    book_bid_size: 72.25
+    book_best_ask: 0.57
+    book_ask_size: 73.23
+    book_spread: 0.08999999999999997
+  - token_id: '2174769349614827550776647773585600903093239421453705621770779907693359669079'
+    book_best_bid: 0.43
+    book_bid_size: 73.23
+    book_best_ask: 0.52
+    book_ask_size: 72.25
+    book_spread: 0.09000000000000002
+- id: '2443155'
+  condition_id: '0x2b1af978864bea53b9df42411f9fe3aeb17bda9d4da20c97a0e6609b1f62c9e6'
+  question: Total Kills Over/Under 54.5 in Game 2?
+  slug: dota2-flc-aur1-2026-06-05-game2-kill-over-54pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:50:40.743851Z'
+  age_hours_at_prepare: 0.14
+  end_date: '2026-06-05T22:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 0.0
+  best_bid: 0.0
+  best_ask: 1.0
+  spread: 1.0
+  clob_token_ids:
+  - '11149431051749521813691394242255253142592719218980700268346246593836941276570'
+  - '12919063275735155793002261940512855364690012528056874159938431826970226508849'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '11149431051749521813691394242255253142592719218980700268346246593836941276570'
+    book_best_bid: 0.4
+    book_bid_size: 83.22
+    book_best_ask: 0.49
+    book_ask_size: 62.15
+    book_spread: 0.08999999999999997
+  - token_id: '12919063275735155793002261940512855364690012528056874159938431826970226508849'
+    book_best_bid: 0.51
+    book_bid_size: 62.15
+    book_best_ask: 0.6
+    book_ask_size: 83.22
+    book_spread: 0.08999999999999997
+- id: '2443005'
+  condition_id: '0xa13cd66066d384c56c91734bef249b4c8e58d962d0cd29525ca3a0b977956e7c'
+  question: 'Map 1 Total Rounds: Over/Under 19.5'
+  slug: cs2-nrg-big5-2026-06-05-game1-round-total-19pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:11:10.819436Z'
+  age_hours_at_prepare: 0.79
+  end_date: '2026-06-05T23:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 74.5273
+  best_bid: 0.63
+  best_ask: 0.75
+  spread: 0.12
+  clob_token_ids:
+  - '19549289355860892436893976236889315702038112192148407254476436571547444450473'
+  - '98164881859607175955735610193104011901911289542260173675164055468502415021171'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '19549289355860892436893976236889315702038112192148407254476436571547444450473'
+    book_best_bid: 0.63
+    book_bid_size: 55.98
+    book_best_ask: 0.75
+    book_ask_size: 147.44
+    book_spread: 0.12
+  - token_id: '98164881859607175955735610193104011901911289542260173675164055468502415021171'
+    book_best_bid: 0.25
+    book_bid_size: 147.44
+    book_best_ask: 0.37
+    book_ask_size: 55.98
+    book_spread: 0.12
+- id: '2442967'
+  condition_id: '0xdeac88a9369418831340a22b333ea9331232d7e53beacbab3b443470394bb51b'
+  question: 'Counter-Strike: Nuclear TigeRES vs AM Gaming (BO3) - NODWIN Clutch Series
+    Group Stage'
+  slug: cs2-ntr-am-2026-06-06
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:01:06.203533Z'
+  age_hours_at_prepare: 0.96
+  end_date: '2026-06-06T23:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 643.2121
+  best_bid: 0.72
+  best_ask: 0.9
+  spread: 0.18000000000000005
+  clob_token_ids:
+  - '105410477374907503753309158821544029746198756716560663343464738081855843520014'
+  - '108532987173576874584932667499916813157050468163473991617780212650020590858022'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '105410477374907503753309158821544029746198756716560663343464738081855843520014'
+    book_best_bid: 0.72
+    book_bid_size: 7.0
+    book_best_ask: 0.9
+    book_ask_size: 45.0
+    book_spread: 0.18000000000000005
+  - token_id: '108532987173576874584932667499916813157050468163473991617780212650020590858022'
+    book_best_bid: 0.1
+    book_bid_size: 45.0
+    book_best_ask: 0.28
+    book_ask_size: 7.0
+    book_spread: 0.18000000000000002
+- id: '2442952'
+  condition_id: '0x8f9c04a0bf8a363ac08c30f6fa3e2e11650a86814a73a24018ba6281acc6de6f'
+  question: 'Counter-Strike: TDK vs Walczaki (BO3) - NODWIN Clutch Series Group Stage'
+  slug: cs2-tdk-wal2-2026-06-06
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:58.698065Z'
+  age_hours_at_prepare: 0.96
+  end_date: '2026-06-06T20:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 642.2319
+  best_bid: 0.45
+  best_ask: 0.8
+  spread: 0.35000000000000003
+  clob_token_ids:
+  - '113391623628453057524025696246548000298070707028032593206495386631626479497357'
+  - '63999790433407582588489776701278727755918169276626269572596333471667487544697'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '113391623628453057524025696246548000298070707028032593206495386631626479497357'
+    book_best_bid: 0.45
+    book_bid_size: 12.0
+    book_best_ask: 0.8
+    book_ask_size: 19.0
+    book_spread: 0.35000000000000003
+  - token_id: '63999790433407582588489776701278727755918169276626269572596333471667487544697'
+    book_best_bid: 0.2
+    book_bid_size: 19.0
+    book_best_ask: 0.55
+    book_ask_size: 12.0
+    book_spread: 0.35000000000000003
+- id: '2442936'
+  condition_id: '0xab67cf0d1300ca18f991bce2b7b0c8234152d80ef08eebdf88815314c4386ad7'
+  question: 'Games Total: O/U 2.5'
+  slug: dota2-ill-noir-2026-06-05-total-games-2pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:55.566395Z'
+  age_hours_at_prepare: 0.97
+  end_date: '2026-06-06T00:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 467.5496
+  best_bid: 0.43
+  best_ask: 0.51
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '111394695761576274609810433983642559594698025211560767847822329171131567808143'
+  - '90585182769722459916741380993241429410032052602336479442196892913193522685174'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '111394695761576274609810433983642559594698025211560767847822329171131567808143'
+    book_best_bid: 0.43
+    book_bid_size: 13.89
+    book_best_ask: 0.51
+    book_ask_size: 500.0
+    book_spread: 0.08000000000000002
+  - token_id: '90585182769722459916741380993241429410032052602336479442196892913193522685174'
+    book_best_bid: 0.49
+    book_bid_size: 500.0
+    book_best_ask: 0.57
+    book_ask_size: 13.89
+    book_spread: 0.07999999999999996
+- id: '2442921'
+  condition_id: '0xf585fa15781426b1cb99356764f658d1a795c117180912f35a2c204e48b408e8'
+  question: 'Map Handicap: ARC (-1.5) vs ASTRAL (+1.5)'
+  slug: cs2-arc4-ast-2026-06-06-map-handicap-away-1pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:49.515368Z'
+  age_hours_at_prepare: 0.97
+  end_date: '2026-06-06T17:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 445.7041
+  best_bid: 0.4
+  best_ask: 0.91
+  spread: 0.51
+  clob_token_ids:
+  - '20866510780910764727447172712386141076887738137185931369765484860571520792594'
+  - '58847551372517098150929719868613808719310104492438078196267488924470574822282'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '20866510780910764727447172712386141076887738137185931369765484860571520792594'
+    book_best_bid: 0.41
+    book_bid_size: 16.66
+    book_best_ask: 0.93
+    book_ask_size: 1000.0
+    book_spread: 0.52
+  - token_id: '58847551372517098150929719868613808719310104492438078196267488924470574822282'
+    book_best_bid: 0.07
+    book_bid_size: 1000.0
+    book_best_ask: 0.59
+    book_ask_size: 16.66
+    book_spread: 0.52
+- id: '2442920'
+  condition_id: '0xc63516db6275c2622becc5301891cc2a0bd66e56a9c39546c4732a135839c2a8'
+  question: 'Games Total: O/U 2.5'
+  slug: cs2-arc4-ast-2026-06-06-total-games-2pt5
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:49.378053Z'
+  age_hours_at_prepare: 0.97
+  end_date: '2026-06-06T17:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 437.8241
+  best_bid: 0.41
+  best_ask: 0.92
+  spread: 0.51
+  clob_token_ids:
+  - '71573114732987097350631380222161196150395071746121864162626166122676920532933'
+  - '5896186027376362990534379258921976752548407749060211567660456014678455902667'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '71573114732987097350631380222161196150395071746121864162626166122676920532933'
+    book_best_bid: 0.42
+    book_bid_size: 16.66
+    book_best_ask: 0.93
+    book_ask_size: 1000.0
+    book_spread: 0.51
+  - token_id: '5896186027376362990534379258921976752548407749060211567660456014678455902667'
+    book_best_bid: 0.07
+    book_bid_size: 1000.0
+    book_best_ask: 0.58
+    book_ask_size: 16.66
+    book_spread: 0.51
+- id: '2442917'
+  condition_id: '0xe9b36eb7a598dd22abbb45d093873cacddb99767d712bfaef57afedc5fec2def'
+  question: 'Dota 2: Ilbirs eSports vs Noir Esports - Game 1 Winner'
+  slug: dota2-ill-noir-2026-06-05-game1
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2026-06-05T11:00:47.937838Z'
+  age_hours_at_prepare: 0.97
+  end_date: '2026-06-05T22:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 233.3998
+  best_bid: 0.39
+  best_ask: 0.98
+  spread: 0.59
+  clob_token_ids:
+  - '3393838116179648749172596200026203512562818073086115699742967084975920616258'
+  - '96446046075165153176657642420036632940818344135758586829008659562590014080622'
+  neg_risk: false
+  selection_rationale: Broad Stage-1 live book diagnostics; read-only; no orders/auth;
+    added for live-only quotability/toxicity unknowns.
+  book_tokens:
+  - token_id: '3393838116179648749172596200026203512562818073086115699742967084975920616258'
+    book_best_bid: 0.43
+    book_bid_size: 16.66
+    book_best_ask: 0.93
+    book_ask_size: 1000.0
+    book_spread: 0.5
+  - token_id: '96446046075165153176657642420036632940818344135758586829008659562590014080622'
+    book_best_bid: 0.07
+    book_bid_size: 1000.0
+    book_best_ask: 0.57
+    book_ask_size: 16.66
+    book_spread: 0.49999999999999994

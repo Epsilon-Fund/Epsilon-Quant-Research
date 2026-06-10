@@ -1,7 +1,7 @@
 {
   "enableFeatures": {
     "graph": {
-      "auto-enabled": false,
+      "auto-enabled": true,
       "tags": false,
       "properties": false,
       "property-key": false,
@@ -109,17 +109,17 @@
         }
       }
     ],
-    "collapse-display": false,
+    "collapse-display": true,
     "showArrow": true,
     "textFadeMultiplier": 2,
     "nodeSizeMultiplier": 1.00109809027778,
     "lineSizeMultiplier": 0.506206597222222,
-    "collapse-forces": false,
+    "collapse-forces": true,
     "centerStrength": 0.399479166666667,
     "repelStrength": 8.04600694444444,
     "linkStrength": 0.249001736111111,
     "linkDistance": 302,
-    "scale": 0.15200772132018336,
+    "scale": 0.13324041894113772,
     "close": false
   },
   "openInNewTab": false,
@@ -129,34 +129,266 @@
       "id": "default-vault",
       "name": "Default state",
       "engineOptions": {
-        "colorGroups": [],
+        "colorGroups": [
+          {
+            "query": "path:brain  ",
+            "color": {
+              "a": 1,
+              "rgb": 15231080
+            }
+          },
+          {
+            "query": "path:polymarket  ",
+            "color": {
+              "a": 1,
+              "rgb": 13458396
+            }
+          },
+          {
+            "query": "path:topics  ",
+            "color": {
+              "a": 1,
+              "rgb": 7892181
+            }
+          }
+        ],
         "search": "",
-        "hideUnresolved": false,
+        "hideUnresolved": true,
+        "showAttachments": true,
+        "showOrphans": false,
+        "showTags": true,
+        "localBacklinks": true,
+        "localForelinks": true,
+        "localInterlinks": false,
+        "localJumps": 1,
+        "lineSizeMultiplier": 0.506206597222222,
+        "nodeSizeMultiplier": 1.00109809027778,
+        "showArrow": true,
+        "textFadeMultiplier": 2,
+        "centerStrength": 0.399479166666667,
+        "linkDistance": 302,
+        "linkStrength": 0.249001736111111,
+        "repelStrength": 8.04600694444444
+      },
+      "toggleTypes": {
+        "tag": [],
+        "link": [],
+        "folder": []
+      },
+      "logicTypes": {
+        "tag": "OR",
+        "link": "OR",
+        "folder": "OR"
+      },
+      "enableLayers": false,
+      "currentLayerLevel": 0,
+      "pinNodes": {},
+      "hiddenLegendRows": [],
+      "collapsedLegendRows": []
+    },
+    {
+      "id": "coarse-research",
+      "name": "Coarse research map",
+      "engineOptions": {
+        "colorGroups": [
+          {
+            "query": "path:brain -path:brain/generated",
+            "color": {
+              "a": 1,
+              "rgb": 15231080
+            }
+          },
+          {
+            "query": "path:polymarket/research",
+            "color": {
+              "a": 1,
+              "rgb": 13458396
+            }
+          },
+          {
+            "query": "path:polymarket/execution OR path:midas",
+            "color": {
+              "a": 1,
+              "rgb": 16752412
+            }
+          },
+          {
+            "query": "path:topics OR path:live_trading OR path:infrastructure OR path:docs",
+            "color": {
+              "a": 1,
+              "rgb": 7892181
+            }
+          },
+          {
+            "query": "path:archive",
+            "color": {
+              "a": 1,
+              "rgb": 47252
+            }
+          }
+        ],
+        "search": "",
+        "hideUnresolved": true,
         "showAttachments": false,
-        "showOrphans": true,
+        "showOrphans": false,
         "showTags": false,
         "localBacklinks": true,
         "localForelinks": true,
         "localInterlinks": false,
         "localJumps": 1,
-        "lineSizeMultiplier": 1,
-        "nodeSizeMultiplier": 1,
-        "showArrow": false,
-        "textFadeMultiplier": 0,
-        "centerStrength": 0.5187132489703118,
-        "linkDistance": 250,
-        "linkStrength": 1,
-        "repelStrength": 10
+        "lineSizeMultiplier": 0.506206597222222,
+        "nodeSizeMultiplier": 1.00109809027778,
+        "showArrow": true,
+        "textFadeMultiplier": 2,
+        "centerStrength": 0.399479166666667,
+        "linkDistance": 302,
+        "linkStrength": 0.249001736111111,
+        "repelStrength": 8.04600694444444
       },
-      "toggleTypes": {},
-      "logicTypes": {},
+      "toggleTypes": {
+        "tag": [],
+        "link": [],
+        "folder": []
+      },
+      "logicTypes": {
+        "tag": "OR",
+        "link": "OR",
+        "folder": "OR"
+      },
       "enableLayers": false,
-      "currentLayerLevel": 0
+      "currentLayerLevel": 0,
+      "pinNodes": {},
+      "hiddenLegendRows": [],
+      "collapsedLegendRows": []
+    },
+    {
+      "id": "research-clusters",
+      "name": "Research clusters map",
+      "engineOptions": {
+        "colorGroups": [
+          {
+            "query": "path:brain -path:brain/generated",
+            "color": {
+              "a": 1,
+              "rgb": 2450411
+            }
+          },
+          {
+            "query": "path:polymarket/research/notes/copytrade",
+            "color": {
+              "a": 1,
+              "rgb": 1483594
+            }
+          },
+          {
+            "query": "path:polymarket/research/notes/market_making",
+            "color": {
+              "a": 1,
+              "rgb": 1013358
+            }
+          },
+          {
+            "query": "path:polymarket/research/notes/options_delta",
+            "color": {
+              "a": 1,
+              "rgb": 8141549
+            }
+          },
+          {
+            "query": "path:polymarket/research/notes/dali",
+            "color": {
+              "a": 1,
+              "rgb": 14753096
+            }
+          },
+          {
+            "query": "path:polymarket/research/notes/overview",
+            "color": {
+              "a": 1,
+              "rgb": 14251782
+            }
+          },
+          {
+            "query": "path:polymarket/execution OR path:midas",
+            "color": {
+              "a": 1,
+              "rgb": 16096779
+            }
+          },
+          {
+            "query": "path:topics/momentum",
+            "color": {
+              "a": 1,
+              "rgb": 165063
+            }
+          },
+          {
+            "query": "path:topics/statistical-arbitrage",
+            "color": {
+              "a": 1,
+              "rgb": 561586
+            }
+          },
+          {
+            "query": "path:topics/regime-classifier OR path:topics/ml-prediction",
+            "color": {
+              "a": 1,
+              "rgb": 9647082
+            }
+          },
+          {
+            "query": "path:infrastructure OR path:docs OR path:live_trading",
+            "color": {
+              "a": 1,
+              "rgb": 4674921
+            }
+          },
+          {
+            "query": "path:archive",
+            "color": {
+              "a": 1,
+              "rgb": 6583435
+            }
+          }
+        ],
+        "search": "",
+        "hideUnresolved": true,
+        "showAttachments": false,
+        "showOrphans": false,
+        "showTags": false,
+        "localBacklinks": true,
+        "localForelinks": true,
+        "localInterlinks": false,
+        "localJumps": 1,
+        "lineSizeMultiplier": 0.506206597222222,
+        "nodeSizeMultiplier": 1.00109809027778,
+        "showArrow": true,
+        "textFadeMultiplier": 2,
+        "centerStrength": 0.399479166666667,
+        "linkDistance": 302,
+        "linkStrength": 0.249001736111111,
+        "repelStrength": 8.04600694444444
+      },
+      "toggleTypes": {
+        "tag": [],
+        "link": [],
+        "folder": []
+      },
+      "logicTypes": {
+        "tag": "OR",
+        "link": "OR",
+        "folder": "OR"
+      },
+      "enableLayers": false,
+      "currentLayerLevel": 0,
+      "pinNodes": {},
+      "hiddenLegendRows": [],
+      "collapsedLegendRows": []
     }
   ],
-  "startingStateID": "default-vault",
+  "startingStateID": "research-clusters",
   "syncDefaultState": false,
-  "saveConfigsWithState": false,
+  "saveConfigsWithState": true,
   "customColorMaps": {},
   "imageProperties": [
     "image"
@@ -183,7 +415,7 @@
   "focusScaleFactor": 1.8,
   "highlightOpenNodes": false,
   "highlightSearchResults": false,
-  "maxNodes": 20,
+  "maxNodes": 3000,
   "delay": 500,
   "revertAction": false,
   "enableCSS": false,
@@ -337,9 +569,9 @@
   "selectNodeModifier": "Shift",
   "filterAbstractFiles": [],
   "ignoreInlineLinks": false,
-  "collapseState": true,
-  "collapseLegend": true,
-  "resetAfterChanges": false,
+  "collapseState": false,
+  "collapseLegend": false,
+  "resetAfterChanges": true,
   "collapsedSettings": {},
   "selectionMode": "replace",
   "exportSVGOptions": {

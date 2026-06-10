@@ -1,10 +1,8 @@
 [
   "colored-tags",
   "dataview",
-  "obsidian-git",
   "templater-obsidian",
   "quickadd",
   "obsidian-style-settings",
-  "extended-graph",
-  "system3-relay"
+  "extended-graph"
 ]

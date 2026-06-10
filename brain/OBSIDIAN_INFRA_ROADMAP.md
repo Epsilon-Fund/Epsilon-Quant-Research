@@ -6,7 +6,6 @@ tags:
   - obsidian
   - brain
   - collaboration
-  - relay
   - agent-infra
 hubs:
   - CODEX
@@ -21,17 +20,17 @@ hubs:
 
 Hub links: [[CODEX]] | [[COWORK]] | [[POLYMARKET_BRAIN]] | [[TODO]] | [[glossary]]
 
-> **Implementation update (2026-06-08, current):** the Relay model below originally recommended a **root share**, and an interim build used a lane-separated/git-only-control-plane scheme. The **current, simplified setup** is: Relay shares the research folders + **all of `brain/`** (so [[VAULT_MAP]], [[TODO]], the hubs, handoffs, generated reports, shared agent templates/role conventions, and edit locks are live for both collaborators). The surfaces kept off Relay are each person's local agent overlays in **top-level `local_agents/<agent>.md`** and scratch in **top-level `scratch/<agent>/`** — never added to Relay and never committed, so per-person instructions and WIP can't collide. Concurrent edits to shared canonical notes are coordinated by `tools/brain_edit_guard.py` (cooperative locks that sync live via Relay). The live boundary of record is [[ONBOARDING]] § Sync model and [[VAULT_MAP]]; treat the "root share" language below as original rationale, not current config.
+> **Implementation update (2026-06-10, current):** the live-sync layer this roadmap originally recommended (Obsidian Relay, with `tools/brain_edit_guard.py` cooperative edit locks) was used 2026-06-07→10 and then **retired**. The collaboration layer of record is now the **git branch-per-person model**: each collaborator works on a personal branch named by GitHub handle, `main` is the integration branch, and merges into main are deliberate and agent-assisted. See [[MERGE_PROTOCOL]] and [[ONBOARDING]] § Collaboration model; decision record in [[2026-06-10_relay_retirement_branch_model]]. The navigation/hygiene layers below (maps, skills, generated reports, graph audits) remain current. Superseded sync-layer rationale was removed from this file and is preserved in git history.
 
 ## Executive Recommendation
 
-Use **Relay Free for the live Markdown layer**, keep **GitHub as backup/version history**, and build an **AI-readable navigation layer** on top of the existing repo layout.
+Use **git (branch-per-person) for the shared Markdown layer**, and build an **AI-readable navigation layer** on top of the existing repo layout.
 
 The current best setup is:
 
-1. **Relay root share:** share the repo/vault root so new Markdown research folders appear without manually adding each folder.
+1. **Branch-per-person git collaboration:** one personal branch per collaborator; `main` as integration branch; deliberate agent-assisted merges ([[MERGE_PROTOCOL]]).
 2. **Separate agent lanes:** keep Codex, Cowork/Claude Code, and any future agent prompts/scratch logs separate so each agent can have its own formatting, startup instructions, and response style.
-3. **GitHub snapshot layer:** keep GitHub for commits, rollback, branch history, and code/data work, not for day-to-day collaborative note editing.
+3. **GitHub history layer:** commits, rollback, branch history, and code/data work all live in the same repo and model.
 4. **Vault map:** add a compact master route map so agents do not scan the whole repo every time.
 5. **Skill map:** define repeatable agent/human workflows such as daily brief, chronicler, janitor, sherpa, and rock tumbler.
 6. **Query and graph hygiene:** use QMD/Markdown queries plus Graphify-style graph audits to find stale branches, orphan notes, missing backlinks, and duplicate topic islands.
@@ -49,62 +48,19 @@ This is better than forcing the whole repo into a new folder taxonomy immediatel
 | Full repo size | Huge: about 160 GB, mostly data/caches and Git history |
 | Largest local areas | `.git` about 30 GB, `polymarket/research/data` about 119 GB, `topics/momentum` about 8.7 GB |
 | Attachments folder | Currently empty locally; attachment policy can stay simple for now |
-| Relay fit | Good for Markdown collaboration because the text layer is tiny |
-| Relay Free caveat | Relay Free is mainly useful here because we care about `.md`; do not rely on it for attachment-heavy workflows |
-| GitHub caveat | Git is great for history, bad for real-time same-note collaboration |
-| Current Git backup gap | `.gitignore` currently ignores new files under `brain/`, so new brain docs may need force-add or a tracked docs location if Git backup matters |
+| GitHub caveat | Git is history-strong; same-note concurrency is handled by the branch model + merge protocol rather than live sync |
+| Current Git backup gap | resolved 2026-06-07 — `.gitignore` inverted so `brain/**/*.md` is tracked |
 
-## Relay Operating Model
+## Collaboration Operating Model
 
-Relay should be the **working collaboration layer** for Markdown notes. GitHub should be the **audit/history layer**.
+Git is both the **working collaboration layer** and the **audit/history layer**: one personal branch per collaborator, `main` as integration branch, deliberate agent-assisted merges. The procedure of record is [[MERGE_PROTOCOL]]; collaborator setup is [[ONBOARDING]] § Collaboration model. (The 2026-06 evaluation of live-sync alternatives that this section previously contained is preserved in git history; it was superseded when the live-sync layer was retired on 2026-06-10.)
 
-### Why root sharing makes sense here
+Rules that remain current regardless of sync layer:
 
-Root sharing solves the "new research branch" problem. If a new folder appears under the repo root and contains Markdown notes, it can show up through the shared vault without needing to manually add that folder to Relay.
-
-This matters because research does not always start in a clean folder:
-
-- a new strategy branch may start under `polymarket/research/notes/<cluster>/`
-- a crypto branch may start under `topics/<strategy>/research/`
-- a cross-project idea may start under `brain/handoffs/`
-- a repo-level operating note may start under `brain/`
-- a doc may start in `docs/`
-
-Root share is acceptable because the Markdown layer is small. The heavy repo parts are mostly data, notebooks, and caches. Relay Free should not be treated as a storage layer for those.
-
-### Rules
-
-1. Edit shared Markdown in Obsidian/Relay first.
-2. Use GitHub for snapshots, code, notebooks, and durable audit history.
-3. Avoid having two people edit the same note through GitHub while others edit it through Relay.
-4. Keep generated data and large research artifacts out of the note collaboration layer.
-5. If attachments become important, either upgrade Relay or keep attachment workflows explicitly separate.
-6. Do not paste invite keys into public docs or issues. Send keys directly to collaborators.
-7. Keep agent-specific prompting and scratch work in agent-specific lanes.
-8. Treat canonical shared hubs as summary surfaces, not live scratchpads.
-9. When two agents are active, each agent writes to its own scratch/daily note first, then one chronicler pass updates canonical notes.
-10. If a canonical note is likely to be edited by both agents, assign a temporary owner before editing it.
-
-### Coworker Quick Start
-
-1. Clone or open the repo locally.
-2. Open the repo root as an Obsidian vault.
-3. Install and enable the Relay plugin.
-4. Join the Relay server using the invite key Justin sends separately.
-5. Confirm the shared folder is the vault root.
-6. Make a tiny test edit to an agreed note or create a temporary test note, then confirm it appears on Justin's machine.
-7. Use GitHub for code and periodic backups, not as the live note-editing surface.
-
-## Ranked Collaboration Layout Options
-
-| Rank | Option | Pros | Cons | Verdict |
-|---:|---|---|---|---|
-| 1 | **Root Relay + shared canonical brain + separate agent lanes** | Captures new Markdown folders automatically; avoids same-note agent collisions; lets Codex/Cowork keep different prompting and formatting; preserves one shared research truth | Needs discipline around what is scratch vs canonical; requires a chronicler/janitor pass | Recommended |
-| 2 | **Root Relay + existing repo folders + AI maps only** | Minimal migration; best fit for whole-repo discovery; keeps code/research/docs together | Agents may collide on hub files if they use the same notes as scratchpads | Good but less safe than separate agent lanes |
-| 3 | **Selective Relay folders + existing repo folders** | Cleaner sharing boundary; less noise; safer if private/local notes exist outside shared folders | New research folders can be missed; requires manual maintenance; attachments outside shared folders can break | Good fallback if root share becomes noisy |
-| 4 | **Full PARA folder migration** | Very clean human mental model; easy to explain Projects/Areas/Resources/Archives | Disruptive to existing code/research layout; risks breaking established paths and agent instructions | Use PARA as metadata/status overlay first |
-| 5 | **Separate Obsidian brain repo** | Clean vault; easy permissions; low sync noise | Splits notes from code, scripts, data, and results; agents need cross-repo context stitching | Useful only if current repo becomes too noisy |
-| 6 | **GitHub/Obsidian Git only** | Strong audit trail; free; familiar to technical users | Slow for live collaboration; merge conflicts; awkward for non-technical note editing | Backup layer, not primary collaboration layer |
+1. Keep generated data and large research artifacts out of the note collaboration layer.
+2. Keep agent-specific prompting and scratch work in agent-specific lanes.
+3. Treat canonical shared hubs as summary surfaces, not live scratchpads.
+4. When two agents are active, each agent writes to its own scratch/daily note first, then one chronicler pass updates canonical notes.
 
 ## Recommended Folder Philosophy
 
@@ -145,13 +101,13 @@ brain/
     `-- YYYY-MM-DD.md              # daily log if we choose brain-native daily notes
 ```
 
-Important Git note: because new files under `brain/` are currently ignored by `.gitignore`, either force-add core infra docs to GitHub or put generated/tracked operating docs in a tracked folder such as `docs/obsidian/`. Relay will still see local Markdown either way.
+Important Git note: resolved 2026-06-07 — `.gitignore` was inverted so new `brain/**/*.md` is tracked automatically; only `brain/generated/`, `local_agents/`, and `scratch/` stay ignored.
 
 ### Agent Separation Model
 
 Keep the **knowledge brain shared** and the **agent operating surfaces separate**.
 
-This avoids the worst Relay collision case: two agents using the same canonical hub as a scratchpad. Codex and Cowork/Claude Code can have different model behavior, response formatting, startup checklists, and note-writing style without forking the actual research memory.
+This avoids the worst collision case: two agents using the same canonical hub as a scratchpad. Codex and Cowork/Claude Code can have different model behavior, response formatting, startup checklists, and note-writing style without forking the actual research memory.
 
 Recommended layers:
 
@@ -169,7 +125,7 @@ Rules:
 2. Agents can update their own lane freely.
 3. Shared canonical files get updated through short, intentional passes.
 4. If both agents need the same canonical file, one agent owns the edit and the other writes a linked scratch note.
-5. Same-note Relay edits are acceptable for human collaboration, but they should not be the default for autonomous agents.
+5. Concurrent same-note edits resolve at merge time per [[MERGE_PROTOCOL]]; agents should still avoid making them the default workflow.
 
 ## What To Learn From The Reference Systems
 
@@ -477,7 +433,7 @@ Current policy:
 - default Obsidian attachments folder: `Attachments/`
 - keep images/PDFs there unless a local strategy folder already owns a figure/gallery convention
 - Markdown notes should link or embed attachments with enough caption context to be useful later
-- do not assume Relay Free will sync attachments reliably
+- attachments sync through git like any other tracked file; keep them small and descriptive
 
 Ranked attachment options:
 
@@ -492,17 +448,11 @@ Naming rule: prefer descriptive filenames like `2026-06-07_kpeg_oos_surface.png`
 
 ## Roadmap
 
-### Phase 0: Relay And Source-Of-Truth Rules
+### Phase 0: Sync Model And Source-Of-Truth Rules
 
-Status: in progress.
+Status: done (final form 2026-06-10).
 
-Tasks:
-
-- root shared folder in Relay
-- coworker quick-start
-- Obsidian attachment default set to `Attachments/`
-- decide whether root Relay creates unacceptable noise
-- decide which brain infra files should be force-added to Git despite `.gitignore`
+Outcome: the sync layer is the **git branch-per-person model** ([[MERGE_PROTOCOL]], [[ONBOARDING]] § Collaboration model). `.gitignore` was inverted so `brain/**/*.md` is tracked; Obsidian attachment default is `Attachments/`; coworker onboarding is [[ONBOARDING]] § Onboarding a new collaborator. An interim live-sync layer with cooperative edit locks ran 2026-06-07→10 and was retired — see [[2026-06-10_relay_retirement_branch_model]].
 
 ### Phase 1: Core Maps
 
@@ -589,13 +539,11 @@ Outcome:
 
 | Decision | Options | Current lean |
 |---|---|---|
-| Should root Relay remain the default? | root share vs selective folders | Root share unless noisy Markdown becomes a real problem |
+| Sync layer | live-sync plugin vs git branch-per-person | **Decided 2026-06-10:** git branch-per-person ([[MERGE_PROTOCOL]]) |
 | Should the brain be split per agent? | separate whole brains vs shared canonical brain plus agent lanes | Shared canonical brain plus separate agent lanes |
-| Where should generated reports live? | `brain/generated/` vs `docs/obsidian/generated/` | `brain/generated/` for Obsidian, force-add important files if Git backup matters |
+| Where should generated reports live? | `brain/generated/` vs `docs/obsidian/generated/` | `brain/generated/` (git-ignored, regenerable) |
 | Where should daily logs live? | `brain/daily/`, existing `journal_logs/`, or `scratch/<agent>/` | Agent scratch in `scratch/<agent>/`; shared daily log only after chronicler pass |
 | Should PARA be folder-based? | full migration vs metadata overlay | Metadata overlay first |
-| Should invite keys live in notes? | yes vs no | No; send directly |
-| Should attachments sync through Relay? | Free `.md` workflow vs paid attachment workflow | Free `.md` now, upgrade only if attachments become central |
 
 ## Immediate Next Build Steps
 

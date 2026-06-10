@@ -142,6 +142,57 @@ def safe_float(row: pd.Series, key: str, default: float = math.nan) -> float:
         return default
 
 
+def rv_token_prob_from_p_model(df: pd.DataFrame) -> pd.Series:
+    if "p_model" not in df or "actual_outcome" not in df:
+        raise ValueError("cannot derive RV physical-probability token fair without p_model and actual_outcome")
+    p_up = pd.to_numeric(df["p_model"], errors="coerce")
+    return pd.Series(
+        np.where(df["actual_outcome"].astype(str).str.lower().eq("up"), p_up, 1.0 - p_up),
+        index=df.index,
+        dtype="float64",
+    )
+
+
+def assert_no_pm_mid_fair_source(df: pd.DataFrame, *, context: str) -> None:
+    source_cols = ["fair_prob_kind", "token_model_fair_kind", "claim_fair_kind", "fair_source", "token_fair_source"]
+    bad_tokens = ("pm_mid", "pm_iv", "implied_vol", "polymarket_mid")
+    for col in source_cols:
+        if col not in df.columns:
+            continue
+        values = df[col].dropna().astype(str).str.lower()
+        bad = sorted(v for v in values.unique() if any(token in v for token in bad_tokens))
+        if bad:
+            raise ValueError(f"{context}: PM-mid/IV diagnostics cannot be used as external fair ({col}={bad})")
+
+
+def resolve_token_rv_physical_prob_fair(df: pd.DataFrame, *, context: str = "OD fair source") -> pd.Series:
+    """Return the token fair only when it is provably the Binance RV physical probability."""
+    assert_no_pm_mid_fair_source(df, context=context)
+    if "token_model_fair_kind" in df.columns:
+        kind = df["token_model_fair_kind"].dropna().astype(str)
+        bad = sorted(kind[~kind.eq("rv_physical_prob")].unique())
+        if bad:
+            raise ValueError(f"{context}: token_model_fair_kind must be rv_physical_prob, saw {bad}")
+    if "token_rv_physical_prob_fair" in df.columns:
+        fair = pd.to_numeric(df["token_rv_physical_prob_fair"], errors="coerce")
+        if "token_model_fair" in df.columns:
+            legacy = pd.to_numeric(df["token_model_fair"], errors="coerce")
+            max_diff = (fair - legacy).abs().replace([np.inf, -np.inf], np.nan).max()
+            if pd.notna(max_diff) and float(max_diff) > 1e-9:
+                raise ValueError(f"{context}: legacy token_model_fair no longer matches token_rv_physical_prob_fair")
+        return fair
+    if "token_model_fair" not in df.columns:
+        raise ValueError(f"{context}: missing token_rv_physical_prob_fair")
+    derived = rv_token_prob_from_p_model(df)
+    legacy = pd.to_numeric(df["token_model_fair"], errors="coerce")
+    max_diff = (derived - legacy).abs().replace([np.inf, -np.inf], np.nan).max()
+    if pd.notna(max_diff) and float(max_diff) > 1e-9:
+        raise ValueError(
+            f"{context}: refusing legacy token_model_fair because it is not the RV physical-probability token fair"
+        )
+    return legacy
+
+
 def load_v3_fills(refresh: bool = True) -> pd.DataFrame:
     """Read the v2-correct fill ledger and add OD valuation fields."""
     if OUT_FILLS.exists() and not refresh:
@@ -193,18 +244,25 @@ def load_v3_fills(refresh: bool = True) -> pd.DataFrame:
         if col in fills.columns:
             fills[col] = pd.to_numeric(fills[col], errors="coerce")
 
-    fills["token_model_fair"] = np.where(
+    fills["token_rv_physical_prob_fair"] = np.where(
         fills["actual_outcome"].eq("up"),
         fills["p_model"].astype(float),
         1.0 - fills["p_model"].astype(float),
     )
-    fills["od_value_edge"] = fills["token_position"] * (fills["token_model_fair"] - fills["entry_price"])
-    fills["rich_short_edge"] = np.where(
+    fills["token_model_fair"] = fills["token_rv_physical_prob_fair"]  # Legacy alias.
+    fills["token_model_fair_kind"] = "rv_physical_prob"
+    fills["od_value_edge_vs_rv_physical_prob"] = fills["token_position"] * (
+        fills["token_rv_physical_prob_fair"] - fills["entry_price"]
+    )
+    fills["od_value_edge"] = fills["od_value_edge_vs_rv_physical_prob"]  # Legacy alias.
+    fills["rich_short_edge_vs_rv_physical_prob"] = np.where(
         fills["token_position"].lt(0),
-        fills["entry_price"] - fills["token_model_fair"],
+        fills["entry_price"] - fills["token_rv_physical_prob_fair"],
         np.nan,
     )
-    fills["vol_premium_ewma"] = fills["iv_minus_ewma"].astype(float)
+    fills["rich_short_edge"] = fills["rich_short_edge_vs_rv_physical_prob"]  # Legacy alias.
+    fills["pm_mid_iv_minus_ewma"] = fills["iv_minus_ewma"].astype(float)
+    fills["vol_premium_ewma"] = fills["pm_mid_iv_minus_ewma"]  # Legacy alias.
     fills["fill_dollar_delta"] = fills["signed_delta_exposure"].abs() * fills["binance_spot"].abs()
     fills["is_short_rich_side"] = fills["token_position"].lt(0) & fills["rich_short_edge"].gt(0)
     fills["is_value_edge_positive"] = fills["od_value_edge"].gt(0)
@@ -410,6 +468,7 @@ def build_episode_for_market(
         "settlement_pnl": settlement_pnl,
         "maker_rebate": float(g["maker_rebate"].sum()),
         "mean_entry_price": float(g["entry_price"].mean()),
+        "mean_rv_physical_prob_fair": float(g["token_rv_physical_prob_fair"].mean()),
         "mean_model_fair": float(g["token_model_fair"].mean()),
         "mean_od_value_edge": float(g["od_value_edge"].mean()),
         "mean_rich_short_edge": float(g["rich_short_edge"].mean()) if g["rich_short_edge"].notna().any() else math.nan,
@@ -1015,7 +1074,7 @@ def example_filter_text(fills: pd.DataFrame) -> str:
     side = str(r["actual_outcome"]).upper()
     return (
         f"Example fill: `{r['market_slug']}` sold/shorted the {side} token at ${float(r['entry_price']):.3f}. "
-        f"The Binance digital fair for that token was ${float(r['token_model_fair']):.3f}, so the token was rich by "
+        f"The Binance RV physical-probability fair for that token was ${float(r['token_rv_physical_prob_fair']):.3f}, so the token was rich by "
         f"{cents(float(r['rich_short_edge']))}. A `rich_short >= 1c` filter keeps this fill; if the edge were below "
         "`1c`, v3 would skip it even though the K-PEG maker lifecycle would have filled it."
     )
@@ -1101,6 +1160,7 @@ def write_note(fills: pd.DataFrame, episodes: pd.DataFrame, summary: pd.DataFram
     note = f"""# Sell Rich 4h Crypto UP/DOWN Digitals With OD Fair-Value Filters (Strategy A v3)
 
 > Hub: [[strat_options_delta]] · [[POLYMARKET_BRAIN]]
+> Table terms: [[polymarket_table_dictionary]]
 
 ## Headline
 
@@ -1123,7 +1183,7 @@ not the official gate.
 This is the OD strat, not a Block K lead-lag race. MM supplies the passive K-PEG lifecycle: eligible maker fills
 are aggregated into a market episode, inventory can be two-sided, Polymarket positions are carried to resolution,
 and the late near-50c spike zone remains excluded. OD adds the valuation layer: only accept fills when the token
-is rich versus the Binance digital fair, when implied vol is above causal EWMA vol, when the Chainlink/Binance
+is rich versus Binance RV physical-probability fair, when PM midpoint-implied vol is above causal EWMA vol, when the Chainlink/Binance
 source-basis risk is acceptable, and when dollar-delta inventory stays inside a cap.
 
 Decision gate: OOS `far_absz_ge1_all_tau`, global market-episode embargo, net-of-cost, lower 95% cluster-bootstrap
@@ -1138,7 +1198,7 @@ The three v3 phases that matter for the OD decision are all **unhedged Polymarke
 - **Phase 1, power baseline:** replay the bare K-PEG lifecycle and ask whether more assets / wider longshot buckets
   create enough independent evidence.
 - **Phase 2, OD entry filter:** before accepting a maker fill, ask whether the token is actually overpriced versus
-  the Binance digital fair value or backed by a strict source-basis filter.
+  Binance RV physical-probability fair or backed by a strict source-basis filter.
 - **Phase 3, risk caps:** keep the same unhedged lifecycle, but skip fills that would push episode dollar-delta
   exposure above a cap.
 
@@ -1185,16 +1245,17 @@ Where:
 - `tau` is time left to resolution in years.
 - `N(z)` is the standard normal CDF.
 
-For a specific Polymarket token, the fair is `P_up_fair` for an UP token and `1 - P_up_fair` for a DOWN token.
+For a specific Polymarket token, the RV physical-probability fair is `P_up_rv_fair` for an UP token and `1 - P_up_rv_fair` for a DOWN token.
 The OD richness test then asks:
 
 ```text
-short/sell token edge = entry_price - token_fair
-long/buy token edge   = token_fair - entry_price
+short/sell token edge = entry_price - token_rv_physical_prob_fair
+long/buy token edge   = token_rv_physical_prob_fair - entry_price
 ```
 
 The headline v3 filter is deliberately narrow: it keeps short/sell fills only when the token is rich versus
-fair. That directly tests the OD thesis: sell overpriced longshot/vol tokens and carry them to resolution.
+RV physical-probability fair. That tests the OD thesis as a forecast-selection rule: sell longshot/vol tokens
+that are expensive versus the causal RV model and carry them to resolution.
 
 ## Practical OD Filter Example
 
@@ -1203,12 +1264,13 @@ fair. That directly tests the OD thesis: sell overpriced longshot/vol tokens and
 The signed value-edge convention is:
 
 ```text
-long token:  fair - entry_price
-short token: entry_price - fair
+long token:  rv_physical_prob_fair - entry_price
+short token: entry_price - rv_physical_prob_fair
 ```
 
 The headline richness filter is stricter than generic value-edge: it keeps only short/sell fills where the token
-is overpriced versus fair. That directly tests the OD thesis: sell the overpriced longshot/vol side and carry.
+is overpriced versus RV physical-probability fair. That directly tests the OD thesis as a forecast-selection rule:
+sell the longshot/vol side that is expensive versus our causal RV model and carry.
 
 ## Table Glossary
 
@@ -1287,13 +1349,13 @@ decision gate in this run.
 )}
 
 Read: these rows ask whether OD valuation adds independent keep on top of the maker lifecycle. `rich_short`
-means sell only when the PM token is rich versus Binance digital fair. `vol_premium` means PM implied vol is
-above causal EWMA vol. `strict` promotes the Chainlink/Binance source-basis filter from diagnostic to official
+means sell only when the PM token is rich versus Binance RV physical-probability fair. `vol_premium` means PM
+midpoint-implied vol is above causal EWMA vol. `strict` promotes the Chainlink/Binance source-basis filter from diagnostic to official
 candidate design ingredient.
 
 Non-hedged read: the bare far-|z| lifecycle failed because its lower CI was -17.14c. The strict-source and
-strict-rich-short filters lift the lower CI above zero before any Binance hedge is applied. This says the OD
-valuation layer is doing real selection work; it is not just the old lifecycle with a hedge pasted on top.
+strict-rich-short filters lift the lower CI above zero before any Binance hedge is applied. This says the RV
+valuation filter is doing selection work in this replay; it does not prove external option-IV mispricing.
 
 ## Phase 3 — Dollar-Delta Risk Caps
 

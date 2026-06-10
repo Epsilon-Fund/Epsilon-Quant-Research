@@ -40,7 +40,7 @@ Rule of thumb: brain workflow skills define **what pass should happen**; runtime
 |---|---|---|---|
 | Hygiene scan | Automated by scheduled task `brain-hygiene-weekly` | Runs `tools/brain_hygiene.py` and reports counts | The actual Janitor fix pass |
 | EOD brief | Automated by scheduled task `brain-eod-brief` | Runs hygiene + graph audit and writes `brain/generated/daily_brief.md` | Any canonical note/TODO changes suggested by the brief |
-| Markdown sync | Automated by scheduled task `brain-commit-push` | Pull-first commit/push of scoped Markdown paths | Conflict resolution, if the task aborts |
+| Markdown sync | Automated by scheduled task `brain-commit-push` | Commit/push of scoped Markdown paths to the operator's personal branch (never main) | Conflict resolution per [[MERGE_PROTOCOL]], if the task aborts |
 | MM capture health | Codex heartbeat `mm-stage-1-capture-health` | Read-only live capture status checks | Any restart, repair, or deployability decision |
 | Brain cleanup / synthesis | Manual | Nothing edits canonical notes unattended | Janitor, Rock Tumbler, Chronicler, Cartographer, Librarian |
 
@@ -51,7 +51,7 @@ The scanners are allowed to run unattended because they only write generated rep
 | Skill | Trigger | Reads | Produces | Owner |
 |---|---|---|---|---|
 | **Daily Brief** | Start of a working day | changed notes, [[TODO]], recent git log | short "what changed / what matters / what's next" note | either agent |
-| **Agent Scratch Log** | Any fast WIP that isn't canonical yet | the task at hand | `brain/agents/<agent>/scratch/YYYY-MM-DD.md` | active agent only |
+| **Agent Scratch Log** | Any fast WIP that isn't canonical yet | the task at hand | `scratch/<agent>/YYYY-MM-DD.md` (local-only) | active agent only |
 | **Chronicler** | End of a working session, or any decision/closure | the day's scratch + diffs | dated handoff in `brain/handoffs/`, or a decision line in the right hub | assigned chronicler |
 | **Rock Tumbler** | A research branch closes or matures | messy scratch + results | one clean canonical `*_findings.md` with links + decision | branch owner |
 | **Janitor** | Weekly, or after a burst of new notes | hygiene report | small link/metadata/dedupe fixes (by Codex) | Codex |
@@ -65,7 +65,7 @@ Use these as lightweight prompts to Cowork or Codex. Keep the pass name in the p
 | Skill | Ask this | Good moment | Guardrails |
 |---|---|---|---|
 | **Daily Brief** | "Run a Daily Brief from the generated reports, TODO, and recent commits. Keep it to one screen." | Start of day, or after opening the repo cold | Read-only unless explicitly asked to edit |
-| **Agent Scratch Log** | "Use your own scratch lane for WIP; promote only durable results." | Any exploratory agent session | Scratch lives in `brain/agents/<agent>/scratch/` and is ignored |
+| **Agent Scratch Log** | "Use your own scratch lane for WIP; promote only durable results." | Any exploratory agent session | Scratch lives in `scratch/<agent>/` (top-level, local-only, ignored) |
 | **Chronicler** | "Run a Chronicler pass for today's decisions and handoff. Update the relevant hub/TODO only if needed." | End of session, after a major decision, before handing to a collaborator | Record why, not every intermediate thought |
 | **Rock Tumbler** | "Rock Tumbler this branch into one canonical findings note with summary, evidence, decision, and next gate." | Branch closes, result matures, or messy scratch should become durable | Do not invent conclusions; preserve numbers and links |
 | **Janitor** | "Run a Janitor fix pass from `brain/generated/hygiene_report.md`; fix broken links, duplicates, metadata, and summaries in reviewable batches." | Weekly, after a burst of note creation, before sharing with coworker | Scanner finds issues; agent fixes deliberately |
@@ -78,9 +78,10 @@ The safest workflow is report-first, edit-second:
 
 1. **Generate / gather context.** Run `tools/brain_hygiene.py`, `tools/brain_graph_audit.py`, read [[TODO]], relevant hubs, recent commits, and scratch notes.
 2. **Choose one named pass.** Do not mix Janitor, Rock Tumbler, and Cartographer in one giant edit unless the task is tiny.
-3. **Edit only the intended surface.** Janitor edits metadata/links/summaries; Rock Tumbler writes canonical findings; Cartographer updates maps; Chronicler records decisions.
-4. **Verify.** Re-run the scanner or inspect the target note/map.
-5. **Handoff.** Add a short note to `brain/handoffs/` or [[TODO]] when the pass changes state, ownership, or next gates.
+3. **Work on your personal branch.** All durable-Markdown edits happen on the operator's personal branch ([[MERGE_PROTOCOL]]); concurrent edits surface as merge conflicts, not live collisions.
+4. **Edit only the intended surface.** Janitor edits metadata/links/summaries; Rock Tumbler writes canonical findings; Cartographer updates maps; Chronicler records decisions.
+5. **Verify.** Re-run the scanner or inspect the target note/map.
+6. **Hand off.** Add a short note to `brain/handoffs/` or [[TODO]] when the pass changes state, ownership, or next gates.
 
 ### Who should do what
 
@@ -228,7 +229,7 @@ Do not define one-off terms.
 Summarize what changed since yesterday, what matters, and the next falsifiable action. Keep it to a screen. Pull recently-changed notes and stale TODOs from `brain/generated/` (see Janitor) rather than re-reading everything.
 
 ### Agent Scratch Log
-Each agent writes fast, messy work-in-progress to its own lane (`brain/agents/codex/scratch/` or `brain/agents/cowork/scratch/`). This is the collision-avoidance rule: **agents do not draft inside canonical hubs.** Scratch is git-ignored by default; promote anything durable via Chronicler / Rock Tumbler.
+Each agent writes fast, messy work-in-progress to its own scratch (`scratch/codex/` or `scratch/cowork/`, top-level and local-only). This is the collision-avoidance rule: **agents do not draft inside canonical hubs.** Scratch is git-ignored — it exists only on each person's machine and never enters any branch or merge — so per-person WIP can't collide; promote anything durable via Chronicler / Rock Tumbler.
 
 ### Chronicler
 Capture *why* things changed: decisions, closures, handoffs. Output is a dated `brain/handoffs/<date>_<topic>.md` or a tight status line appended to the relevant hub and [[TODO]]. One chronicler pass per session beats ten scattered edits.

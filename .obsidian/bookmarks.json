@@ -1,0 +1,268 @@
+{
+  "items": [
+    {
+      "type": "group",
+      "ctime": 1780912800007,
+      "title": "00 Start Here",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1780912800000,
+          "path": "brain/VAULT_MAP.md",
+          "title": "Vault Map"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800001,
+          "path": "brain/TODO.md",
+          "title": "TODO"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800002,
+          "path": "brain/COWORK.md",
+          "title": "Cowork"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800003,
+          "path": "brain/CODEX.md",
+          "title": "Codex"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800004,
+          "path": "brain/SKILL_MAP.md",
+          "title": "Skill Map"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800005,
+          "path": "brain/OPERATING_RHYTHMS.md",
+          "title": "Operating Rhythms"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800006,
+          "path": "brain/ONBOARDING.md",
+          "title": "Onboarding"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1780912800016,
+      "title": "10 Polymarket",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1780912800008,
+          "path": "brain/POLYMARKET_BRAIN.md",
+          "title": "Polymarket Brain"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800009,
+          "path": "polymarket/research/RESEARCH_FINDINGS.md",
+          "title": "Research Findings"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800010,
+          "path": "polymarket/research/notes/market_making/strat_market_making.md",
+          "title": "Market-Making Hub"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800011,
+          "path": "polymarket/research/notes/options_delta/strat_options_delta.md",
+          "title": "Options-Delta Hub"
+        },
+        {
+          "type": "folder",
+          "ctime": 1780912800012,
+          "path": "polymarket/research/notes/copytrade",
+          "title": "Copytrade Notes"
+        },
+        {
+          "type": "folder",
+          "ctime": 1780912800013,
+          "path": "polymarket/research/notes/dali",
+          "title": "Dali / OFI Notes"
+        },
+        {
+          "type": "folder",
+          "ctime": 1780912800014,
+          "path": "polymarket/research/notes/overview/synthesis",
+          "title": "Overview / Synthesis"
+        },
+        {
+          "type": "folder",
+          "ctime": 1780912800015,
+          "path": "polymarket/research/notes/overview/data_quality",
+          "title": "Data Quality"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1780912800025,
+      "title": "20 Crypto",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1780912800017,
+          "path": "docs/STRATEGY_REFERENCE.md",
+          "title": "Strategy Reference"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800018,
+          "path": "docs/CRYPTO_DATA_MANIFEST.md",
+          "title": "Crypto Data Manifest"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800019,
+          "path": "topics/momentum/README.md",
+          "title": "Momentum"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800020,
+          "path": "topics/statistical-arbitrage/README.md",
+          "title": "Stat Arb"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800021,
+          "path": "topics/regime-classifier/README.md",
+          "title": "Regime Classifier"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800022,
+          "path": "topics/ml-prediction/notebooks/README.md",
+          "title": "ML Prediction"
+        },
+        {
+          "type": "folder",
+          "ctime": 1780912800023,
+          "path": "infrastructure",
+          "title": "Validation Infrastructure"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800024,
+          "path": "live_trading/CLAUDE.md",
+          "title": "Live Trading Architecture"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1780912800031,
+      "title": "30 Execution",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1780912800026,
+          "path": "midas/README.md",
+          "title": "Midas"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800027,
+          "path": "polymarket/execution/README.md",
+          "title": "Polymarket Execution"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800028,
+          "path": "polymarket/execution/PLAN.md",
+          "title": "Execution Plan"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800029,
+          "path": "polymarket/execution/maker/README.md",
+          "title": "Maker Engine"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800030,
+          "path": "live_trading/CLAUDE.md",
+          "title": "Live Trading"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1780912800036,
+      "title": "40 Handoffs",
+      "items": [
+        {
+          "type": "folder",
+          "ctime": 1780912800032,
+          "path": "brain/handoffs",
+          "title": "Handoffs Folder"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800033,
+          "path": "brain/handoffs/2026-06-07_brain_hygiene_cleanup.md",
+          "title": "Brain Hygiene Cleanup"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800034,
+          "path": "brain/handoffs/2026-06-05_polymarket_research_onboarding.md",
+          "title": "Polymarket Onboarding"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800035,
+          "path": "brain/handoffs/2026-06-05_novelty_frontier_map.md",
+          "title": "Novelty Frontier Map"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1780912800042,
+      "title": "50 Hygiene",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1780912800037,
+          "path": "brain/generated/GENERATED_INDEX.md",
+          "title": "Generated Index"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800038,
+          "path": "brain/generated/hygiene_report.md",
+          "title": "Hygiene Report"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800039,
+          "path": "brain/generated/graph_audit.md",
+          "title": "Graph Audit"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800040,
+          "path": "brain/generated/stale_notes.md",
+          "title": "Stale Notes"
+        },
+        {
+          "type": "file",
+          "ctime": 1780912800041,
+          "path": "brain/SKILL_MAP.md",
+          "title": "Skill Map"
+        }
+      ]
+    }
+  ]
+}

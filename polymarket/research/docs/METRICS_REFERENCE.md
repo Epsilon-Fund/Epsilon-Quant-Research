@@ -108,7 +108,7 @@ JOIN markets_tokens mt
    AND mt.outcome_token_id = pre.outcome_token_id;
 ```
 
-**What it adds vs `raw_trades`:** (1) `outcome_token_id` derived (the non-zero asset_id of the fill), (2) `outcome_index` joined from `markets_tokens` (1 or 2 for binary markets), (3) one row per fill (no explode yet).
+**What it adds vs `raw_trades`:** (1) `outcome_token_id` derived (the non-zero asset_id of the fill), (2) `outcome_index` joined from `markets_tokens` (1 or 2 for binary markets), (3) one row per fill (no explode yet), (4) `exchange_internal_match` (BOOLEAN, added 2026-06-10) — TRUE iff the fill's `taker` is one of the 4 CTF-Exchange exchange-internal-leg contracts (v1 `0x4bfb41…`, `0xc5d563…`; v2 `0xe11118…`, `0xe2222d…`). Such a row is the `_matchOrders` internal active leg of a two-sided match, where the wallet in the `maker` column was actually the ACTIVE (aggressor) order signer. The address list is hardcoded in the view; the source of truth is [`data_infra/operator_denylist.py`](../data_infra/operator_denylist.py) `EXCHANGE_INTERNAL_LEG` — keep in sync. See [[copytrade_attribution_repartition_findings]].
 
 **What it filters:** rows with NULL maker, NULL taker, self-trades (`maker = taker`), orphan fills (NULL `market_id`), and fills whose `outcome_token_id` doesn't match any market in the snapshot. The CASE-as-join-key is materialised in the inner subquery so the hash join sees a plain column.
 
@@ -134,6 +134,8 @@ FROM joined_fills;
 ```
 
 **What it adds vs `joined_fills`:** the **explode** — every fill becomes 2 rows, one with `address = maker` and one with `address = taker`. Sign convention is from each address's POV: `token_delta > 0` ⇒ received outcome tokens, `usd_delta > 0` ⇒ received USDC. **Across the two rows of any single fill, sums are zero by construction** (sign-symmetry invariant, proven by `scripts/smoke_test_views.py`).
+
+**`active_order_leg` (BOOLEAN, added 2026-06-10):** TRUE ⇔ this row's address signed the ACTIVE (aggressor) order of the fill. Derived from `joined_fills.exchange_internal_match` (see B.3): on a maker-role row it is TRUE iff the fill's taker is an exchange-internal-leg contract (`_matchOrders` bundle — the wallet labelled `maker` was the aggressor) and FALSE for a genuine passive maker; on a taker-role row it is TRUE for normal fills (the taker is the aggressor by definition) and FALSE only when the row's address IS the exchange contract itself — an artifact leg, not a trader, which should be excluded from per-trader style metrics. **PnL/position attribution is unaffected by this flag — it is style framing only.** Style ratios computed without it overstate maker-ness (e.g., Domah's maker:taker ratio 7.89 → 5.67 after reclassification). See [[copytrade_attribution_repartition_findings]].
 
 **What it filters:** inherits from `joined_fills` (no NULL/self-trade/orphan fills, outcome_index resolved).
 
@@ -763,13 +765,15 @@ These metrics first collapse `closed_positions` to one row per `(address, market
 - **Type:** DOUBLE
 - **Definition:** maker fills / taker fills, **capped at 1000.0**. Returns 1000.0 if taker count = 0 (pure maker).
 - **Formula:** [`build_traders_table.py:488-491`](../scripts/build_traders_table.py): `LEAST(style_maker_fill_count / style_taker_fill_count, 1000.0)`
-- **Trustworthiness:** STRONG.
+- **Caveat (2026-06-10):** the maker count includes `_matchOrders` exchange-internal active legs, where the address in the `maker` column was actually the AGGRESSOR (see `active_order_leg`, B.4). The ratio therefore overstates maker-ness; for style claims, reclassify internal-leg maker fills to the taker side (Domah 7.89 → 5.67; one audited leader flips maker_heavy → mixed). PnL columns are unaffected. See [[copytrade_attribution_repartition_findings]].
+- **Trustworthiness:** STRONG mechanically; MODERATE as a passive-maker style indicator (see caveat).
 
 #### `style_role_balance`
 - **Type:** DOUBLE
 - **Definition:** maker fills / total fills, in [0, 1]. **1.0 = pure maker, 0.0 = pure taker.** More interpretable than raw ratio.
 - **Formula:** [`build_traders_table.py:492-495`](../scripts/build_traders_table.py)
-- **Trustworthiness:** STRONG.
+- **Caveat (2026-06-10):** same maker-count bias as `style_maker_taker_ratio` — the numerator includes `_matchOrders` exchange-internal active legs (aggressive orders labelled maker; see `active_order_leg`, B.4), so it overstates maker share. Note the `patient_accumulators` cohort screen gates on `style_role_balance > 0.7`. See [[copytrade_attribution_repartition_findings]].
+- **Trustworthiness:** STRONG mechanically; MODERATE as a passive-maker style indicator (see caveat).
 
 #### `style_avg_fill_size_usd` / `style_max_fill_size_usd`
 - **Type:** DOUBLE

@@ -1,0 +1,197 @@
+prepared_at: '2026-06-06T11:31:34Z'
+purpose: Stage-1 resumed awake-hours live CLOB capture for broad_live; observation
+  only; no orders.
+run:
+  run_id: mm_stage1_broad_live_resume_20260606T113134Z
+  label: mm_stage1_broad_live
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_broad_live
+selection:
+  source: live Gamma active markets + CLOB /book smoke enrichment
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+  families_targeted:
+    crypto_updown_control: 10
+    sports_recurring: 10
+  active_scan_presence:
+    crypto_updown_control: 0
+    sports_recurring: 5
+markets:
+- id: '558979'
+  condition_id: '0x9779c09fd4dd0a1c82dd82618269c2aa5669d91305293b396d1e0b8a166b566e'
+  question: Will Panama win the 2026 FIFA World Cup?
+  slug: will-team-z-win-the-2026-fifa-world-cup-316
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2025-07-02T16:55:06.783466Z'
+  age_hours_at_prepare: 8130.61
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 19291.0
+  volume: 18398888.395756878
+  liquidity: 13090586.74752
+  best_bid: 0.0
+  best_ask: 0.001
+  spread: 0.001
+  clob_token_ids:
+  - '112181485529919660901332188537214992263355343785744498550605179448744432717486'
+  - '54713157489249811305010442901837547158293079674050742517995375602657385198814'
+  neg_risk: true
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '112181485529919660901332188537214992263355343785744498550605179448744432717486'
+    book_best_ask: 0.001
+    book_ask_size: 12254494.91
+  - token_id: '54713157489249811305010442901837547158293079674050742517995375602657385198814'
+    book_best_bid: 0.999
+    book_bid_size: 12254494.91
+- id: '553866'
+  condition_id: '0xb6b3d7a2037b3faa7e1306d741840d453432902d73cc9a146a035e40271eae73'
+  question: Will the San Antonio Spurs win the 2026 NBA Finals?
+  slug: will-the-san-antonio-spurs-win-the-2026-nba-finals
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2025-06-19T18:23:33.289121Z'
+  age_hours_at_prepare: 8441.13
+  end_date: '2026-07-01T00:00:00Z'
+  volume24hr: 1245695.698028999
+  volume: 36719940.37263593
+  liquidity: 414989.54737
+  best_bid: 0.211
+  best_ask: 0.218
+  spread: 0.007000000000000006
+  clob_token_ids:
+  - '102227184035967850089766981958743064457339118173548431660886438726896222843254'
+  - '12636035070565821048178968461063687179393834041535317885287743395873720755118'
+  neg_risk: true
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '102227184035967850089766981958743064457339118173548431660886438726896222843254'
+    book_best_bid: 0.219
+    book_bid_size: 408.82
+    book_best_ask: 0.226
+    book_ask_size: 61.0
+    book_spread: 0.007000000000000006
+  - token_id: '12636035070565821048178968461063687179393834041535317885287743395873720755118'
+    book_best_bid: 0.774
+    book_bid_size: 61.0
+    book_best_ask: 0.781
+    book_ask_size: 408.82
+    book_spread: 0.007000000000000006
+- id: '553858'
+  condition_id: '0x713641f745d71f6ec61f906237ffca3c8583f251e49384429a63ceb0ccdb2d37'
+  question: Will the New York Knicks win the 2026 NBA Finals?
+  slug: will-the-new-york-knicks-win-the-2026-nba-finals
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2025-06-19T18:23:28.658881Z'
+  age_hours_at_prepare: 8441.13
+  end_date: '2026-07-01T00:00:00Z'
+  volume24hr: 1360739.2713800005
+  volume: 23030072.069534358
+  liquidity: 334721.91671
+  best_bid: 0.783
+  best_ask: 0.784
+  spread: 0.0010000000000000009
+  clob_token_ids:
+  - '20257190540739490630509657713144742134547949967093643458458133445357169845406'
+  - '1770840559776249239623005379825945674336282130390798724203946923853499387834'
+  neg_risk: true
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '20257190540739490630509657713144742134547949967093643458458133445357169845406'
+    book_best_bid: 0.773
+    book_bid_size: 853.94
+    book_best_ask: 0.776
+    book_ask_size: 1901.95
+    book_spread: 0.0030000000000000027
+  - token_id: '1770840559776249239623005379825945674336282130390798724203946923853499387834'
+    book_best_bid: 0.224
+    book_bid_size: 1901.95
+    book_best_ask: 0.227
+    book_ask_size: 853.94
+    book_spread: 0.0030000000000000027
+- id: '553829'
+  condition_id: '0x89389a6b1439856a8d366234c795d72865c927a1aa3cf9d4cc04a3a400defde1'
+  question: Will the Vegas Golden Knights win the 2026 NHL Stanley Cup?
+  slug: will-the-vegas-golden-knights-win-the-2026-nhl-stanley-cup
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2025-06-19T18:02:53.485520Z'
+  age_hours_at_prepare: 8441.48
+  end_date: '2026-06-30T00:00:00Z'
+  volume24hr: 6178.313612
+  volume: 2979252.2749969917
+  liquidity: 114223.81056
+  best_bid: 0.446
+  best_ask: 0.447
+  spread: 0.0010000000000000009
+  clob_token_ids:
+  - '68803485030073596962715540294172682212192134248970512695855620898253368033218'
+  - '58534831224432332845742394199681128700782343287162911891204466367752298448751'
+  neg_risk: true
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '68803485030073596962715540294172682212192134248970512695855620898253368033218'
+    book_best_bid: 0.446
+    book_bid_size: 259.89
+    book_best_ask: 0.451
+    book_ask_size: 1749.57
+    book_spread: 0.0050000000000000044
+  - token_id: '58534831224432332845742394199681128700782343287162911891204466367752298448751'
+    book_best_bid: 0.549
+    book_bid_size: 1749.57
+    book_best_ask: 0.554
+    book_ask_size: 259.89
+    book_spread: 0.0050000000000000044
+- id: '553824'
+  condition_id: '0xf7b5491e70b477d451afe7d9c1fde4bf1a927e69ff289d294b96df164f6c10f0'
+  question: Will the Carolina Hurricanes win the 2026 NHL Stanley Cup?
+  slug: will-the-carolina-hurricanes-win-the-2026-nhl-stanley-cup
+  family: sports_recurring
+  category: sports_recurring
+  created_at: '2025-06-19T18:02:51.278733Z'
+  age_hours_at_prepare: 8441.48
+  end_date: '2026-06-30T00:00:00Z'
+  volume24hr: 11321.116128000007
+  volume: 1656365.974957013
+  liquidity: 174397.5389
+  best_bid: 0.55
+  best_ask: 0.56
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '79397003434468715775480922117285203652110865791390656395657957066470661722480'
+  - '40473977441010332007887229299980126707900816205713676157646215720073415416624'
+  neg_risk: true
+  selection_rationale: Stage-1 live book diagnostics; read-only; no orders/auth; refreshed
+    from current Gamma.
+  book_tokens:
+  - token_id: '79397003434468715775480922117285203652110865791390656395657957066470661722480'
+    book_best_bid: 0.55
+    book_bid_size: 24386.99
+    book_best_ask: 0.56
+    book_ask_size: 70134.94
+    book_spread: 0.010000000000000009
+  - token_id: '40473977441010332007887229299980126707900816205713676157646215720073415416624'
+    book_best_bid: 0.44
+    book_bid_size: 70134.94
+    book_best_ask: 0.45
+    book_ask_size: 24386.99
+    book_spread: 0.010000000000000009

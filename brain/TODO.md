@@ -16,8 +16,8 @@ tags:
 ---
 # Epsilon — Master TODO
 
-> Single consolidated checklist. Updated from handoffs. Active threads: **copytrade** (Midas bot, per-leader audit), **MM** (market-making) + **OD** (options-delta) — the two strats split out of the former "Block K" — and **dali / Polymarket research lineage**.
-> Last updated: 2026-06-06 (PM CLOB capture semantics documented — see [[mm_clob_capture_semantics]]; shared MM directional decomposition + non-politics target screen + maker-infra audit + first-mover liquidity scope landed — see [[mm_structural_maker_directional_decomposition_findings]], [[mm_nonpolitics_target_screen_findings]], [[mm_maker_infra_audit_findings]], [[mm_first_mover_liquidity_scope_findings]]).
+> Single consolidated checklist. Updated from handoffs. Active threads: **SPCX** (SpaceX IPO convergence trade — time-sensitive, lists ~2026-06-12), **copytrade** (Midas bot, per-leader audit), **MM** (market-making) + **OD** (options-delta) — the two strats split out of the former "Block K" — and **dali / Polymarket research lineage**.
+> Last updated: 2026-06-09 (SPCX convergence-trade thread opened — offline calculator gate built + green at low leverage, see [[spcx_convergence_calc_findings]]; SEC prospectus check shows $135 is *expected* not fixed (EU retail max $162); two Claude Code runs queued — Cerebras event-timeline + calc fill-price/size enhancement).
 
 > **Naming:** "Block K" is the historical joint arc; it is now two strats. **MM** = market-making (hub [[strat_market_making]]); **OD** = options-delta (hub [[strat_options_delta]]). Shared origin docs: [[block_k_plain_english_synthesis]] · [[block_k_maker_options_research]]. Prompts should name MM or OD.
 
@@ -27,14 +27,14 @@ tags:
 
 > Implements [[OBSIDIAN_INFRA_ROADMAP]]. Goal: clean 2-person workspace + dynamically-evolving brain with minimal manual upkeep. Maps live in [[VAULT_MAP]] · [[SKILL_MAP]] · [[OPERATING_RHYTHMS]]. Hygiene tooling: `tools/brain_hygiene.py`.
 
-**Phase 0 — Relay + source-of-truth rules**
+**Phase 0 — Sync model + source-of-truth rules (git branch-per-person since 2026-06-10)**
 
-- [x] `.gitignore` inverted 2026-06-07: `brain/**/*.md` now tracked; only `brain/generated/`, `brain/agents/locks/*.lock.md`, top-level `local_agents/`, and top-level `scratch/` ignored (no more force-add).
-- [x] Relay scope **simplified 2026-06-08**: shares the research folders + **all of `brain/`** (so [[VAULT_MAP]], [[TODO]], hubs, handoffs, generated reports, shared templates/lane docs, and edit locks are live for both). Only per-person `local_agents/<agent>.md` overlays and `scratch/<agent>/` (top-level) stay local — never Relay, never Git. Concurrent canonical edits coordinated by `tools/brain_edit_guard.py`. See [[ONBOARDING]] § Sync model.
+- [x] `.gitignore` inverted 2026-06-07: `brain/**/*.md` now tracked; only `brain/generated/`, top-level `local_agents/`, and top-level `scratch/` ignored (no more force-add).
 - [x] Per-person local agent overlays implemented 2026-06-08: shared templates [[codex.local.template.md|codex.local.template]] / [[cowork.local.template.md|cowork.local.template]] seed ignored `local_agents/codex.md` and `local_agents/cowork.md`; Agent Bootstrap documented across shared start-here docs. See [[2026-06-08_per_person_agent_overlays]].
-- [x] Apply the simplified Relay folder set on Justin's machine (share `brain` as one folder; drop the redundant `brain/handoffs` + `brain/agents/locks` sub-shares; confirm `scratch/` is not shared). Restart/reload Relay.
-- [ ] Coworker shares the same folder set (research + `brain`), keeps his own `local_agents/` overlays and `scratch/` local, and confirms two-way sync (invite key sent directly, not committed).
-- [ ] Coworker sets up his own `brain-commit-push` task so his control-plane/notes commits push too.
+- [x] **Obsidian Relay live-sync retired 2026-06-10** (it briefly served as the collaboration layer, 2026-06-07→10) → replaced by the git branch-per-person model: one personal branch per collaborator named by GitHub handle, main as integration branch, deliberate agent-assisted merges. The `tools/brain_edit_guard.py` cooperative locks were retired with it (branch isolation makes per-file locks obsolete). See [[MERGE_PROTOCOL]], [[ONBOARDING]] § Collaboration model, and [[2026-06-10_relay_retirement_branch_model]].
+- [ ] Justin: commit this state to `main` as the shared baseline, then create/switch to the `justin` branch for daily work; optionally add a GitHub branch-protection rule on main (no direct pushes).
+- [ ] Coworker onboards per [[ONBOARDING]] § Onboarding a new collaborator: clone the repo, open it as an Obsidian vault (nothing to install), run the Agent Bootstrap, create his personal branch off main.
+- [ ] Coworker sets up his own daily `brain-commit-push` task targeting **his personal branch, never main**.
 
 **Phase 1 — Core maps** (structure built 2026-06-07)
 
@@ -49,7 +49,7 @@ tags:
 
 - [x] `tools/brain_hygiene.py`: dupes, broken links, orphans, missing hub backlinks, missing frontmatter/summary, stale TODOs, recent-change digest.
 - [x] Outputs moved to ignored `brain/generated/`: `GENERATED_INDEX.md`, `hygiene_report.md`, `stale_notes.md` (not committed; one command to regenerate; durable map is [[VAULT_MAP]]).
-- [x] Weekly scheduled scan wired up (`brain-hygiene-weekly`, Mondays) — read-only, refreshes reports only.
+- [x] Weekly scheduled scan wired up (`brain-hygiene-weekly`, Mondays) — read-only, refreshes reports only. Its weekly pass also covers the **gbrain re-import + extract-links refresh** so the retrieval graph tracks the vault (commands in [[gbrain_retrieval_layer]]).
 - [x] Codex Janitor pass — quick wins done: **0 duplicate basenames, 0 broken links, 0 orphans, 0 missing hub backlinks** (commits `fa8dd20`, `8fccd47`, `7523b89`, `e763803`, `151ee04`; handoff [[2026-06-07_brain_hygiene_cleanup]]).
 - [x] **Codex Janitor pass — finish frontmatter/summary backfill.** Follow-up pass reduced scanner counts from **119 → 12** missing frontmatter and **68 → 0** findings without Summary. The remaining 12 are intentional skips: empty daily shell, root GitHub README, and generic CLAUDE/README/PLAN convention docs. See [[2026-06-07_brain_hygiene_cleanup]].
 
@@ -63,12 +63,12 @@ tags:
 
 ### Phase 4 — Agent workflow layer (scheduled agents)
 
-> These are the "systems" from [[SKILL_MAP]] made autonomous. Goal: agents (and humans on offset hours) never get lost in the note pile. **Caveat:** anything that auto-commits brain Markdown must respect the Relay-vs-Git rule — Relay owns live note collaboration; a Git agent must `pull` first and surface conflicts, never force-push. Scope auto-commit to brain/notes; leave code/data to manual Git discipline.
+> These are the "systems" from [[SKILL_MAP]] made autonomous. Goal: agents (and humans on offset hours) never get lost in the note pile. **Caveat:** anything that auto-commits brain Markdown follows the branch model ([[MERGE_PROTOCOL]]) — commit/push to the operator's personal branch only, never main, never force-push; surface conflicts instead of resolving them unattended. Scope auto-commit to brain/notes; leave code/data to manual Git discipline.
 
 - [x] **EOD brief** — scheduled task `brain-eod-brief` (daily 21:30 local): refreshes hygiene + graph audit, writes `brain/generated/daily_brief.md` (what changed / decisions / next gates / hygiene). Read-only on canonical notes.
-- [x] **Commit/push agent** — scheduled task `brain-commit-push` (daily 22:00 local): stages brain + research-notes markdown only, commits, `pull --no-rebase`, pushes; aborts + reports on conflict, never force-pushes. Solves offset-hours sync.
+- [x] **Commit/push agent** — scheduled task `brain-commit-push` (daily 22:00 local): stages brain + research-notes markdown only, commits, and pushes to the **operator's personal branch** (refuses to run on main; pulls only its own remote branch; never pulls/merges main; aborts + reports on conflict; never force-pushes). Updated 2026-06-10 for the branch model — see [[MERGE_PROTOCOL]] § 5.
 - [ ] **Intraday brief** — optional lighter midday digest. Hold until the EOD brief proves useful.
-- [ ] Each collaborator sets up their own `brain-commit-push` on their machine (symmetric, pull-first → safe).
+- [ ] Each collaborator sets up their own `brain-commit-push` on their machine, targeting their own personal branch (never main).
 - [ ] Decide brief ownership when both agents are active (one chronicler pass, not two).
 
 > Note: both scheduled tasks run only while the Cowork app is open; if closed at the scheduled time they run on next launch. The commit/push agent's `nbstripout` git filter must be working locally — if a `git pull` ever errors on notebooks, the agent stops and reports rather than forcing (safe by design).
@@ -78,6 +78,32 @@ tags:
 - [ ] Idea graph + strategy branch registry + roadmap index, navigable by concept not folder. See [[OBSIDIAN_INFRA_ROADMAP]] § Indeaverse. Build last.
 
 ---
+
+## SPCX — SpaceX IPO convergence trade (state 2026-06-09)
+
+> Time-sensitive: SpaceX (SPCX) prices ~2026-06-11 eve, first trades ~2026-06-12. Thread = long IPO @ offer / short Hyperliquid pre-IPO perp, hold to settlement, capture the convergence basis. Hub: [[spacex_ipo_market_map_handoff]] · calculator + decision note: [[spcx_convergence_calc_findings]] · session snapshot: [[2026-06-09_spacex_ipo_convergence_trade]].
+>
+> Forcing-question verdict: basis is **real** (~$20–25/IPO-share, ~15–18% rich; costs immaterial; positive funding carry to the short) and **TRADE-ABLE offline only UNLEVERED / ≤1.5×** — leverage is the ruin mode (≥2× a +39% Cerebras-style melt-up liquidates). Every remaining unknown is **live-only** → this merits a *minimal instrumented live test*, not a trading-system build.
+
+**Done (2026-06-09)**
+
+- [x] Units-matched basis + liquidation-survival calculator built, unit-tested (11 tests), Cerebras regression fixture green → [[spcx_convergence_calc_findings]] (`scripts/spcx_convergence_calc.py`, `--watch` monitor shipped, web dashboard declined as infra-before-signal).
+- [x] Denominator reframed: the share-base normalization applies to **`vntl:SPACEX`** (valuation-units) only; **`xyz:SPCX`** is per-share (R=1) so basis = `mark − 135` directly. `xyz` residual risk is a split/share-class/converted-base mismatch, not a per-share-vs-valuation artifact.
+- [x] Cerebras precedent on real HL perp tape: perp *pre-discovered* the open (~$392 perp ~2h before cash opened ~$385); leverage—not the trade—is the ruin mode; perp/spot basis is real post-listing. No documented day-1 cash short squeeze (the "$2.1M shorts liquidated" claim is uncorroborated — not relied on).
+- [x] SEC prospectus check (EDGAR, CIK 0001181412): the June-3 **S-1/A is a preliminary (red-herring) prospectus**; $135 is *"expected,"* underwriting-agreement price is a blank `$[•]`, **no fixing/no-adjust language**. Binding single global price set ~June 11 in a **424B (not yet filed)**. **EU retail: max offering price $162.00; orders below $135 "should not expect allocation."** ⇒ upward-revision risk is *bounded at $162, not foreclosed* — made improbable (not impossible) by the soft ~2× book.
+- [x] Allocation reality: SpaceX reserves "up to 30%" retail + ~55.6M-share EU tranche (7 countries), Trade Republic pro-rata at offer price (can be scaled to a fraction/zero; full cash locked during window). Contrast Cerebras: ~20× oversubscribed, priced $185 ($25 above the *raised* $150–160 range), retail largely shut out → forced to chase the ~$350 open.
+
+**Next — queued Claude Code runs (prompts drafted in chat 2026-06-09, not committed)**
+
+- [ ] **Cerebras event-aligned perp+spot timeline.** Map `xyz:CBRS` perp (+ cash spot once it exists) across range-raise / pricing-night / allocation-window / listing-open / +1–2d with **exact ET+UTC timestamps**, lookahead-free; finest-granularity candles; annotated charts; **fold into [[spcx_convergence_calc_findings]]** (extend the Cerebras section). Plus Phase-D research: was Cerebras retail-accessible or institutional-only, the implied difference for the convergence long leg, and oversubscription/European-market implications.
+- [ ] **Calculator enhancement — fill-price × fill-size grid.** Add a fill-price axis ($135→$162, per the EU prospectus ceiling) crossed with allocation-fraction scenarios (e.g. 8% / 20% / 100% of requested) → locked $ and ROC at each, plus a cash-lockup-vs-Hyperliquid-margin capital plan. Surfaces exactly where the Trade Republic order price-limit should sit before subscribing.
+
+**Live-only gate before any capital (do NOT assume; measure)**
+
+- [ ] Refresh perp richness vs $135 on **Friday AM June 12** — basis can evaporate (premium already compressed ~+48% mid-May → ~+18% now); if gone, no trade.
+- [ ] Confirm a real Trade Republic **$135 allocation fill** + decide the **order price limit** deliberately (basis collapses as fill price → $162; a $135 limit protects basis but risks zero allocation).
+- [ ] Verify Trade Republic **day-1 flipping/lock-up rule** (none found in TR's published terms; US brokers penalize 15–30d) — must be able to sell to realise the converged long leg.
+- [ ] Post a **small unlevered (≤1.5×)** short; run the `--watch` liq-buffer monitor + Parquet tick log; capture book depth at size, realised funding, and oracle/mark behaviour into the listing transition (esp. `xyz:SPCX` convert-in-place vs `vntl` cash-settle).
 
 ## MM — Market-Making (state 2026-06-04)
 
@@ -353,7 +379,7 @@ Only worth doing if copytrade hits a clear ceiling and a fresh research bet is n
 - [x] Live `last_trade_price.side` semantics confirmed as token-side aggressor on A0 + A0b. (2026-05-28)
 
 ### Block B: historical TFI deep-dive ✅ (2026-05-27)
-OUTCOME 3: Mixed Results. Most promising: equity-index operator-filtered (58.8% hit rate, 300s). Use as Block A target input only.
+OUTCOME 3: Mixed Results. Most promising: equity-index operator-filtered (58.8% hit rate, 300s). Use as Block A target input only. **2026-06-10 reinterpretation:** cite this as "single-sided-partition TFI with the internal-leg artifact removed" — the lift is an attribution correction (real within-market in equity, sign-convention artifact in crypto); see [[copytrade_attribution_repartition_findings]].
 - [ ] (low priority) Sports pre-game vs in-game segmentation — needs external game-start data
 - [ ] (low priority) AI/product per-market walk-forward at individual market level
 
@@ -363,8 +389,8 @@ The "relayer" addresses are Polymarket CTF Exchange v1 contracts. Active taker-o
 
 - [x] **v1 vs v2 emit pattern verified** — both ongoing. v2 contracts (`0xE111…996B`, `0xe2222…0F59`) emit OrderFilled with `taker = address(this)` the same way v1 did. (Done in copytrade-relayer-implications analysis.)
 - [x] **`data_infra/operator_denylist.py` updated** — renamed `PURE_RELAYERS` to `EXCHANGE_INTERNAL_LEG_V1` / `_V2`, added v2 addresses, updated `block_e_lite.py` accordingly. (Done.)
-- [ ] **Re-run Block B on event-source-classified data** (low priority, follow-up). Partition historical fills by emit-path and recompute TFI hit rates per partition. The "operator-filtered" hit rate of 58% is now interpretable as "TFI on the non-`_matchOrders` subset (likely single-sided `_fillOrder` fills)" — could be a real cleaner-attribution effect or a composition artifact. Block B's other findings (raw TFI, walk-forward) are unaffected.
-- [ ] **Add `active_order_leg` flag** to `views.sql` and style-ratio computation before any style-based cohort claim. Domah ratio 7.89 → 5.67 after reclassification (still maker-heavy). Some traders flip category. Affects style framing only, not PnL.
+- [x] **Re-run Block B on event-source-classified data** — completed 2026-06-10. The equity-index 58.8% reproduces exactly and survives a per-market paired control (+6.83pp [+5.07, +8.50] corrected within-market), but the verdict is **attribution correction, not cleaner-population**: in equity the MM-bot part of the operator filter contributed 0.0pp (single-sided ≡ operator-removed, same 1,290 bars), and in crypto the entire lift was an inverted sign convention. `historical_to_aggressor()` IS sign-inverted on the `_matchOrders` subset (same-token bundles 100.0% side-inverse). Cite the 58.8% as "single-sided-partition TFI with the internal-leg artifact removed". No Block B trading decision changes. See [[copytrade_attribution_repartition_findings]].
+- [x] **Add `active_order_leg` flag** — completed 2026-06-10 in `views.sql` (`exchange_internal_match` on `joined_fills`, `active_order_leg` on `trader_actions`; source of truth `data_infra/operator_denylist.py`, documented in METRICS_REFERENCE). Style reclassification: Domah 7.89 → 5.67 (still maker-heavy, smoke cell intact); 2 of 9 audited leaders flip category (leader_top_leaderboard maker_heavy → mixed; leader_dthreed8b71 mixed → taker_heavy). No smoke-target or cohort claim depended on the maker-biased label. PnL unaffected — style framing only. See [[copytrade_attribution_repartition_findings]].
 
 ### DEFERRED — Blocks D–F
 > **Block D** (backtest extensions): trigger = ≥1 tradeable signal in Block A

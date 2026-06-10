@@ -1,0 +1,58 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": true,
+  "showOrphans": false,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:brain -path:brain/generated",
+      "color": {
+        "a": 1,
+        "rgb": 15231080
+      }
+    },
+    {
+      "query": "path:polymarket/research",
+      "color": {
+        "a": 1,
+        "rgb": 13458396
+      }
+    },
+    {
+      "query": "path:polymarket/execution OR path:midas",
+      "color": {
+        "a": 1,
+        "rgb": 16752412
+      }
+    },
+    {
+      "query": "path:topics OR path:live_trading OR path:infrastructure OR path:docs",
+      "color": {
+        "a": 1,
+        "rgb": 7892181
+      }
+    },
+    {
+      "query": "path:archive",
+      "color": {
+        "a": 1,
+        "rgb": 47252
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 2,
+  "nodeSizeMultiplier": 1.00109809027778,
+  "lineSizeMultiplier": 0.506206597222222,
+  "collapse-forces": false,
+  "centerStrength": 0.399479166666667,
+  "repelStrength": 8.04600694444444,
+  "linkStrength": 0.249001736111111,
+  "linkDistance": 302,
+  "scale": 0.1323430487774156,
+  "close": false
+}

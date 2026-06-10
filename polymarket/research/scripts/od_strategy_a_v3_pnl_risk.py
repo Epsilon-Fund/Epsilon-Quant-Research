@@ -38,6 +38,7 @@ from od_strategy_a_v3 import (
     filter_mask,
     load_v3_fills,
     normalize_markdown_wrapping,
+    resolve_token_rv_physical_prob_fair,
 )
 
 
@@ -116,10 +117,14 @@ def add_claim_fields(fills: pd.DataFrame) -> pd.DataFrame:
     out = fills.copy()
     token_side = out["actual_outcome"].astype(str).str.lower()
     is_long = out["token_position"].astype(float).gt(0)
+    token_rv_fair = resolve_token_rv_physical_prob_fair(out, context="od_strategy_a_v3_pnl_risk.add_claim_fields")
     out["claim_side"] = np.where(is_long, token_side, token_side.map(complement))
     out["claim_unit_cost"] = np.where(is_long, out["entry_price"].astype(float), 1.0 - out["entry_price"].astype(float))
-    out["claim_model_fair"] = np.where(is_long, out["token_model_fair"].astype(float), 1.0 - out["token_model_fair"].astype(float))
-    out["claim_edge"] = out["claim_model_fair"] - out["claim_unit_cost"]
+    out["claim_rv_physical_prob_fair"] = np.where(is_long, token_rv_fair.astype(float), 1.0 - token_rv_fair.astype(float))
+    out["claim_model_fair"] = out["claim_rv_physical_prob_fair"]  # Legacy alias.
+    out["claim_fair_kind"] = "rv_physical_prob"
+    out["edge_vs_rv_physical_prob"] = out["claim_rv_physical_prob_fair"] - out["claim_unit_cost"]
+    out["claim_edge"] = out["edge_vs_rv_physical_prob"]  # Legacy alias.
     out["claim_payoff"] = np.where(is_long, out["payoff"].astype(float), 1.0 - out["payoff"].astype(float))
     out["claim_unit_pnl"] = out["claim_payoff"] - out["claim_unit_cost"] + out["maker_rebate"].astype(float)
     out["claim_unit_delta_dollars"] = out["signed_delta_exposure"].astype(float) * out["binance_spot"].astype(float)
@@ -204,6 +209,7 @@ def episode_from_weighted_fills(g: pd.DataFrame, *, policy: str) -> dict[str, An
         "capital_at_risk": float(capital),
         "roc": float(net_pnl / capital) if np.isfinite(capital) and capital > 1e-12 else math.nan,
         "roc_two_sided_risk": float(net_pnl / net_risk_capital) if np.isfinite(net_risk_capital) and net_risk_capital > 1e-12 else math.nan,
+        "mean_edge_vs_rv_physical_prob": float(np.average(g["edge_vs_rv_physical_prob"], weights=g["size"])) if g["size"].sum() > 0 else math.nan,
         "mean_claim_edge": float(np.average(g["claim_edge"], weights=g["size"])) if g["size"].sum() > 0 else math.nan,
         "mean_entry_price": float(np.average(g["entry_price"], weights=g["size"])) if g["size"].sum() > 0 else math.nan,
         "median_abs_z": float(g["abs_z"].median()),
@@ -221,10 +227,10 @@ def build_weighted_episodes(fills: pd.DataFrame, *, policy: str, selected_mask: 
     sub["size"] = 1.0
     if policy == "flat_1_contract":
         pass
-    elif policy == "fair_value_scaled":
-        sub["size"] = np.clip(sub["claim_edge"].astype(float) / 0.05, 0.25, 3.0)
+    elif policy in {"rv_edge_scaled", "fair_value_scaled"}:
+        sub["size"] = np.clip(sub["edge_vs_rv_physical_prob"].astype(float) / 0.05, 0.25, 3.0)
     elif policy == "fractional_kelly_25pct":
-        q = sub["claim_model_fair"].astype(float).clip(1e-6, 1 - 1e-6)
+        q = sub["claim_rv_physical_prob_fair"].astype(float).clip(1e-6, 1 - 1e-6)
         c = sub["claim_unit_cost"].astype(float).clip(1e-6, 1 - 1e-6)
         full_kelly_fraction = ((q - c) / (1.0 - c)).clip(lower=0.0)
         sub["size"] = np.clip(0.25 * full_kelly_fraction / c, 0.0, 3.0)
@@ -444,6 +450,7 @@ def enrich_depth(fills: pd.DataFrame) -> pd.DataFrame:
         "token_position",
         "half_spread",
         "claim_unit_pnl",
+        "edge_vs_rv_physical_prob",
         "claim_edge",
         "claim_unit_cost",
     ]
@@ -499,7 +506,7 @@ def build_capture_curve(selected_fills: pd.DataFrame) -> pd.DataFrame:
         touch = depth["touch_depth_shares"].to_numpy(dtype=float)
         half_spread = depth["half_spread"].astype(float).fillna(0.0).to_numpy()
         slippage = np.where(gross_units > 1e-12, np.maximum(0.0, gross_units - touch) / gross_units * half_spread, 0.0)
-        expected_unit = depth["claim_edge"].to_numpy(dtype=float) + selected_fills.set_index("fill_id").loc[depth["fill_id"], "maker_rebate"].to_numpy(dtype=float) - slippage
+        expected_unit = depth["edge_vs_rv_physical_prob"].to_numpy(dtype=float) + selected_fills.set_index("fill_id").loc[depth["fill_id"], "maker_rebate"].to_numpy(dtype=float) - slippage
         realized_unit = depth["claim_unit_pnl"].to_numpy(dtype=float) - slippage
         realistic_units = gross_units * NON_TOP3_AVAILABLE_SHARE
         rows.append(
@@ -836,7 +843,7 @@ All sizing policies use the same OOS far-|z| strict-rich/source-filtered fill se
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {chr(10).join('| ' + ' | '.join(row) + ' |' for row in sizing_rows)}
 
-Sizing definitions: `flat_1_contract` buys one synthetic complement per accepted fill. `fair_value_scaled` sizes roughly proportional to OD edge, capped at 3x. `dollar_delta_cap_50` clips fills once running episode dollar-delta reaches $50. `fractional_kelly_25pct` uses a quarter-Kelly binary-contract proxy from causal fair value, also capped at 3x.
+Sizing definitions: `flat_1_contract` buys one synthetic complement per accepted fill. `rv_edge_scaled` sizes roughly proportional to edge versus RV physical-probability fair, capped at 3x. `dollar_delta_cap_50` clips fills once running episode dollar-delta reaches $50. `fractional_kelly_25pct` uses a quarter-Kelly binary-contract proxy from RV physical-probability fair, also capped at 3x.
 
 ## Task 4 — Left Tail
 
@@ -854,7 +861,7 @@ MM benchmark used here: K5-STRESS crypto_4h structured-non-top3 median `2.4 bps`
 | --- | --- | --- | --- | --- | --- | --- | --- |
 {chr(10).join('| ' + ' | '.join(row) + ' |' for row in incremental_rows)}
 
-The key line is `strict_rich_short_minus_strict_source_same_markets`. If it is not lower-CI positive, OD has not proven that fair-value richness adds EV beyond simply selecting the same source-filtered/structural markets. In that case this should fold back into MM as a quote-selection feature rather than stand alone as a separate OD edge.
+The key line is `strict_rich_short_minus_strict_source_same_markets`. If it is not lower-CI positive, OD has not proven that RV-richness adds EV beyond simply selecting the same source-filtered/structural markets. In that case this should fold back into MM as a quote-selection feature rather than stand alone as a separate OD edge.
 
 ## Gate Verdict
 
@@ -878,7 +885,7 @@ def run() -> EpisodeArtifacts:
     sizing_eps = pd.concat(
         [
             build_weighted_episodes(fills, policy="flat_1_contract", selected_mask=primary_mask),
-            build_weighted_episodes(fills, policy="fair_value_scaled", selected_mask=primary_mask),
+            build_weighted_episodes(fills, policy="rv_edge_scaled", selected_mask=primary_mask),
             build_weighted_episodes(fills, policy="dollar_delta_cap_50", selected_mask=primary_mask),
             build_weighted_episodes(fills, policy="fractional_kelly_25pct", selected_mask=primary_mask),
         ],

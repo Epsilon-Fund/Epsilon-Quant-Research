@@ -32,6 +32,12 @@ Terms and acronyms across Epsilon projects.
 - **ADX** — average directional index.
 - **Calmar** — annualised return / max drawdown.
 - **Plateau analysis** — robustness check on Optuna parameter neighbourhood.
+- **DSR** — Deflated Sharpe Ratio: the observed Sharpe minus the Sharpe a search of N trials would find by luck on zero-edge data (the "selection haircut"). See [[OVERFITTING_VALIDATION]].
+- **PBO** — Probability of Backtest Overfitting: how often the in-sample-best config lands in the bottom half out-of-sample (~0.5 = selection carries no info; > 0.5 = anti-informative). See [[OVERFITTING_VALIDATION]].
+- **CSCV** — Combinatorially Symmetric Cross-Validation: the all-symmetric-block-partitions procedure that produces PBO.
+- **Reality Check** — White's (2000) bootstrap test of whether the best-of-search config beats zero after accounting for the search; studentised = Hansen (2005) SPA refinement. See [[OVERFITTING_VALIDATION]].
+- **SPA** — Superior Predictive Ability (Hansen 2005): studentised, less conservative successor to White's Reality Check.
+- **Selection haircut (SR\*)** — expected maximum Sharpe of an N-trial search on zero-edge data; subtracted from the observed Sharpe to deflate it.
 
 ## copytrade — markets & infra
 

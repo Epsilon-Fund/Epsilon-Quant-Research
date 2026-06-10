@@ -19,7 +19,7 @@ tags:
 > The single start-here surface for humans and agents. Read this before scanning folders.
 > If you only read one file to orient, read this one, then the hub it points you to.
 
-Hub links: [[CODEX]] | [[COWORK]] | [[TODO]] | [[ONBOARDING]] | [[START_RESEARCH_IDEA]] | [[POLYMARKET_BRAIN]] | [[glossary]] | [[SKILL_MAP]] | [[OPERATING_RHYTHMS]] | [[OBSIDIAN_INFRA_ROADMAP]] | [[COWORK_MIGRATION]]
+Hub links: [[CODEX]] | [[COWORK]] | [[TODO]] | [[ONBOARDING]] | [[MERGE_PROTOCOL]] | [[START_RESEARCH_IDEA]] | [[POLYMARKET_BRAIN]] | [[glossary]] | [[SKILL_MAP]] | [[OPERATING_RHYTHMS]] | [[OBSIDIAN_INFRA_ROADMAP]] | [[COWORK_MIGRATION]]
 
 ## What this repo is
 
@@ -32,9 +32,12 @@ A two-project quantitative research monorepo. The projects **share no code** —
 
 ## Agent Bootstrap (do this before anything else)
 
-1. Determine your role: Codex -> `local_agents/codex.md`; Cowork/Claude Code -> `local_agents/cowork.md`.
+> This is the **canonical copy** of the Agent Bootstrap. Every other doc points here — do not duplicate the block.
+
+1. Determine your role: **implementation agent (Codex *or* Claude Code)** -> `local_agents/codex.md`; **orchestration agent (Cowork)** -> `local_agents/cowork.md`.
 2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
 3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
+4. You operate on a personal branch named after the operator's GitHub handle. Commit/push only to that branch — never main. Merge main into your branch at session start; all merges follow [[MERGE_PROTOCOL]].
 
 Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
 
@@ -43,7 +46,7 @@ Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo
 After bootstrap:
 
 1. **This file** — orientation + where things live.
-2. Your shared role convention: [[codex_lane]] (Codex) or [[cowork_lane]] (Cowork/Claude Code).
+2. Your shared role convention: [[codex_lane]] (implementation: Codex / Claude Code) or [[cowork_lane]] (orchestration: Cowork).
 3. For a new idea: [[START_RESEARCH_IDEA]] — fresh-agent workflow, idea-card shape, and where first durable notes go.
 4. For Polymarket work: [[POLYMARKET_BRAIN]] → the relevant strategy hub.
 5. For data-heavy work: the relevant manifest (see Generated Reports + Data Manifests below) before scanning raw folders.
@@ -53,7 +56,7 @@ After bootstrap:
 | Path | Owns |
 |---|---|
 | `brain/` | Git-tracked context hub: maps, hubs, task list, agent lanes, handoffs (this folder) |
-| `local_agents/` | Local-only per-person agent instruction overlays; git-ignored and not Relay-shared |
+| `local_agents/` | Local-only per-person agent instruction overlays; git-ignored, never on any branch |
 | `polymarket/research/` | Polymarket research code, notes, data manifests |
 | `polymarket/execution/` (+ `midas/`) | Polymarket execution bot |
 | `live_trading/` | Unified Streamlit live-trading app + dashboards |
@@ -68,11 +71,13 @@ After bootstrap:
 
 | Hub | Owns | Read when |
 |---|---|---|
-| [[CODEX]] | Implementation-agent README: invariants, run env, where to write | Every Codex session start |
+| [[CODEX]] | Implementation-agent README: invariants, run env, where to write | Every implementation-agent (Codex / Claude Code) session start |
 | [[COWORK]] | Strategic-agent README: active clusters, prompt discipline | Every Cowork session start |
-| [[codex.local.template.md|codex.local.template]] | Shared template for seeding `local_agents/codex.md` | Fresh Codex machine / missing local overlay |
-| [[cowork.local.template.md|cowork.local.template]] | Shared template for seeding `local_agents/cowork.md` | Fresh Cowork/Claude Code machine / missing local overlay |
+| [[codex.local.template.md|codex.local.template]] | Shared template for seeding `local_agents/codex.md` | Fresh Codex / Claude Code machine / missing local overlay |
+| [[cowork.local.template.md|cowork.local.template]] | Shared template for seeding `local_agents/cowork.md` | Fresh Cowork machine / missing local overlay |
 | [[TODO]] | Authoritative live task list | Before any "what's next" |
+| [[MERGE_PROTOCOL]] | Branch-per-person git model + merge-to-main procedure + smart-merge prompt | Session start catch-up, any merge to main, any merge conflict |
+| [[ONBOARDING]] | Workspace structure + collaboration model + new-collaborator setup | First session on a new machine / new collaborator |
 | [[START_RESEARCH_IDEA]] | Fresh-agent guide for framing and launching new research ideas | Before starting a new branch or asking another agent to frame one |
 | [[POLYMARKET_BRAIN]] | Obsidian map of Polymarket strategy clusters | Any Polymarket work |
 | [[SKILL_MAP]] | Repeatable agent workflows + when to run them | Setting up / running a hygiene or chronicler pass |
@@ -82,6 +87,8 @@ After bootstrap:
 
 ## Where to write things
 
+> This is the **canonical** where-to-write table. [[CODEX]] and [[COWORK]] point here and carry only their role-specific deltas.
+
 | Content type | Path | Required backlink |
 |---|---|---|
 | Polymarket MM findings | `polymarket/research/notes/market_making/<topic>_findings.md` | [[strat_market_making]] · [[COWORK]] |
@@ -89,6 +96,13 @@ After bootstrap:
 | copytrade findings | `polymarket/research/notes/copytrade/<topic>_findings.md` | [[COWORK]] |
 | dali lineage findings | `polymarket/research/notes/dali/<topic>_findings.md` | [[COWORK]] |
 | Polymarket synthesis / explainers | `polymarket/research/notes/overview/synthesis/<topic>.md` | [[POLYMARKET_BRAIN]] · relevant strategy hub or [[COWORK]] |
+| Polymarket foundations / deep research | `polymarket/research/notes/overview/foundations/<topic>.md` | [[POLYMARKET_BRAIN]] |
+| Polymarket data quality / methodology | `polymarket/research/notes/overview/data_quality/<topic>.md` | [[POLYMARKET_BRAIN]] |
+| Polymarket market maps / screens | `polymarket/research/notes/overview/market_maps/<topic>.md` | [[POLYMARKET_BRAIN]] |
+| Polymarket CSV report outputs | `polymarket/research/data/analysis/csv_outputs/<cluster>/<topic>.csv` — explain non-obvious columns in the linked `.md` | the linked findings note |
+| Polymarket chart outputs | `polymarket/research/data/analysis/plots/<cluster>/<topic>.<png/svg>`, unless an existing script owns a local plot folder | the embedding note |
+| Polymarket data manifests | update [[polymarket_data_manifest]] for durable data-family changes; don't link every shard | — |
+| Crypto/live-trading data manifests | update [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] for durable cache/pickle/CSV/JSONL family changes | — |
 | Crypto strategy / WF findings | `topics/<strategy>/research/` or `docs/` | `docs/STRATEGY_REFERENCE.md` |
 | Live trading architecture | `live_trading/CLAUDE.md` (append) | — |
 | Cross-thread snapshots | `brain/handoffs/<YYYY-MM-DD>_<topic>.md` | relevant hub |
@@ -97,16 +111,7 @@ After bootstrap:
 | Agent scratch (WIP) | `scratch/<agent>/YYYY-MM-DD.md` (top-level, local-only) | own lane only |
 | Code / scripts | under the relevant project — **never** in `brain/` | — |
 
-Before editing any shared durable Markdown file, acquire a cooperative edit lock:
-
-```bash
-python3 tools/brain_edit_guard.py acquire --agent <codex|cowork|justin> --path <path.md> --intent "<short reason>"
-python3 tools/brain_edit_guard.py release --agent <codex|cowork|justin> --path <path.md>
-```
-
-If the lock is held by another agent, stop and report instead of editing around it.
-
-Cross-lane edits are not banned, but they require explicit instruction. Use `--allow-cross-lane` only when Justin asked one agent to edit the other agent's lane.
+Concurrent-edit safety comes from the branch model: each collaborator edits on their own branch and conflicts are resolved at merge time per [[MERGE_PROTOCOL]]. There are no per-file edit locks.
 
 ## Active research branches
 
@@ -147,12 +152,10 @@ Shared knowledge brain, shared role conventions, **separate per-person overlays 
 
 | Role | Shared role convention | Local private overlay | Scratch |
 |---|---|---|---|
-| Codex | [[codex_lane]] (`brain/agents/codex/codex_lane.md`) | `local_agents/codex.md` seeded from [[codex.local.template.md|codex.local.template]] | `scratch/codex/YYYY-MM-DD.md` |
-| Cowork / Claude Code | [[cowork_lane]] (`brain/agents/cowork/cowork_lane.md`) | `local_agents/cowork.md` seeded from [[cowork.local.template.md|cowork.local.template]] | `scratch/cowork/YYYY-MM-DD.md` |
+| Implementation — Codex / Claude Code | [[codex_lane]] (`brain/agents/codex/codex_lane.md`) | `local_agents/codex.md` seeded from [[codex.local.template.md|codex.local.template]] | `scratch/codex/YYYY-MM-DD.md` |
+| Orchestration — Cowork | [[cowork_lane]] (`brain/agents/cowork/cowork_lane.md`) | `local_agents/cowork.md` seeded from [[cowork.local.template.md|cowork.local.template]] | `scratch/cowork/YYYY-MM-DD.md` |
 
-Temporary cooperative lock files live under `brain/agents/locks/`; see [[agent_edit_locks]]. They are managed by `tools/brain_edit_guard.py` and sync live via Relay so each agent sees the other's active claim.
-
-Relay scope: it shares the research folders (`Attachments/`, `archive/`, `docs/`, `infrastructure/`, `live_trading/`, `meetings/`, `midas/`, `newsletters/`, `polymarket/`, `topics/`) and **all of `brain/`** — so [[VAULT_MAP]], [[TODO]], the hubs, handoffs, generated reports, shared lane docs, templates, and edit locks are live for both collaborators. Top-level `local_agents/` and `scratch/` are deliberately kept off Relay and ignored by Git, so each person has private agent overlays and WIP. See [[ONBOARDING]] § Sync model.
+Collaboration model: each person works on a **personal git branch named after their GitHub handle**; `main` is the shared integration branch and is only written by deliberate, agent-assisted merges — see [[MERGE_PROTOCOL]] and [[ONBOARDING]] § Collaboration model. Top-level `local_agents/` and `scratch/` are git-ignored, so each person's agent overlays and WIP never appear in any branch or merge. (The former live-sync + edit-lock mechanism was retired 2026-06-10 — see [[2026-06-10_relay_retirement_branch_model]].)
 
 ## Deeper inspection
 
@@ -163,3 +166,5 @@ python tools/brain_hygiene.py
 # List tracked brain markdown
 git ls-files 'brain/**/*.md'
 ```
+
+For "find prior work on X" / "what do we already know about Y", prefer the local **gbrain MCP tools** (semantic `search`, `traverse_graph`, `get_backlinks`) over reading hubs end-to-end — it indexes this vault locally and turns `[[basename]]` links into a queryable graph. Retrieval only (synthesis stays in-agent); re-import after big vault changes. Setup/teardown + caveats: [[gbrain_retrieval_layer]] (`docs/tooling/gbrain_retrieval_layer.md`).

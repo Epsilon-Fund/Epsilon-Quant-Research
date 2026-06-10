@@ -52,7 +52,7 @@ Phase 2 cleanup fixed the navigation-critical scanner findings first, then backf
 
 The scanner surfaced three orphans after generated outputs moved fully under ignored `brain/generated/`. This handoff links them so the final scanner run should no longer report them as orphaned:
 
-- [[2026-06-07]] — empty root daily note present in the vault.
+- `2026-06-07.md` — empty root daily note (since removed from the vault).
 - [[2026-06-05_obsidian_brain_setup]] — useful older setup guide.
 - [[polymarket/execution/scripts/SMOKE_MAKER|SMOKE_MAKER]] — live maker smoke runbook.
 
@@ -81,4 +81,4 @@ What changed:
 Graph audit after the pass:
 
 - `python3 tools/brain_graph_audit.py` reported **182 nodes**, **1045 edges**, **1 connected component**, **0 orphans**, and **0 topic islands**.
-- The only dead-end is [[2026-06-07]], an empty root daily-note shell. It is inbound-linked and does not split the graph; leave it empty unless we decide to delete or turn it into a real daily note.
+- At the time of this pass the only dead-end was `2026-06-07.md`, an empty root daily-note shell; it has since been removed, so the graph now reports **0 dead-ends**.

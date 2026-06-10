@@ -54,6 +54,7 @@ PLOT_PM_SKIP = PLOTS / "od_touch_risk_filter_pm_skip_stress_ev.png"
 NOTE = NOTES / "options_delta" / "od_touch_risk_filter_findings.md"
 
 SYMBOLS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "SOL": "SOLUSDT"}
+RV_EDGE_POLICIES = {"rv_edge_scaled", "fair_value_scaled"}
 RNG_SEED = 20260603
 BOOTSTRAP_SAMPLES = 1000
 TRAIN_END = pd.Timestamp("2025-01-01", tz="UTC")
@@ -772,7 +773,7 @@ def plot_outputs(deciles: pd.DataFrame, pm_skip: pd.DataFrame) -> None:
         fig.savefig(PLOT_DECILES, dpi=160)
         plt.close(fig)
 
-    fair = pm_skip[pm_skip["policy"].eq("fair_value_scaled")].copy()
+    fair = pm_skip[pm_skip["policy"].isin(RV_EDGE_POLICIES)].copy()
     if not fair.empty:
         fig, ax = plt.subplots(figsize=(8, 4.5))
         order = ["take_all", "skip_top_30pct", "skip_top_20pct", "skip_top_10pct", "skip_top_5pct"]
@@ -792,7 +793,7 @@ def plot_outputs(deciles: pd.DataFrame, pm_skip: pd.DataFrame) -> None:
         )
         ax.axhline(0, color="black", linewidth=1)
         ax.set_ylabel("Stress EV (c/weighted contract)")
-        ax.set_title("PM fair-value-scaled fill stress EV after risk-score skips")
+        ax.set_title("PM rv-edge-scaled fill stress EV after risk-score skips")
         ax.tick_params(axis="x", rotation=20)
         fig.tight_layout()
         fig.savefig(PLOT_PM_SKIP, dpi=160)
@@ -838,8 +839,8 @@ def write_note(
 ) -> None:
     held_auc = sep[(sep["sample"].eq("heldout")) & (sep["label"].eq("bad_touch"))].iloc[0]
     jump_auc = sep[(sep["sample"].eq("heldout")) & (sep["label"].eq("jump_driven_touch_vs_no_touch"))].iloc[0]
-    fair_take = pm_skip[(pm_skip["policy"].eq("fair_value_scaled")) & (pm_skip["rule"].eq("take_all"))]
-    fair_best = pm_skip[pm_skip["policy"].eq("fair_value_scaled") & ~pm_skip["rule"].eq("take_all")].copy()
+    fair_take = pm_skip[(pm_skip["policy"].isin(RV_EDGE_POLICIES)) & (pm_skip["rule"].eq("take_all"))]
+    fair_best = pm_skip[pm_skip["policy"].isin(RV_EDGE_POLICIES) & ~pm_skip["rule"].eq("take_all")].copy()
     if not fair_best.empty:
         fair_best = fair_best.sort_values(["stress_ev_ci_lo", "mean_stress_ev"], ascending=False).head(1)
 
@@ -854,12 +855,12 @@ def write_note(
     ]
     pd.DataFrame(data_ledger_rows, columns=["ledger_bucket", "detail"]).to_csv(OUT_DATA_LEDGER, index=False)
 
-    fair_text = "No fair-value-scaled PM skip row was available."
+    fair_text = "No rv-edge-scaled PM skip row was available."
     if not fair_take.empty and not fair_best.empty:
         take = fair_take.iloc[0]
         best = fair_best.iloc[0]
         fair_text = (
-            f"On the tiny PM fair-value-scaled fill set, take-all stress EV is {cents(float(take['mean_stress_ev']))} "
+            f"On the tiny PM rv-edge-scaled fill set, take-all stress EV is {cents(float(take['mean_stress_ev']))} "
             f"{fmt_ci(float(take['stress_ev_ci_lo']), float(take['stress_ev_ci_hi']), 'c')}. "
             f"The best skip row is `{best['rule']}` at {cents(float(best['mean_stress_ev']))} "
             f"{fmt_ci(float(best['stress_ev_ci_lo']), float(best['stress_ev_ci_hi']), 'c')}, retaining "
@@ -921,11 +922,11 @@ Read: skipping high-score windows lowers retained bad-touch rates somewhat, but 
 
 The PM overlay uses `od_strategy_a_tail_sizing_weighted_fills.parquet`, the same 7-market / 22-fill Strategy-A stress sample from [[od_strategy_a_realism_reaudit_findings]]. This is too small for a new OOS result, so it is only a sanity check: does the score obviously improve stress EV when applied to the actual harvest rows?
 
-{table_from_df(pm_skip[pm_skip['policy'].isin(['flat_1_contract', 'fair_value_scaled'])], ['policy', 'rule', 'fills_after', 'markets_after', 'retained_fraction_weighted', 'mean_stress_ev', 'stress_ev_ci_lo', 'stress_ev_ci_hi', 'mean_tail_ev', 'mean_realized_claim_pnl'], 20)}
+{table_from_df(pm_skip[pm_skip['policy'].isin(['flat_1_contract', 'rv_edge_scaled', 'fair_value_scaled'])], ['policy', 'rule', 'fills_after', 'markets_after', 'retained_fraction_weighted', 'mean_stress_ev', 'stress_ev_ci_lo', 'stress_ev_ci_hi', 'mean_tail_ev', 'mean_realized_claim_pnl'], 20)}
 
 ![PM skip stress EV](/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/data/analysis/plots/options_delta/od_touch_risk_filter_pm_skip_stress_ev.png)
 
-Caption: fair-value-scaled PM stress EV after train-threshold skip rules. Error bars are market-cluster bootstrap CIs over the tiny PM sample.
+Caption: RV-edge-scaled PM stress EV after train-threshold skip rules. Error bars are market-cluster bootstrap CIs over the tiny PM sample.
 
 Read: no PM skip row earns promotion. The train-set thresholds do not drop any of the observed flat/fair Strategy-A fills, so the unchanged point estimate and small CI wiggle are bootstrap noise over the same kept rows. This is not enough to alter the live-loop sizing recommendation from [[od_strategy_a_realism_reaudit_findings]].
 

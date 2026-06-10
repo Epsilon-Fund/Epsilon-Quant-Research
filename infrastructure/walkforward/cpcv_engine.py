@@ -225,6 +225,7 @@ def run_cpcv(
     reject_fn    = None,
     verbose      = True,
     n_jobs       = 1,
+    collect_trials = False,
 ):
     """
     Combinatorial Purged Cross-Validation (CPCV).
@@ -323,6 +324,18 @@ def run_cpcv(
         best_params = {**fixed_params, **study.best_params}
         is_score    = study.best_value
 
+        # ── per-trial records for the overfitting audit ────────────────────
+        # The study is in-memory and discarded after this loop; without this
+        # capture, DSR/PBO inputs (infrastructure/validation/overfitting_audit)
+        # cannot be rebuilt from the saved artifact.
+        trial_records = None
+        if collect_trials:
+            trial_records = [
+                {'number': t.number, 'value': t.value,
+                 'params': dict(t.params), **t.user_attrs}
+                for t in study.trials
+            ]
+
         # ── IS Sharpe — one extra evaluation on the training slice ─────────
         # score_fn is a composite (Sharpe + Calmar + Return), so comparing it
         # directly against OOS Sharpe would be apples-to-oranges.  Run the
@@ -392,6 +405,7 @@ def run_cpcv(
             'is_score':           is_score,
             'is_sharpe':          is_sharpe,
             'group_results':      group_results,
+            **({'trials': trial_records} if collect_trials else {}),
         })
 
     # ── param_distributions ───────────────────────────────────────────────────

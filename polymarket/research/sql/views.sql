@@ -15,6 +15,24 @@
 --       maker != taker        (drops 905 self-trades, 2022-11 → 2023-04)
 --       market_id IS NOT NULL (orphans go to trader_actions_orphan instead)
 --       outcome_index resolved (drops fills whose token_id isn't in the snapshot)
+--   - active_order_leg (BOOLEAN, trader_actions) — "this row's address signed
+--     the ACTIVE (aggressor) order of the fill". CTF Exchange `_matchOrders`
+--     emits the internal active leg of a two-sided match with
+--     maker = takerOrder.maker and taker = address(this), so when the fill's
+--     `taker` is one of the 4 exchange-internal-leg contracts the wallet in the
+--     `maker` column was actually the aggressor. Semantics per role:
+--       maker-role row: TRUE iff the fill's taker is an exchange-internal-leg
+--         contract (active order signer labelled as maker); FALSE = genuine
+--         passive maker.
+--       taker-role row: TRUE for normal fills (taker is the aggressor by
+--         definition); FALSE iff the row's address IS the exchange contract
+--         itself — an artifact leg, not a trader; exclude those rows from
+--         per-trader style metrics.
+--     PnL/position attribution is unaffected by this flag — style framing only.
+--     joined_fills carries the fill-level precursor `exchange_internal_match`
+--     (TRUE iff taker is an exchange-internal-leg contract).
+--     The 4 addresses are hardcoded below; SOURCE OF TRUTH is
+--     data_infra/operator_denylist.py (EXCHANGE_INTERNAL_LEG) — keep in sync.
 --
 -- Performance design:
 --   The view performs the JOIN to markets_tokens ONCE on raw_trades, then
@@ -73,7 +91,17 @@ SELECT
     pre.price,
     pre.transaction_hash,
     pre.outcome_token_id,
-    mt.outcome_index
+    mt.outcome_index,
+    -- TRUE iff this fill row is the `_matchOrders` exchange-internal active leg
+    -- (the wallet in `maker` was the aggressor / active order signer).
+    -- Hardcoded; keep in sync with data_infra/operator_denylist.py
+    -- EXCHANGE_INTERNAL_LEG (source of truth).
+    pre.taker IN (
+        '0x4bfb41d5b3570defd03c39a9a4d8de6bd8b8982e',  -- CTF Exchange v1 standard
+        '0xc5d563a36ae78145c45a50134d48a1215220f80a',  -- CTF Exchange v1 neg-risk
+        '0xe111180000d2663c0091e4f400237545b87b996b',  -- CTF Exchange v2 standard (post 2026-04-28)
+        '0xe2222d279d744050d28e00520010520000310f59'   -- CTF Exchange v2 neg-risk (post 2026-04-28)
+    ) AS exchange_internal_match
 FROM (
     SELECT
         rt.timestamp,
@@ -119,7 +147,10 @@ SELECT
     token_amount,
     usd_amount,
     price,
-    transaction_hash
+    transaction_hash,
+    -- maker-role row was the active order signer iff this fill is the
+    -- _matchOrders exchange-internal leg (see header).
+    exchange_internal_match AS active_order_leg
 FROM joined_fills
 UNION ALL
 SELECT
@@ -136,7 +167,11 @@ SELECT
     token_amount,
     usd_amount,
     price,
-    transaction_hash
+    transaction_hash,
+    -- a normal taker-role row is the aggressor by definition; FALSE only when
+    -- the address itself is the exchange contract (artifact leg — exclude from
+    -- per-trader style metrics; see header).
+    NOT exchange_internal_match AS active_order_leg
 FROM joined_fills;
 
 

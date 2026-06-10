@@ -1,0 +1,2018 @@
+prepared_at: '2026-06-07T13:24:26Z'
+purpose: Stage-1 continuation live CLOB capture for slow_crypto_finance; observation only; no orders.
+  Refreshed on 20260607T132412Z.
+run:
+  run_id: mm_stage1_slow_crypto_finance_awake_20260607T132412Z
+  label: mm_stage1_slow_crypto_finance
+  duration_hours: 8
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_slow_crypto_finance
+selection:
+  source: 'fresh continuation refresh: current Gamma/CLOB crypto plus active carried-forward sports/finance
+    markets'
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+markets:
+- id: '2453561'
+  condition_id: '0xbf355f2965fa950eb9e613b09fdea39c929657bf3d6036fbbb045529b675c368'
+  question: Bitcoin Up or Down - June 7, 8:00AM-12:00PM ET
+  group_item_title: Bitcoin Up or Down - June 7, 8:00AM-12:00PM ET
+  event_slug: btc-updown-4h-1780833600
+  slug: btc-updown-4h-1780833600
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 9124.994268000002
+  volume24hr: 9119.994267999999
+  liquidity: 4153.498
+  best_bid: 0.09
+  best_ask: 0.12
+  mid: 0.105
+  spread: 0.03
+  neg_risk: false
+  clob_token_ids:
+  - '47937749059935664888817530640008858936864118175958968041134862310710612349925'
+  - '47190365114342204850705803219972329298592413632679473932539647847161296042202'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '47937749059935664888817530640008858936864118175958968041134862310710612349925'
+        o: Up
+      - t: '47190365114342204850705803219972329298592413632679473932539647847161296042202'
+        o: Down
+      c: '0xbf355f2965fa950eb9e613b09fdea39c929657bf3d6036fbbb045529b675c368'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T12:06:33Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 9
+    book_asks: 27
+    book_best_bid: 0.09
+    book_best_ask: 0.12
+    book_mid: 0.105
+    book_spread: 0.03
+    book_spread_bps: 2857.142857142857
+    book_top_bid_size: 86.55
+    book_top_ask_size: 348.34
+    book_touch_notional: 49.59029999999999
+    trades_24h: 306
+    trades_48h: 307
+    usd_24h: 4811.03
+    usd_48h: 4813.58
+    last_trade_ts: 1780838362
+    last_trade_minutes_ago: 4.9
+    trade_sides:
+      BUY: 296
+      SELL: 11
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: true
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2453578'
+  condition_id: '0x2c1de5855e5915d683408d477ac6d7849f299ccd1730f0bd4a1ffe07e2694d6f'
+  question: Ethereum Up or Down - June 7, 8:00AM-12:00PM ET
+  group_item_title: Ethereum Up or Down - June 7, 8:00AM-12:00PM ET
+  event_slug: eth-updown-4h-1780833600
+  slug: eth-updown-4h-1780833600
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 2239.591471
+  volume24hr: 2239.591471
+  liquidity: 4803.5489
+  best_bid: 0.27
+  best_ask: 0.34
+  mid: 0.30500000000000005
+  spread: 0.07
+  neg_risk: false
+  clob_token_ids:
+  - '19852092103132007810245715698086014168322495252524541984803344319320868313348'
+  - '89064987631008761503859007962540314866613047713844099200784216525614798010275'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '19852092103132007810245715698086014168322495252524541984803344319320868313348'
+        o: Up
+      - t: '89064987631008761503859007962540314866613047713844099200784216525614798010275'
+        o: Down
+      c: '0x2c1de5855e5915d683408d477ac6d7849f299ccd1730f0bd4a1ffe07e2694d6f'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T12:06:52Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 15
+    book_asks: 16
+    book_best_bid: 0.27
+    book_best_ask: 0.34
+    book_mid: 0.30500000000000005
+    book_spread: 0.07
+    book_spread_bps: 2295.0819672131147
+    book_top_bid_size: 350.0
+    book_top_ask_size: 6.0
+    book_touch_notional: 96.54
+    trades_24h: 37
+    trades_48h: 37
+    usd_24h: 816.45
+    usd_48h: 816.45
+    last_trade_ts: 1780836958
+    last_trade_minutes_ago: 28.3
+    trade_sides:
+      SELL: 1
+      BUY: 36
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2453563'
+  condition_id: '0xa17b67a8b4bc4afa0c41d8746342e3d9fdbee0fe9a9f4445a0fd00a71f99833e'
+  question: Solana Up or Down - June 7, 8:00AM-12:00PM ET
+  group_item_title: Solana Up or Down - June 7, 8:00AM-12:00PM ET
+  event_slug: sol-updown-4h-1780833600
+  slug: sol-updown-4h-1780833600
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 1233.714743
+  volume24hr: 1233.714743
+  liquidity: 3614.6798
+  best_bid: 0.17
+  best_ask: 0.2
+  mid: 0.185
+  spread: 0.03
+  neg_risk: false
+  clob_token_ids:
+  - '50252286317226827586519159739913748446868420072623858433963573047940959680031'
+  - '93058294448706462480805462074527548102037318442053336368460399620519909104576'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '50252286317226827586519159739913748446868420072623858433963573047940959680031'
+        o: Up
+      - t: '93058294448706462480805462074527548102037318442053336368460399620519909104576'
+        o: Down
+      c: '0xa17b67a8b4bc4afa0c41d8746342e3d9fdbee0fe9a9f4445a0fd00a71f99833e'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T12:07:04Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 11
+    book_asks: 13
+    book_best_bid: 0.17
+    book_best_ask: 0.2
+    book_mid: 0.185
+    book_spread: 0.03
+    book_spread_bps: 1621.6216216216217
+    book_top_bid_size: 50.0
+    book_top_ask_size: 150.0
+    book_touch_notional: 38.5
+    trades_24h: 22
+    trades_48h: 22
+    usd_24h: 605.54
+    usd_48h: 605.54
+    last_trade_ts: 1780837903
+    last_trade_minutes_ago: 12.6
+    trade_sides:
+      BUY: 22
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2453569'
+  condition_id: '0x0e039e78a7d53a6530e64d5a49ba366c2cd40fb56c2e3354b916bd73a50842ff'
+  question: Dogecoin Up or Down - June 7, 8:00AM-12:00PM ET
+  group_item_title: Dogecoin Up or Down - June 7, 8:00AM-12:00PM ET
+  event_slug: doge-updown-4h-1780833600
+  slug: doge-updown-4h-1780833600
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 826.9997
+  best_bid: 0.15
+  best_ask: 0.21
+  mid: 0.18
+  spread: 0.06
+  neg_risk: false
+  clob_token_ids:
+  - '81557872099055305038162826810392042560682223361369749927424637709308002712133'
+  - '24816178375526712454069959382629415071675314311758245890183090812055888601690'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '81557872099055305038162826810392042560682223361369749927424637709308002712133'
+        o: Up
+      - t: '24816178375526712454069959382629415071675314311758245890183090812055888601690'
+        o: Down
+      c: '0x0e039e78a7d53a6530e64d5a49ba366c2cd40fb56c2e3354b916bd73a50842ff'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T12:06:51Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 8
+    book_asks: 13
+    book_best_bid: 0.15
+    book_best_ask: 0.21
+    book_mid: 0.18
+    book_spread: 0.06
+    book_spread_bps: 3333.333333333333
+    book_top_bid_size: 80.0
+    book_top_ask_size: 10.0
+    book_touch_notional: 14.1
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2453572'
+  condition_id: '0xb779e61da422ef09abcba1e156e8bcb36ef1e84ac2aeffa0c7158188a6b7d22c'
+  question: XRP Up or Down - June 7, 8:00AM-12:00PM ET
+  group_item_title: XRP Up or Down - June 7, 8:00AM-12:00PM ET
+  event_slug: xrp-updown-4h-1780833600
+  slug: xrp-updown-4h-1780833600
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 688.041468
+  volume24hr: 688.041468
+  liquidity: 3455.4402
+  best_bid: 0.12
+  best_ask: 0.18
+  mid: 0.15
+  spread: 0.06
+  neg_risk: false
+  clob_token_ids:
+  - '72012414129897050967082611506722485341908464661708109891670568984711316695097'
+  - '59279645383860571502299764313564317769053751180322431499174725423624977250418'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '72012414129897050967082611506722485341908464661708109891670568984711316695097'
+        o: Up
+      - t: '59279645383860571502299764313564317769053751180322431499174725423624977250418'
+        o: Down
+      c: '0xb779e61da422ef09abcba1e156e8bcb36ef1e84ac2aeffa0c7158188a6b7d22c'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T12:07:10Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 8
+    book_asks: 14
+    book_best_bid: 0.12
+    book_best_ask: 0.18
+    book_mid: 0.15
+    book_spread: 0.06
+    book_spread_bps: 4000.0
+    book_top_bid_size: 200.0
+    book_top_ask_size: 150.0
+    book_touch_notional: 51.0
+    trades_24h: 17
+    trades_48h: 17
+    usd_24h: 194.15
+    usd_48h: 194.15
+    last_trade_ts: 1780837833
+    last_trade_minutes_ago: 13.7
+    trade_sides:
+      BUY: 17
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2453575'
+  condition_id: '0xd76841a7ffdfb956ee9f88a8627b892f14ce34ddfda808b39b790f99ac6d5a89'
+  question: BNB Up or Down - June 7, 8:00AM-12:00PM ET
+  group_item_title: BNB Up or Down - June 7, 8:00AM-12:00PM ET
+  event_slug: bnb-updown-4h-1780833600
+  slug: bnb-updown-4h-1780833600
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 27.955886
+  volume24hr: 27.955886
+  liquidity: 1139.1985
+  best_bid: 0.1
+  best_ask: 0.16
+  mid: 0.13
+  spread: 0.06
+  neg_risk: false
+  clob_token_ids:
+  - '68075524023626772659057076607261315658684570528740514507689102760737056244967'
+  - '46018434826680641030572933617175510984570486548064430602631618721906582051630'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '68075524023626772659057076607261315658684570528740514507689102760737056244967'
+        o: Up
+      - t: '46018434826680641030572933617175510984570486548064430602631618721906582051630'
+        o: Down
+      c: '0xd76841a7ffdfb956ee9f88a8627b892f14ce34ddfda808b39b790f99ac6d5a89'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T12:06:46Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 7
+    book_asks: 14
+    book_best_bid: 0.1
+    book_best_ask: 0.16
+    book_mid: 0.13
+    book_spread: 0.06
+    book_spread_bps: 4615.384615384615
+    book_top_bid_size: 89.0
+    book_top_ask_size: 100.0
+    book_touch_notional: 24.9
+    trades_24h: 5
+    trades_48h: 5
+    usd_24h: 13.44
+    usd_48h: 13.44
+    last_trade_ts: 1780834185
+    last_trade_minutes_ago: 74.5
+    trade_sides:
+      BUY: 5
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2455027'
+  condition_id: '0xebb43e7c7a5cf4cd1d6d0857ea360ec4fefcfb65b61791c982426879ef89d12e'
+  question: Bitcoin Up or Down - June 7, 12:00PM-4:00PM ET
+  group_item_title: Bitcoin Up or Down - June 7, 12:00PM-4:00PM ET
+  event_slug: btc-updown-4h-1780848000
+  slug: btc-updown-4h-1780848000
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T20:00:00Z'
+  volume: 15.0
+  volume24hr: 15.0
+  liquidity: 6509.44
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '83473297356289348354725565989996324854820403626138651552999621718808143035136'
+  - '3783739634803005421425205096588215707624101211473116152663894205077594547288'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '83473297356289348354725565989996324854820403626138651552999621718808143035136'
+        o: Up
+      - t: '3783739634803005421425205096588215707624101211473116152663894205077594547288'
+        o: Down
+      c: '0xebb43e7c7a5cf4cd1d6d0857ea360ec4fefcfb65b61791c982426879ef89d12e'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T16:11:27Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 48
+    book_asks: 47
+    book_best_bid: 0.5
+    book_best_ask: 0.51
+    book_mid: 0.505
+    book_spread: 0.010000000000000009
+    book_spread_bps: 198.0198019801982
+    book_top_bid_size: 5.0
+    book_top_ask_size: 133.0
+    book_touch_notional: 70.33
+    trades_24h: 2
+    trades_48h: 2
+    usd_24h: 7.5
+    usd_48h: 7.5
+    last_trade_ts: 1780820383
+    last_trade_minutes_ago: 304.6
+    trade_sides:
+      BUY: 2
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: true
+    touch_notional_ge_500: false
+- id: '2455037'
+  condition_id: '0x720717122ffed90213e71f3d876027e8cd3f70c8e9c2db51a05eaa25c3943b39'
+  question: Ethereum Up or Down - June 7, 12:00PM-4:00PM ET
+  group_item_title: Ethereum Up or Down - June 7, 12:00PM-4:00PM ET
+  event_slug: eth-updown-4h-1780848000
+  slug: eth-updown-4h-1780848000
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 4794.3204
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '64854566006251889506613008621954910754375346424101086734748152579293277822158'
+  - '93079860207578785434394886351373083109401943176873132957385769491480232689328'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '64854566006251889506613008621954910754375346424101086734748152579293277822158'
+        o: Up
+      - t: '93079860207578785434394886351373083109401943176873132957385769491480232689328'
+        o: Down
+      c: '0x720717122ffed90213e71f3d876027e8cd3f70c8e9c2db51a05eaa25c3943b39'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T16:12:57Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 46
+    book_asks: 46
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 20.0
+    book_top_ask_size: 20.0
+    book_touch_notional: 20.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2455018'
+  condition_id: '0x76b956868b955e107617e9bac56e3b54cd7d433006267d2d5dfb4b84c421e21e'
+  question: Solana Up or Down - June 7, 12:00PM-4:00PM ET
+  group_item_title: Solana Up or Down - June 7, 12:00PM-4:00PM ET
+  event_slug: sol-updown-4h-1780848000
+  slug: sol-updown-4h-1780848000
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 2421.7
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '114427456691408859803165591485369048671438012151811816486977937165187115620908'
+  - '71760682611668148658159536404327813914528474511711628183221057040285786987586'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '114427456691408859803165591485369048671438012151811816486977937165187115620908'
+        o: Up
+      - t: '71760682611668148658159536404327813914528474511711628183221057040285786987586'
+        o: Down
+      c: '0x76b956868b955e107617e9bac56e3b54cd7d433006267d2d5dfb4b84c421e21e'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T16:10:28Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 48
+    book_asks: 48
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 10.0
+    book_top_ask_size: 10.0
+    book_touch_notional: 10.0
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2455030'
+  condition_id: '0x0a152f5959a495e74386a4e54d28c83905212778db2e779fcb2965bc0f16b54a'
+  question: Dogecoin Up or Down - June 7, 12:00PM-4:00PM ET
+  group_item_title: Dogecoin Up or Down - June 7, 12:00PM-4:00PM ET
+  event_slug: doge-updown-4h-1780848000
+  slug: doge-updown-4h-1780848000
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 1741.0001
+  best_bid: 0.46
+  best_ask: 0.54
+  mid: 0.5
+  spread: 0.08000000000000002
+  neg_risk: false
+  clob_token_ids:
+  - '13506495619063708929920742408995001812797483298345637826690329849813461844970'
+  - '102234671091157349217337881453239019454591313705509239036198835961263638702776'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '13506495619063708929920742408995001812797483298345637826690329849813461844970'
+        o: Up
+      - t: '102234671091157349217337881453239019454591313705509239036198835961263638702776'
+        o: Down
+      c: '0x0a152f5959a495e74386a4e54d28c83905212778db2e779fcb2965bc0f16b54a'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T16:13:06Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 46
+    book_asks: 46
+    book_best_bid: 0.46
+    book_best_ask: 0.54
+    book_mid: 0.5
+    book_spread: 0.08000000000000002
+    book_spread_bps: 1600.0000000000002
+    book_top_bid_size: 9.13
+    book_top_ask_size: 9.13
+    book_touch_notional: 9.130000000000003
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2455036'
+  condition_id: '0x9e14e73a7cc642dae87130825c79a18e38438cc67680c5938f19ae858126e2d2'
+  question: XRP Up or Down - June 7, 12:00PM-4:00PM ET
+  group_item_title: XRP Up or Down - June 7, 12:00PM-4:00PM ET
+  event_slug: xrp-updown-4h-1780848000
+  slug: xrp-updown-4h-1780848000
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T20:00:00Z'
+  volume: 3.411763
+  volume24hr: 3.411763
+  liquidity: 1997.3242
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '68398687421473785634079545202444908264282228093546768619628860424646275803220'
+  - '92576609764130844759118526111527862992153764152544035331206720689063021313179'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '68398687421473785634079545202444908264282228093546768619628860424646275803220'
+        o: Up
+      - t: '92576609764130844759118526111527862992153764152544035331206720689063021313179'
+        o: Down
+      c: '0x9e14e73a7cc642dae87130825c79a18e38438cc67680c5938f19ae858126e2d2'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T16:10:39Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 46
+    book_asks: 46
+    book_best_bid: 0.49
+    book_best_ask: 0.51
+    book_mid: 0.5
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+    book_top_bid_size: 10.0
+    book_top_ask_size: 6.58
+    book_touch_notional: 8.2558
+    trades_24h: 1
+    trades_48h: 1
+    usd_24h: 1.74
+    usd_48h: 1.74
+    last_trade_ts: 1780837293
+    last_trade_minutes_ago: 22.7
+    trade_sides:
+      BUY: 1
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2455029'
+  condition_id: '0xf3e373a83628fd5ec9476a88072e04e870865796261e5aae580d307ae4791614'
+  question: BNB Up or Down - June 7, 12:00PM-4:00PM ET
+  group_item_title: BNB Up or Down - June 7, 12:00PM-4:00PM ET
+  event_slug: bnb-updown-4h-1780848000
+  slug: bnb-updown-4h-1780848000
+  family: crypto_4h
+  category: Crypto
+  end_date: '2026-06-07T20:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 1645.14
+  best_bid: 0.46
+  best_ask: 0.54
+  mid: 0.5
+  spread: 0.08000000000000002
+  neg_risk: false
+  clob_token_ids:
+  - '59396745740261506468479240173636198889360842919210305307798907980348968573069'
+  - '53226739174740830968892705321198816531151243265776155918372010509478580300056'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '59396745740261506468479240173636198889360842919210305307798907980348968573069'
+        o: Up
+      - t: '53226739174740830968892705321198816531151243265776155918372010509478580300056'
+        o: Down
+      c: '0xf3e373a83628fd5ec9476a88072e04e870865796261e5aae580d307ae4791614'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      aot: '2026-06-06T16:09:07Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto 4h control
+  selection_metrics:
+    book_bids: 43
+    book_asks: 43
+    book_best_bid: 0.46
+    book_best_ask: 0.54
+    book_mid: 0.5
+    book_spread: 0.08000000000000002
+    book_spread_bps: 1600.0000000000002
+    book_top_bid_size: 9.13
+    book_top_ask_size: 9.13
+    book_touch_notional: 9.130000000000003
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '2445210'
+  condition_id: '0x9ba77f6c4a4bf5e6ecc5422a0566802ff2e662274bc03bf0c651692ccc354212'
+  question: Bitcoin Up or Down on June 7?
+  group_item_title: Bitcoin Up or Down on June 7?
+  event_slug: bitcoin-up-or-down-on-june-7-2026
+  slug: bitcoin-up-or-down-on-june-7-2026
+  family: crypto_daily
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 258906.86117599992
+  volume24hr: 258623.37176899996
+  liquidity: 35575.95245
+  best_bid: 0.928
+  best_ask: 0.931
+  mid: 0.9295
+  spread: 0.0030000000000000027
+  neg_risk: false
+  clob_token_ids:
+  - '28188212308909084475028238438151514429922394674486353081427043841171951393197'
+  - '37205891434664017501144321242230986425732124921893620292682562806173868907077'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '28188212308909084475028238438151514429922394674486353081427043841171951393197'
+        o: Up
+      - t: '37205891434664017501144321242230986425732124921893620292682562806173868907077'
+        o: Down
+      c: '0x9ba77f6c4a4bf5e6ecc5422a0566802ff2e662274bc03bf0c651692ccc354212'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-06-05T16:01:34Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto daily control
+  selection_metrics:
+    book_bids: 68
+    book_asks: 28
+    book_best_bid: 0.928
+    book_best_ask: 0.931
+    book_mid: 0.9295
+    book_spread: 0.0030000000000000027
+    book_spread_bps: 32.27541689080154
+    book_top_bid_size: 12.5
+    book_top_ask_size: 900.0
+    book_touch_notional: 849.5000000000001
+    trades_24h: 1000
+    trades_48h: 1000
+    usd_24h: 52737.53
+    usd_48h: 52737.53
+    last_trade_ts: 1780838424
+    last_trade_minutes_ago: 3.8
+    trade_sides:
+      BUY: 639
+      SELL: 361
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: true
+    spread_bps_le_200: true
+    touch_notional_ge_500: true
+- id: '2454699'
+  condition_id: '0x8510cf597d0de8c219951d5d35e2c9fdab31ff6dafb960c469596ea2eaef64fe'
+  question: Bitcoin Up or Down on June 8?
+  group_item_title: Bitcoin Up or Down on June 8?
+  event_slug: bitcoin-up-or-down-on-june-8-2026
+  slug: bitcoin-up-or-down-on-june-8-2026
+  family: crypto_daily
+  category: Crypto
+  end_date: '2026-06-08T16:00:00Z'
+  volume: 4202.59591
+  volume24hr: 4202.59591
+  liquidity: 15571.0575
+  best_bid: 0.48
+  best_ask: 0.5
+  mid: 0.49
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '54807181089549301322555988140237800341375405494150919205678371983293448868358'
+  - '78919623202659768285377880389746719613930241880257856447862110655002175349293'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '54807181089549301322555988140237800341375405494150919205678371983293448868358'
+        o: Up
+      - t: '78919623202659768285377880389746719613930241880257856447862110655002175349293'
+        o: Down
+      c: '0x8510cf597d0de8c219951d5d35e2c9fdab31ff6dafb960c469596ea2eaef64fe'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-06-06T16:01:37Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto daily control
+  selection_metrics:
+    book_bids: 46
+    book_asks: 48
+    book_best_bid: 0.48
+    book_best_ask: 0.5
+    book_mid: 0.49
+    book_spread: 0.020000000000000018
+    book_spread_bps: 408.1632653061228
+    book_top_bid_size: 19.38
+    book_top_ask_size: 3309.48
+    book_touch_notional: 1664.0424
+    trades_24h: 13
+    trades_48h: 13
+    usd_24h: 2066.91
+    usd_48h: 2066.91
+    last_trade_ts: 1780833934
+    last_trade_minutes_ago: 78.6
+    trade_sides:
+      BUY: 12
+      SELL: 1
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: true
+- id: '2445288'
+  condition_id: '0x73eb05e0558aa43e46efeb72357b4f5afdaf4f9281f154e41b67df7a88726f7f'
+  question: Ethereum Up or Down on June 7?
+  group_item_title: Ethereum Up or Down on June 7?
+  event_slug: ethereum-up-or-down-on-june-7-2026
+  slug: ethereum-up-or-down-on-june-7-2026
+  family: crypto_daily
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 33634.66624500001
+  volume24hr: 33605.058403
+  liquidity: 20475.98677
+  best_bid: 0.971
+  best_ask: 0.99
+  mid: 0.9804999999999999
+  spread: 0.019000000000000017
+  neg_risk: false
+  clob_token_ids:
+  - '5409446529282596799645125527168810255623158667214943834411576822383765801301'
+  - '112593023655163136267072327384292074031326518380624796579048302172603186039662'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '5409446529282596799645125527168810255623158667214943834411576822383765801301'
+        o: Up
+      - t: '112593023655163136267072327384292074031326518380624796579048302172603186039662'
+        o: Down
+      c: '0x73eb05e0558aa43e46efeb72357b4f5afdaf4f9281f154e41b67df7a88726f7f'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-06-05T16:04:30Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto daily control
+  selection_metrics:
+    book_bids: 47
+    book_asks: 6
+    book_best_bid: 0.971
+    book_best_ask: 0.99
+    book_mid: 0.9804999999999999
+    book_spread: 0.019000000000000017
+    book_spread_bps: 193.77868434472225
+    book_top_bid_size: 216.0
+    book_top_ask_size: 50.0
+    book_touch_notional: 259.236
+    trades_24h: 392
+    trades_48h: 394
+    usd_24h: 15880.42
+    usd_48h: 15895.52
+    last_trade_ts: 1780838458
+    last_trade_minutes_ago: 3.2
+    trade_sides:
+      BUY: 351
+      SELL: 43
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: true
+    spread_bps_le_200: true
+    touch_notional_ge_500: false
+- id: '2454774'
+  condition_id: '0xd74fc94e631bc7d06d57414aad9d4283623675315ebd43cbe7db31fca3de8e8a'
+  question: Ethereum Up or Down on June 8?
+  group_item_title: Ethereum Up or Down on June 8?
+  event_slug: ethereum-up-or-down-on-june-8-2026
+  slug: ethereum-up-or-down-on-june-8-2026
+  family: crypto_daily
+  category: Crypto
+  end_date: '2026-06-08T16:00:00Z'
+  volume: 118.92156600000001
+  volume24hr: 118.92156600000001
+  liquidity: 2256.7783
+  best_bid: 0.49
+  best_ask: 0.5
+  mid: 0.495
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '54185848601125433137071921850051976670065901242835363215361353935749421987704'
+  - '104848436314149499147386791250619634903558819993733941363192189147196179120158'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '54185848601125433137071921850051976670065901242835363215361353935749421987704'
+        o: Up
+      - t: '104848436314149499147386791250619634903558819993733941363192189147196179120158'
+        o: Down
+      c: '0xd74fc94e631bc7d06d57414aad9d4283623675315ebd43cbe7db31fca3de8e8a'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-06-06T16:06:58Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto daily control
+  selection_metrics:
+    book_bids: 48
+    book_asks: 49
+    book_best_bid: 0.49
+    book_best_ask: 0.5
+    book_mid: 0.495
+    book_spread: 0.010000000000000009
+    book_spread_bps: 202.02020202020222
+    book_top_bid_size: 95.0
+    book_top_ask_size: 1230.92
+    book_touch_notional: 662.01
+    trades_24h: 8
+    trades_48h: 8
+    usd_24h: 60.45
+    usd_48h: 60.45
+    last_trade_ts: 1780819195
+    last_trade_minutes_ago: 324.3
+    trade_sides:
+      BUY: 7
+      SELL: 1
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: true
+- id: '2445330'
+  condition_id: '0x3bf1b2e57a655fa1d812eb9c3d07b242b14eca62590e685e4945d94b241acf88'
+  question: Solana Up or Down on June 7?
+  group_item_title: Solana Up or Down on June 7?
+  event_slug: solana-up-or-down-on-june-7-2026
+  slug: solana-up-or-down-on-june-7-2026
+  family: crypto_daily
+  category: Crypto
+  end_date: '2026-06-07T16:00:00Z'
+  volume: 4026.058144
+  volume24hr: 4026.0581440000005
+  liquidity: 12673.54806
+  best_bid: 0.978
+  best_ask: 0.985
+  mid: 0.9815
+  spread: 0.007000000000000006
+  neg_risk: false
+  clob_token_ids:
+  - '93190210269872947606392095428917782525442254779082507467838218842484385517661'
+  - '80952742754019372072226093795111730053618663425549300670948529619040944498821'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '93190210269872947606392095428917782525442254779082507467838218842484385517661'
+        o: Up
+      - t: '80952742754019372072226093795111730053618663425549300670948529619040944498821'
+        o: Down
+      c: '0x3bf1b2e57a655fa1d812eb9c3d07b242b14eca62590e685e4945d94b241acf88'
+      mos: 5
+      mts: 0.001
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-06-05T16:09:31Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto daily control
+  selection_metrics:
+    book_bids: 37
+    book_asks: 4
+    book_best_bid: 0.978
+    book_best_ask: 0.985
+    book_mid: 0.9815
+    book_spread: 0.007000000000000006
+    book_spread_bps: 71.3194090677535
+    book_top_bid_size: 6.6
+    book_top_ask_size: 8.0
+    book_touch_notional: 14.3348
+    trades_24h: 136
+    trades_48h: 136
+    usd_24h: 2310.08
+    usd_48h: 2310.08
+    last_trade_ts: 1780837327
+    last_trade_minutes_ago: 22.1
+    trade_sides:
+      BUY: 122
+      SELL: 14
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: true
+    spread_bps_le_200: true
+    touch_notional_ge_500: false
+- id: '2454840'
+  condition_id: '0x92aa51b25eafe0d9721215aabccebf031b2aa358671a1974612d110c36449b4a'
+  question: Solana Up or Down on June 8?
+  group_item_title: Solana Up or Down on June 8?
+  event_slug: solana-up-or-down-on-june-8-2026
+  slug: solana-up-or-down-on-june-8-2026
+  family: crypto_daily
+  category: Crypto
+  end_date: '2026-06-08T16:00:00Z'
+  volume: 0.0
+  volume24hr: 0.0
+  liquidity: 877.9628
+  best_bid: 0.49
+  best_ask: 0.5
+  mid: 0.495
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '68391188912323051062535441085684233447051878831741152903225358636692620613807'
+  - '100424917223175349308895660344860963590244653749812851002973889340135176542533'
+  fee:
+    fees_enabled: true
+    fee_rate: 0.07
+    fee_exponent: 1
+    taker_only: true
+    maker_base_fee_bps: 1000
+    taker_base_fee_bps: 1000
+    fee_schedule:
+      exponent: 1
+      rate: 0.07
+      takerOnly: true
+      rebateRate: 0.2
+    peak_effective_rate_estimate: 0.0175
+    clob_market_info:
+      r:
+        mi: 50
+        ma: 4.5
+        moas: 30
+      t:
+      - t: '68391188912323051062535441085684233447051878831741152903225358636692620613807'
+        o: Up
+      - t: '100424917223175349308895660344860963590244653749812851002973889340135176542533'
+        o: Down
+      c: '0x92aa51b25eafe0d9721215aabccebf031b2aa358671a1974612d110c36449b4a'
+      mos: 5
+      mts: 0.01
+      mbf: 1000
+      tbf: 1000
+      ao: true
+      cbos: true
+      aot: '2026-06-06T16:06:04Z'
+      ibce: true
+      fd:
+        r: 0.07
+        e: 1
+        to: true
+  selection_rationale: current continuation crypto daily control
+  selection_metrics:
+    book_bids: 45
+    book_asks: 46
+    book_best_bid: 0.49
+    book_best_ask: 0.5
+    book_mid: 0.495
+    book_spread: 0.010000000000000009
+    book_spread_bps: 202.02020202020222
+    book_top_bid_size: 20.0
+    book_top_ask_size: 100.0
+    book_touch_notional: 59.8
+    trades_24h: 0
+    trades_48h: 0
+    usd_24h: 0.0
+    usd_48h: 0.0
+    last_trade_ts: null
+    last_trade_minutes_ago: null
+    trade_sides: {}
+    trade_rate_source: data-api/trades?takerOnly=true
+  selection_flags:
+    force_include: true
+    trades_24h_ge_50: false
+    spread_bps_le_200: false
+    touch_notional_ge_500: false
+- id: '1663141'
+  condition_id: '0x74f19011005f2f2b1f12aa4ffc9efbec07f07d076045201b3912abcfbe9898bd'
+  question: "Tech Layoffs Up or Down in 20\u200B26?"
+  slug: tech-layoffs-up-or-down-in-2026
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-03-20T16:18:14.976476Z'
+  age_hours_at_prepare: 1867.26
+  end_date: '2027-02-28T00:00:00Z'
+  volume24hr: 0.0
+  volume: 25360.983574
+  liquidity: 6003.4019
+  best_bid: 0.85
+  best_ask: 0.95
+  spread: 0.09999999999999998
+  clob_token_ids:
+  - '15699866962298243375251726885229366865100179372606130416856207898223888111141'
+  - '88904980180945021132064725503078567164899767774967151310125042499926019764513'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '15699866962298243375251726885229366865100179372606130416856207898223888111141'
+    book_best_bid: 0.85
+    book_bid_size: 94.61
+    book_best_ask: 0.95
+    book_ask_size: 23.3
+    book_spread: 0.09999999999999998
+  - token_id: '88904980180945021132064725503078567164899767774967151310125042499926019764513'
+    book_best_bid: 0.05
+    book_bid_size: 23.3
+    book_best_ask: 0.15
+    book_ask_size: 94.61
+    book_spread: 0.09999999999999999
+- id: '1279261'
+  condition_id: '0x2f811bcb722953d3286cd00fec353e9778030dfcbd1d0c59fdb3c6db24beb19d'
+  question: Canada's population Up or Down this year?
+  slug: canadas-population-up-or-down-this-year
+  family: finance_index_updown
+  category: finance_index_updown
+  created_at: '2026-01-27T20:02:11.489443Z'
+  age_hours_at_prepare: 3111.53
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 1538.0346539999996
+  liquidity: 180.3228
+  best_bid: 0.29
+  best_ask: 0.72
+  spread: 0.43
+  clob_token_ids:
+  - '18081805280351968518309311021935077229594058181825388112411253072091920552469'
+  - '74963141331195062237314572006245034537688531061367030646406821387935283146812'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '18081805280351968518309311021935077229594058181825388112411253072091920552469'
+    book_best_bid: 0.27
+    book_bid_size: 20.0
+    book_best_ask: 0.68
+    book_ask_size: 20.0
+    book_spread: 0.41000000000000003
+  - token_id: '74963141331195062237314572006245034537688531061367030646406821387935283146812'
+    book_best_bid: 0.32
+    book_bid_size: 20.0
+    book_best_ask: 0.73
+    book_ask_size: 20.0
+    book_spread: 0.41
+- id: '667005'
+  condition_id: '0xd450db2ea773df8f91797d594b15333d8e9ed2d74930ac0ffb54c123f78e3d0f'
+  question: Metamask FDV above $4B one day after launch?
+  slug: metamask-fdv-above-4b-one-day-after-launch-851-782-477-258
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-05T20:56:15.919148Z'
+  age_hours_at_prepare: 5102.63
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 312693.82973299955
+  liquidity: 26768.12289
+  best_bid: 0.045
+  best_ask: 0.072
+  spread: 0.026999999999999996
+  clob_token_ids:
+  - '88676221230600953130642189921619099583358737701404992595512476614976486057308'
+  - '70962867555721536468794820816920873482905460253708950137269131341948100258712'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '88676221230600953130642189921619099583358737701404992595512476614976486057308'
+    book_best_bid: 0.045
+    book_bid_size: 300.0
+    book_best_ask: 0.072
+    book_ask_size: 60.0
+    book_spread: 0.026999999999999996
+  - token_id: '70962867555721536468794820816920873482905460253708950137269131341948100258712'
+    book_best_bid: 0.928
+    book_bid_size: 60.0
+    book_best_ask: 0.955
+    book_ask_size: 300.0
+    book_spread: 0.026999999999999913
+- id: '665533'
+  condition_id: '0xb326b78f905b8ff9a1764d42ef3c46bd61b78c9e32a53607ab7245a2da456291'
+  question: Metamask FDV above $3B one day after launch?
+  slug: metamask-fdv-above-3b-one-day-after-launch-363-663-664-569-222
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-04T22:46:55.097042Z'
+  age_hours_at_prepare: 5124.78
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 298140.5790449996
+  liquidity: 26086.6989
+  best_bid: 0.079
+  best_ask: 0.089
+  spread: 0.009999999999999995
+  clob_token_ids:
+  - '81341495887322709056930219084641487717235305340983601089306536463617089758769'
+  - '100885541765991307903032754280870234009741669840630929196757341278043960084869'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '81341495887322709056930219084641487717235305340983601089306536463617089758769'
+    book_best_bid: 0.079
+    book_bid_size: 12.8
+    book_best_ask: 0.089
+    book_ask_size: 249.5
+    book_spread: 0.009999999999999995
+  - token_id: '100885541765991307903032754280870234009741669840630929196757341278043960084869'
+    book_best_bid: 0.911
+    book_bid_size: 249.5
+    book_best_ask: 0.921
+    book_ask_size: 12.8
+    book_spread: 0.010000000000000009
+- id: '667004'
+  condition_id: '0x77399fdf6c5097661705ee1fcf8ad615721ea5dd695871dcae2c9eb192a3d75b'
+  question: Metamask FDV above $2B one day after launch?
+  slug: metamask-fdv-above-2b-one-day-after-launch-222-955-573-228
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-05T20:52:45.346041Z'
+  age_hours_at_prepare: 5102.69
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 385979.24981200113
+  liquidity: 17551.1188
+  best_bid: 0.1
+  best_ask: 0.13
+  spread: 0.03
+  clob_token_ids:
+  - '94120399411978925018563650270691769293212315658863591054992105782706185155787'
+  - '49837632014352686915859208545885869917694907773894605983598473615572060688156'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '94120399411978925018563650270691769293212315658863591054992105782706185155787'
+    book_best_bid: 0.1
+    book_bid_size: 3249.55
+    book_best_ask: 0.13
+    book_ask_size: 87.42
+    book_spread: 0.03
+  - token_id: '49837632014352686915859208545885869917694907773894605983598473615572060688156'
+    book_best_bid: 0.87
+    book_bid_size: 87.42
+    book_best_ask: 0.9
+    book_ask_size: 3249.55
+    book_spread: 0.030000000000000027
+- id: '665532'
+  condition_id: '0xb0dafd2efe994270384d6265f1c62dbfe10880bba15dfda68974898617b5cee8'
+  question: Metamask FDV above $1B one day after launch?
+  slug: metamask-fdv-above-1b-one-day-after-launch-978-851-628-634
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-04T22:46:54.420786Z'
+  age_hours_at_prepare: 5124.78
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 10.0
+  volume: 579494.5845519986
+  liquidity: 10691.1761
+  best_bid: 0.18
+  best_ask: 0.19
+  spread: 0.010000000000000009
+  clob_token_ids:
+  - '32625782428938402255128136733519807459769332197090650257160146460579374232757'
+  - '64494546053917393457112995513729031396777330451365750961867310732806049722473'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '32625782428938402255128136733519807459769332197090650257160146460579374232757'
+    book_best_bid: 0.18
+    book_bid_size: 189.03
+    book_best_ask: 0.19
+    book_ask_size: 431.01
+    book_spread: 0.010000000000000009
+  - token_id: '64494546053917393457112995513729031396777330451365750961867310732806049722473'
+    book_best_bid: 0.81
+    book_bid_size: 431.01
+    book_best_ask: 0.82
+    book_ask_size: 189.03
+    book_spread: 0.009999999999999898
+- id: '665531'
+  condition_id: '0x1c842b91d226266fbe0e55d9bce9c52ce48b825d069e039c24d7fe57a5be6eaa'
+  question: Metamask FDV above $700M one day after launch?
+  slug: metamask-fdv-above-700m-one-day-after-launch-696-977-652-246-632
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2025-11-04T22:46:53.970488Z'
+  age_hours_at_prepare: 5124.79
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 83.30000000000001
+  volume: 1352794.2028320024
+  liquidity: 8666.92222
+  best_bid: 0.293
+  best_ask: 0.307
+  spread: 0.014000000000000012
+  clob_token_ids:
+  - '27944626213701198119611689981836884300701096451168812471764168520890801988056'
+  - '55509649865325104641531245650537613391494802994578307703136247282221756039109'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '27944626213701198119611689981836884300701096451168812471764168520890801988056'
+    book_best_bid: 0.293
+    book_bid_size: 665.88
+    book_best_ask: 0.307
+    book_ask_size: 920.64
+    book_spread: 0.014000000000000012
+  - token_id: '55509649865325104641531245650537613391494802994578307703136247282221756039109'
+    book_best_bid: 0.693
+    book_bid_size: 920.64
+    book_best_ask: 0.707
+    book_ask_size: 665.88
+    book_spread: 0.014000000000000012
+- id: '1601452'
+  condition_id: '0x0e55d3186ef1c17e5fa42eb570e7feef16a3a56a79358ce910b91933d2985934'
+  question: Metamask FDV above $500M one day after launch?
+  slug: metamask-fdv-above-500m-one-day-after-launch-584-889-774
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-03-15T21:24:56.482341Z'
+  age_hours_at_prepare: 1982.15
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 11388.084855
+  liquidity: 8261.6509
+  best_bid: 0.3
+  best_ask: 0.38
+  spread: 0.08000000000000002
+  clob_token_ids:
+  - '1032915009647628241884866833284486320220371161190916251420291592412326949871'
+  - '99794166202586175914106828738501837290172415351697634241911046782011628205892'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '1032915009647628241884866833284486320220371161190916251420291592412326949871'
+    book_best_bid: 0.3
+    book_bid_size: 1162.34
+    book_best_ask: 0.38
+    book_ask_size: 35.0
+    book_spread: 0.08000000000000002
+  - token_id: '99794166202586175914106828738501837290172415351697634241911046782011628205892'
+    book_best_bid: 0.62
+    book_bid_size: 35.0
+    book_best_ask: 0.7
+    book_ask_size: 1162.34
+    book_spread: 0.07999999999999996
+- id: '1601453'
+  condition_id: '0xa38e1f6fe19c46d8117d4fb41662008d856d99e8b578d25b661b0e9361d84694'
+  question: Metamask FDV above $300M one day after launch?
+  slug: metamask-fdv-above-300m-one-day-after-launch-747-257
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-03-15T21:25:23.189808Z'
+  age_hours_at_prepare: 1982.14
+  end_date: '2027-01-01T05:00:00Z'
+  volume24hr: 0.0
+  volume: 70647.240138
+  liquidity: 5083.2765
+  best_bid: 0.33
+  best_ask: 0.36
+  spread: 0.02999999999999997
+  clob_token_ids:
+  - '100463364281600463917162923535716593254627752680239892527128357625123655869336'
+  - '105018318954583804294848266930382622536653186286251188529978805918910659246719'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '100463364281600463917162923535716593254627752680239892527128357625123655869336'
+    book_best_bid: 0.33
+    book_bid_size: 2.75
+    book_best_ask: 0.36
+    book_ask_size: 15.0
+    book_spread: 0.02999999999999997
+  - token_id: '105018318954583804294848266930382622536653186286251188529978805918910659246719'
+    book_best_bid: 0.64
+    book_bid_size: 15.0
+    book_best_ask: 0.67
+    book_ask_size: 2.75
+    book_spread: 0.030000000000000027
+- id: '2055344'
+  condition_id: '0x0a1a5f0cd3445aee7ec41eb2756dada597876031c718f31a9bf6ddde8250be6f'
+  question: Amazon 2026 capex above $180B?
+  slug: amazon-2026-capex-above-180b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:15.326441Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 730.1805209999998
+  liquidity: 1459.8252
+  best_bid: 0.9
+  best_ask: 0.92
+  spread: 0.020000000000000018
+  clob_token_ids:
+  - '31844421127747452247920361772593140342967161564902355004027803194678743954899'
+  - '19761407945575467697425027016535859352446216855295385543700170871219997242769'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '31844421127747452247920361772593140342967161564902355004027803194678743954899'
+    book_best_bid: 0.9
+    book_bid_size: 476.55
+    book_best_ask: 0.92
+    book_ask_size: 454.9
+    book_spread: 0.020000000000000018
+  - token_id: '19761407945575467697425027016535859352446216855295385543700170871219997242769'
+    book_best_bid: 0.08
+    book_bid_size: 454.9
+    book_best_ask: 0.1
+    book_ask_size: 476.55
+    book_spread: 0.020000000000000004
+- id: '2055343'
+  condition_id: '0x0ff76aa8f6cc2365ca8d38dd7ef9f93b04623048d85b832dc6f218351a1f5691'
+  question: Amazon 2026 capex above $170B?
+  slug: amazon-2026-capex-above-170b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:14.782602Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 437.42546499999986
+  liquidity: 1246.83271
+  best_bid: 0.946
+  best_ask: 0.96
+  spread: 0.014000000000000012
+  clob_token_ids:
+  - '21341191118489485215971595567500838489745713128031366103331704899034054634037'
+  - '47981437402840582153626239211939570982390805001244377544989908123693529267354'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '21341191118489485215971595567500838489745713128031366103331704899034054634037'
+    book_best_bid: 0.946
+    book_bid_size: 17.72
+    book_best_ask: 0.959
+    book_ask_size: 7.28
+    book_spread: 0.013000000000000012
+  - token_id: '47981437402840582153626239211939570982390805001244377544989908123693529267354'
+    book_best_bid: 0.041
+    book_bid_size: 7.28
+    book_best_ask: 0.054
+    book_ask_size: 17.72
+    book_spread: 0.012999999999999998
+- id: '2055345'
+  condition_id: '0xc912d612601be1e8327b80a1913aea4acc2f4e704eb308f892c84e2d245e7fe5'
+  question: Amazon 2026 capex above $190B?
+  slug: amazon-2026-capex-above-190b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:15.670322Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 892.707141
+  liquidity: 1043.0021
+  best_bid: 0.86
+  best_ask: 0.91
+  spread: 0.050000000000000044
+  clob_token_ids:
+  - '59420811967853660781768939001376860233971887241988320717150415000297807732875'
+  - '100537006709579597978515913064907901000310086923737627451741555863461818393998'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '59420811967853660781768939001376860233971887241988320717150415000297807732875'
+    book_best_bid: 0.86
+    book_bid_size: 167.0
+    book_best_ask: 0.91
+    book_ask_size: 76.7
+    book_spread: 0.050000000000000044
+  - token_id: '100537006709579597978515913064907901000310086923737627451741555863461818393998'
+    book_best_bid: 0.09
+    book_bid_size: 76.7
+    book_best_ask: 0.14
+    book_ask_size: 167.0
+    book_spread: 0.05000000000000002
+- id: '2055346'
+  condition_id: '0xbf0eb943d3f042c9cd56b2fde526ddfb5ce6ed35af9599e30662dd547f1c5e66'
+  question: Amazon 2026 capex above $200B?
+  slug: amazon-2026-capex-above-200b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:16.027837Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 1268.53135
+  liquidity: 719.4725
+  best_bid: 0.73
+  best_ask: 0.93
+  spread: 0.20000000000000007
+  clob_token_ids:
+  - '16372574176667003380277055466119816918996452171937788035525774518759743457905'
+  - '33928905496851388300803609220704479129258251389567457303720462778883817361565'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '16372574176667003380277055466119816918996452171937788035525774518759743457905'
+    book_best_bid: 0.73
+    book_bid_size: 85.29
+    book_best_ask: 0.93
+    book_ask_size: 9.4
+    book_spread: 0.20000000000000007
+  - token_id: '33928905496851388300803609220704479129258251389567457303720462778883817361565'
+    book_best_bid: 0.07
+    book_bid_size: 9.4
+    book_best_ask: 0.27
+    book_ask_size: 85.29
+    book_spread: 0.2
+- id: '2055347'
+  condition_id: '0xefebdb47d94591d0e626a5bee726edcdf6acb5edc1f75547402b1016b9bb4d52'
+  question: Amazon 2026 capex above $210B?
+  slug: amazon-2026-capex-above-210b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:16.561571Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 134.22764600000002
+  liquidity: 11.7467
+  best_bid: 0.09
+  best_ask: 0.96
+  spread: 0.87
+  clob_token_ids:
+  - '31630727038211542372981876711448999623320145140497600039332505255036297029824'
+  - '76021942919825168767594774446466294548408245282264556719558285678534567559311'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '31630727038211542372981876711448999623320145140497600039332505255036297029824'
+    book_best_bid: 0.13
+    book_bid_size: 50.99
+    book_best_ask: 0.91
+    book_ask_size: 9.16
+    book_spread: 0.78
+  - token_id: '76021942919825168767594774446466294548408245282264556719558285678534567559311'
+    book_best_bid: 0.09
+    book_bid_size: 9.16
+    book_best_ask: 0.87
+    book_ask_size: 50.99
+    book_spread: 0.78
+- id: '2055348'
+  condition_id: '0xf1cfb0d018534dbeb4f3ab052a1a0b3de186998cb3e4a75dfecaa447aa7acdb4'
+  question: Amazon 2026 capex above $220B?
+  slug: amazon-2026-capex-above-220b
+  family: finance_close_ladder
+  category: finance_close_ladder
+  created_at: '2026-04-22T22:45:16.897401Z'
+  age_hours_at_prepare: 1068.81
+  end_date: '2027-04-30T00:00:00Z'
+  volume24hr: 0.0
+  volume: 266.896506
+  liquidity: 11.2832
+  best_bid: 0.04
+  best_ask: 0.95
+  spread: 0.9099999999999999
+  clob_token_ids:
+  - '42552961726728364588074066826667714895200201150242795043207828840135607473202'
+  - '94765066126026916664399483578212079740513268391658279812027942409113834268189'
+  neg_risk: false
+  selection_rationale: 'Stage-1 live book diagnostics; read-only; no orders/auth; refreshed from current
+    Gamma. Refreshed awake run: carried forward because market remains active. Refreshed continuation
+    run: carried forward because market remains active.'
+  book_tokens:
+  - token_id: '42552961726728364588074066826667714895200201150242795043207828840135607473202'
+    book_best_bid: 0.08
+    book_bid_size: 50.0
+    book_best_ask: 0.91
+    book_ask_size: 100.0
+    book_spread: 0.8300000000000001
+  - token_id: '94765066126026916664399483578212079740513268391658279812027942409113834268189'
+    book_best_bid: 0.09
+    book_bid_size: 100.0
+    book_best_ask: 0.92
+    book_ask_size: 50.0
+    book_spread: 0.8300000000000001

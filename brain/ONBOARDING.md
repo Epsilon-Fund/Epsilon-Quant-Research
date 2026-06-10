@@ -19,15 +19,11 @@ tags:
 > Written to be agent-agnostic: nothing here assumes a specific tool. If you are an AI agent
 > opening this repo, treat this as your orientation contract.
 
-Hub links: [[VAULT_MAP]] | [[START_RESEARCH_IDEA]] | [[CODEX]] | [[COWORK]] | [[TODO]] | [[OPERATING_RHYTHMS]]
+Hub links: [[VAULT_MAP]] | [[MERGE_PROTOCOL]] | [[START_RESEARCH_IDEA]] | [[CODEX]] | [[COWORK]] | [[TODO]] | [[OPERATING_RHYTHMS]]
 
 ## Agent Bootstrap (do this before anything else)
 
-1. Determine your role: Codex -> `local_agents/codex.md`; Cowork/Claude Code -> `local_agents/cowork.md`.
-2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
-3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
-
-Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
+Run the Agent Bootstrap — canonical copy in [[VAULT_MAP]] § Agent Bootstrap.
 
 ## 1. What this repo is
 
@@ -40,28 +36,16 @@ Full map: [[VAULT_MAP]].
 
 ## 2. The brain (how knowledge is organized)
 
-`brain/` is an Obsidian vault. Knowledge is **shared and canonical**; per-person overlays and fast-moving scratch are **local and private** when Relay is scoped as described below.
+`brain/` is an Obsidian vault inside the git repo. Knowledge is **shared and canonical**; per-person overlays and fast-moving scratch are **local and private** (git-ignored, so they never appear on any branch).
 
 | Layer | What it is | Who edits |
 |---|---|---|
-| **Canonical hubs** | Durable truth: [[VAULT_MAP]], [[TODO]], [[POLYMARKET_BRAIN]], strategy hubs | one owner at a time, via short intentional passes |
+| **Canonical hubs** | Durable truth: [[VAULT_MAP]], [[TODO]], [[POLYMARKET_BRAIN]], strategy hubs | anyone, on their own branch; changes reach `main` via [[MERGE_PROTOCOL]] |
 | **Findings notes** | Research results under `polymarket/research/notes/<cluster>/` | the author, promoted from scratch |
 | **Agent lanes** | Shared role conventions [[codex_lane]], [[cowork_lane]]; per-person overlays in `local_agents/<agent>.md` and scratch in `scratch/<agent>/` (local-only) | shared conventions by all; local overlays/scratch by that person |
-| **Generated reports** | `brain/generated/` — regenerable, **not committed** (synced via Relay so both see them) | nobody (a script writes them) |
+| **Generated reports** | `brain/generated/` — regenerable, **not committed**; regenerate locally with `python tools/brain_hygiene.py` | nobody (a script writes them) |
 
-**The one rule that prevents collisions:** agents never use a canonical hub as a scratchpad. Draft in your own scratch (`scratch/<agent>/`, local to your machine), then promote durable results into the canonical note and link it.
-
-**Relay shares the whole `brain/` folder** (and the research folders), so [[VAULT_MAP]], [[TODO]], the hubs, `brain/handoffs/`, generated reports, shared lane docs, templates, and the edit locks are all **live for both collaborators**. The things Relay does **not** share are top-level `local_agents/` overlays and top-level `scratch/`; both are local-only and never committed. Relay's boundary is its shared-folder list, not `.gitignore`; those folders simply stay off that list.
-
-For shared durable Markdown, use the cooperative edit guard before editing:
-
-```bash
-python3 tools/brain_edit_guard.py acquire --agent <codex|cowork|justin> --path <path.md> --intent "<short reason>"
-# edit the file
-python3 tools/brain_edit_guard.py release --agent <codex|cowork|justin> --path <path.md>
-```
-
-If the guard says another agent owns the file, stop and ask Justin which surface should be edited. If the agent is unsure whether it is Codex or Cowork, it should not edit canonical files yet; read the lane docs and ask for confirmation. Cross-lane edits are allowed only when Justin explicitly asks for them; use `--allow-cross-lane` so the intent is visible.
+**The one rule that prevents collisions:** agents never use a canonical hub as a scratchpad. Draft in your own scratch (`scratch/<agent>/`, local to your machine), then promote durable results into the canonical note and link it. Concurrent edits are safe because each person works on their own branch; genuine overlaps surface as merge conflicts and are resolved per [[MERGE_PROTOCOL]].
 
 ## 3. Where to write things
 
@@ -69,23 +53,47 @@ See [[VAULT_MAP]] § "Where to write things" for the full table. Short version: 
 
 Every durable note gets YAML frontmatter and a plain-English `## Summary` near the top — the standard is in [[CODEX]] § Markdown quality standard.
 
-## 4. Sync model: Relay + Git
+## 4. Collaboration model (git branches)
 
-- **Relay** syncs Markdown **live** between machines. Shared: the research folders (`Attachments/`, `archive/`, `docs/`, `infrastructure/`, `live_trading/`, `meetings/`, `midas/`, `newsletters/`, `polymarket/`, `topics/`) and **all of `brain/`** — maps, hubs, [[TODO]], handoffs, generated reports, and edit locks. So the control-plane is live for both of you.
-- **Not shared on Relay:** top-level `local_agents/<agent>.md` (per-person instruction overlay) and top-level `scratch/<agent>/` (per-person WIP). Both stay local to each machine. They must not be added to Relay's shared-folder list.
-- **Shared templates:** `brain/agents/templates/` is shared under `brain/` so every machine can seed its private overlay.
-- **Git** is the snapshot/audit layer. `brain/**/*.md` is tracked; only `brain/generated/`, `brain/agents/locks/*.lock.md`, `local_agents/`, and `scratch/` are ignored.
-- **Two agents, same file:** before editing a shared canonical note, acquire an edit lock with `tools/brain_edit_guard.py`. Locks sync live via Relay, so the other agent sees the claim and waits. Relay's CRDT avoids hard merge conflicts; the lock stops two agents logically clobbering the same section.
-- **Code/data** (not Relay-synced) uses normal Git discipline: pull before you push.
-- Invite keys are sent directly between collaborators — never committed.
+Git is the only sync layer. The model is **one personal branch per collaborator, named by their GitHub handle** (e.g. `justin`, `alvaro`). `main` is the shared integration branch.
+
+- **No direct commits to main.** Nobody — human or agent — commits or pushes to `main` directly. Merges into main are deliberate, agent-assisted steps per [[MERGE_PROTOCOL]]. Recommended: a GitHub branch-protection rule on `main` blocking direct pushes, if the plan supports it.
+- **Create your branch ONCE off main:** `git checkout main && git pull && git checkout -b <handle>`.
+- **EOD: commit + push to YOUR branch only.** The per-person `brain-commit-push` scheduled task does this; it now refuses to run on main, never force-pushes, and does not pull or merge main.
+- **Session start, AND after anyone merges to main:** catch up with `git checkout <handle> && git merge main` — resolve conflicts via [[MERGE_PROTOCOL]]. Branches that don't pull main in regularly drift and make merges painful.
+- **Merge to main in small, frequent units** (a finished note, a completed task) via [[MERGE_PROTOCOL]] — not big infrequent dumps. After a merge, everyone pulls main into their branch.
+- **Personal state never participates.** `local_agents/<handle>.md` and `scratch/<handle>/` are git-ignored — they exist only on your machine and can never conflict in any branch or merge.
+- **Shared templates:** `brain/agents/templates/` is tracked under `brain/` so every machine can seed its private overlay.
+- **Tracked vs ignored:** `brain/**/*.md` is tracked; only `brain/generated/`, top-level `local_agents/`, and top-level `scratch/` are ignored.
+
+### Onboarding a new collaborator
+
+Exact first-run steps (copy-pasteable; replace `<handle>` with your GitHub handle):
+
+1. **Clone the repo:**
+   ```bash
+   git clone <repo-url> epsilon-quant-research
+   cd epsilon-quant-research
+   ```
+2. **Open the folder as an Obsidian vault** (Obsidian → "Open folder as vault" → the repo root). Nothing to install — no sync plugin; git is the sync layer.
+3. **Run the Agent Bootstrap** ([[VAULT_MAP]] § Agent Bootstrap) in your first agent session — it seeds `local_agents/<role>.md` from `brain/agents/templates/` for you. These overlay files are git-ignored and personal; put your "current focus / waiting-on" state there.
+4. **Create your personal branch once:**
+   ```bash
+   git checkout main && git pull && git checkout -b <handle>
+   git push -u origin <handle>
+   ```
+5. **Set up your daily commit/push task** (scheduled task or cron) targeting **your own branch, never main**. It should: stage only `brain/`, `polymarket/research/notes/`, `docs/`, `README.md`, `tools/` Markdown; commit; pull your own remote branch (`git pull --no-rebase origin <handle>`); push to `<handle>`; abort and report on any conflict or error; never force-push; never pull or merge main. This task is per-person — Justin's is configured on his machine; you configure your own.
+6. **Every session start (and after any merge to main):** `git checkout <handle> && git merge main`. Conflicts → [[MERGE_PROTOCOL]].
+7. **Where things go:** durable notes follow [[VAULT_MAP]] § Where to write things (findings into `polymarket/research/notes/<cluster>/` etc., with hub backlinks); personal WIP goes in `scratch/<handle>/` and personal preferences in `local_agents/` (both git-ignored, never shared).
 
 ## 5. Starting a session (human or agent)
 
-1. Run the Agent Bootstrap above.
-2. Read your shared role convention: [[codex_lane]] or [[cowork_lane]].
-3. Read [[TODO]] — the authoritative live task list — before suggesting next actions.
-4. For data-heavy work, read the relevant manifest (see [[VAULT_MAP]]) before scanning raw folders.
-5. Write WIP to your scratch (`scratch/<agent>/`, local-only); promote durable results to the right note and link the hub.
+1. Catch up from main: `git checkout <handle> && git merge main` (conflicts → [[MERGE_PROTOCOL]]).
+2. Run the Agent Bootstrap ([[VAULT_MAP]] § Agent Bootstrap).
+3. Read your shared role convention: [[codex_lane]] or [[cowork_lane]].
+4. Read [[TODO]] — the authoritative live task list — before suggesting next actions.
+5. For data-heavy work, read the relevant manifest (see [[VAULT_MAP]]) before scanning raw folders.
+6. Write WIP to your scratch (`scratch/<agent>/`, local-only); promote durable results to the right note and link the hub.
 
 ## 6. Starting a new research idea
 

@@ -1,0 +1,1598 @@
+prepared_at: '2026-06-09T09:37:41Z'
+purpose: Stage-1 continuation live CLOB capture for slow crypto + finance diagnostics;
+  observation only; no orders/auth. Refreshed on 20260609T093741Z.
+run:
+  run_id: mm_stage1_slow_crypto_finance_awake_20260609T093741Z
+  label: mm_stage1_slow_crypto_finance
+  duration_hours: 16
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_slow_crypto_finance
+selection:
+  source: fresh current Gamma/CLOB lean refresh; current same-day finance, sports,
+    crypto controls, and diagnostics as available
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+markets:
+- id: '2477588'
+  condition_id: '0x4e81a1c2cd51e4f087bc13656eb8188a029297819ea6655ac3450b44357db3ea'
+  question: Ethereum Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: eth-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:05.311122Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1089.5788
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '109400546201429404526232967838051193303408832670413369173268408914711619043913'
+  - '9874515942421093056198140788150700790938943432175164020201436284929633656992'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '109400546201429404526232967838051193303408832670413369173268408914711619043913'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 69.0
+    book_best_ask: 0.51
+    book_ask_size: 69.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '9874515942421093056198140788150700790938943432175164020201436284929633656992'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 69.0
+    book_best_ask: 0.51
+    book_ask_size: 69.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 1089.5788
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477580'
+  condition_id: '0x267a0185f909339d91d1038d71b7792b58de0849061ab3943012c3d1bb38dfe9'
+  question: Bitcoin Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: btc-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:04.807241Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 1080.7786
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '64732137992245276465464294045395222360362432794114395234804980810540760440949'
+  - '33821898871140166102156078798756448735709319372764278578108835394921560673791'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '64732137992245276465464294045395222360362432794114395234804980810540760440949'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 59.0
+    book_best_ask: 0.51
+    book_ask_size: 59.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '33821898871140166102156078798756448735709319372764278578108835394921560673791'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 59.0
+    book_best_ask: 0.51
+    book_ask_size: 59.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 1080.7786
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477597'
+  condition_id: '0x058a5a25940f4642fff51b2b72814c1932c361b6abbff734ad2d00ad3254ba61'
+  question: XRP Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: xrp-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:06.19352Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 325.4994
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '17113520273282666251158492505119815911664044311417217394047506891559985668268'
+  - '28604519158572730209619425343352868448218015345947198282094260118908100180017'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '17113520273282666251158492505119815911664044311417217394047506891559985668268'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 25.0
+    book_best_ask: 0.51
+    book_ask_size: 25.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '28604519158572730209619425343352868448218015345947198282094260118908100180017'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 25.0
+    book_best_ask: 0.51
+    book_ask_size: 25.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 325.4994
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477590'
+  condition_id: '0x2c636552d64841062b74e5041d9b9664a7a83907ac0f72e186c06e05d0b24d20'
+  question: Solana Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: sol-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:05.67626Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 325.2986
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '12770374486739141226125192540799177982592965746160162184755691047867839132495'
+  - '66457836341837720092240065620779091348781501308334857887813081150399520383234'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '12770374486739141226125192540799177982592965746160162184755691047867839132495'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 25.0
+    book_best_ask: 0.51
+    book_ask_size: 25.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '66457836341837720092240065620779091348781501308334857887813081150399520383234'
+    book_bids: 12
+    book_asks: 12
+    book_best_bid: 0.49
+    book_bid_size: 25.0
+    book_best_ask: 0.51
+    book_ask_size: 25.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 325.2986
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477592'
+  condition_id: '0x925978088334cabe524836ebdb6e34d5cfe9c7694023e897686f80244ad30913'
+  question: Dogecoin Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: doge-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:05.850482Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 36.8994
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '111124720351854876212005331988357654933178185496208304593143889776675086601383'
+  - '98183296024806152223284434799374956985509099143770787643742640681389297602047'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '111124720351854876212005331988357654933178185496208304593143889776675086601383'
+    book_bids: 7
+    book_asks: 7
+    book_best_bid: 0.49
+    book_bid_size: 15.0
+    book_best_ask: 0.51
+    book_ask_size: 15.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '98183296024806152223284434799374956985509099143770787643742640681389297602047'
+    book_bids: 7
+    book_asks: 7
+    book_best_bid: 0.49
+    book_bid_size: 15.0
+    book_best_ask: 0.51
+    book_ask_size: 15.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 36.8994
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477579'
+  condition_id: '0xf2a3ce03722af6f35be5991c7999e8bfd05d87a7063d060b8fd920e5766250be'
+  question: Hyperliquid Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: hype-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:04.783636Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 36.6986
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '65478619537581409418825621387051605897974570139999122498148222274511638144954'
+  - '43331449532305654451756939009379197347974971940652181734120667008409860890006'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '65478619537581409418825621387051605897974570139999122498148222274511638144954'
+    book_bids: 7
+    book_asks: 7
+    book_best_bid: 0.49
+    book_bid_size: 15.0
+    book_best_ask: 0.51
+    book_ask_size: 15.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '43331449532305654451756939009379197347974971940652181734120667008409860890006'
+    book_bids: 7
+    book_asks: 7
+    book_best_bid: 0.49
+    book_bid_size: 15.0
+    book_best_ask: 0.51
+    book_ask_size: 15.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 36.6986
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477598'
+  condition_id: '0xfbfdda045c9473b7364dcb6251dd1233901256d122a0be5cad085889e358398e'
+  question: BNB Up or Down - June 10, 4:00AM-8:00AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bnb-updown-4h-1781078400
+  family: crypto_4h
+  category: ''
+  created_at: '2026-06-09T08:07:06.621699Z'
+  end_date: '2026-06-10T12:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 35.6988
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '77129070708490044700555173757677588032410384788593589069230635000322942299004'
+  - '55938975498363502865273205643867390182001523161589092164658436799811065067581'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '77129070708490044700555173757677588032410384788593589069230635000322942299004'
+    book_bids: 7
+    book_asks: 7
+    book_best_bid: 0.49
+    book_bid_size: 15.0
+    book_best_ask: 0.51
+    book_ask_size: 15.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '55938975498363502865273205643867390182001523161589092164658436799811065067581'
+    book_bids: 7
+    book_asks: 7
+    book_best_bid: 0.49
+    book_bid_size: 15.0
+    book_best_ask: 0.51
+    book_ask_size: 15.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 35.6988
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2462634'
+  condition_id: '0x94f21ac6866a0b966cd4381c17cd9afb4c857fa53919db31167871cc632c3720'
+  question: Bitcoin Up or Down on June 9?
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-on-june-9-2026
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-07T16:00:01.401588Z'
+  end_date: '2026-06-09T16:00:00Z'
+  volume24hr: 132003.87971700006
+  volume: 132111.18049999993
+  liquidity: 29565.3924
+  best_bid: 0.11
+  best_ask: 0.12
+  mid: 0.11499999999999999
+  spread: 0.009999999999999995
+  neg_risk: false
+  clob_token_ids:
+  - '106777776264912515693390748859180800621678410515244034626450587798880083645470'
+  - '109636996740850385089957544612824619501682440407997451190182008113647205569393'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '106777776264912515693390748859180800621678410515244034626450587798880083645470'
+    book_bids: 11
+    book_asks: 72
+    book_best_bid: 0.11
+    book_bid_size: 867.0
+    book_best_ask: 0.12
+    book_ask_size: 3707.72
+    book_spread: 0.009999999999999995
+    book_spread_bps: 869.565217391304
+  - token_id: '109636996740850385089957544612824619501682440407997451190182008113647205569393'
+    book_bids: 72
+    book_asks: 11
+    book_best_bid: 0.88
+    book_bid_size: 3707.72
+    book_best_ask: 0.89
+    book_ask_size: 867.0
+    book_spread: 0.010000000000000009
+    book_spread_bps: 112.99435028248598
+  selection_metrics:
+    gamma_volume24hr: 132003.87971700006
+    gamma_liquidity: 29565.3924
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2462675'
+  condition_id: '0x879a565bd8fc87136151436738790dab10e17d26a63d4f42fbd6815e9f6dd2e2'
+  question: Ethereum Up or Down on June 9?
+  group_item_title: null
+  event_slug: null
+  slug: ethereum-up-or-down-on-june-9-2026
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-07T16:00:05.101076Z'
+  end_date: '2026-06-09T16:00:00Z'
+  volume24hr: 22375.756615000006
+  volume: 22385.756614999988
+  liquidity: 20783.5052
+  best_bid: 0.22
+  best_ask: 0.23
+  mid: 0.225
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '87343098514186645998866289884478971528061627382244117664896153602469242587983'
+  - '6924933694310346394527856086164021253982777891484123482138598637498379154759'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '87343098514186645998866289884478971528061627382244117664896153602469242587983'
+    book_bids: 17
+    book_asks: 25
+    book_best_bid: 0.22
+    book_bid_size: 20.0
+    book_best_ask: 0.23
+    book_ask_size: 218.64
+    book_spread: 0.010000000000000009
+    book_spread_bps: 444.4444444444448
+  - token_id: '6924933694310346394527856086164021253982777891484123482138598637498379154759'
+    book_bids: 25
+    book_asks: 17
+    book_best_bid: 0.77
+    book_bid_size: 218.64
+    book_best_ask: 0.78
+    book_ask_size: 20.0
+    book_spread: 0.010000000000000009
+    book_spread_bps: 129.03225806451624
+  selection_metrics:
+    gamma_volume24hr: 22375.756615000006
+    gamma_liquidity: 20783.5052
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2461180'
+  condition_id: '0x3ba579dc51cbe72eddd591fe4ba65c88d83ed0eedafb0d5f70574cc6a7704395'
+  question: Bitcoin Up or Down - June 9, 5AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-june-9-2026-5am-et
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-07T09:00:01.320892Z'
+  end_date: '2026-06-09T10:00:00Z'
+  volume24hr: 15733.555722000003
+  volume: 15733.555721999994
+  liquidity: 7023.7161
+  best_bid: 0.1
+  best_ask: 0.11
+  mid: 0.10500000000000001
+  spread: 0.009999999999999995
+  neg_risk: false
+  clob_token_ids:
+  - '66001451543072403159063770870358824828390297297579039628108177189336327800320'
+  - '64383408530911337807925407038380635392717470042136092805592869838469628889603'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '66001451543072403159063770870358824828390297297579039628108177189336327800320'
+    book_bids: 10
+    book_asks: 89
+    book_best_bid: 0.1
+    book_bid_size: 205.0
+    book_best_ask: 0.11
+    book_ask_size: 367.22
+    book_spread: 0.009999999999999995
+    book_spread_bps: 952.3809523809517
+  - token_id: '64383408530911337807925407038380635392717470042136092805592869838469628889603'
+    book_bids: 89
+    book_asks: 10
+    book_best_bid: 0.89
+    book_bid_size: 367.22
+    book_best_ask: 0.9
+    book_ask_size: 205.0
+    book_spread: 0.010000000000000009
+    book_spread_bps: 111.73184357541909
+  selection_metrics:
+    gamma_volume24hr: 15733.555722000003
+    gamma_liquidity: 7023.7161
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477248'
+  condition_id: '0x9ac7282e0f53b3dfd36caa3e28adfa1480d1acb30160748bef9ae94048c80cbe'
+  question: Bitcoin Up or Down - June 11, 2AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-june-11-2026-2am-et
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-09T06:00:00.659291Z'
+  end_date: '2026-06-11T07:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 10937.9798
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '31748124209983029573084501505500357985945672703779194058891796150371897829417'
+  - '4178411136947036378586615755658183952065943298232069870359109447186770849324'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '31748124209983029573084501505500357985945672703779194058891796150371897829417'
+    book_bids: 46
+    book_asks: 46
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '4178411136947036378586615755658183952065943298232069870359109447186770849324'
+    book_bids: 46
+    book_asks: 46
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 10937.9798
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477739'
+  condition_id: '0x096cd3063ec0f65743482744e561bd6c2fa4c6ffa603984864f77cf818cd154a'
+  question: Bitcoin Up or Down - June 11, 5AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-june-11-2026-5am-et
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-09T09:00:00.671935Z'
+  end_date: '2026-06-11T10:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 10912.6586
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '107682758642725732311283879400738271033012554798108732390914777069966157296422'
+  - '6303894101101668607710810325507575327173358256782688231776331059608519734062'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '107682758642725732311283879400738271033012554798108732390914777069966157296422'
+    book_bids: 43
+    book_asks: 43
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '6303894101101668607710810325507575327173358256782688231776331059608519734062'
+    book_bids: 43
+    book_asks: 43
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 10912.6586
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477409'
+  condition_id: '0x14b8b27de65d623e938c282f6999762cde0e17173704311948b68256a3ca16b9'
+  question: Bitcoin Up or Down - June 11, 3AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-june-11-2026-3am-et
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-09T07:00:00.668257Z'
+  end_date: '2026-06-11T08:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 10845.8598
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '48958534266487773865619077920049160394465083030787744576813473721918291571255'
+  - '36032880429962918888376850764952362919834377130910991540163626037332437661158'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '48958534266487773865619077920049160394465083030787744576813473721918291571255'
+    book_bids: 38
+    book_asks: 38
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '36032880429962918888376850764952362919834377130910991540163626037332437661158'
+    book_bids: 38
+    book_asks: 38
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 10845.8598
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477565'
+  condition_id: '0x427905151ff2ea86a4818e5e27a5d1af04070c05baa31bc977fedec8c5de410a'
+  question: Bitcoin Up or Down - June 11, 4AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-june-11-2026-4am-et
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-09T08:00:00.715553Z'
+  end_date: '2026-06-11T09:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 10811.057
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '102580952930889591601983832371004301516783181012180344978037530314812866592046'
+  - '80859768665909294537410261663278502631521681631326763236665335496108286399823'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '102580952930889591601983832371004301516783181012180344978037530314812866592046'
+    book_bids: 34
+    book_asks: 34
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '80859768665909294537410261663278502631521681631326763236665335496108286399823'
+    book_bids: 34
+    book_asks: 34
+    book_best_bid: 0.49
+    book_bid_size: 592.0
+    book_best_ask: 0.51
+    book_ask_size: 592.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 10811.057
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2470985'
+  condition_id: '0x574b9dbf3fd5b824b83e511ac5cec63aa44f813a21b79dbd2ffae80441b0acd0'
+  question: Bitcoin Up or Down - June 10, 12PM ET
+  group_item_title: null
+  event_slug: null
+  slug: bitcoin-up-or-down-june-10-2026-12pm-et
+  family: crypto_daily
+  category: ''
+  created_at: '2026-06-08T16:00:00.787049Z'
+  end_date: '2026-06-10T17:00:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 9962.6795
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '15001076459177703527026419296400605788343425710110268378299168248106684663917'
+  - '73146211017173600834095924019356850082073115511534944961222765458368734657250'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '15001076459177703527026419296400605788343425710110268378299168248106684663917'
+    book_bids: 38
+    book_asks: 38
+    book_best_bid: 0.49
+    book_bid_size: 612.0
+    book_best_ask: 0.51
+    book_ask_size: 612.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '73146211017173600834095924019356850082073115511534944961222765458368734657250'
+    book_bids: 38
+    book_asks: 38
+    book_best_bid: 0.49
+    book_bid_size: 612.0
+    book_best_ask: 0.51
+    book_ask_size: 612.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 9962.6795
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2469689'
+  condition_id: '0x92b4c61823d69f4c8f51af1ea09486118f4ab1c30a5c77d654561be1619cdfd8'
+  question: S&P 500 (SPX) Opens Up or Down on June 9?
+  group_item_title: null
+  event_slug: null
+  slug: spx-opens-up-or-down-on-june-9-2026
+  family: equity_index_open
+  category: ''
+  created_at: '2026-06-08T12:00:00.812244Z'
+  end_date: '2026-06-09T20:00:00Z'
+  volume24hr: 32750.58934299999
+  volume: 32750.589343
+  liquidity: 6115.831
+  best_bid: 0.95
+  best_ask: 0.96
+  mid: 0.955
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '37517053242389162184502773672659664033794371998385701428066374228647566774340'
+  - '9929407236652152336669777819300005380190419430771020390522661902328502377987'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '37517053242389162184502773672659664033794371998385701428066374228647566774340'
+    book_bids: 23
+    book_asks: 4
+    book_best_bid: 0.95
+    book_bid_size: 105.0
+    book_best_ask: 0.96
+    book_ask_size: 188.08
+    book_spread: 0.010000000000000009
+    book_spread_bps: 104.71204188481684
+  - token_id: '9929407236652152336669777819300005380190419430771020390522661902328502377987'
+    book_bids: 4
+    book_asks: 23
+    book_best_bid: 0.04
+    book_bid_size: 188.08
+    book_best_ask: 0.05
+    book_ask_size: 105.0
+    book_spread: 0.010000000000000002
+    book_spread_bps: 2222.2222222222226
+  selection_metrics:
+    gamma_volume24hr: 32750.58934299999
+    gamma_liquidity: 6115.831
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2469775'
+  condition_id: '0x73311fef2a084683db15ffb2a93ab2d2865ba2b8e4bbfc5035fa931c1efe3adb'
+  question: SPY (SPY) Up or Down on June 9?
+  group_item_title: null
+  event_slug: null
+  slug: spy-up-or-down-on-june-9-2026
+  family: equity_index_close
+  category: ''
+  created_at: '2026-06-08T12:00:27.990958Z'
+  end_date: '2026-06-09T20:00:00Z'
+  volume24hr: 49337.59404
+  volume: 49337.594039999916
+  liquidity: 31133.9865
+  best_bid: 0.77
+  best_ask: 0.8
+  mid: 0.785
+  spread: 0.030000000000000027
+  neg_risk: false
+  clob_token_ids:
+  - '40166703041527286568046175569495921750469608136463686893768142654009221670038'
+  - '65691319906685232845388548355638343136201070825426929136136386802615765948665'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '40166703041527286568046175569495921750469608136463686893768142654009221670038'
+    book_bids: 27
+    book_asks: 13
+    book_best_bid: 0.77
+    book_bid_size: 474.95
+    book_best_ask: 0.8
+    book_ask_size: 345.08
+    book_spread: 0.030000000000000027
+    book_spread_bps: 382.1656050955417
+  - token_id: '65691319906685232845388548355638343136201070825426929136136386802615765948665'
+    book_bids: 13
+    book_asks: 27
+    book_best_bid: 0.2
+    book_bid_size: 345.08
+    book_best_ask: 0.23
+    book_ask_size: 474.95
+    book_spread: 0.03
+    book_spread_bps: 1395.348837209302
+  selection_metrics:
+    gamma_volume24hr: 49337.59404
+    gamma_liquidity: 31133.9865
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2469692'
+  condition_id: '0xc2d9c14f44b04770d8c9df5f12d0f02f79dccb52781ae30aa3f65b484b460a0a'
+  question: S&P 500 (SPX) Up or Down on June 9?
+  group_item_title: null
+  event_slug: null
+  slug: spx-up-or-down-on-june-9-2026
+  family: equity_index_close
+  category: ''
+  created_at: '2026-06-08T12:00:01.017665Z'
+  end_date: '2026-06-09T20:00:00Z'
+  volume24hr: 14722.690162000004
+  volume: 14722.690161999994
+  liquidity: 14021.1033
+  best_bid: 0.76
+  best_ask: 0.78
+  mid: 0.77
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '112023565131527247423219766757566224511925217962145922261102461970724808832223'
+  - '106813672455774631104360569290382801852621590596876274161895734826053804115791'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '112023565131527247423219766757566224511925217962145922261102461970724808832223'
+    book_bids: 26
+    book_asks: 13
+    book_best_bid: 0.76
+    book_bid_size: 1158.53
+    book_best_ask: 0.78
+    book_ask_size: 8.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 259.74025974025994
+  - token_id: '106813672455774631104360569290382801852621590596876274161895734826053804115791'
+    book_bids: 13
+    book_asks: 26
+    book_best_bid: 0.22
+    book_bid_size: 8.0
+    book_best_ask: 0.24
+    book_ask_size: 1158.53
+    book_spread: 0.01999999999999999
+    book_spread_bps: 869.565217391304
+  selection_metrics:
+    gamma_volume24hr: 14722.690162000004
+    gamma_liquidity: 14021.1033
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477187'
+  condition_id: '0xdfe1ba56a9168c2b97632085f063bc3ae13e3de21323dd80e78c241d9d0771fb'
+  question: 'SpaceX IPO: Officially added to S&P 500 in 2026?'
+  group_item_title: null
+  event_slug: null
+  slug: spacex-ipo-officially-added-to-sp-500-in-2026-20260608202834697
+  family: finance_other
+  category: ''
+  created_at: '2026-06-09T05:41:59.733981Z'
+  end_date: '2027-01-01T04:59:00Z'
+  volume24hr: 187.989801
+  volume: 187.989801
+  liquidity: 261.1381
+  best_bid: 0.48
+  best_ask: 0.65
+  mid: 0.565
+  spread: 0.17000000000000004
+  neg_risk: false
+  clob_token_ids:
+  - '27173394024285318987191286944715905206692444390820809394538826936402858656401'
+  - '49115727187778613794871387050584148650048192435730900054875662343673222770689'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '27173394024285318987191286944715905206692444390820809394538826936402858656401'
+    book_bids: 8
+    book_asks: 16
+    book_best_bid: 0.48
+    book_bid_size: 188.0
+    book_best_ask: 0.65
+    book_ask_size: 5.0
+    book_spread: 0.17000000000000004
+    book_spread_bps: 3008.8495575221245
+  - token_id: '49115727187778613794871387050584148650048192435730900054875662343673222770689'
+    book_bids: 16
+    book_asks: 8
+    book_best_bid: 0.35
+    book_bid_size: 5.0
+    book_best_ask: 0.52
+    book_ask_size: 188.0
+    book_spread: 0.17000000000000004
+    book_spread_bps: 3908.045977011495
+  selection_metrics:
+    gamma_volume24hr: 187.989801
+    gamma_liquidity: 261.1381
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477186'
+  condition_id: '0x4f03e0cae05296094263c79bca46cd457246a9fccd327d6c297db2a741fe7281'
+  question: 'SpaceX IPO: Officially added to Nasdaq-100 in 2026?'
+  group_item_title: null
+  event_slug: null
+  slug: spacex-ipo-officially-added-to-nasdaq-100-in-2026-20260608205014294
+  family: finance_other
+  category: ''
+  created_at: '2026-06-09T05:41:45.194869Z'
+  end_date: '2027-01-01T04:59:00Z'
+  volume24hr: 0.0
+  volume: 0.0
+  liquidity: 129.9162
+  best_bid: 0.37
+  best_ask: 0.87
+  mid: 0.62
+  spread: 0.5
+  neg_risk: false
+  clob_token_ids:
+  - '73934639099033837896966376056360966484868125312944535984208515506828615420209'
+  - '86690463757788418748561915187665276802296206953899506047916974124170948900315'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '73934639099033837896966376056360966484868125312944535984208515506828615420209'
+    book_bids: 11
+    book_asks: 8
+    book_best_bid: 0.37
+    book_bid_size: 63.0
+    book_best_ask: 0.87
+    book_ask_size: 57.0
+    book_spread: 0.5
+    book_spread_bps: 8064.5161290322585
+  - token_id: '86690463757788418748561915187665276802296206953899506047916974124170948900315'
+    book_bids: 8
+    book_asks: 11
+    book_best_bid: 0.13
+    book_bid_size: 57.0
+    book_best_ask: 0.63
+    book_ask_size: 63.0
+    book_spread: 0.5
+    book_spread_bps: 13157.894736842107
+  selection_metrics:
+    gamma_volume24hr: 0.0
+    gamma_liquidity: 129.9162
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477783'
+  condition_id: '0x210d93ebbe5a44958a9d24d3ba36fd2a80c8b92ea6697de0460ca4576b1b0662'
+  question: Bitcoin Up or Down - June 10, 5:10AM-5:15AM ET
+  group_item_title: null
+  event_slug: null
+  slug: btc-updown-5m-1781082600
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T09:16:39.062792Z'
+  end_date: '2026-06-10T09:15:00Z'
+  volume24hr: 20.0
+  volume: 20.0
+  liquidity: 767.9705
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '35215909272905799337850744822104720420222413305884674486828000390569930701687'
+  - '11492660548152618821605755723668995443817169897923023427558528096109070284893'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '35215909272905799337850744822104720420222413305884674486828000390569930701687'
+    book_bids: 14
+    book_asks: 13
+    book_best_bid: 0.5
+    book_bid_size: 199.74
+    book_best_ask: 0.51
+    book_ask_size: 350.44
+    book_spread: 0.010000000000000009
+    book_spread_bps: 198.0198019801982
+  - token_id: '11492660548152618821605755723668995443817169897923023427558528096109070284893'
+    book_bids: 13
+    book_asks: 14
+    book_best_bid: 0.49
+    book_bid_size: 350.44
+    book_best_ask: 0.5
+    book_ask_size: 199.74
+    book_spread: 0.010000000000000009
+    book_spread_bps: 202.02020202020222
+  selection_metrics:
+    gamma_volume24hr: 20.0
+    gamma_liquidity: 767.9705
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477628'
+  condition_id: '0x802fa2c9e445c4009395c5e54994c86deda8b054c054e770fb193e358b3c2c79'
+  question: Hyperliquid Up or Down - June 10, 4:15AM-4:20AM ET
+  group_item_title: null
+  event_slug: null
+  slug: hype-updown-5m-1781079300
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T08:21:45.757291Z'
+  end_date: '2026-06-10T08:20:00Z'
+  volume24hr: 10.0
+  volume: 10.0
+  liquidity: 276.0542
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '81526042911821675334150461487810963660654375723380926504216439012548795276905'
+  - '77385939572085463969927052209747350669219070503285546617404111427275012118347'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '81526042911821675334150461487810963660654375723380926504216439012548795276905'
+    book_bids: 18
+    book_asks: 18
+    book_best_bid: 0.49
+    book_bid_size: 39.0
+    book_best_ask: 0.51
+    book_ask_size: 39.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '77385939572085463969927052209747350669219070503285546617404111427275012118347'
+    book_bids: 18
+    book_asks: 18
+    book_best_bid: 0.49
+    book_bid_size: 39.0
+    book_best_ask: 0.51
+    book_ask_size: 39.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 10.0
+    gamma_liquidity: 276.0542
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477596'
+  condition_id: '0x2c3f2138b78f76cd390f329b331ea3521e3c3cc4e10e0fd254ec1c110089aa42'
+  question: Hyperliquid Up or Down - June 10, 4:00AM-4:05AM ET
+  group_item_title: null
+  event_slug: null
+  slug: hype-updown-5m-1781078400
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T08:07:06.072118Z'
+  end_date: '2026-06-10T08:05:00Z'
+  volume24hr: 10.0
+  volume: 10.0
+  liquidity: 275.4532
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '114634236665982951787652120679151405864307166321605580594170465787667198410860'
+  - '6704823080404561148459599077753954307660769268541679158461049087998280492067'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '114634236665982951787652120679151405864307166321605580594170465787667198410860'
+    book_bids: 17
+    book_asks: 17
+    book_best_bid: 0.49
+    book_bid_size: 39.0
+    book_best_ask: 0.51
+    book_ask_size: 39.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '6704823080404561148459599077753954307660769268541679158461049087998280492067'
+    book_bids: 17
+    book_asks: 17
+    book_best_bid: 0.49
+    book_bid_size: 39.0
+    book_best_ask: 0.51
+    book_ask_size: 39.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 10.0
+    gamma_liquidity: 275.4532
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477614'
+  condition_id: '0x3da703dcec9fafb2af50fced13a76043d5591bb89733ede8a7bc9d30d2f991d6'
+  question: Hyperliquid Up or Down - June 10, 4:10AM-4:15AM ET
+  group_item_title: null
+  event_slug: null
+  slug: hype-updown-5m-1781079000
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T08:17:01.516882Z'
+  end_date: '2026-06-10T08:15:00Z'
+  volume24hr: 10.0
+  volume: 10.0
+  liquidity: 229.1742
+  best_bid: 0.48
+  best_ask: 0.52
+  mid: 0.5
+  spread: 0.040000000000000036
+  neg_risk: false
+  clob_token_ids:
+  - '85985383924276631140955368229030221794142808962104798669836551410727424961346'
+  - '93578478642835875545160553196745416778472025424962524899098944250985177112610'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '85985383924276631140955368229030221794142808962104798669836551410727424961346'
+    book_bids: 14
+    book_asks: 14
+    book_best_bid: 0.48
+    book_bid_size: 57.08
+    book_best_ask: 0.52
+    book_ask_size: 57.08
+    book_spread: 0.040000000000000036
+    book_spread_bps: 800.0000000000007
+  - token_id: '93578478642835875545160553196745416778472025424962524899098944250985177112610'
+    book_bids: 14
+    book_asks: 14
+    book_best_bid: 0.48
+    book_bid_size: 57.08
+    book_best_ask: 0.52
+    book_ask_size: 57.08
+    book_spread: 0.040000000000000036
+    book_spread_bps: 800.0000000000007
+  selection_metrics:
+    gamma_volume24hr: 10.0
+    gamma_liquidity: 229.1742
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477610'
+  condition_id: '0x57bad64bc85f0691b912008a0a3daa56238c04f93495f01f0fa7b6bd08b49840'
+  question: Hyperliquid Up or Down - June 10, 4:05AM-4:10AM ET
+  group_item_title: null
+  event_slug: null
+  slug: hype-updown-5m-1781078700
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T08:12:02.716615Z'
+  end_date: '2026-06-10T08:10:00Z'
+  volume24hr: 10.0
+  volume: 10.0
+  liquidity: 229.1741
+  best_bid: 0.48
+  best_ask: 0.52
+  mid: 0.5
+  spread: 0.040000000000000036
+  neg_risk: false
+  clob_token_ids:
+  - '32794119792567076686853299719983450923427785474790551952385610334205685711844'
+  - '62378910664582377573525174733928694148604664983903295367206487277089287499032'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '32794119792567076686853299719983450923427785474790551952385610334205685711844'
+    book_bids: 14
+    book_asks: 14
+    book_best_bid: 0.48
+    book_bid_size: 57.08
+    book_best_ask: 0.52
+    book_ask_size: 57.08
+    book_spread: 0.040000000000000036
+    book_spread_bps: 800.0000000000007
+  - token_id: '62378910664582377573525174733928694148604664983903295367206487277089287499032'
+    book_bids: 14
+    book_asks: 14
+    book_best_bid: 0.48
+    book_bid_size: 57.08
+    book_best_ask: 0.52
+    book_ask_size: 57.08
+    book_spread: 0.040000000000000036
+    book_spread_bps: 800.0000000000007
+  selection_metrics:
+    gamma_volume24hr: 10.0
+    gamma_liquidity: 229.1741
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477103'
+  condition_id: '0x5eb8225a1d31cd4b1ba8e5f99699ad645eb25f885346781a60387b4f05ca9d5c'
+  question: BNB Up or Down - June 10, 1:15AM-1:20AM ET
+  group_item_title: null
+  event_slug: null
+  slug: bnb-updown-5m-1781068500
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T05:22:02.479122Z'
+  end_date: '2026-06-10T05:20:00Z'
+  volume24hr: 3.196077
+  volume: 3.196077
+  liquidity: 800.1616
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '80013586676036847506789027448417920032884879897315503032541345823974495323807'
+  - '27167227564435393206649556506453590874506954923785460192895109837387580956828'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '80013586676036847506789027448417920032884879897315503032541345823974495323807'
+    book_bids: 21
+    book_asks: 21
+    book_best_bid: 0.49
+    book_bid_size: 66.0
+    book_best_ask: 0.51
+    book_ask_size: 62.8
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '27167227564435393206649556506453590874506954923785460192895109837387580956828'
+    book_bids: 21
+    book_asks: 21
+    book_best_bid: 0.49
+    book_bid_size: 62.8
+    book_best_ask: 0.51
+    book_ask_size: 66.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 3.196077
+    gamma_liquidity: 800.1616
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477058'
+  condition_id: '0x44888fed856b95a3e3368460a9ccf168b16f8d7fbeba7f58f4687353da3fb708'
+  question: XRP Up or Down - June 10, 1:00AM-1:05AM ET
+  group_item_title: null
+  event_slug: null
+  slug: xrp-updown-5m-1781067600
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T05:06:32.543083Z'
+  end_date: '2026-06-10T05:05:00Z'
+  volume24hr: 2.176469
+  volume: 2.176469
+  liquidity: 524.7878
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '80085224073237312771552296601980844591527600199032256792919205980156347383949'
+  - '36382922509171816787375581578507053032027885057316101762726209085675065658867'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '80085224073237312771552296601980844591527600199032256792919205980156347383949'
+    book_bids: 21
+    book_asks: 21
+    book_best_bid: 0.49
+    book_bid_size: 49.0
+    book_best_ask: 0.51
+    book_ask_size: 46.82
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '36382922509171816787375581578507053032027885057316101762726209085675065658867'
+    book_bids: 21
+    book_asks: 21
+    book_best_bid: 0.49
+    book_bid_size: 46.82
+    book_best_ask: 0.51
+    book_ask_size: 49.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 2.176469
+    gamma_liquidity: 524.7878
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2477087'
+  condition_id: '0x6204f97e7c77c4bc6c86d24f8dd5cd146e4809a59d9993e9b0b07295aeb8da22'
+  question: XRP Up or Down - June 10, 1:05AM-1:10AM ET
+  group_item_title: null
+  event_slug: null
+  slug: xrp-updown-5m-1781067900
+  family: crypto_fast_5m
+  category: ''
+  created_at: '2026-06-09T05:11:28.018974Z'
+  end_date: '2026-06-10T05:10:00Z'
+  volume24hr: 2.176469
+  volume: 2.176469
+  liquidity: 437.5874
+  best_bid: 0.49
+  best_ask: 0.51
+  mid: 0.5
+  spread: 0.020000000000000018
+  neg_risk: false
+  clob_token_ids:
+  - '64166099532611923827366311448510053814151631622950293811260016689975702958714'
+  - '68583069937445289901019964367279349546636623617024622828966863833854694792503'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '64166099532611923827366311448510053814151631622950293811260016689975702958714'
+    book_bids: 15
+    book_asks: 15
+    book_best_bid: 0.49
+    book_bid_size: 44.0
+    book_best_ask: 0.51
+    book_ask_size: 41.82
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  - token_id: '68583069937445289901019964367279349546636623617024622828966863833854694792503'
+    book_bids: 15
+    book_asks: 15
+    book_best_bid: 0.49
+    book_bid_size: 41.82
+    book_best_ask: 0.51
+    book_ask_size: 44.0
+    book_spread: 0.020000000000000018
+    book_spread_bps: 400.00000000000034
+  selection_metrics:
+    gamma_volume24hr: 2.176469
+    gamma_liquidity: 437.5874
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2473041'
+  condition_id: '0xcef1d969a32c74648402a0654fd312d80f9dcf6540f455dcaac068da9bb08318'
+  question: 'Counter-Strike: Monte vs paiN (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-mnte-pain-2026-06-09
+  family: sports_recurring
+  category: ''
+  created_at: '2026-06-08T20:30:38.760017Z'
+  end_date: '2026-06-09T18:00:00Z'
+  volume24hr: 341187.33233499975
+  volume: 341187.332335
+  liquidity: 494208.5766
+  best_bid: 0.53
+  best_ask: 0.54
+  mid: 0.535
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '37488256499001931047205663092687948869444715554704500071231861987859831236572'
+  - '5356915768371866512047643250735337780244618180904189481383031912718192717782'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '37488256499001931047205663092687948869444715554704500071231861987859831236572'
+    book_bids: 44
+    book_asks: 39
+    book_best_bid: 0.53
+    book_bid_size: 141251.23
+    book_best_ask: 0.54
+    book_ask_size: 56039.56
+    book_spread: 0.010000000000000009
+    book_spread_bps: 186.91588785046744
+  - token_id: '5356915768371866512047643250735337780244618180904189481383031912718192717782'
+    book_bids: 39
+    book_asks: 44
+    book_best_bid: 0.46
+    book_bid_size: 56039.56
+    book_best_ask: 0.47
+    book_ask_size: 141251.23
+    book_spread: 0.009999999999999953
+    book_spread_bps: 215.05376344085923
+  selection_metrics:
+    gamma_volume24hr: 341187.33233499975
+    gamma_liquidity: 494208.5766
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2473129'
+  condition_id: '0xcfd6d7d2ffe6ef30f846b4b63b500f20000644ec04b71ee681f41dfc783ee4a2'
+  question: 'Counter-Strike: BIG vs B8 (BO3) - IEM Cologne Major Stage 2'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-big5-b8-2026-06-09
+  family: sports_recurring
+  category: ''
+  created_at: '2026-06-08T20:40:38.527352Z'
+  end_date: '2026-06-09T23:00:00Z'
+  volume24hr: 258723.45272599996
+  volume: 258723.45272599952
+  liquidity: 595172.6891
+  best_bid: 0.45
+  best_ask: 0.46
+  mid: 0.455
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '91053123868836752785696237266265052936205733177371682528645392161076873838946'
+  - '97589931704942813310839734919516999246090782116800104382883964743352674356728'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '91053123868836752785696237266265052936205733177371682528645392161076873838946'
+    book_bids: 33
+    book_asks: 28
+    book_best_bid: 0.45
+    book_bid_size: 201377.96
+    book_best_ask: 0.46
+    book_ask_size: 200847.64
+    book_spread: 0.010000000000000009
+    book_spread_bps: 219.78021978021997
+  - token_id: '97589931704942813310839734919516999246090782116800104382883964743352674356728'
+    book_bids: 28
+    book_asks: 33
+    book_best_bid: 0.54
+    book_bid_size: 200847.64
+    book_best_ask: 0.55
+    book_ask_size: 201377.96
+    book_spread: 0.010000000000000009
+    book_spread_bps: 183.48623853211024
+  selection_metrics:
+    gamma_volume24hr: 258723.45272599996
+    gamma_liquidity: 595172.6891
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2470127'
+  condition_id: '0x563809393333153cf446d2e9154e71db98555808a9003c172daf01c3ae7a07a7'
+  question: 'LoL: Bilibili Gaming Junior vs T1 Academy (BO3) - Asia Masters Group
+    B'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: lol-blgj-t1a-2026-06-09
+  family: sports_recurring
+  category: ''
+  created_at: '2026-06-08T13:10:48.85329Z'
+  end_date: '2026-06-09T14:00:00Z'
+  volume24hr: 238230.514325
+  volume: 238230.51432500003
+  liquidity: 413185.5202
+  best_bid: null
+  best_ask: 0.001
+  mid: null
+  spread: null
+  neg_risk: false
+  clob_token_ids:
+  - '74029055148597814389162129654400320647568310924199053681547936168266452066643'
+  - '88300810902606095815007638166768724329811204939641072053269754016891600725659'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '74029055148597814389162129654400320647568310924199053681547936168266452066643'
+    book_bids: 0
+    book_asks: 37
+    book_best_bid: null
+    book_bid_size: null
+    book_best_ask: 0.001
+    book_ask_size: 380220.53
+    book_spread: null
+    book_spread_bps: null
+  - token_id: '88300810902606095815007638166768724329811204939641072053269754016891600725659'
+    book_bids: 37
+    book_asks: 0
+    book_best_bid: 0.999
+    book_bid_size: 380220.53
+    book_best_ask: null
+    book_ask_size: null
+    book_spread: null
+    book_spread_bps: null
+  selection_metrics:
+    gamma_volume24hr: 238230.514325
+    gamma_liquidity: 413185.5202
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.
+- id: '2474489'
+  condition_id: '0xe496003a3a8505262cec8362ac3206dd6a0eeb20f57d77850408855acee089f1'
+  question: 'Counter-Strike: INOX Division vs Bebop (BO3) - CCT Europe Series 4 Group
+    Stage'
+  group_item_title: Match Winner
+  event_slug: null
+  slug: cs2-inox-bbp-2026-06-09
+  family: sports_recurring
+  category: ''
+  created_at: '2026-06-08T23:50:36.328458Z'
+  end_date: '2026-06-09T14:00:00Z'
+  volume24hr: 181669.23117599997
+  volume: 181669.2311759999
+  liquidity: 105648.6459
+  best_bid: 0.5
+  best_ask: 0.51
+  mid: 0.505
+  spread: 0.010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '9785081041496960467405018342957503009793848177015359548387322077274527437368'
+  - '16078959757720883470805977901628822923023492130507967908766801465123932306536'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '9785081041496960467405018342957503009793848177015359548387322077274527437368'
+    book_bids: 10
+    book_asks: 25
+    book_best_bid: 0.5
+    book_bid_size: 18361.81
+    book_best_ask: 0.51
+    book_ask_size: 113496.62
+    book_spread: 0.010000000000000009
+    book_spread_bps: 198.0198019801982
+  - token_id: '16078959757720883470805977901628822923023492130507967908766801465123932306536'
+    book_bids: 25
+    book_asks: 10
+    book_best_bid: 0.49
+    book_bid_size: 113496.62
+    book_best_ask: 0.5
+    book_ask_size: 18361.81
+    book_spread: 0.010000000000000009
+    book_spread_bps: 202.02020202020222
+  selection_metrics:
+    gamma_volume24hr: 181669.23117599997
+    gamma_liquidity: 105648.6459
+  selection_rationale: Stage-1 continuation live CLOB capture for slow crypto + finance
+    diagnostics; observation only; no orders/auth. Refreshed from current Gamma/CLOB
+    on 20260609T093741Z; live measurement loop only.

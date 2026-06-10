@@ -32,6 +32,7 @@ Hub links: [[VAULT_MAP]] | [[SKILL_MAP]] | [[TODO]] | [[CODEX]] | [[COWORK]]
 | On branch close | Rock Tumbler | Convert messy branch work into a canonical findings note | `*_findings.md` |
 | Weekly | Janitor | Link / metadata / duplicate / stale-task cleanup | `brain/generated/hygiene_report.md` |
 | Weekly | Cartographer | Refresh [[VAULT_MAP]] + `brain/generated/GENERATED_INDEX.md` | updated maps |
+| Weekly | gbrain re-index | Re-import the vault + extract links so semantic search / graph traversal stay current (commands in [[gbrain_retrieval_layer]]) | refreshed gbrain index |
 | Monthly | Archive Review | Move closed branches to archive state; refresh roadmaps | updated status frontmatter |
 
 ## The weekly hygiene pass (concrete)
@@ -43,7 +44,7 @@ This is the one rhythm worth not skipping. It is one command plus a focused fix 
 python tools/brain_hygiene.py
 
 # 2. Read the output
-#    brain/GENERATED_INDEX.md          — navigation index by folder
+#    brain/generated/GENERATED_INDEX.md — navigation index by folder
 #    brain/generated/hygiene_report.md — duplicates, broken links, orphans, missing frontmatter
 #    brain/generated/stale_notes.md    — old / unlinked notes + stale TODOs
 
@@ -57,12 +58,11 @@ The brain is meant to grow fast. Manual hygiene scales with note count and dies 
 
 ## Scheduling (when ready)
 
-When you want this automated rather than manual, wire `tools/brain_hygiene.py` into a weekly scheduled task. The script is side-effect-light: it only writes under `brain/GENERATED_INDEX.md` and `brain/generated/` (both regenerable, and `generated/` is git-ignored). A schedule that just refreshes the reports — leaving the actual fixes to a human/Codex review — is safe to run unattended.
+When you want this automated rather than manual, wire `tools/brain_hygiene.py` into a weekly scheduled task. The script is side-effect-light: it only writes under `brain/generated/` (regenerable and git-ignored, including `brain/generated/GENERATED_INDEX.md`). A schedule that just refreshes the reports — leaving the actual fixes to a human/Codex review — is safe to run unattended.
 
-## Source-of-truth rules (Relay + Git)
+## Source-of-truth rules (git branches)
 
-- Edit shared Markdown in Obsidian/Relay first; use Git for snapshots, code, and audit history.
-- Don't have two people edit the same canonical note simultaneously across Relay and Git.
-- New `brain/**/*.md` is tracked automatically (gitignore was inverted 2026-06-07). Only `brain/generated/`, `brain/agents/locks/*.lock.md`, top-level `local_agents/`, and top-level `scratch/` are ignored.
-- Keep generated data and large artifacts out of the note-collaboration layer.
-- Invite keys go directly to collaborators, never into committed notes.
+- Git is the only sync layer. Each collaborator edits on their **personal branch** (named by GitHub handle); `main` is the integration branch — no direct commits to it. Merges follow [[MERGE_PROTOCOL]].
+- Commit/push EOD to your own branch (the per-person `brain-commit-push` task); merge main into your branch at session start and after anyone merges to main.
+- New `brain/**/*.md` is tracked automatically (gitignore was inverted 2026-06-07). Only `brain/generated/`, top-level `local_agents/`, and top-level `scratch/` are ignored — those last two are per-person state and never participate in any branch or merge.
+- Keep generated data and large artifacts out of the note layer; `brain/generated/` is regenerable and never committed.
