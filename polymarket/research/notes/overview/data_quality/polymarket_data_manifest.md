@@ -108,6 +108,7 @@ These are the generated CSVs that back findings notes. Keep new result tables un
 - [[polymarket/research/data/external/spx_iv_last_swing/cme_es_settlements_probe.csv|CME ES settlements probe]]
 - [[polymarket/research/data/external/spx_iv_last_swing/vix9d_history.csv|VIX9D history]]
 - [[polymarket/research/data/external/spx_iv_last_swing/vix_history.csv|VIX history]]
+- `data/analysis/csv_outputs/market_maps/ipo_tapes/` — cached mega-IPO day-1 tapes (CBRS spot 1m listing day + daily OHLCV for ARM/RIVN/BABA/META/RDDT) fetched once from Yahoo by `scripts/spcx_ipo_unwind_tape_study.py`; the CBRS 1m window is PURGED from Yahoo ~30d after listing, so these caches are the only surviving copy — do not delete. See [[spcx_ipo_unwind_tape_findings]].
 
 ### Copytrade
 

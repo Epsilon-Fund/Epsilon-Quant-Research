@@ -356,7 +356,7 @@ And the EV matrix at the $135 anchor price (total $ on the tranche; "vs never he
 
 | pessimistic fill | NOW | D1 | D2 (fill known, p=1) |
 |---:|---:|---:|---:|
-| 0% | $0 (X=0 — no margin ceiling needed: zero size, never hedge) | $0 | $0 |
+| 0% | $0 (the f=0 trivial corner: zero size → never hedge) | $0 | $0 |
 | 10% (X=8.6 sh, p=0.80 assumed) | +$113 | +$105 | **+$217** |
 | 25% (X=21.4 sh, p=0.50 assumed) | −$162 | −$172 | **+$542** |
 
