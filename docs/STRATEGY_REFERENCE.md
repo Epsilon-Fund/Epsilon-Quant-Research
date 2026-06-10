@@ -1136,6 +1136,7 @@ best-of-search Sharpe is upward-biased even on pure noise. This module quantifie
 | **Deflated Sharpe Ratio** (Bailey & López de Prado 2014) | Does the observed OOS Sharpe exceed the expected *maximum* Sharpe of an N-trial search on zero-edge data? | `deflated_sharpe_ratio()` |
 | **PBO via CSCV** (Bailey, Borwein, López de Prado, Zhu 2014) | Across all balanced IS/OOS partitions of time, how often does the IS-best config rank in the bottom half OOS? | `pbo_cscv()` |
 | **White's Reality Check** (White 2000; studentised per Hansen 2005) | Bootstrap p-value that the best config's mean return beats zero *after* accounting for the search | `whites_reality_check()` |
+| **Synthetic-null Monte Carlo** | Empirical DSR cross-check: run the whole candidate set on block-bootstrapped no-trend synthetic markets — can the search manufacture the real max Sharpe? Gate: real > null 95th pct | `make_null_ohlcv()` + `synthetic_null_mc()` |
 
 All Sharpe conventions match `performance_metrics.py` (mean/std·√ppy, ddof=1, no risk-free,
 flat bars included — D.2). CIs use the stationary bootstrap (Politis–Romano); the module is
@@ -1185,7 +1186,13 @@ The audit of the live 6-asset book (vs the 2.24 headline Sharpe) lives in
 [[momentum_overfitting_audit_findings]], with the runner at
 `topics/momentum/strategies/momentum_cpcv/run_overfitting_audit.py`. Its verdict
 (`FLAG-FOR-REVIEW`: real edge, but PBO ≈ 0.8 on a flat plateau) is the canonical worked
-example for [[OVERFITTING_VALIDATION]]'s interpretation matrix.
+example for [[OVERFITTING_VALIDATION]]'s interpretation matrix. The 500-path
+synthetic-null MC (`run_synthetic_null_mc.py`, same folder) confirmed the edge leg
+empirically — all six assets and the portfolio clear the pre-registered 95th-percentile
+null gate on the primary (drift-preserving, block-10) null. Big-run pattern to copy:
+`fast_momentum.py` — a numpy port of the strategy verified Sharpe-identical to the
+notebook pipeline before ~10⁶ MC backtests; parallel drivers must be file-based scripts
+(macOS multiprocessing-spawn deadlocks under heredoc/stdin `__main__`).
 
 ---
 

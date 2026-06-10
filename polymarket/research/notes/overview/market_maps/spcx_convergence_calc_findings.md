@@ -3,7 +3,7 @@ title: "SPCX IPO Convergence Trade — Units-Matched Basis + Liquidation-Surviva
 tags: [spacex, ipo, spcx, hyperliquid, ventuals, convergence, basis, liquidation, calculator, findings]
 created: 2026-06-09
 audience: "Cowork/Codex sessions deciding go/no-go on the long-IPO / short-perp SPCX convergence trade"
-status: "offline gate built + tested; SPCX venue numbers are a 2026-06-09 00:09 UTC live snapshot; Cerebras lifecycle tape pulled 2026-06-09 (HL 15m perp + Yahoo 5m spot) — refresh before trading"
+status: "offline gate built + tested; SPCX venue numbers are a 2026-06-09 00:09 UTC live snapshot; Cerebras lifecycle tape pulled 2026-06-09 (HL 15m perp + Yahoo 5m spot); Block S1 (hedge grid + basis-decay fit + pre-hedge timing rule) added 2026-06-10 17:00 UTC — pre-hedge NOT armed at 06-10 marks, Friday allocation gate is the rule — refresh before trading"
 ---
 
 # SPCX IPO Convergence Trade — Units-Matched Basis + Liquidation-Survival Calculator
@@ -20,6 +20,7 @@ status: "offline gate built + tested; SPCX venue numbers are a 2026-06-09 00:09 
 - **The one-line takeaway (revised).** The basis is real, and the earlier "NO-TRADE" was a **leverage artifact, not a property of the trade**. Sized as the realistic base case — **fully FDV-hedged (h=1) and UNLEVERED (1×)** — the short's liquidation buffer is **+82% (xyz) / +71% (vntl)**, far beyond the +39% Cerebras-high analog, so both legs are **TRADE-ABLE** (net locked ~**$24.9k / $20.3k** on 1,000 long shares, ROC ~**8.4% / 7.0%** over ~3 days). Leverage is what kills it: at 2× the +39% melt-up liquidates; at 5×/3× a +9%/+3% wiggle does. **Don't lever the short.**
 - **Two new realistic dimensions.** (1) **Hedge ratio h** (you need not cover 1:1): P&L splits into a **locked** part `h·N·basis` (settle-invariant) plus a **directional residual** `(1−h)·N·(close−135)` on the uncovered fraction — under-hedge (h<1) is a net-long tilt, over-hedge (h>1) is a net-short tilt that *loses on a melt-up*. (2) **Unlevered/over-collateralized short**: a wide but **finite** liquidation buffer (a perp short's loss is unbounded; only margin ≫ notional is truly un-liquidatable), at the cost of tying up the full notional as margin.
 - **Status.** Offline gate is **green unlevered and fully-hedged**; everything that decides whether to actually do it (real TR allocation fill, book depth at size, whether richness persists to Friday, oracle/transition behavior at listing) is **live-only**. Per the COWORK *terminus = live* rule, a green gate justifies a minimal instrumented live test, **not** a trading-system build — and a localhost **web** dashboard is declined as infra-before-signal for a ~3-day fuse (a terminal `--watch` loop is the right-sized monitor).
+- **Block S1 (added 2026-06-10): hedge grid + pre-hedge timing rule.** The calculator now answers the Friday-shaped question directly: a **fill-price ($135→$162) × fill-fraction (10/25/50/100%) × margin (€2k at 1×/1.5×) hedge grid**, a **basis-decay fit** on HL hourly candles (premium bleeding ~−4.4%/day full-window, ~−11%/day last week — half-life ~16d), and a **pre-registered pre-hedge timing rule** ("hedge X at node Y iff net basis ≥ Z"). Verdict at 06-10 marks (perp ~$162, basis ~$27/sh): **do NOT pre-hedge before allocation** — the margin ceiling is only ~14–21 shares, the expected fill covers it, and 2 days of basis decay (~$1.8/sh) is far cheaper than the naked-short melt-up tail; **the rule is the Friday gate**: hedge min(fill, ~21 sh at 1.5×) at ~8:00 CET iff live net basis > 0. Pre-hedging arms only if the perp spikes ≥ ~$171 first (Z ≈ $36/sh over a $135 fill). See § Block S1 below.
 
 ---
 
@@ -278,9 +279,109 @@ The convergence trade needs a **basis-preserving long** — i.e., primary alloca
 
 ---
 
+## Block S1 — hedge grid + pre-hedge timing rule (2026-06-10)
+
+> Task: [[spcx_listing_day_gameplan]] §7 Block S1 (highest priority, run before Friday). All marks in this section are a **2026-06-10 16:57 UTC live snapshot** (`xyz:SPCX` mark **$162.21**, funding **−0.000223%/hr**, EURUSD **1.1558** — Yahoo `EURUSD=X` intraday, flagged in every output). Re-run `--decision` at each decision node; the printed numbers refresh, the rule logic does not.
+
+### What S1 adds, in plain English
+
+The original calculator answered "is the basis real and what leverage survives" for a generic 1,000-share lot. Block S1 answers the **actual Friday decisions** for Justin's €10k Trade Republic subscription with <€2k of Hyperliquid margin:
+
+1. **(a) Hedge grid** — for every final price ($135→$162) × fill fraction (10/25/50/100%) × leverage (1×/1.5×): how many shares can the margin actually hedge, what does the locked sleeve net (after taker fees both sides — xyz pair-close pays an exit fee — and funding carry), what is the return on the hedge-sleeve capital, and how many shares are left naked (the Frame-B residual sleeve of the gameplan).
+2. **(b) Basis-decay fit** — how fast is the premium over $135 bleeding, fitted causally on HL hourly candles with bootstrap uncertainty, so "wait vs hedge now" can be priced rather than vibed.
+3. **(c) Pre-hedge timing rule** — a single pre-registered trigger per fill-price row: *"hedge X shares at node Y iff live net basis ≥ Z"*, for nodes NOW / D1 pricing-night (Thu 22:00 CEST) / D2 allocation (Fri 8:00 CEST), where Z prices **both** risks of hedging before the fill is known: the naked-short melt-up tail **and** the option to simply wait and hedge risk-free at allocation.
+
+**Practical example (one cell, hand-checkable).** Suppose the 424B prints $135, the fill comes in at 25%, and you run 1.5×. €10k × 1.1558 / $135 ≈ 85.6 shares requested → 21.4 filled. The €2k margin (= $2,312) at 1.5× supports $3,468 of short notional = 21.4 contracts at $162.21 — exactly covering the fill. Locked: 21.4 sh × ($162.21 − $135) ≈ $582 gross, minus ~$3 of taker fees (entry + pair-close exit at 4.5 bps/side) and ~$0.4 of funding paid (funding is currently slightly *negative* for the short) ≈ **$578 net**, on capital of 21.4×$135 + $2,312 ≈ $5,202 → **ROC ≈ 11.1%** over ~2 days. The same row at a $162 final price locks **≈ $0** — the basis is gone by construction.
+
+### (a) The hedge grid (1.5× shown; 1× ceiling is 14.3 sh)
+
+Cell = hedged shares | net locked $ | ROC | naked residual shares. Fill-price axis $135→$160 step $5 plus the $162 EU-prospectus corner; full grid (both leverages, all 56 cells) in `data/analysis/csv_outputs/market_maps/spcx_s1_hedge_grid.csv`.
+
+| fill $ | fill 10% | fill 25% | fill 50% | fill 100% |
+|---:|---|---|---|---|
+| 135 | 8.6 sh, +$232, 11.1%, r0 | 21.4 sh, +$578, 11.1%, r0 | 21.4 sh, +$578, 11.1%, r21.4 | 21.4 sh, +$578, 11.1%, r64.2 |
+| 140 | 8.3 sh, +$182, 8.9%, r0 | 20.6 sh, +$455, 8.9%, r0 | 21.4 sh, +$471, 8.9%, r19.9 | 21.4 sh, +$471, 8.9%, r61.2 |
+| 145 | 8.0 sh, +$136, 6.7%, r0 | 19.9 sh, +$340, 6.7%, r0 | 21.4 sh, +$364, 6.7%, r18.5 | 21.4 sh, +$364, 6.7%, r58.3 |
+| 150 | 7.7 sh, +$93, 4.7%, r0 | 19.3 sh, +$232, 4.7%, r0 | 21.4 sh, +$257, 4.7%, r17.2 | 21.4 sh, +$257, 4.7%, r55.7 |
+| 155 | 7.5 sh, +$53, 2.7%, r0 | 18.6 sh, +$131, 2.7%, r0 | 21.4 sh, +$151, 2.7%, r15.9 | 21.4 sh, +$151, 2.7%, r53.2 |
+| 160 | 7.2 sh, +$15, 0.8%, r0 | 18.1 sh, +$37, 0.8%, r0 | 21.4 sh, +$44, 0.8%, r14.7 | 21.4 sh, +$44, 0.8%, r50.9 |
+| 162 | 7.1 sh, +$0, 0.0%, r0 | 17.8 sh, +$1, 0.0%, r0 | 21.4 sh, +$1, 0.0%, r14.3 | 21.4 sh, +$1, 0.0%, r50.0 |
+
+**Column glossary.** *hedged shares* = min(shares filled, margin ceiling), where the ceiling = margin × leverage / mark (21.4 sh at 1.5×, 14.3 sh at 1×, at the $162.21 mark); *net locked $* = hedged × (mark − fill price) − taker fees (both sides for xyz, whose convert-in-place settlement needs a pair-close exit) + funding carry to settlement at the current hourly rate; *ROC* = net locked / (hedged × fill price + margin used) — hedge-sleeve capital only, the naked residual is a directional bet and is deliberately excluded; *r* = residual naked shares (the gameplan's Frame-B sleeve).
+
+**Read.** Three facts the gameplan needs: (1) at the expected case (fill ≤ 25%) the position is **fully lockable at 1.5×** — residual ≈ 0; the margin constraint only binds at ≥50% fills, where the extra shares are house-money Frame-B exposure anyway. (2) The locked sleeve is worth **~$580 max** (25%+ fill, $135 price, 1.5×) and decays roughly linearly to **zero at a $162 print** — if the 424B prints near the EU cap, the hedge sleeve is dead on arrival, exactly as the gameplan's hard rule anticipated. (3) ROC on the locked sleeve is a healthy 11.1%/~2d at $135 but the *dollar* numbers are small: this sleeve is a measurement loop with positive carry, not a payday — consistent with the [[CODEX]] materiality rule.
+
+### (b) Basis-decay fit — the premium is bleeding, and faster lately
+
+![SPCX premium decay fit with rate-only projection](../../../data/analysis/plots/spcx_convergence/spcx_s1_decay_fit.png)
+
+**Chart read.** Blue = hourly `xyz:SPCX` level premium over $135 (left edge ~$90 on 05-17, right edge ~$27 today); dotted black = the fitted full-window exponential trend (diagnostic); red = the **decision projection** — today's live premium decayed at the fitted rate — with the shaded band the daily-block-bootstrap 95% CI on the decay rate; dashed verticals = the D1 / D2 / settlement decision nodes. Note the two-regime shape: roughly flat $60–70 until ~06-03, then a fast bleed.
+
+| fit | window | b (per day) | half-life | D2 (Fri 8:00 CEST) projected mark |
+|---|---|---:|---:|---:|
+| full-window | 05-17 → 06-10, 570 hourly closes | **−0.0436** (naive se 0.0013) | 15.9 d | **160.44** [159.90, 161.00] |
+| recent-window (sensitivity) | last 7 d, 167 closes | **−0.1107** | 6.3 d | **157.94** |
+
+**Design notes (assumptions stated).** Model is `ln(mark − 135) = a + b·days`, OLS on hourly closes whose **close time precedes the fit cutoff** (the lookahead guard is inside the fitter and unit-tested — appending future bars cannot change a fit). CI is a **daily-block bootstrap** (n=500, seeded) because hourly residuals are autocorrelated and the naive OLS se lies. Projections are **rate-only from the live premium**: the level of a traded price is taken as given and only the decay *rate* is applied forward — projecting from the fitted trend line instead would smuggle a mean-reversion-to-trend bet into a risk rule (the live premium currently sits −15% *below* the trend, so trend-projection would claim the basis will *grow* by waiting; refused). HL purged hourly bars before 05-17 (requested since 05-14 — flagged in output, immaterial). No `--watch` parquet shards exist yet, so the watch-log cross-check reports "absent" — the fit rests on candles alone, which the gameplan explicitly blessed.
+
+**Read.** The premium is decaying with a half-life of **~16 days full-window, ~6 days in the last week** — the regime shift (flagged automatically when the two rates differ by >2 se) means model-form uncertainty exceeds the bootstrap band, and the honest projection range for Friday 8:00 is a mark of **~$158–160.4**, i.e. a net basis of **~$23–25.4/share if it prices at $135**. Waiting from now to allocation costs ~**$1.8/sh** (full rate) to ~**$4.3/sh** (recent rate) of expected basis. That number is what the timing rule must beat.
+
+### (c) The pre-registered pre-hedge rule
+
+The decision at D0/D1 is not "hedge vs never hedge" — it is "hedge **now**, unfilled, vs **wait** and hedge risk-free at allocation." Pre-hedging pays the richer current basis but risks being naked-short into a melt-up if the fill disappoints; waiting pays the decayed basis with zero naked risk (and keeps the option to skip if the basis dies). Per pre-hedged share, with `p = P(fill ≥ pre-hedge size)`:
+
+```
+EV(pre-hedge at node) = p·B_node − (1−p)·NL          (task formula, vs never hedging)
+EV(wait)              = p·max(B_alloc, 0)
+pre-hedge beats waiting  ⇔  B_node > Z* = (1−p)/p·NL + max(B_alloc, 0)
+```
+
+where `NL` (naked loss) = mark × E[melt-up] + exit fee, with the melt-up distribution taken from the Cerebras analogs (+13/+26/+39%, equal weights → E[move] = +26%), and `B_alloc` = today's decay-fit projection of the allocation-node basis, **frozen at run time** so Z* is a constant trigger, not a moving target. On a shortfall the *whole* pre-hedge is conservatively treated as naked and bought back at the melted-up price.
+
+The rule table at 06-10 marks (X = pre-hedge shares; Z = trigger $/sh; B = basis at the node, live at NOW / projected later; full table with CIs in `data/analysis/csv_outputs/market_maps/spcx_s1_decision_table.csv`):
+
+| fill $ | NOW | D1 pricing-night (Thu 22:00 CEST) | D2 allocation (Fri 8:00 CEST) |
+|---:|---|---|---|
+| 135 | X 8.6, Z 35.93, B +27.12 → **wait** | X 8.6, Z 35.84, B +25.82 → **wait** | X 21.4, Z 0, B +25.36 → **HEDGE** |
+| 140 | X 8.3, Z 30.93, B +22.12 → wait | X 8.3, Z 30.84, B +20.82 → wait | X 21.4, Z 0, B +20.36 → **HEDGE** |
+| 145 | X 8.0, Z 25.93, B +17.12 → wait | X 8.0, Z 25.84, B +15.82 → wait | X 21.4, Z 0, B +15.36 → **HEDGE** |
+| 150 | X 7.7, Z 20.93, B +12.12 → wait | X 7.7, Z 20.84, B +10.82 → wait | X 21.4, Z 0, B +10.36 → **HEDGE** |
+| 155 | X 7.5, Z 15.93, B +7.12 → wait | X 7.5, Z 15.84, B +5.82 → wait | X 21.4, Z 0, B +5.36 → **HEDGE** |
+| 160 | X 7.2, Z 10.93, B +2.12 → wait | X 7.2, Z 10.84, B +0.82 → wait | X 21.4, Z 0, B +0.36 → **HEDGE** |
+| 162 | X 7.1, Z 10.57, B +0.12 → wait | X 7.1, Z 10.48, B −1.18 → wait | X 21.4, Z 0, B −1.64 → **wait** |
+
+**Column glossary.** *X* = pre-hedge size = min(pessimistic-fill shares, margin ceiling); pre-nodes size to the **10%-fill row only** (the gameplan's "never above the 10%-fill row" cap); at D2 the fill is known, so X = min(fill, 21.4-sh ceiling). *Z* = the pre-registered trigger: `(1−p)/p × naked-loss + projected allocation basis` at pre-nodes; **0 at D2** (no naked risk, no wait option left — any positive net basis is lockable). *B* = net basis $/sh = mark − fill price − entry fee + funding-to-settle; HEDGE/wait = whether **today's** B clears Z — the rule itself binds on the basis **observed live at the node**.
+
+And the EV matrix at the $135 anchor price (total $ on the tranche; "vs never hedging" task formula):
+
+| pessimistic fill | NOW | D1 | D2 (fill known, p=1) |
+|---:|---:|---:|---:|
+| 0% | $0 (X=0 — no margin ceiling needed: zero size, never hedge) | $0 | $0 |
+| 10% (X=8.6 sh, p=0.80 assumed) | +$113 | +$105 | **+$217** |
+| 25% (X=21.4 sh, p=0.50 assumed) | −$162 | −$172 | **+$542** |
+
+**Read — the rule in one paragraph.** At current marks **no pre-hedge node arms, at any fill price**. The reason is structural, not marginal: the basis lost by waiting ~2 days (~$1.8–4.3/sh) is an order of magnitude smaller than the naked-melt-up risk premium (~$10.6/sh at p=0.8, plus the ~$25 wait-comparator), and the EV matrix says the same thing in dollars (+$217 waiting vs +$113 pre-hedging the 10% tranche). **The pre-registered rule is therefore: do nothing until the allocation e-mail; at Fri ~8:00 CEST hedge min(fill, 21.4 sh at 1.5× / 14.3 sh at 1×) iff live net basis > 0.** Pre-hedging earlier becomes correct only if the perp spikes through **Z* ≈ $36/sh over a $135 fill (perp ≥ ~$171)** before allocation — i.e., a pre-listing melt-up so violent that locking it beats any plausible Friday basis; that trigger is exactly what the frozen Z column encodes, and it doubles as the "naked-short loss" the gameplan's §5.4 hard rule worries about. This also resolves the gameplan's D1 decision: at these marks, **D1 = do nothing** unless the 424B prints AND the perp is ≥ ~$171.
+
+### S1 assumption ledger (modeled vs live-only)
+
+**Modeled (fair, declared, CLI-overridable):** P(fill≥10%) = 0.80 and P(fill≥25%) = 0.50 (pure assumptions — TR pro-rata is unmodelable offline; `--p-fill`); melt-up = equal-weighted Cerebras analogs +13/+26/+39% applied un-scaled to every node's naked window (conservative for the short D1→D2 window; `--meltup-dist`); total-shortfall-on-miss (whole pre-hedge naked — conservative); exponential level-premium decay, rate-only projection; funding frozen at the current hourly rate (currently *slightly negative* for the short: ~−$0.02/sh over 51h — the positive-carry line from 06-09 has flipped, immaterial at this size); EURUSD 1.1558 Yahoo intraday.
+
+**Live-only (the rule cannot resolve; measure):** the actual fill; the actual basis at D1/D2 (the rule binds on it); book depth at 14–21 contracts; funding path; `xyz` convert-in-place oracle behavior; TR day-1 sell capability (Block S4 / human in-app check).
+
+### S1 acceptance (all green)
+
+16 new tests extend the original 11 (**27 passing**, same file): grid axes contain $135/$162 corners and the $5 steps; a hand-computed grid cell reproduces exactly (sizing, fees, ROC); the margin ceiling binds at high fills with the residual counted; **zero margin → X=0 → never hedge** and **zero basis → never hedge** (the two required trivial corners, plus negative-basis rows never arm); the decay fit recovers a synthetic −2%/day slope with the bootstrap CI bracketing truth, drops non-positive premiums counted, and is **provably lookahead-free** (appending post-cutoff bars, including a synthetic melt-up, leaves the fit bit-identical); EV/threshold algebra (EV=0 exactly at Z; p=1→Z=0; p=0→Z=∞; Z* = Z_naked + max(0, projected allocation basis)); wait-dominance when no decay information exists; early arming when fill odds are near-certain and the melt-up tail is tiny; and a source-inspection test that the whole S1 decision path (`build_decision_table`, EV/threshold functions, the grid) never references a realized settlement price and cannot reach raw candles (it only receives the causal fit object).
+
+### S1 decision and next step
+
+- **Decision:** pre-registered and frozen — **no pre-hedge at current marks; the Friday allocation gate is the rule** (hedge min(fill, margin ceiling) iff live net basis > 0, sized by the grid row that materializes). The spike-trigger column (Z ≈ $36/sh over $135) stays armed as the only path to an earlier hedge.
+- **Next:** start `--watch --parquet-log` Thursday evening per the gameplan (D0 note: the logger is mandatory from pricing night onward — it also feeds the watch-log cross-check this run reported as absent); re-run `--decision` after the 424B prints (`--offer <final price>`) and again at allocation; post-day, feed the realized basis-at-each-node back into this section per the gameplan's post-mortem step.
+
+---
+
 ## Pre-registration / acceptance criteria (all green)
 
-The calculator was built against a frozen set of acceptance tests in `tests/test_spcx_convergence_calc.py` (**11 tests, all passing**, `uv run pytest`):
+The calculator was built against a frozen set of acceptance tests in `tests/test_spcx_convergence_calc.py` (**originally 11 tests; now 27 with Block S1's 16 — all passing**, `uv run pytest`). The original five criteria:
 
 1. **Units (i):** when `perp_base == IPO_base` the naive and units-matched gaps are equal; when bases differ they diverge by exactly the denominator ratio R (verified: `per-IPO-share-equiv == mark / R`, and a naive 1:1 short over-hedges by exactly `R − 1`). Valuation-unit FDV and per-share equiv verified separately.
 2. **Direction-neutrality (ii):** locked P&L is invariant to the assumed settlement price across a sweep of settle prices $80–$320 (variance < 1e-9, all equal to `entry − offer`).
@@ -317,6 +418,13 @@ PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --wat
 # cached dated snapshot; machine-readable JSON; acceptance tests:
 PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --offline --json
 PYTHONPATH=. uv run pytest tests/test_spcx_convergence_calc.py -q
+# Block S1 — hedge grid / decay fit / pre-registered pre-hedge rule (one page + CSVs + chart):
+PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --decision \
+    --decay-chart data/analysis/plots/spcx_convergence/spcx_s1_decay_fit.png
+# S1 pieces standalone, and the post-424B re-run with the final price:
+PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --grid
+PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --decay-fit
+PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --decision --offer 140
 # Cerebras lifecycle: pulls HL 15m perp + Yahoo 5m spot, writes the event-timeline + listing-window
 # charts, the phase-aligned readout, and 3 CSVs (perp 15m, spot 5m, phase table); then its tests:
 PYTHONPATH=. uv run python scripts/spcx_cerebras_case_study.py
@@ -331,6 +439,7 @@ Snapshots cache to `data/analysis/spcx_convergence/` (`hl_snapshot_<ts>.json` + 
 
 - **Verdict:** the long-IPO / short-perp convergence basis is **real and large** ($20–25/IPO-share gross, costs immaterial, positive funding carry), and sized realistically — **fully FDV-hedged (h=1) and UNLEVERED** — it is **TRADE-ABLE offline** (survives a +71–82% spike, ROC ~7–8% over ~3 days). The earlier NO-TRADE was a **leverage artifact**: at ≥2× a +39% melt-up liquidates, at venue max a +3–9% wiggle does. **The rule is: don't lever the short (≤1.5×), and decide your hedge ratio deliberately** — h=1 is locked arbitrage, h<1 leaves a net-long directional tilt, h>1 a net-short tilt that loses on a melt-up.
 - **Concrete next action (if pursued):** a *minimal instrumented live test* — confirm a real TR allocation fill at $135, post a small **unlevered (or ≤1.5×)** short, run the `--watch` monitor (liq-buffer panel + Parquet tick log), and capture book depth at size, realized funding, and oracle/mark behavior into the listing transition. **Do not scale, do not build a web dashboard yet.** Refresh the snapshot the night before listing; if the perp's richness has collapsed by Friday morning, the basis is gone and there is no trade.
+- **Timing (Block S1, 2026-06-10):** the pre-registered rule says **do not pre-hedge before the allocation e-mail** — at 06-10 marks the basis decay forfeited by waiting (~$1.8–4.3/sh over 2 days) is an order of magnitude cheaper than the naked-melt-up tail on an unfilled short. **Hedge at Fri ~8:00 CEST: min(fill, ~21 sh at 1.5× / ~14 sh at 1×) iff live net basis > 0**; pre-hedge earlier only if the perp first spikes ≥ ~$171 (the frozen Z* ≈ $36/sh trigger). See § Block S1.
 
 ---
 
