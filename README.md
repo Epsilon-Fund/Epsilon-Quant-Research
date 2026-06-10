@@ -78,6 +78,26 @@ The map above shows the research taxonomy. These donuts show where markdown rese
   <img src="docs/assets/readme_note_coverage_donuts.png" width="860" alt="Polymarket and crypto markdown note coverage donut charts" />
 </p>
 
+## Explore the research
+
+Each major folder has its own showcase README — what it is, why it's rigorous, and how to run it:
+
+| Folder | Start here for… |
+|---|---|
+| [live_trading/](live_trading/README.md) | The unified Streamlit app behind the live crypto book — journaled trades, optimiser-only parameters, shared dashboard machinery |
+| [topics/momentum/](topics/momentum/README.md) | The momentum research hub: the full ladder from scratch notebook to live dashboard |
+| [topics/momentum/strategies/momentum_cpcv/](topics/momentum/strategies/momentum_cpcv/README.md) | The toughest validation gate in the repo — combinatorial purged cross-validation plus a pre-registered overfitting audit |
+| [infrastructure/](infrastructure/README.md) | The engines everything above runs on: backtester, walk-forward, CPCV, and the anti-self-deception statistics |
+| [polymarket/research/](polymarket/research/README.md) | A billion-fill prediction-market dataset, the cohort copy-trading pipeline, and the strategy notes of every research branch — including the dead ones |
+| [polymarket/execution/](polymarket/execution/README.md) | The execution stack: copy-trading mirror, maker engine, layered risk, and an append-only journal |
+| [midas/](midas/README.md) | The original Polymarket executor + tail-risk harvester package |
+
+A taste of the validation culture — the live momentum book's overfitting audit, shown as normalized diagnostics (selection haircut as % of observed, overfitting probabilities, and a synthetic-null Monte Carlo):
+
+<p align="center">
+  <img src="docs/assets/momentum_cpcv_audit.png" width="900" alt="Normalized momentum CPCV overfitting audit panel" />
+</p>
+
 ## At a glance
 
 ```mermaid
@@ -119,6 +139,12 @@ The usual loop is:
 4. **Add realism early.** Fees, spread, queue position, capacity, top-maker concentration, settlement mechanics, live data availability, and capital lockup are part of the research, not a final decoration.
 5. **Document both sides.** Failed branches stay in the knowledge base so agents and humans do not rediscover dead ideas. Surviving branches get linked to the relevant hub, TODO, and runbook.
 6. **Promote only after measurement.** A promising historical result becomes a live measurement loop before it becomes a production strategy.
+
+That discipline has a measurable shape — most documented branches die at a gate, on purpose:
+
+<p align="center">
+  <img src="docs/assets/research_funnel.png" width="760" alt="Research funnel — documented branches surviving each validation gate" />
+</p>
 
 The `brain/` folder is an [Obsidian](https://obsidian.md) vault for this process. It contains start-here maps, strategy hubs, handoffs, TODOs, and agent lanes. A scanner in `tools/` checks broken links, duplicate note names, missing summaries, and other graph hygiene so the knowledge base remains usable as the repo grows.
 

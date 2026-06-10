@@ -1,42 +1,34 @@
----
-title: "Momentum Research Hub"
-created: 2026-02-19
-status: active
-owner: justin
-project: crypto
-para: resource
-hubs:
-  - STRATEGY_REFERENCE
-tags:
-  - crypto
-  - research
-  - momentum
----
 # Momentum Research Hub
 
-> Hub: [[STRATEGY_REFERENCE]]
+Crypto momentum research lives here: the live momentum family and its validation trail (walk-forward → CPCV → overfitting audit), Bollinger-breakout research on the same rails, and cross-sectional momentum experiments. The pattern is consistent across all of it: a strategy earns its way from a scratch notebook, through walk-forward optimisation, into Combinatorial Purged Cross-Validation, and only then into the [live trading app](../../live_trading/README.md).
 
-Crypto momentum research lives here: live momentum variants, walk-forward notebooks, CPCV validation, BB breakout, regime-filter diagnostics, portfolio result notebooks, and cross-sectional momentum experiments.
+## Where things live
 
-## Notebook Indexes
+| Folder | What's inside |
+|---|---|
+| [strategies/momentum_cpcv/](strategies/momentum_cpcv/README.md) | **The flagship validation gate** — per-asset CPCV notebooks for the live momentum family, the overfitting audit (DSR / PBO / Reality Check), and the synthetic-null Monte Carlo |
+| [strategies/bb_cpcv/](strategies/bb_cpcv/README.md) | CPCV notebooks for the Bollinger-breakout family |
+| [strategies/bb_breakout_wf/](strategies/bb_breakout_wf/README.md) | BB-breakout walk-forward and design notebooks |
+| [strategies/wf_testing_2/](strategies/wf_testing_2/README.md) | Current-generation walk-forward notebooks for the trend follower (the step before CPCV) |
+| [strategies/wf_testing/](strategies/wf_testing/README.md) | First-generation per-asset walk-forward notebooks |
+| [strategies/xs_cpcv/](strategies/xs_cpcv/README.md) | Cross-sectional momentum CPCV notebooks |
+| [strategies/testing/](strategies/testing/README.md) | Older strategy scratch notebooks (kept for the paper trail) |
+| [xs_momentum/](xs_momentum/README.md) | Cross-sectional momentum research: universe construction, long/short notebooks, OOS artifacts |
+| [outputs/](outputs/README.md) | Generated walk-forward HTML reports and fold-results CSVs |
+| [results/](results/README.md) | Portfolio, CPCV, and regime-filter result notebooks |
+| [research/](research/) | Side studies (Kronos forward-vol evaluation, cross-project hybrid scripts, weekly notes) |
+| `wf_template.ipynb` | Reusable walk-forward notebook template — the entry point for any new asset or variant |
 
-- [[topics/momentum/outputs/README|momentum output reports]] - generated walk-forward HTML reports and fold-results CSV.
-- [[topics/momentum/strategies/README|momentum strategy artifact index]] - loose strategy-level images plus child strategy folder indexes.
-- [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]] - Parquet cache, pickle, CSV, and JSONL artifact map for crypto/live-trading research.
-- [[topics/momentum/results/README|momentum results notebooks]] - portfolio, CPCV, and regime-filter result notebooks.
-- [[topics/momentum/wf_template.ipynb|walk-forward template notebook]] - reusable walk-forward notebook template.
-- [[topics/momentum/strategies/momentum_cpcv/README|momentum CPCV README]] - current per-asset CPCV notebooks for the live momentum family.
-- [[topics/momentum/strategies/bb_cpcv/README|BB CPCV README]] - current per-asset CPCV notebooks for BB breakout.
-- [[topics/momentum/strategies/bb_breakout_wf/README|BB breakout WF README]] - BB breakout walk-forward and design notebooks.
-- [[topics/momentum/strategies/wf_testing_2/README|wf_testing_2 README]] - current walk-forward design notes for the trend follower.
-- [[topics/momentum/strategies/wf_testing/README|wf_testing README]] - first-generation per-asset walk-forward notebooks.
-- [[topics/momentum/strategies/testing/README|momentum testing README]] - older strategy scratch notebooks.
-- [[topics/momentum/xs_momentum/README|XS momentum README]] - cross-sectional momentum research notebooks.
-- [[topics/momentum/strategies/xs_cpcv/README|XS CPCV README]] - cross-sectional CPCV notebooks.
+## The validation ladder
 
-## Related Topic Notes
+1. **Walk-forward** (`wf_template.ipynb`, `strategies/wf_testing_2/`) — rolling train/test optimisation with the engines in [infrastructure/](../../infrastructure/README.md); every fold's search is logged.
+2. **CPCV** (`strategies/momentum_cpcv/`, `strategies/bb_cpcv/`) — 28 purged combinatorial splits stitched into 105 out-of-sample paths per asset, with overlap-aware confidence intervals.
+3. **Overfitting gate** — Deflated Sharpe Ratio, PBO via CSCV, White's Reality Check, and a synthetic-null Monte Carlo, with a pre-registered pass bar. The first full application is written up in [momentum_overfitting_audit_findings.md](strategies/momentum_cpcv/momentum_overfitting_audit_findings.md).
+4. **Live** — only after all three: the strategy gets a dashboard in [live_trading/](../../live_trading/README.md) and its journal starts.
 
-- [[topics/momentum/research/other-notes/W1|momentum week 1]]
-- [[topics/momentum/research/other-notes/W2|momentum week 2]]
-- [[topics/ml-prediction/notebooks/README|ML prediction README]]
-- [[topics/regime-classifier/README|regime classifier README]]
+## Related topics
+
+- [ML prediction notebooks](../ml-prediction/notebooks/README.md) — XGBoost prediction experiments
+- [Regime classifier](../regime-classifier/README.md) — BTC regime labelling used as a filter overlay
+
+Vault hub: docs/STRATEGY_REFERENCE.md · data artifacts: docs/CRYPTO_DATA_MANIFEST.md

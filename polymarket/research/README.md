@@ -1,30 +1,37 @@
-# Polymarket Copy-Trading Research
-
-> Hub: [[POLYMARKET_BRAIN]] · [[COWORK]]
-> Table terms: [[polymarket_table_dictionary]]
+# Polymarket Research
 
 ## What this is
 
-Cohort-based copy-trading research on Polymarket. The goal is to identify
-groups of skilled traders (not individuals), validate their edge across
-historical data, and eventually feed a ranked list of cohorts to the
-execution module. This is the offline research half — historical data
-ingestion + trader ranking + cohort exploration. No live trading happens
-here.
+Prediction-market research on Polymarket. The data spine is cohort-based copy-trading: identify groups of skilled traders (not individuals), validate their edge across historical data, and eventually feed a ranked list of cohorts to the [execution module](../execution/README.md). This folder is the offline research half — historical data ingestion, trader ranking, cohort exploration, and the strategy notes of every research branch that grew out of that dataset. No live trading happens here.
 
-Strategy framing follows the Tatv articles linked at the bottom of this
-file: cohort-level allocation rather than single-leader copy.
+Copy-trading strategy framing follows the Tatv articles linked at the bottom of this file: cohort-level allocation rather than single-leader copy.
 
-## Status
+## Status — copy-trading data pipeline
 
 | phase | description | outcome |
 |---|---|---|
 | **1. Data infrastructure** | Bulk warproxxx CSV seed (2022-11 → 2025-10) + Goldsky subgraph delta (2025-10 → 2026-04) + Gamma markets snapshot. Validation pass on data quality. | **1 064 500 317 fills** ingested, 2 576 698 distinct addresses, 1 036 708 markets in snapshot. Validation found 0.38 % orphan rate, 905 self-trades (early-protocol noise), 12 operator-shaped addresses to deny-list. See [`notes/overview/data_quality/validation_report.md`](notes/overview/data_quality/validation_report.md). |
-| **2. Closed-position reconstruction** | For each `(address, market_id, outcome_index)` on resolved markets: aggregate trades + synthesise redemption at resolution price. | **269 974 929 positions** reconstructed. **Σ realised_pnl = $0.00** across all positions (self-consistency invariant). 96.4 % held to resolution. |
+| **2. Closed-position reconstruction** | For each `(address, market_id, outcome_index)` on resolved markets: aggregate trades + synthesise redemption at resolution price. | **269 974 929 positions** reconstructed. **Σ realised_pnl = $0.00** across all positions (zero-sum self-consistency invariant). 96.4 % held to resolution. |
 | **3. Trader metric panel** | Per-address activity, position-level + market-level PnL stats, style profile, drawdown, bankroll, operator flag. | **2 576 698 traders** with full metric panel; 2 572 665 after operator deny-list filter. Σ pos_total_pnl == Σ mkt_total_pnl confirmed to the cent. |
 | **4. Cohort exploration** | Six stratified pools with defensive guards (Sharpe artifact bounds, sample-size minimums). | 9 788 unique addresses qualify for ≥ 1 pool; 947 for 3+ pools; 0 for 5+ (pools are designed to span independent dimensions). 5 manual-inspection candidates surfaced — see [`RESEARCH_FINDINGS.md`](RESEARCH_FINDINGS.md). |
 | **5. Pending — backtesting** | Walk-forward + CPCV on cohort-selection rules. Point-in-time bankroll. Out-of-sample edge validation. | Not started. |
-| **execution-side integration** | Separate module at `polymarket/execution/`. Will consume a leader_rankings parquet produced here. | Not started. |
+| **execution-side integration** | Separate module at [`polymarket/execution/`](../execution/README.md). Will consume a leader_rankings parquet produced here. | Not started. |
+
+## Beyond copy-trading — the wider research arc
+
+The same fills dataset and capture infrastructure power a much larger body of strategy research, documented branch by branch under [`notes/`](notes/) — including the falsified branches, which stay in the record so nobody rediscovers a dead idea:
+
+<p align="center">
+  <img src="../../docs/assets/notes_by_cluster.png" width="640" alt="Documented Polymarket research notes by strategy cluster" />
+</p>
+
+- [`notes/market_making/`](notes/market_making/) — passive quoting economics: spread capture, carry-to-resolution, adverse selection, queue position, incumbent-maker concentration, NegRisk accounting, and live-loop designs.
+- [`notes/options_delta/`](notes/options_delta/) — binary prices vs external references: realized-vol fair values, longshot/vol overpricing, hedge overlays, settlement alignment, and the realism audits that closed the standalone pricing branches.
+- [`notes/dali/`](notes/dali/) — order-flow microstructure lineage: CLOB/L2 capture, OFI/TOB signals, taker/maker execution tests under non-overlap math, and the ML tier that confirmed the structural diagnosis.
+- [`notes/copytrade/`](notes/copytrade/) — leader audits, copyability metrics, directionality classification, and smoke-deployment planning.
+- [`notes/overview/`](notes/overview/) — cross-branch synthesis, methodology and data-quality notes, market maps, and shared table/term definitions.
+
+The folder-level map is [`notes/INDEX.md`](notes/INDEX.md); shared column/bucket definitions live in [`notes/overview/data_quality/polymarket_table_dictionary.md`](notes/overview/data_quality/polymarket_table_dictionary.md).
 
 ## Repo layout
 
@@ -61,7 +68,7 @@ polymarket/research/
 │   └── validation/
 │       └── 01_..07_*.py            — per-validation-check scripts
 ├── notebooks/
-│   ├── README.md                   — [[polymarket/research/notebooks/README|notebook index]]
+│   ├── README.md                   — notebook index
 │   └── cohort_exploration.ipynb    — Phase 4 interactive diagnostics
 ├── notes/
 │   ├── INDEX.md                    — markdown note-folder map
@@ -92,14 +99,9 @@ polymarket/research/
 
 ## Schema reference
 
-Every column in every derived parquet — including verbatim formula, source
-`file:line`, edge cases, and trustworthiness rating — lives in
-[`docs/METRICS_REFERENCE.md`](docs/METRICS_REFERENCE.md). Read that document
-before relying on any column for decisions.
+Every column in every derived parquet — including verbatim formula, source `file:line`, edge cases, and trustworthiness rating — lives in [`docs/METRICS_REFERENCE.md`](docs/METRICS_REFERENCE.md). Read that document before relying on any column for decisions.
 
-For the Obsidian-facing map of Parquet families, findings-support CSVs,
-JSONL checkpoints, and DuckDB scratch artifacts, see
-[[polymarket_data_manifest]].
+For the family-level map of Parquet shards, findings-support CSVs, JSONL checkpoints, and DuckDB scratch artifacts, see [the Polymarket data manifest](notes/overview/data_quality/polymarket_data_manifest.md).
 
 Quick-ref column groups (full list in METRICS_REFERENCE):
 
@@ -143,7 +145,7 @@ End state: `traders.parquet` and the 6 cohort pools queryable via DuckDB, `data_
 
 1. **Merge/split blindspot on NegRisk markets.** Trader bookkeeping that mints USDC into YES+NO and merges back is not an `OrderFilled` event. `phantom_position_score > 1` flags these traders; their `pos_*` per-position metrics are inflated/deflated, but `mkt_*` metrics aggregate correctly.
 2. **Open positions excluded from PnL.** No mark-to-market on currently-open positions. Phase 2 is closed-markets-only.
-3. **Sharpe annualisation is naive** (`sqrt(N / years_active)`); produces values up to 1.66 × 10¹⁵ at the artifact tail. Cohort filters require simultaneous `n_closed_positions > 200`, `active_days > 90`, `mkt_std_pnl > 1.0` guards. Sharpe is a DIAGNOSTIC, never a primary ranker.
+3. **Sharpe annualisation is naive** (`sqrt(N / years_active)`); it produces absurdly inflated values at the artifact tail (~15 orders of magnitude). Cohort filters require simultaneous `n_closed_positions > 200`, `active_days > 90`, `mkt_std_pnl > 1.0` guards. Sharpe is a DIAGNOSTIC, never a primary ranker.
 4. **Bankroll is lifetime peak**, not point-in-time. Descriptive only — using it for forward-looking sizing leaks future capacity into past decisions.
 5. **External reconciliation against Polymarket UI is order-of-magnitude only.** The public API exposes only currently-open mark-to-market and partial-realized within open positions; lifetime PnL lives only on the UI profile pages and isn't scriptable.
 6. **Data tail lag ~16 days** as of 2026-05-10. Goldsky's subgraph indexer trails ~9 days; the last sync added ~7 days more. Walk-forward backtests should set test cutoffs ≥ 9 days behind run date.
@@ -160,7 +162,7 @@ Full caveat list with source `file:line` references in [`docs/METRICS_REFERENCE.
 - **Sample profile output**: [`notes/copytrade/profile_domah.md`](notes/copytrade/profile_domah.md). Generated by `data_infra.trader_profile.profile_trader('0x9d84ce…')`.
 - **Schema + formulas**: [`docs/METRICS_REFERENCE.md`](docs/METRICS_REFERENCE.md).
 - **Analytical findings across phases**: [`RESEARCH_FINDINGS.md`](RESEARCH_FINDINGS.md).
-- **Notebook bridge**: [[polymarket/research/notebooks/README|Polymarket research notebook index]].
+- **Notebook bridge**: [`notebooks/README.md`](notebooks/README.md).
 
 Reference repo (DO NOT copy code, GPL-3.0): https://github.com/warproxxx/poly_data — used to understand Goldsky query shape and trade-processing logic.
 
@@ -179,3 +181,5 @@ Reference repo (DO NOT copy code, GPL-3.0): https://github.com/warproxxx/poly_da
 - True running-peak position size (`peak_position_size`, replacing the v1 `peak_fill_abs_token` proxy).
 - Exact `n_distinct_counterparties` (replacing HLL approximation), if cohort-selection precision warrants it.
 - `style_median_fill_size_usd` via sampled pass.
+
+Vault hub: brain/POLYMARKET_BRAIN.md · brain/COWORK.md · table terms: notes/overview/data_quality/polymarket_table_dictionary.md
