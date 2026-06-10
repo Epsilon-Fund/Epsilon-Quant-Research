@@ -33,6 +33,10 @@ results = run_cpcv(
 
 - **Leakage is treated as the default failure mode**: purging at every train/test boundary, indicator warm-up handled inside folds, execution lagged 1 bar, costs charged per leg.
 - **One out-of-sample path is an anecdote.** CPCV produces 105 stitched OOS paths per asset (N = 8, k = 2), and confidence intervals use the overlap-adjusted effective path count.
+
+![CPCV run display — split schedule and stitched OOS path fan](../docs/assets/momentum_cpcv_runs.png)
+
+*What `cpcv_engine.py` actually produces: the 28-split combinatorial schedule (left; blue = held-out test groups) and the resulting fan of stitched out-of-sample equity paths at the portfolio layer (right; rebased to 1.0, scale omitted by design — shape, not returns).*
 - **Search effort is priced, not ignored.** Selecting the best of 400 Optuna trials inflates any backtest; the audit quantifies that inflation (DSR haircut), checks whether in-sample winners hold up out-of-sample (PBO), and verifies the family beats noise after accounting for the search (Reality Check, synthetic-null Monte Carlo).
 
 Worked example of the whole stack end-to-end: the [momentum CPCV folder](../topics/momentum/strategies/momentum_cpcv/README.md) and its [audit findings](../topics/momentum/strategies/momentum_cpcv/momentum_overfitting_audit_findings.md). Plain-English explainer of the statistics: [docs/OVERFITTING_VALIDATION.md](../docs/OVERFITTING_VALIDATION.md).

@@ -7,6 +7,10 @@ Outputs (git-tracked, each < 300 KB):
   docs/assets/momentum_cpcv_audit.png     — normalized overfitting-audit panel
                                             (haircut %, PBO/DSR probabilities,
                                             synthetic-null ratio)
+  docs/assets/momentum_cpcv_runs.png      — what a CPCV run looks like: the
+                                            combinatorial split grid + the fan of
+                                            stitched OOS portfolio equity paths
+                                            (rebased, y-scale omitted by design)
 
 Inputs read locally:
   live_trading/cache/daily/{SYM}_daily.parquet            (git-ignored cache,
@@ -44,6 +48,7 @@ sys.path.insert(0, str(REPO / "infrastructure" / "validation"))
 LIVE_ASSETS = ["ADAUSDT", "AVAXUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT"]
 LOOKBACK_DAYS = 730
 VOL_WINDOW = 30
+SEED_SUBSAMPLE = 42  # deterministic path subsample so reruns are idempotent
 
 INK = "#1f2933"
 MUTED = "#637083"
@@ -185,9 +190,66 @@ def build_momentum_cpcv_audit() -> Path | None:
     return out
 
 
+def build_momentum_cpcv_runs() -> Path | None:
+    from itertools import combinations
+    from matplotlib.ticker import NullFormatter
+
+    paths_pkl = CPCV_DIR / "oos" / "portfolio_cpcv_paths.pkl"
+    if not paths_pkl.exists():
+        print(f"[skip] {paths_pkl} missing")
+        return None
+    paths = pd.read_pickle(paths_pkl)
+
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(12.0, 4.6), gridspec_kw={"width_ratios": [1.0, 1.9]},
+    )
+
+    # ── panel A: the combinatorial split structure (N=8 choose k=2) ──────────
+    N, K = 8, 2
+    splits = list(combinations(range(N), K))
+    grid = np.zeros((len(splits), N))
+    for i, test in enumerate(splits):
+        for g in test:
+            grid[i, g] = 1.0
+    ax1.imshow(grid, aspect="auto", cmap=matplotlib.colors.ListedColormap(["#e8ecf1", BLUE]),
+               interpolation="nearest")
+    ax1.set_xticks(range(N), [f"G{g+1}" for g in range(N)])
+    ax1.set_yticks(range(0, len(splits), 4), [f"{s+1}" for s in range(0, len(splits), 4)])
+    ax1.set_xlabel("time groups (contiguous, purged at boundaries)", fontsize=8, color=INK)
+    ax1.set_ylabel("split #", fontsize=8, color=INK)
+    _style(ax1, f"The combinatorial schedule\nevery pair of the {N} time groups serves as the\ntest set once — {len(splits)} purged splits per asset")
+    ax1.grid(False)
+
+    # ── panel B: fan of stitched OOS portfolio equity paths, shape only ──────
+    rng = np.random.default_rng(SEED_SUBSAMPLE)
+    idx = rng.choice(len(paths), size=min(250, len(paths)), replace=False)
+    med = sorted(paths, key=lambda p: p["sharpe"])[len(paths) // 2]
+    for i in idx:
+        eq = (1.0 + paths[i]["portfolio_returns"].fillna(0)).cumprod()
+        ax2.plot(eq.index, eq.values, lw=0.5, alpha=0.18, color=BLUE)
+    eq_med = (1.0 + med["portfolio_returns"].fillna(0)).cumprod()
+    ax2.plot(eq_med.index, eq_med.values, lw=1.6, color=RED, label="median path")
+    ax2.set_yscale("log")
+    ax2.yaxis.set_major_formatter(NullFormatter())
+    ax2.yaxis.set_minor_formatter(NullFormatter())
+    ax2.set_yticks([])
+    ax2.set_ylabel("equity shape, rebased to 1.0 (scale omitted)", fontsize=8, color=INK)
+    ax2.legend(fontsize=8, frameon=False, loc="upper left")
+    _style(ax2, f"{len(idx)} of {len(paths)} stitched out-of-sample portfolio equity paths\n"
+                f"every bar is out-of-sample in every path — the verdict is a distribution, not one backtest")
+    fig.text(0.995, 0.01, "structural display — y-axis scale intentionally omitted (shape, not returns)",
+             ha="right", fontsize=7, color=MUTED, style="italic")
+    fig.tight_layout()
+    out = OUT_DIR / "momentum_cpcv_runs.png"
+    fig.savefig(out, dpi=135)
+    plt.close(fig)
+    return out
+
+
 def main() -> int:
     built, skipped = [], []
-    for fn in (build_live_trading_overview, build_momentum_cpcv_audit):
+    for fn in (build_live_trading_overview, build_momentum_cpcv_audit,
+               build_momentum_cpcv_runs):
         out = fn()
         (built if out else skipped).append(fn.__name__ if out is None else out)
     for out in built:

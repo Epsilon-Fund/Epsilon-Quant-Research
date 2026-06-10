@@ -11,6 +11,12 @@ A single train/test split gives you one out-of-sample path and lets one lucky re
 - **Stitches the test groups into 105 complete out-of-sample equity paths** (every way of pairing 8 groups), giving a *distribution* of OOS outcomes instead of one anecdote. Confidence intervals account for path overlap (effective N, not raw path count).
 - **Charges realism everywhere**: 1-bar execution lag and per-leg costs inside the backtester, realised position sizing, and rejection filters identical to the live configuration.
 
+This is what a run actually looks like:
+
+![CPCV run display — combinatorial split schedule and the fan of stitched OOS portfolio equity paths](../../../../docs/assets/momentum_cpcv_runs.png)
+
+*Left: the combinatorial schedule — each row is one of the 28 splits, blue cells are the two time groups held out as the test set (training groups are purged at every boundary). Right: a deterministic subsample of the stitched out-of-sample portfolio equity paths, rebased to 1.0, with the median-ranked path highlighted — the question CPCV answers is "what does the* distribution *of out-of-sample outcomes look like", not "did one backtest go up". The y-axis scale is intentionally omitted: this is the shape of the evidence, not a performance claim.*
+
 On top of the CPCV runs sits the **overfitting audit** (`run_overfitting_audit.py`, harness in [`infrastructure/validation/`](../../../../infrastructure/README.md)): Deflated Sharpe Ratio with an effective-trial-count correction, Probability of Backtest Overfitting via CSCV (S = 16 blocks → 12,870 in-sample/out-of-sample partitions per asset), White's Reality Check (studentised, 2,000 stationary-bootstrap resamples), minimum track-record length, and a pre-registered three-part gate. The audit replays the full 400-trial search per asset on sample-identical data, so the haircut is computed against the *actual* candidate set the optimiser chose from.
 
 The final layer is a **synthetic-null Monte Carlo** (`run_synthetic_null_mc.py`): 500 block-bootstrap null universes across four null variants — roughly **1.2 million backtests** — asking whether the same search pipeline could have manufactured the real result on edge-free data.
