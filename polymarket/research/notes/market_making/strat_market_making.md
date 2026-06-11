@@ -76,6 +76,7 @@ Strategy A. So MM's live value is now (a) explaining the maker moat and (b) copy
 
 - Economics & quoting: [[block_k1_maker_economics_findings]], [[block_k2_quoting_findings]], [[block_k2v2_findings]], [[block_k2v3_findings]]
 - Real-maker reality check: [[block_k5_findings]], [[block_k5_stress_findings]], [[block_k5b_findings]], [[mm_deployable_cells_findings]], [[od_strategy_a_realism_reaudit_findings]], [[mm_politics_negrisk_accounting_findings]], [[mm_equities_updown_structural_scope_findings]], [[mm_lob_gate_findings]]
+- Deterministic arb gates: [[mm_negrisk_consistency_scanner_findings]] (NegRisk basket price-consistency — CLOSE for a small player: real & offline-persistent, but net-negative after fees, dust depth, ~4s live close on liquid baskets)
 - Live data and collection semantics: [[mm_clob_capture_semantics]], [[block_a0_runbook]], [[dali_live_l2_capture_plan]]
 - Maker-fill entry (bridge to OD Strategy A): [[block_kpeg_findings]], [[block_kpeg_robustness_findings]], [[block_kpeg_robustness_review]]
 

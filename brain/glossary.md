@@ -38,6 +38,7 @@ Terms and acronyms across Epsilon projects.
 - **Reality Check** — White's (2000) bootstrap test of whether the best-of-search config beats zero after accounting for the search; studentised = Hansen (2005) SPA refinement. See [[OVERFITTING_VALIDATION]].
 - **SPA** — Superior Predictive Ability (Hansen 2005): studentised, less conservative successor to White's Reality Check.
 - **Selection haircut (SR\*)** — expected maximum Sharpe of an N-trial search on zero-edge data; subtracted from the observed Sharpe to deflate it.
+- **Synthetic-null MC** — empirical DSR cross-check: run the whole candidate-config set on block-bootstrapped synthetic markets (drift/fat-tails/correlation preserved, trend structure destroyed) and ask whether the search can manufacture the real max Sharpe. Gate: real > null 95th percentile. See [[OVERFITTING_VALIDATION]].
 
 ## copytrade — markets & infra
 
