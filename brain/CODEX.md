@@ -206,6 +206,7 @@ The canonical implementation-prompt preamble (read order, data-artifact line) li
 - No CI-free "positive" results — always compute confidence intervals
 - No cross-importing between polymarket/ and crypto projects
 - No optimising on insufficient data — respect Task 5 triggers in Polymarket
+- No undelegated token-burn: token-heavy work (CPCV/WF sweeps, DuckDB scans, broad repo/vault reads) → apply the `efficient-fable` delegation pattern; long (> 30 min) or > 2-parallel-subagent runs → run the `stay-within-limits` budget check first. Both auto-trigger in Claude Code — see [[SKILL_MAP]] § Runtime efficiency skills.
 
 ---
 

@@ -134,6 +134,10 @@ If something Cowork is being asked to do can be settled with code, repo inspecti
 
 Cowork-specific features are separate from this boundary. Use Cowork for strategic discussion, interpretation, memory/brain updates, prompt design, and features only Cowork itself can perform; do not treat those as permission to do code-like research inside Cowork.
 
+### Delegation discipline (efficient-fable, orchestration variant)
+
+For token-heavy READING — vault scans, repo audits, multi-source gathering — Cowork applies the orchestration variant of the `efficient-fable` pattern ([[SKILL_MAP]] § Runtime efficiency skills): spawn parallel read-only subagents to gather, and keep judgment and synthesis local. Cowork subagents never edit files or run analyses — anything implementation-shaped still becomes a pre-registered Codex prompt per § Cowork vs Codex split above.
+
 ## Anti-patterns (carried over from handoff)
 
 - Building infra before validating signal. Roadmap discipline is "fastest path to first dollar."

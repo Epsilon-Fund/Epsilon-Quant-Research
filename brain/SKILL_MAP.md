@@ -30,7 +30,7 @@ A "skill" here is a named, repeatable pass — not a heavyweight system. Each ro
 There are two different things called "skills":
 
 1. **Brain workflow skills** — the operating passes in this file: Janitor, Rock Tumbler, Chronicler, Cartographer, Librarian, Daily Brief. These are repo-specific habits for keeping the Markdown brain useful.
-2. **Agent runtime skills** — Codex/Claude capabilities such as `query`, `read-memories`, `systematic-debugging`, `github`, `browser`, `openai-docs`, `spreadsheets`, `documents`, `presentations`, `imagegen`, and `cost-mode`. These help an agent do a task, but they do not run unless a prompt or scheduled task calls them.
+2. **Agent runtime skills** — Codex/Claude capabilities such as `query`, `read-memories`, `systematic-debugging`, `github`, `browser`, `openai-docs`, `spreadsheets`, `documents`, `presentations`, `imagegen`, `cost-mode`, `efficient-fable`, and `stay-within-limits`. These help an agent do a task, but they do not run unless a prompt or scheduled task calls them — except the two runtime efficiency skills (`efficient-fable`, `stay-within-limits`), which are description-triggered automatically in Claude Code; see § Runtime efficiency skills.
 
 Rule of thumb: brain workflow skills define **what pass should happen**; runtime skills define **which tool the agent should use while doing it**.
 
@@ -266,6 +266,16 @@ These are not brain workflows by themselves. They are tools an agent can call wh
 | `skill-creator` / `skill-installer` | Extending agent capability | You want a new reusable skill or to install one from a repo |
 
 Runtime skills should be mentioned in prompts only when they matter. Example: "Run a Janitor pass; use `systematic-debugging` if the hygiene scanner output looks inconsistent" is better than asking every skill to load every time.
+
+### Runtime efficiency skills
+
+Unlike the prompt-invoked brain passes above, these are **description-triggered automatically in Claude Code**: the skill's frontmatter description matches the task and Claude Code loads it without anyone asking. Vendored (adapted) from [BuilderIO/skills](https://github.com/BuilderIO/skills) into `.agents/skills/` with symlinks in `.claude/skills/`; source commit recorded at the top of each SKILL.md. The orchestration variant is not a vendored skill — it is law in [[COWORK]] § Delegation discipline.
+
+| Skill | Auto-trigger condition | What it does | Guardrails |
+|---|---|---|---|
+| `efficient-fable` (Codex / Claude Code: full pattern, auto-triggered) | Token-heavy implementation work: CPCV/walk-forward sweeps across assets, DuckDB scans over polymarket fills/positions, multi-notebook runs, log/capture-output reduction, broad repo or vault scans, repetitive bounded edits | Main agent orchestrates; cheap subagents do bounded heavy lifting; judgment, integration, and final review stay in the main agent | Every handoff packet restates the [[CODEX]] invariants (uv never bare pip, `PYTHONPATH=. uv run` from `polymarket/research/`, lookahead-free metrics, append-only parquet, writes per [[VAULT_MAP]] § Where to write things, commits only to the operator branch); "find prior work" subtasks use gbrain MCP tools, not hub reads; subagent reports are leads, not facts — verify before relying |
+| `efficient-fable-orchestration` (Cowork: read-only fan-out, law-driven) | Token-heavy READING in Cowork: vault scans, repo audits, multi-source gathering | Cowork spawns parallel read-only subagents and keeps judgment/synthesis local | Subagents never edit files or run analyses; anything implementation-shaped still becomes a pre-registered Codex prompt — see [[COWORK]] § Delegation discipline |
+| `stay-within-limits` | Before/within: CPCV parameter sweeps, per-asset notebook waves, bulk Polymarket reprocessing, any run expected > 30 min or > 2 parallel subagents | Checks 5-hour/weekly usage between waves (`npx -y ccusage@latest blocks --active --json`), pauses new work at 95% of either limit, resumes via self-contained wake prompts; wave throttle 3 | Never interrupt in-flight subagents to save budget; a budget-pause handoff mid-branch follows the Chronicler convention (what ran, what's pending, where results landed) |
 
 ## Future skills (deferred)
 
