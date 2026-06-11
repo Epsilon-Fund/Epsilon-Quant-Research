@@ -344,6 +344,116 @@ uv run python scripts/spcx_pm_pdf_monitor.py --serve 8642 --backfill-days 2 \
 
 **Tests.** 6 new (90 total with the calc): lognormal fit recovers a known (μ,σ) and reproduces the audit median on the fixture; the rip-then-fade synthetic fires the PEAK signal and tags the right strikes SELL; a flat tape stays `idle`; richness sign is correct and missing fit/depth/history degrade to `None` without raising; the LIVE payload carries `tail_trade` + a grid-aligned `lognormal.fair_S` and **no** `buckets`, JSON-serializable. Full suite green; live-booted and verified over the websocket (real depth 1.3k–7.8k sh/strike, fair median 2.13T, "tails quiet" pre-listing as expected).
 
+## 10.4 Block S5g.2 — time-scrub slider for the PDF/survivor (2026-06-11; relabeled — the operator's Block S5h is §10.5)
+
+**What it is:** a slider above panel 04 that replays how the crowd's PDF and survivor curve (and the perp marker on them) looked at any logged moment — the operator asked to *see the evolution*, not just the latest fit. One shared slider drives both charts; a sky vertical marks the scrubbed moment on the pair and session charts so the curve shape can be read against where the perp was trading; a LIVE button (and dragging to the right edge) snaps back to the current poll, which keeps streaming meanwhile.
+
+**How it works (one code path, no new math):** the parquet log already stores the **full 16-strike ladder per poll**, so `CurveIndex` loads every shard in the window (default `--curve-days 7`, ~2.2k polls) into memory and appends each live poll as it lands — the scrub range keeps extending while the monitor runs. Dragging the slider hits `GET /api/curve?ts=…`, which snaps to the nearest logged poll and **refits it through the same `analyze()` a live poll uses** (PCHIP + liquidity-weighted lognormal + raw histogram, identical blocks via the shared `curves_payload()`), off the event loop, ~50–80 ms uncached / ~2 ms cached. The browser draws the response through the same chart functions as a live poll — historical and live curves are pixel-comparable by construction.
+
+**Coverage:** the week backfill (`spcx_backfill_history.py --hours 168`, gap-aware) extended the shard log to **06-04** — venue history supported the full requested week (675 shards written, 1 grid point skipped). Worked read from the scrub itself: 06-04 the crowd mean was **$177.3** (perp $173.3, P(win) 88.7%); by 06-11 it is **$166.8** (perp $165.0, P(win) 85.5%) — the whole distribution drifted ~$10 lower over the week with the perp tracking it.
+
+**Honest caveats:** scrub points inherit the fidelity of their source shard — backfilled overnight points are midpoint reconstructions (§10.2), live-logged points are real best-bid/ask polls. The tail-sell markers and panel-01 screen stay live-only (depth is a now-quantity, not logged). Bucket overlay is not part of the scrub (removed from the live view in S5g).
+
+**Tests:** 4 new (168 total green): CurveIndex shard-load/nearest-snap/refit-equivalence (refit stats match the original poll's), append-only range extension, the `/api/curve` endpoint end-to-end on an ephemeral server (snap-to-edge, cached-identical second hit, 400 on missing ts), and `curve_range` in the websocket payload (null without an index — the slider hides).
+
+## 10.5 Block S5h — listing-eve additions (2026-06-11 evening; freeze reopened by the operator for this block only, RE-FROZEN after)
+
+Four items, landed in priority order, each tests-green and relaunch-verified before the next started. All are **display/advisory only — no order logic exists anywhere in this codebase.**
+
+### Item 1 — hedge-ops panel
+
+One amber-edged card, visible whenever hedged-state is set (`--hedged`/page form; `hedge_ts` is stamped automatically the first time the short goes on, for the funding clock). Shows: entry price, **basis locked** (entry − offer, $/sh and total), **liquidation price + buffer %** with SAFE/WARN/BREACH bands — the arithmetic is **imported from `spcx_convergence_calc`** (`maintenance_margin_frac` / `liq_price_short` / `liq_buffer_summary`; an equality test pins the panel bit-for-bit to the calc module), with the venue's live max-leverage from the HL meta (5× → mmr 0.10 at verification). Margin posted (declared EUR × FX) and **funding accrued ≈ current public HL rate × mark notional × hours-on** (labeled an approximation — read-only monitor, no account API). The **S6 readiness ladder runs as a live countdown**: PRE-CROSS → NO-ZONE (first ~45 min, with minutes-to-the-$2-gate) → GATE-2 (+46 min, $2) → GATE-1 (+61 min, $1) → GREEN (pair-close chip confirms), with the live perp−spot gap chip. **21:00 CET backstop countdown** carries the S6-measured ~$1.7/sh cost note. The **leg-sequencing card quotes gameplan §5.1 verbatim** — default "TR sell first, then perp" plus the NEW fast-tape exception (liq buffer < 25% **or** >2% spot move in 5 min ⇒ perp leg first), both inputs evaluated live each poll and the rule flagged *"pre-registered judgment, not measured"*.
+
+### Item 2 — lean tranche tables + day-shape overrides (§5.2, decided today)
+
+The displayed schedule now follows the lean tables, **auto-selected from fill − hedge sleeve**: ≤10 sh → two tickets 60/40 (skip T3); ~20 → 8/8/5; ~40 → 17/17/9; ~65 → 26/26/13 with T1 placed immediately post-observe (flagged). Off-row residuals show the nearest row verbatim with the **last ticket absorbing the difference** (e.g. fill 40 − hedge 18 = 22 sh → 8/8/6, live-verified). Each ticket renders shares, its post-cross window (T1 +15–60, T2 +60–180, T3 +180→21:30 CET), and DONE / PARTIAL (n/m) / ACTIVE / OVERDUE / opens-at status against cumulative `--sold`. The §5.2 overrides change the **displayed** schedule only: **FADE** halves every remaining window from now (tested: at +70 min, T2's end 180→125, T3's start 180→125) and flags "sell the next tranche NOW (T2 8 sh)"; **RALLY** defers the final ticket and prints the mental stop at 0.9 × session high; **CRASH** voids the table — hard-stop ladder governs; **FLAT** default.
+
+### Item 3 — S7 day-shape classifier + banner (§5.3, pre-registered today)
+
+The state machine exactly as pre-registered: **CRASH** = below the cross print AND below $160, or any hard-stop level hit ($140/$125) — instant, no hysteresis; **FADE** = below anchored VWAP ≥10 min AND >5% off the session high; **RALLY** = above AVWAP AND a new session high within 15 min; **FLAT** = else; non-CRASH switches need the candidate to hold **2 consecutive minutes**. Inputs: IEX spot + AVWAP, cross print, internally-tracked session high, the hard-stop levels — **no volume features** (IEX too thin). Full-width banner: state in its color, the matching **§0 action row verbatim**, minutes-in-state, and a manual override dropdown that **pins the state until released** (computed state stays visible beneath; override always wins, including into the tranche overrides). The banner stays hidden until the first spot print arms the classifier.
+
+**CBRS sanity replay (smoke test, NOT calibration — thresholds untouched).** Classifier run over the cached Cerebras 1m listing-day tape (`ipo_tapes/cbrs_spot_1m_listingday.csv`; cross = first volume bar, AVWAP = running Σpx·vol/Σvol from it):
+
+```text
+state timeline (minutes post-cross):
+  +0.0   FLAT   (arms at the cross print, $350)
+  +27.0  FADE   ← only transition; held for the entire remaining session
+  — no RALLY at any point; no CRASH (CBRS trades ~$300+, SPCX's absolute stops inert)
+```
+
+One honest note, reported rather than tuned away: the block spec asked for "FADE within the first ~20 min", but the pre-registered rule itself makes that arithmetically unreachable — S2 measured the AVWAP loss at +12 min, the FADE clock needs 10 more minutes below it, and hysteresis adds 2 ⇒ a **≥24-min floor by construction**. The measured +27 min is consistent with the rule as written (the replay's own AVWAP loss lands ~+15 min vs S2's +12 — same construction-sensitivity caveat as the audit). The test asserts ≤30 min with this reasoning in its docstring; **no threshold was adjusted to make the replay prettier.**
+
+### Item 4 — cross-timing poller + indication paste field
+
+**(a)** A background thread polls Nasdaq's public trading-halts RSS (`nasdaqtrader.com/rss.aspx?feed=tradehalts`) for SPCX every 60 s, self-gated to ≥15:00 CET. The cross-timing card shows halt code, **resumption quote time, resumption TRADE time (= when the cross prints)**, and data age. Parsing is defensive (the page is not an API contract): any fetch/parse failure renders **"poller down — watch CNBC"**, never stale data; pre-listing the live feed correctly returns "SPCX not in the halts feed" (verified against the real endpoint). When a resumption trade time first appears, a one-shot alert fires the in-page path (toast + title flash) like a state change. **(b)** An **indication paste field**: the operator types e.g. `148-152` when CNBC/X relays it → timestamped, appended to the persisted day-state (survives restarts), displayed latest + history **next to the perp and PM mean**, broadcast to all clients immediately, and logged onto the parquet shards as `indication_text`/`indication_ts` (schema-extended; older shards lack them — `union_by_name`). **No headline-scraping poller — explicitly out of scope.**
+
+### Tests + soak
+
+19 new tests (191 total, all green): buffer-band equality vs the calc module; fast-tape inputs incl. no-tape degradation; S6 ladder phases incl. GREEN-from-history; tranche row selection with hedge-sleeve subtraction (incl. the verbatim rows at their own sizes and last-ticket absorption); FADE/RALLY window arithmetic + CRASH handover; classifier FADE-with-hysteresis, RALLY-from-stale-high decay, instant CRASH on both legs, override pinning, blip immunity; the CBRS replay assertions above; halts parse of a real-shaped fixture, malformed-input degradation, one-shot alert consumption; indication POST → persisted JSON reload → render → parquet columns → 400 on bad input.
+
+**Live soak (2026-06-11 evening — PASS, with a bonus robustness finding).** The full stack (`--watch 45 --serve --parquet-log --spot-ws alpaca --html`, all four S5h panels live) launched 19:23 CET. Mid-soak the operator's machine went to **OS sleep ~19:26–22:27 CET**; the stack **survived the sleep/wake cycle unattended** — on wake it re-established the CLOB/HL/Alpaca connections itself, shed exactly 6 transient "0 usable ladder strikes" polls at the wake boundary (the refuse-to-fit guard, working as designed, no garbage shards written), and resumed clean polling. The acceptance soak was then measured on the **uninterrupted post-wake window: 22:27–22:50 CET, 26 polls at perfect 45 s cadence, 0 push failures, 0 tracebacks, 0 further skips, process alive throughout** (49 shards total across the evening; last live read perp $168.28, −$2.9 vs PM mean). The same running process also hot-served the PLAN-tab gameplan refresh (fast-tape exception, lean tranche tables, S7 state table, +61 min gate) without a restart — the serve-from-disk design doing its job.
+
+Scope is now **RE-FROZEN** — no further dashboard changes before listing.
+
+## 10.6 Block S5i — REHEARSAL tab: full-day dress rehearsal on a real Nasdaq tape (2026-06-12 pre-dawn; the freeze's single reopening, now FINAL)
+
+**What it is.** A third dashboard tab that replays a real Nasdaq session through the production pipeline, pretending the 9:30 ET open print is the IPO cross — so the operator can drill the day (watch the classifier flip, click tranche tickets, read the hedge-ops ladder) on a tape that actually happened. It is a **rehearsal harness, not a feature**: engine functions are imported read-only, and the whole thing is provably isolated from production state.
+
+**The level-scaling trick (zero engine modification).** SPCX's dollar levels are meaningless on NVDA, and the classifier's $160/$140/$125 constants are pre-registered — they must not be forked. Both problems solve each other: with simulated offer := cross ÷ 1.30, every gameplan level is a *ratio* to the offer, so mapping the rehearsal price into SPCX-dollar space (`px × 135/offer`) before feeding the **production** `DayShapeClassifier` makes its unmodified constants *exactly* the scaled levels. One multiplication; provably the same rules (a test asserts the round-trip: scaled level × mapping = SPCX constant, bit-exact). The scaled mapping is printed on screen (NVDA 06-11: cross $201.33 → sim offer $154.87 → CRASH floor $184, reassess $161, sell-everything $143…).
+
+**Build.** `scripts/spcx_rehearsal.py` (tape fetch Alpaca-historical → Yahoo-1m fallback → CSV cache in `ipo_tapes/`; RTH filter via America/New_York so the first surviving bar is the simulated cross; `build_rehearsal` precomputes close/AVWAP/session-high/perp-proxy and the classifier **state ribbon stepped sequentially — lookahead-free by construction**) + three isolated server endpoints (`/api/rehearsal/load|panel|state`) + the tab UI: price chart with AVWAP, scaled-level lines and the SIM CROSS marker (revealed only up to the playhead), a colored **state ribbon** (future stays dark), play/pause at 1×/10×/60×, scrub bar, "next state change" jump, the production-rendered tranche table with rehearsal-only **mark-sold buttons** (8/16/22 cumulative), the production-rendered hedge-ops panel with a SIMULATED note (entry = cross-time stock + $25 proxy), and the always-on violet banner ("REHEARSAL — symbol date — simulated cross/levels/position"). Panels with no replayable source (PM distribution, real perp, halts, indication) are a "live SPCX — not part of rehearsal" note; their production behavior is untouched.
+
+**Isolation (the acceptance bar) — proven by test, not asserted:** rehearsal day-state lives in `rehearsal_state.json` (its own namespace; the server takes the path as a parameter so tests pin it to a tmp dir); after a full rehearsal lifecycle (load → scrub panels across the session → mark sold → reload) the **production `playbook_state.json` is byte-identical**, the **only new file on disk is the rehearsal state file**, the production websocket payload is unchanged (same inputs → deep-equal output), production `/api/state` stays live, and **10/10 production pushes deliver in order to a connected client while the rehearsal panel endpoint is hammered**. `build_rehearsal` is also tested not to mutate its input bars. No parquet is written anywhere by any rehearsal code path.
+
+**NVDA 2026-06-11 end-to-end (the dress rehearsal of the dress rehearsal).** 390 RTH bars via Alpaca (then cache). Session state timeline through the production classifier:
+
+```text
++0    FLAT   (sim cross $201.33)
++14   RALLY  (new highs above AVWAP — NVDA was an up-day)
++44   FLAT   (high went stale)
++255  RALLY
++272  FLAT
++358  RALLY  (close strength)
+```
+
+19 panel renders checked across every state change + 30-bar samples: 0 unexpected (hedge-ops + tranche + banner all consistent with the ribbon at every playhead). Mark-sold T1 → DONE arithmetic verified through the API; the RALLY override (final ticket DEFERRED, 10%-below-high stop) rendered at the RALLY bars. **No FADE/CRASH occurred — NVDA 06-11 was simply not a fade day**; the FADE path is exercised by the synthetic pop-then-fade tape test and the CBRS replay (§10.5), and the operator can load any fading session by date. Visual screenshots are left as the operator's 1-minute check (open the tab, press LOAD + PLAY at 60×); the panel-state evidence above is API-verified.
+
+**Tests:** 12 new (`tests/test_spcx_rehearsal.py` + 2 endpoint guards) — **218 total, all green**. Tape cache/fallback chain, pre-market exclusion + first-RTH-bar cross, scaling ratios + SPCX-space round-trip, **lookahead truncation** (ribbon prefix at cuts 30/60/90 identical with and without future bars), fading-tape reaches FADE, ticket-click arithmetic, input non-mutation, the isolation suite above, 404-before-load / 400-on-missing-index.
+
+**The freeze is now FINAL — nothing else ships before listing.**
+
+## 10.7 Block S5j — two interpretation charts (2026-06-12 pre-dawn; display-only, the last addition)
+
+Two charts that render exclusively from values the server already computes — no new data, state, or rules. Both draw on the LIVE tab **and** in the REHEARSAL tab from replayed values through the **same code path** (`tranche_chart_data` / `hedge_chart_data` are called identically by the live payload and the rehearsal panel), so the dress run exercises them.
+
+**Chart 1 — tranche schedule ("where am I in the sell plan").** Horizontal timeline, cross → 21:30 CET, under the ticket list. Each lean-table ticket is a block spanning its phase window horizontally and its cumulative share range vertically (so the blocks form the sell staircase); solid when marked sold, amber-bordered when active, dashed-grey when RALLY-deferred. Dashed step-line = end-of-window cumulative target; emerald line = actual sold; white playhead = minutes since cross. **The override redraw imports the panel's arithmetic** — the numeric window bounds are emitted by `tranche_schedule` itself (one function, already tested), and an equality test pins the chart block to the same FADE-halved numbers the panel shows (+70 min FADE: T2 end 180→125, T3 start →125). CRASH collapses all bands into a single red "SELL ALL n sh — hard-stop ladder" block.
+
+![[s5j_tranche_chart_rehearsal.png]]
+*Mid-rehearsal render (NVDA tape, +120 min, T1 marked sold): T1 solid, T2 active under the NOW playhead, T3 pending; target staircase vs the sold line.*
+
+**Chart 2 — hedge unwind ("can I close now, what does it cost").** Two strips on a shared time axis under the hedge-ops panel. Top: the perp−spot gap against the ±$2/±$1 readiness lines, with the S6 ladder as background zones (0–45 min red no-pair-close, 46–60 amber $2 gate, 61+ green $1 gate), the 21:00 CET backstop as a hard red vertical (~$1.7/sh note), and a READY marker when the readiness chip first goes green (first-green is remembered on the dashboard state). Bottom: liq-buffer % over time with the WARN (<10%) and BREACH (≤0) bands — **each point is the calc module's `liq_buffer_summary` at the entry-fixed liq price** (point-for-point equality test). Below: the live readout *"close both legs now ⇒ locked basis − gap drag = $X total"*, tested equal to (basis − gap) × hedged exactly. Pre-cross: the gap strip shows "awaiting cross" while the buffer strip runs from hedge entry.
+
+![[s5j_hedge_chart_rehearsal.png]]
+*Mid-rehearsal render: the SIM perp proxy (stock + $25) puts the gap at ≈$25 — correctly far outside the readiness bands (the proxy is constant by construction); buffer ≈50%, safely above WARN; readout: locked $71.46/sh × 18 = $1,286 − drag $450 = $836.*
+
+**Tests:** 4 new — override-redraw arithmetic equality, close-now + buffer-series equality vs the calc module, empty states (no hedge → no chart; no fill → no chart; no cross → no playhead, gap series null while buffer runs, drag unknown), and carriage in both the live payload and the rehearsal panel (JSON-serializable). **222 total, all green.** Relaunch-verified: both containers and draw functions serve; the PNGs above are rendered from the live rehearsal API mid-session.
+
+**Freeze is FINAL-final.**
+
+## 10.8 Block S5k — EXECUTION tab + day-view audit fixes (2026-06-12 pre-dawn; operator-directed)
+
+**Why:** the operator's audit call on listing-day morning: the LIVE tab had become ~2 screens of execution panels interleaved with ~2 screens of research surfaces; the S5j charts were invisible pre-allocation with nothing saying where they'd appear; the day-state form was unclear ("don't know what to input, buttons don't seem to work" — endpoints verified fine, the failure was *feedback*: a tiny "saved ✓" and no immediate visual change); the CNBC indication paste field was judged unused.
+
+**The restructure (additive + moves, no engine rule changes):**
+
+- **New EXECUTION tab, the default view** — the rehearsal layout fed live: S7 banner → mini tile strip (spot · perp · gap · P(win)) → **E1 live chart** (IEX spot + anchored AVWAP vs every pre-registered level line, CROSS marker, perp line pre-cross) with a **live-building state ribbon** beneath (per-poll classifier states stamped onto the history records and carried through the snapshot — backfilled records honestly lack them, so the ribbon starts with live polling) → playbook NOW card → tranche table + S5j schedule chart → hedge-ops + S5j unwind chart → halts card → **E5 guided day-state card**.
+- **E5 day-state card** replaces the old drawer: labeled inputs with a what-to-do-when caption (allocation → fill+SAVE; hedge fields if the overflow rule fires; first print → MARK CROSS NOW; after each ticket → sold+SAVE), offer shown as fixed ($135 priced ✓, no longer an input), and **loud feedback** — every save/mark fires the toast + title flash, and the playbook re-renders instantly as before. SAVE and MARK CROSS verified end-to-end through the API.
+- **LIVE tab renamed ANALYSIS** and reduced to the research surfaces: full tiles, levels strip, tail-sell screen, pair, session, crowd distribution + time-scrub. Day-state inputs point to EXECUTION/E5.
+- **Indication paste card dropped** from the day view (operator decision — the halts card is the real cross-time alarm and stays). The `/api/indication` endpoint, render function, and parquet columns remain dormant. **Found + fixed during the audit:** the previous night's test indication ("148-152 (test)") was still in production state and being stamped onto every parquet shard — purged.
+- **D1 marked RESOLVED** on the PLAN tab and annotated in the gameplan: priced **$135** — basis math holds exactly as computed, the $162 contingency is void, the $183 pre-hedge trigger stands.
+
+**Tests:** 2 new (snapshot carries per-poll shape/avwap for the ribbon; payload no longer carries the indication card while halts stays) — **224 total, all green**; JS syntax-checked; relaunch-verified (EXEC tab default, all elements serving, removed elements absent, clean pre-allocation state restored: offer 135 / fill null / cross null / sold 0).
+
 ## 11. Decision and next step
 
 - **Gate outcome:** Block S5 is **built, tested, live-verified**. The −$3.3 ambiguity is closed (bug, not convention — use mean−offer). No edge claim is made here: at the 06-10 poll the bucket mispricing is gone (+1.5pp) and the perp-vs-crowd gap is ±$4 — this is a **measurement instrument**, consistent with the thread's merits-a-measurement-loop posture, not a signal.
