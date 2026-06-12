@@ -1,0 +1,1520 @@
+<!doctype html>
+<!-- SPCX listing-day dashboard (Block S5e). Served by spcx_dashboard_server.py on
+     127.0.0.1 only. Self-contained: the ONLY script is the vendored /assets/echarts.min.js.
+     Read-only advisory display: every number is computed server-side by the monitor engine.
+
+     Two tabs: LIVE (telemetry) and PLAN (the frozen gameplan decision tree, key moves,
+     key watches, and the glossary). Red is reserved for stops, crossed downside levels,
+     and disconnection. Series colors: spot=sky, perp=amber, crowd=white (median grey
+     dashed), P(win)=emerald, >$3T tail=violet. All numerals are monospace tabular. -->
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPCX — listing day</title>
+<script src="/assets/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0b0e12;--panel:#12161d;--panel2:#171c24;--edge:#222a35;--edge2:#2d3845;
+  --tx:#dde5ec;--mut:#8b9aa8;--dim:#5d6b78;
+  --sky:#38bdf8;--amber:#f5a623;--emerald:#34d399;--violet:#a78bfa;
+  --red:#f87171;--white:#eef3f7;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+     font:15.5px/1.55 -apple-system,system-ui,"Segoe UI",sans-serif;padding-bottom:56px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+
+/* ---------- masthead ---------- */
+#conn{display:none;position:sticky;top:0;z-index:20;background:#7f1d1d;color:#fecaca;
+      text-align:center;padding:8px;font-weight:700;letter-spacing:.5px;font-size:15px}
+header{position:sticky;top:0;z-index:10;background:rgba(11,14,18,.97);
+       border-bottom:1px solid var(--edge);backdrop-filter:blur(4px)}
+.mast{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;
+      align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:19px;letter-spacing:.5px}
+.brand small{color:var(--mut);font-weight:600;letter-spacing:1.2px;font-size:11px;
+             display:block;text-transform:uppercase}
+#hdrnode{font-family:var(--mono);font-weight:800;font-size:16px;padding:6px 16px;
+         border-radius:6px;border:1px solid var(--edge2);letter-spacing:1px}
+.n-PREALLOC{color:var(--mut)}
+.n-D2{color:var(--sky);border-color:var(--sky)}
+.n-D4{color:var(--amber);border-color:var(--amber)}
+.n-D5{color:var(--emerald);border-color:var(--emerald);
+      box-shadow:0 0 12px rgba(52,211,153,.25)}
+.n-CLOSE{color:var(--red);border-color:var(--red)}
+.tabs{display:flex;gap:4px}
+.tabbtn{background:none;border:1px solid var(--edge2);color:var(--mut);border-radius:7px;
+        padding:7px 18px;font-weight:800;font-size:14px;letter-spacing:1px;cursor:pointer}
+.tabbtn.on{background:#1c2c3e;color:var(--white);border-color:#3b5878}
+.mright{margin-left:auto;display:flex;align-items:center;gap:12px}
+#clock{font-family:var(--mono);font-size:21px;font-weight:700;color:var(--white)}
+#clock small{color:var(--mut);font-size:10px;display:block;text-align:right;
+             letter-spacing:1px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--emerald);
+     animation:pulse 2s infinite}
+.dot.dead{background:var(--red);animation:none}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ---------- status strip ---------- */
+#strip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px;
+       color:var(--mut);padding:9px 0}
+.chip{font-family:var(--mono);padding:3px 10px;border-radius:4px;font-weight:700;
+      font-size:13px;border:1px solid transparent}
+.chip.g{background:#0c2a1d;color:var(--emerald)}
+.chip.a{background:#2c2208;color:var(--amber)}
+.chip.r{background:#2f1313;color:var(--red)}
+#flags{color:var(--amber);font-size:13px;width:100%}
+
+/* ---------- playbook card (server-rendered) ---------- */
+.pbcard{background:var(--panel2);border:1px solid var(--edge2);border-left:4px solid
+        var(--dim);border-radius:10px;padding:14px 18px;margin:10px 0 14px}
+.pbcard[data-node="D2/D3"]{border-left-color:var(--sky)}
+.pbcard[data-node="D4"]{border-left-color:var(--amber)}
+.pbcard[data-node="D5"]{border-left-color:var(--emerald)}
+.pbcard[data-node="CLOSE-OUT"]{border-left-color:var(--red)}
+.pbnode{font-size:22px;font-weight:700}
+.pbsub{font-size:12px;color:var(--mut);font-weight:400}
+.pbul{list-style:none;margin:10px 0;padding:0;font-size:15.5px}
+.pbul li{padding:8px 12px;border-left:2px solid var(--edge2);margin:6px 0;
+         background:rgba(255,255,255,.015);border-radius:0 6px 6px 0;line-height:1.6}
+.pbwatch{font-size:15px;color:var(--sky);border-top:1px solid var(--edge);
+         padding-top:9px;font-weight:600}
+.pbmiss{font-size:13.5px;color:var(--amber);margin-top:5px;font-family:var(--mono)}
+.src{font-size:11px;color:var(--dim);font-family:var(--mono)}
+.go{color:var(--emerald)}.nogo{color:var(--red)}
+code{font-family:var(--mono);background:#0b0e12;padding:1px 6px;border-radius:4px;
+     font-size:13.5px;border:1px solid var(--edge)}
+
+/* ---------- S7 day-shape banner (S5h item 3) ---------- */
+#shapebanner{display:none;border-radius:10px;border:1px solid var(--edge2);
+  border-left:6px solid var(--dim);padding:12px 18px;margin:10px 0;background:var(--panel2)}
+#shapebanner.show{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+#shapestate{font-family:var(--mono);font-size:26px;font-weight:800;letter-spacing:1.5px}
+#shapeaction{font-size:15.5px;flex:1;min-width:280px;line-height:1.5}
+#shapemeta{font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+#shapesel{background:var(--panel);color:var(--tx);border:1px solid var(--edge2);
+  border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:13px}
+#shapebanner.sh-FLAT{border-left-color:var(--dim)}
+#shapebanner.sh-FLAT #shapestate{color:var(--mut)}
+#shapebanner.sh-FADE{border-left-color:var(--amber);background:#1f1a0a}
+#shapebanner.sh-FADE #shapestate{color:var(--amber)}
+#shapebanner.sh-RALLY{border-left-color:var(--emerald);background:#0c2018}
+#shapebanner.sh-RALLY #shapestate{color:var(--emerald)}
+#shapebanner.sh-CRASH{border-left-color:var(--red);background:#2f1313}
+#shapebanner.sh-CRASH #shapestate{color:var(--red)}
+
+/* ---------- rehearsal tab (S5i — isolated harness) ---------- */
+.rehbn{background:#1b1230;border:1px solid var(--violet);border-left:6px solid
+  var(--violet);color:#d6c8f5;border-radius:10px;padding:11px 16px;font-weight:700;
+  font-size:14.5px;letter-spacing:.4px}
+#rehribbon{display:flex;height:16px;border-radius:4px;overflow:hidden;
+  border:1px solid var(--edge2)}
+.rseg{height:100%}
+.rs-FLAT{background:#2a3340}.rs-FADE{background:var(--amber)}
+.rs-RALLY{background:var(--emerald)}.rs-CRASH{background:var(--red)}
+.rs-future{background:#161b22}
+.simnote{font-family:var(--mono);font-size:12px;color:var(--violet);margin:6px 0 2px;
+  font-weight:700}
+.rehshapebn.sh-FLAT{border-left-color:var(--dim)!important;color:var(--mut)}
+.rehshapebn.sh-FADE{border-left-color:var(--amber)!important;color:var(--amber)}
+.rehshapebn.sh-RALLY{border-left-color:var(--emerald)!important;color:var(--emerald)}
+.rehshapebn.sh-CRASH{border-left-color:var(--red)!important;color:var(--red)}
+
+/* ---------- cross-timing + indication cards (S5h item 4) ---------- */
+#xtrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+@media(max-width:880px){#xtrow{grid-template-columns:1fr}}
+.xtcard{background:var(--panel);border:1px solid var(--edge);border-radius:10px;
+  padding:12px 16px}
+.xth{font-size:12px;font-weight:800;letter-spacing:1px;color:var(--mut);
+  text-transform:uppercase;margin-bottom:6px}
+.xtbody{font-size:14.5px;line-height:1.6}
+#toast{display:none;position:fixed;top:64px;left:50%;transform:translateX(-50%);
+  z-index:40;background:#0c2a1d;color:var(--emerald);border:1px solid var(--emerald);
+  border-radius:9px;padding:12px 22px;font-weight:800;font-size:15px;
+  box-shadow:0 4px 24px rgba(0,0,0,.5)}
+
+/* ---------- hedge-ops panel (S5h item 1; shown while the short is on) ---------- */
+.hopcard{background:var(--panel2);border:1px solid var(--edge2);border-left:4px solid
+  var(--amber);border-radius:10px;padding:14px 18px;margin:10px 0 14px}
+.hoph{font-size:15px;font-weight:800;letter-spacing:.8px;color:var(--amber);
+  margin-bottom:10px}
+.hopgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:10px 16px;margin-bottom:10px}
+.hopgrid .tl{font-size:10.5px}
+.hv{font-size:17px;font-weight:700;color:var(--white);margin-top:2px}
+.hopline{font-size:14.5px;padding:7px 0;border-top:1px solid var(--edge);line-height:1.65}
+
+/* ---------- tranche table (S5h item 2) ---------- */
+.trcard{background:var(--panel2);border:1px solid var(--edge2);border-left:4px solid
+  var(--sky);border-radius:10px;padding:14px 18px;margin:10px 0 14px}
+.trh{font-size:15px;font-weight:800;letter-spacing:.8px;color:var(--sky);
+  margin-bottom:8px}
+.trflag{font-weight:700;padding:8px 12px;border-radius:7px;margin:6px 0 10px;
+  font-size:14.5px;background:var(--panel);border:1px solid var(--edge2)}
+.trflag.s-FADE{color:var(--amber);border-color:var(--amber)}
+.trflag.s-RALLY{color:var(--emerald);border-color:var(--emerald)}
+.trflag.s-CRASH{color:var(--red);border-color:var(--red);background:#2f1313}
+tr.trdone td{color:var(--dim);text-decoration:line-through}
+
+/* ---------- tail-sell screen (panel 01) ---------- */
+.ttsig{font-family:var(--mono);font-weight:700;font-size:15px;padding:10px 14px;
+       border-radius:8px;border:1px solid var(--edge2);margin:6px 0 10px;letter-spacing:.3px}
+.ttsig.go{background:#0c2a1d;color:var(--emerald);border-color:var(--emerald);
+          box-shadow:0 0 14px rgba(52,211,153,.22)}
+.ttsig.watch{background:#2c2208;color:var(--amber);border-color:var(--amber)}
+.ttsig.idle{background:var(--panel2);color:var(--mut)}
+#tt_tbl td.sell{color:var(--emerald);font-weight:700}
+#tt_tbl td.rip{color:var(--amber)}
+#tt_tbl td.bleed{color:var(--sky)}
+
+/* ---------- tiles ---------- */
+#tiles,.tilegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+       gap:9px;margin:0 0 9px}
+.tile{background:var(--panel);border:1px solid var(--edge);border-radius:9px;
+      padding:10px 13px 8px}
+.tl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;
+    font-weight:700}
+.tv{font-family:var(--mono);font-size:28px;font-weight:700;margin:3px 0 2px;
+    color:var(--white);font-variant-numeric:tabular-nums}
+.tv small{font-size:14px;color:var(--mut);font-weight:600}
+.td{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.up{color:var(--emerald)}.dn{color:var(--red)}
+.tile.hot .tv{color:var(--sky)}
+
+/* ---------- levels strip ---------- */
+#levels{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}
+.lvl{font-family:var(--mono);font-size:13.5px;padding:5px 12px;border-radius:5px;
+     border:1px dashed var(--edge2);color:var(--mut)}
+.lvl b{color:var(--tx)}
+.lvl.x{border-style:solid;font-weight:700}
+.lvl.x.upx{background:#0c2030;border-color:var(--sky);color:var(--sky)}
+.lvl.x.dnx{background:#2f1313;border-color:var(--red);color:var(--red)}
+
+/* ---------- sections / charts ---------- */
+section{margin:24px 0 0}
+h2{display:flex;align-items:baseline;gap:10px;font-size:13.5px;margin:0 0 3px;
+   color:var(--mut);text-transform:uppercase;letter-spacing:1.6px;font-weight:800}
+h2 .pn{font-family:var(--mono);color:var(--dim);font-size:12px}
+h2 .ti{color:#b8c8d5}
+.cap{font-size:13.5px;color:var(--mut);margin:0 0 9px;max-width:1000px}
+.lghint{color:var(--dim);font-style:italic}
+
+/* ---------- time-scrub slider (panel 04) ---------- */
+#scrubbar{display:flex;flex-direction:column;gap:9px;margin:6px 0 12px;
+  background:var(--panel);border:1px solid var(--edge);border-radius:9px;padding:12px 14px}
+#scrubrow{display:flex;align-items:center;gap:14px}
+#golive{background:#0c2a1d;color:var(--emerald);border:1px solid var(--emerald);
+  border-radius:6px;padding:5px 14px;font-weight:800;letter-spacing:1px;cursor:pointer;
+  font-size:12.5px;font-family:var(--mono);white-space:nowrap}
+#golive.off{background:#2c2208;color:var(--amber);border-color:var(--amber)}
+#scrub{flex:1;accent-color:var(--sky);cursor:pointer;min-width:200px}
+#scrubinfo{font-family:var(--mono);font-size:14.5px;color:var(--mut)}
+#scrubinfo b{color:var(--white);font-size:15.5px}
+#scrubinfo.hist{color:var(--amber)}
+#scrubinfo.hist b{color:var(--sky)}
+.chart{background:var(--panel);border:1px solid var(--edge);border-radius:10px;width:100%}
+#c_tails{height:400px}.h300{height:310px}.h420{height:430px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:880px){.grid2{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--panel);
+      border:1px solid var(--edge);border-radius:10px;overflow:hidden}
+td,th{padding:8px 13px;text-align:left;border-bottom:1px solid var(--edge);
+      vertical-align:middle}
+td.n,th.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:center}
+th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:1px}
+tr.div td{background:#2c2208;color:var(--amber);font-weight:700}
+.ph{border:1px dashed var(--edge2);border-radius:10px;padding:28px;color:var(--mut);
+    text-align:center;font-size:14.5px;background:var(--panel)}
+
+/* ---------- PLAN tab ---------- */
+#tab-plan{display:none}
+.flow{display:flex;flex-direction:column;gap:0;margin:10px 0}
+.fnode{background:var(--panel);border:1px solid var(--edge2);border-left:5px solid var(--dim);
+       border-radius:9px;padding:10px 16px;display:flex;gap:14px;align-items:baseline;
+       flex-wrap:wrap}
+.fnode b{font-family:var(--mono);font-size:16px;min-width:96px}
+.fnode .fw{font-family:var(--mono);color:var(--mut);font-size:12.5px;min-width:120px}
+.fnode .fm{font-size:14.5px}
+.fnode .fm em{color:var(--sky);font-style:normal}
+.f-d1{border-left-color:var(--violet)}
+.f-d2{border-left-color:var(--sky)}
+.f-d3{border-left-color:var(--sky)}
+.f-d4{border-left-color:var(--amber)}
+.f-d5{border-left-color:var(--emerald)}
+.f-close{border-left-color:var(--red)}
+.farrow{text-align:center;color:var(--dim);font-size:13px;line-height:1.4;padding:1px 0}
+.fstop{background:#2f1313;border:1px solid var(--red);color:var(--red);border-radius:9px;
+       padding:9px 16px;font-weight:800;text-align:center;font-family:var(--mono);
+       margin-top:10px;letter-spacing:.5px}
+details.pd{background:var(--panel2);border:1px solid var(--edge2);border-radius:10px;
+           padding:10px 16px;margin:8px 0}
+details.pd summary{cursor:pointer;font-weight:700;font-size:14px;color:#b8c8d5}
+details.pd[open] summary{margin-bottom:8px}
+.gloss td{font-size:13.5px;padding:5px 13px}
+.plan td,.plan th{text-align:left}
+.plan td:first-child{font-family:var(--mono);font-weight:800;white-space:nowrap}
+.plan .mv{color:var(--white)}
+.plan .wt{color:var(--sky)}
+.rulebox{background:var(--panel2);border:1px solid var(--edge2);border-radius:10px;
+         padding:12px 18px;margin:8px 0}
+.rulebox b{color:var(--white)}
+.rulebox ul{margin:6px 0;padding-left:22px}
+.rulebox li{margin:5px 0}
+.gloss td:first-child{font-family:var(--mono);font-weight:700;color:var(--white);
+                      white-space:nowrap}
+
+/* ---------- day-state drawer ---------- */
+#drawer{background:var(--panel2);border:1px solid var(--edge2);border-radius:10px;
+        padding:14px 18px;margin:10px 0}
+#drawer summary{cursor:pointer;font-weight:800;font-size:13.5px;color:var(--mut);
+                text-transform:uppercase;letter-spacing:1.4px}
+.frm{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;
+     margin-top:14px}
+.frm label{font-size:11.5px;color:var(--mut);display:block;text-transform:uppercase;
+           letter-spacing:.8px;margin-bottom:3px;font-weight:700}
+.frm input{width:100%;background:#0b0e12;color:var(--white);border:1px solid var(--edge2);
+           border-radius:7px;padding:10px 11px;font-size:17px;font-family:var(--mono)}
+.frm input:focus{outline:none;border-color:var(--sky)}
+button{background:#1c2c3e;color:#bfe3ff;border:1px solid #2d4a66;border-radius:8px;
+       padding:11px 18px;font-weight:700;cursor:pointer;font-size:14.5px;
+       letter-spacing:.4px}
+button:hover{background:#27405c}
+button.mk{background:#16241c;color:#a7e8c8;border-color:#2a4a38}
+button.mk:hover{background:#1f3528}
+.mkrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;align-items:center}
+#saveok{color:var(--emerald);font-size:14px;font-family:var(--mono)}
+button:disabled{opacity:.35;cursor:not-allowed}
+/* ---------- PM tab (Block S5k) ---------- */
+.pmstrip{background:var(--panel2);border:1px solid var(--edge2);border-radius:10px;
+  padding:12px 16px;font-size:16px;margin-bottom:12px}
+.divg{background:#3a1518;color:#f87171;border:1px solid #5b2a2a;border-radius:5px;
+  padding:2px 7px;font-size:11px;font-weight:800;letter-spacing:.5px;
+  font-family:var(--mono)}
+/* PM3 executable-arb card: green ONLY when investable; amber = lock-but-dust (the normal
+   case); neutral otherwise. Red stays reserved for stops/crossed/disconnect. */
+.pm3chip{display:inline-block;border-radius:6px;padding:4px 11px;font-size:12.5px;
+  font-weight:800;letter-spacing:.5px;font-family:var(--mono)}
+.pm3chip.g{background:#12291e;color:#34d399;border:1px solid #1f5c44}
+.pm3chip.a{background:#2c2113;color:#f5a623;border:1px solid #5c4a1f}
+.pm3chip.n{background:var(--panel2);color:var(--mut);border:1px solid var(--edge2)}
+button.pm3fee{font-size:12px;padding:6px 12px;opacity:.55}
+button.pm3fee.on{opacity:1;border-color:#3b5878;background:#1c2c3e;color:var(--white)}
+.foot{font-size:12.5px;color:var(--dim);margin-top:20px;line-height:1.7}
+</style></head><body>
+<div id="conn">FEED DISCONNECTED — reconnecting… the terminal and the static fallback page keep running</div>
+<div id="toast"></div>
+<header><div class="mast">
+  <div class="brand">SPCX<small>listing day · fri 2026-06-12</small></div>
+  <div id="hdrnode" class="n-PREALLOC">—</div>
+  <div class="tabs">
+    <button class="tabbtn on" id="tb-exec" onclick="showTab('exec')">EXECUTION</button>
+    <button class="tabbtn" id="tb-pm" onclick="showTab('pm')">PM</button>
+    <button class="tabbtn" id="tb-live" onclick="showTab('live')">ANALYSIS</button>
+    <button class="tabbtn" id="tb-plan" onclick="showTab('plan')">PLAN</button>
+    <button class="tabbtn" id="tb-reh" onclick="showTab('reh')">REHEARSAL</button>
+  </div>
+  <div class="mright">
+    <span class="dot" id="livedot"></span>
+    <div id="clock">--:--:--<small>CET</small></div>
+  </div>
+</div></header>
+<div class="wrap">
+
+<!-- ════════ EXECUTION TAB (the day view — everything you act on, nothing else) ════════ -->
+<div id="tab-exec">
+  <div id="strip"><span class="num" id="polltime">waiting for the first poll…</span></div>
+  <div id="shapebanner">
+    <span id="shapestate">—</span>
+    <span id="shapeaction"></span>
+    <span id="shapemeta"></span>
+    <select id="shapesel" onchange="setShapeOverride(this.value)">
+      <option value="">auto (classifier)</option>
+      <option value="FLAT">pin FLAT</option><option value="FADE">pin FADE</option>
+      <option value="RALLY">pin RALLY</option><option value="CRASH">pin CRASH</option>
+    </select>
+  </div>
+  <div id="xtiles"></div>
+  <section>
+    <h2><span class="pn">E1</span><span class="ti">SPCX live — price vs AVWAP vs your levels</span></h2>
+    <div class="cap">Spot (sky, IEX) and anchored VWAP (dashed) against the pre-registered
+    levels; the state ribbon below builds through the day (same colors as the banner).
+    Pre-cross this shows the perp only — the spot line and ribbon arm at the first print.
+    <span class="lghint">Click legend labels to show/hide lines.</span></div>
+    <div id="c_exec" class="chart" style="height:320px"><div class="ph">waiting for the
+    first poll…</div></div>
+    <div id="execribbon" style="margin-top:6px"></div>
+  </section>
+  <div id="playbook" class="ph">playbook: waiting for the first poll…</div>
+  <div id="tranches"></div>
+  <div id="c_trch" class="chart" style="height:240px;display:none;margin-bottom:12px"></div>
+  <div id="hedgeops"></div>
+  <div id="c_hops" class="chart" style="height:330px;display:none"></div>
+  <div id="hopsread" class="hopline num" style="display:none"></div>
+  <div id="xtrow" style="grid-template-columns:1fr"><div id="halts"></div></div>
+  <section>
+    <h2><span class="pn">E5</span><span class="ti">Day state — type it as it happens</span></h2>
+    <div class="trcard" style="border-left-color:var(--white)">
+      <div class="cap" style="margin-bottom:4px">Offer is <b>$135 (priced ✓)</b>.
+      <b>~8:00 — allocation:</b> type <b>fill</b> (shares received) and press SAVE — the
+      playbook, tranche plan and hedge rule all key off it. If the overflow rule says
+      hedge, fill in hedged / entry / leverage after opening the short.
+      <b>At the cross:</b> type the first print and press MARK CROSS.
+      <b>After every sell ticket:</b> update sold (cumulative) and SAVE.</div>
+      <div class="frm">
+        <div><label>fill — shares allocated</label><input id="f_fill" placeholder="e.g. 22"></div>
+        <div><label>comfort zone (default 22)</label><input id="f_comfort" placeholder="22"></div>
+        <div><label>hedged — shares short</label><input id="f_hedged" placeholder="0 if no hedge"></div>
+        <div><label>hedge entry $ (perp)</label><input id="f_hedge_entry"></div>
+        <div><label>hedge leverage ×</label><input id="f_hedge_lev" placeholder="1.5"></div>
+        <div><label>sold — cumulative shares</label><input id="f_sold" placeholder="0"></div>
+        <div><label>cross price $ (first print)</label><input id="f_crossp"></div>
+      </div>
+      <div class="mkrow">
+        <button onclick="saveState()" style="font-size:16px;padding:13px 26px">💾 SAVE DAY STATE</button>
+        <button class="mk" onclick="markCross()" style="font-size:16px;padding:13px 22px">⏱ MARK CROSS NOW</button>
+        <button class="mk" onclick="mark('ALLOC')">flag ALLOC on charts</button>
+        <span id="saveok"></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ════════ PM TAB (Block S5k — the Polymarket leg's analytics, display only) ════════ -->
+<div id="tab-pm" style="display:none">
+  <div class="cap" style="margin-bottom:10px"><b>Analytics for the PM leg (Alvaro).
+  Display only — no PM trading logic, no edge claims; DIVERGENT = quote gap before
+  spread/fees, check depth before acting.</b></div>
+  <div id="pmpanel" class="ph">waiting for the first poll…</div>
+
+  <section>
+    <h2><span class="pn">PM4</span><span class="ti">Tail-sell screen — the Polymarket PEAK trade</span></h2>
+    <div id="tt_signal" class="ttsig idle">tail screen: waiting for the first poll…</div>
+    <div class="cap">The trade: <b>SELL</b> the rich upper-tail "cap above $K" YES into the pop
+    at PEAK — you hit the <b>bid</b> to sell. <b>sell</b> = YES bid (= the crowd's implied
+    P(cap&gt;K), in ¢) · <b>Δ<span id="tt_win">15m</span></b> = how the bid repriced over the
+    window (the signal: ripping up = chasing the rip; fading = PEAK) · <b>off-hi</b> = ¢ below
+    its own window high · <b>depth</b> = shares resting at the bid (sellable size right now) ·
+    <b>vs fair</b> = bid minus the 1/spread²-weighted lognormal fair (secondary dislocation
+    read — runs slightly negative in the deep tail by construction). Trigger = PLAN tab #6.</div>
+    <table id="tt_tbl"><thead><tr><th>strike</th><th class="n">sell</th><th class="n">Δwin</th>
+      <th class="n">off-hi</th><th class="n">depth</th><th class="n">vs fair</th>
+      <th>read</th></tr></thead><tbody>
+      <tr><td colspan="7" class="ph" style="border:none">collecting…</td></tr></tbody></table>
+    <div class="cap" style="margin-top:14px">Bid (thick) / ask (thin dashed) history per strike,
+    in cents — the repricing you are reading above, over time.
+    <span class="lghint">Asks start hidden — click legend labels to show/hide any line.</span></div>
+    <div id="c_tails" class="chart"><div class="ph">collecting…</div></div>
+  </section>
+
+  <section>
+    <h2><span class="pn">PM5</span><span class="ti">Indication paste — CNBC/X "indicated to open"</span></h2>
+    <div id="pmind"><div class="ph">waiting for the first poll…</div></div>
+  </section>
+</div>
+
+<!-- ════════════════ ANALYSIS TAB (research surfaces — the run-up view) ════════════════ -->
+<div id="tab-live" style="display:none">
+  <div id="tiles"></div>
+  <div id="levels"></div>
+
+  <div class="cap" style="margin:10px 0"><b>Panel 01 (tail-sell screen) moved to the
+  <b>PM</b> tab</b> — with the full distribution table, the bucket consistency screen +
+  gap sparklines, and the indication paste field.</div>
+
+  <section>
+    <h2><span class="pn">02</span><span class="ti">Pair — perp vs spot, live</span></h2>
+    <div class="cap">The two legs of the convergence pair: perp mark (amber, live from
+    Hyperliquid every poll) and listed spot (sky, live from the IEX stream once SPCX
+    prints — the line appears automatically). Right axis: gap = perp − spot (grey area)
+    with the ±$2 pair-close band (dashed). Gap inside the band 15+ min, 60+ min after the
+    cross = the pair-close window (PLAN → D5).
+    <span class="lghint">Click legend labels to show/hide lines.</span></div>
+    <div id="c_pair" class="chart h300"><div class="ph">collecting…</div></div>
+  </section>
+
+  <section>
+    <h2><span class="pn">03</span><span class="ti">Session — price vs crowd</span></h2>
+    <div class="cap">Left axis, $/share: crowd mean (white), crowd median (grey dashed),
+    perp mark (amber), spot (sky). Right axis: P(close&gt;offer) in % (emerald). Dotted
+    verticals are your event marks (PRICED / ALLOC / CROSS).
+    <span class="lghint">Median starts hidden — click legend labels to show/hide lines.</span></div>
+    <div id="c_ts" class="chart h300"><div class="ph">collecting…</div></div>
+  </section>
+
+  <section>
+    <h2><span class="pn">04</span><span class="ti">Crowd distribution — implied day-1 close</span></h2>
+    <div id="scrubbar">
+      <div id="scrubrow">
+        <button id="golive" onclick="goLive()">● LIVE</button>
+        <input type="range" id="scrub" min="0" max="100" step="1" value="100">
+      </div>
+      <div id="scrubinfo">time scrub: waiting for curve index…</div>
+    </div>
+    <div class="cap">The crowd's implied closing-price distribution, $/share, built three ways
+    so the shape is honest: <b style="color:var(--white)">PCHIP fit</b> (white — exact through
+    every quote, but its bumps are interpolation artifacts, not beliefs) ·
+    <b style="color:var(--violet)">lognormal fair</b> (violet dashed — the 1/spread²-weighted
+    single-hump construction the audit recommends) · <b style="color:var(--mut)">raw interval
+    mass</b> (grey bars — assumption-free, just the probability each strike gap directly
+    quotes). Where all three agree, trust the number. Shaded band = central P25–P75 mass.
+    Verticals: offer (emerald), perp (amber), spot (sky). Violet dots on the curve = the
+    tail-sell strikes from panel 01, labeled with the live sell bid in ¢.
+    <span class="lghint">Click legend labels to show/hide any construction. Drag the time
+    slider above to replay how both curves (and the perp marker) evolved — a sky vertical
+    marks the scrubbed moment on the pair and session charts; the LIVE button returns to
+    the current poll.</span></div>
+    <div id="c_pdf" class="chart h420"></div>
+    <div class="cap" style="margin-top:14px">Same distribution as a survivor curve
+    S(K) = P(close cap &gt; K): current fit (white) vs the reference snapshot (grey dashed)
+    and the lognormal fair (violet dashed). Dots are strike quotes, whiskers the bid–ask,
+    a red dot marks a clipped arbitrage-inconsistent quote. The amber vertical is the
+    perp's implied cap — where the leveraged market sits on the crowd's curve.</div>
+    <div id="c_surv" class="chart h300"></div>
+  </section>
+
+  <div class="cap" style="margin-top:16px">Day-state inputs moved to the
+  <b>EXECUTION</b> tab (E5) — this tab is the analysis view.</div>
+</div>
+
+<!-- ════════════════ PLAN TAB ════════════════ -->
+<div id="tab-plan">
+  <section>
+    <h2><span class="pn">P1</span><span class="ti">Decision tree</span></h2>
+    <img src="/assets/spcx_decision_tree.png" alt="SPCX decision tree D1 to CLOSE-OUT"
+         style="width:100%;border:1px solid var(--edge);border-radius:10px;margin:8px 0">
+    <details class="pd"><summary>full node table — moves, watches, reasons</summary>
+    <table class="plan">
+      <tr><th>node</th><th>key move</th><th>key watch</th></tr>
+      <tr><td>D1</td>
+        <td class="mv"><b style="color:var(--emerald)">RESOLVED — priced $135 ✓
+        (2026-06-11 evening).</b> The basis math holds exactly as computed; no recompute
+        needed; the "$162 print → hedge auto-dead" contingency is void. The $183
+        pre-hedge trigger stands unchanged until allocation.</td>
+        <td class="wt">Nothing — D2 (allocation, ~8:00) is the next decision.</td></tr>
+      <tr><td>D2</td>
+        <td class="mv">Overflow valve (updated 2026-06-11): hedge = clamp(fill − the
+        ~22-share comfort zone, 0, margin cap ~21 sh at 1.5× / ~14 at 1×) iff net basis
+        &gt; 0, opened at 8:00 — not later. Expected case (fill ≤ 22): no hedge, margin
+        stays free. The D2 card computes this live.</td>
+        <td class="wt">Fill count, perp level, EURUSD. Residual still above comfort after
+        the cap → front-load the first sell tranche.</td></tr>
+      <tr><td>D3</td>
+        <td class="mv">Nothing.</td>
+        <td class="wt">Perp vs offer; liquidation buffer if hedged.</td></tr>
+      <tr><td>D4</td>
+        <td class="mv">No selling into the cross or first prints. Log the cross.</td>
+        <td class="wt">Perp + newswire indications (no EU NOII feed); perp vs crowd mean.</td></tr>
+      <tr><td>D5</td>
+        <td class="mv">Tranches per the lean tables below, limit orders 1–2 ticks inside
+        the bid, re-pegged every 5 min. Pair-close legs: TR limit sell first, then buy
+        back the perp — <b>fast-tape exception (§5.1, updated 2026-06-11): liq buffer
+        &lt; 25% or &gt;2% move in 5 min → close the PERP first</b> (pre-registered
+        judgment, not measured; the hedge-ops panel evaluates both inputs live).
+        S6 readiness ladder: no pair-close in the first ~45 min; |gap| ≤ $2 from
+        <b>+46 min</b>, ≤ $1 from <b>+61 min</b>. <b>Forced-flat backstop: perp must be 0
+        by 21:00 CET; no cross by 20:30 → close the perp (patient limit, S6-corrected).</b></td>
+        <td class="wt">PEAK box (P2); S7 banner (the day-shape drives the tranche pace);
+        stops $140 / $135 / $125; tail panel.</td></tr>
+      <tr><td>CLOSE-OUT</td>
+        <td class="mv">Sell any remaining residual — 5 of 6 mega-IPOs closed lower day 2.</td>
+        <td class="wt">Remaining shares; Alvaro's Polymarket settlement (the close prints
+        his side).</td></tr>
+    </table></details>
+    <details class="pd"><summary>lean tranche tables (§5.2, decided 2026-06-11) — a ticket = one manual €1 limit order</summary>
+    <table class="plan">
+      <tr><th>residual sleeve (fill − hedge)</th><th>tickets</th><th>windows (post-cross)</th></tr>
+      <tr><td>≤ 10 sh</td><td class="mv">2 tickets, <b>60% / 40%</b></td>
+        <td class="wt">T1 +15–60 min · T2 +60–180 min (skip T3)</td></tr>
+      <tr><td>~20 sh</td><td class="mv"><b>8 / 8 / 5</b> (≈ Alvaro's 40/40/20)</td>
+        <td class="wt" rowspan="3">T1 +15–60 · T2 +60–180 · T3 +180 → 21:30 CET</td></tr>
+      <tr><td>~40 sh</td><td class="mv"><b>17 / 17 / 9</b></td></tr>
+      <tr><td>~65 sh (100% fill)</td><td class="mv"><b>26 / 26 / 13</b> — T1 placed
+        <b>immediately</b> after the 15-min observe (risk reduction, not price
+        optimization)</td></tr>
+    </table>
+    The LIVE tab's tranche panel selects the row automatically from your fill − hedge
+    inputs (last ticket absorbs any difference) and tracks done/active/overdue vs sold.
+    Day-shape overrides (display only): <b>FADE</b> → sell the next tranche now, remaining
+    windows halved · <b>RALLY</b> → final ticket deferred, mental stop 10% below session
+    high · <b>CRASH</b> → hard-stop ladder governs · <b>FLAT</b> → default pace.</details>
+    <details class="pd"><summary>S7 day-shape classifier (§5.3, pre-registered 2026-06-11) — what the banner states mean</summary>
+    <table class="plan">
+      <tr><th>state</th><th>rule (computed live)</th><th>§0 action</th></tr>
+      <tr><td><b style="color:var(--red)">CRASH</b></td>
+        <td class="mv">below the cross print AND below $160, or any hard stop hit
+        ($140/$125) — switches <b>instantly</b></td>
+        <td class="wt">sell everything now — $140 reassess, $125 all out</td></tr>
+      <tr><td><b style="color:var(--amber)">FADE</b></td>
+        <td class="mv">below anchored VWAP ≥ 10 min AND &gt; 5% off the session high</td>
+        <td class="wt">FRONT-LOAD: sell fast (the cross ≈ 89% of day-1 high in past
+        mega-IPOs)</td></tr>
+      <tr><td><b style="color:var(--emerald)">RALLY</b></td>
+        <td class="mv">above AVWAP AND a new session high within the last 15 min</td>
+        <td class="wt">be patient, sell in steps — stop 10% below high — tell Alvaro:
+        tails getting rich (PEAK)</td></tr>
+      <tr><td>FLAT</td><td class="mv">none of the above</td>
+        <td class="wt">spread sales evenly, done by ~20:00</td></tr>
+    </table>
+    Non-CRASH switches need the state to hold <b>2 consecutive minutes</b> (hysteresis).
+    No volume features — IEX is too thin; the volume leg of PEAK stays a human TradingView
+    confirm. Manual override (banner dropdown) always wins. Sanity-replayed on the
+    Cerebras tape (untuned): FLAT→FADE at +27 min, held all day, no RALLY.</details>
+  </section>
+
+  <section>
+    <h2><span class="pn">P2</span><span class="ti">PEAK — the sell trigger</span></h2>
+    <div class="rulebox"><b>PEAK = volume divergence + any one of:</b> AVWAP loss
+    (not reclaimed) · first lower low (5m) · perp divergence · PM-tail fade (panel 01).</div>
+    <details class="pd"><summary>hold signals + where each leg is read</summary>
+    Hold (do not sell): dips bought within 1–2 min · green-candle volume &gt; red ·
+    new highs <i>on</i> volume · tight spread.<br>
+    This dashboard computes the AVWAP and PM-tail legs; volume divergence and lower lows
+    are read on TradingView (IEX volume is too thin to compute them honestly).</details>
+  </section>
+
+  <section>
+    <h2><span class="pn">P3</span><span class="ti">Hard rules (pre-registered)</span></h2>
+    <div class="rulebox"><ul>
+      <li>Leverage <b>≤ 1.5×, ever</b> — ≥2× liquidates on a Cerebras-style +39% spike.</li>
+      <li>Final price &gt; $135 → recompute basis before any hedge.</li>
+      <li>Friday net basis ≤ 0 → hedge sleeve = 0.</li>
+      <li><b>$125 → sell everything.</b> €3k team max loss.</li>
+      <li><b>Perp 0 by 21:00 CET, unconditionally</b> — a dislocated close beats a naked
+      short into the cash close (backstop ≈ $1.7/sh on the Cerebras tape).</li>
+      <li>Display only: execution = Trade Republic, alerts = TradingView.</li>
+    </ul></div>
+    <details class="pd"><summary>the two-sleeve structure (why hedge + tranches coexist)</summary>
+    <b>Hedge sleeve</b> = the overflow above the ~22-share comfort zone, capped by margin
+    (~21 sh at 1.5×): long shares at the offer + short the xyz:SPCX perp 1:1, closed as a
+    pair once the perp tracks the listed stock → profit = the locked basis,
+    direction-independent. In the expected fill (≤ 22 sh) this sleeve is empty by design.<br>
+    <b>Residual sleeve</b> = everything else (the comfort zone + anything above the margin
+    cap): unhedged, runs the D5 tranche plan, profits only above the offer.</details>
+  </section>
+
+  <section>
+    <h2><span class="pn">P4</span><span class="ti">Glossary</span></h2>
+    <details class="pd"><summary>terms + document shorthands (collapsed — expand when needed)</summary>
+    <table class="gloss">
+      <tr><td>gameplan</td><td>spcx_listing_day_gameplan.md — the frozen plan (§3 fills, §5 mechanics, §6 the tree above).</td></tr>
+      <tr><td>S1…S7</td><td>Pre-Friday research blocks: hedge rule / IPO-tape tranches / data sources / Trade Republic mechanics / this monitor / perp-exit calibration / the day-shape classifier (the banner).</td></tr>
+      <tr><td>fast-tape exception</td><td>§5.1 (2026-06-11): liq buffer &lt; 25% or &gt;2% move in 5 min → close the PERP leg first when pair-closing (default is TR sell first). Pre-registered judgment, not measured — the hedge-ops panel evaluates both inputs live.</td></tr>
+      <tr><td>S7 banner</td><td>The full-width day-shape strip (CRASH/FADE/RALLY/FLAT) — rules in P1's classifier expander; it drives the displayed tranche pace; the dropdown pins a manual override.</td></tr>
+      <tr><td>basis</td><td>perp − offer, $/share; the hedge sleeve's locked profit (net of fees + funding).</td></tr>
+      <tr><td>perp (xyz:SPCX)</td><td>Hyperliquid pre-IPO perpetual, ≈1 contract per share; converts in place after listing → closed by pair-close.</td></tr>
+      <tr><td>spot</td><td>Listed Nasdaq price via Alpaca IEX (~2% of tape — level only, confirm on TradingView).</td></tr>
+      <tr><td>survivor S(K)</td><td>P(close cap &gt; K) from the 16-strike Polymarket ladder; its slope is the PDF.</td></tr>
+      <tr><td>ladder (tail screen)</td><td>The 16-strike "cap above $K" market — the upper strikes (&gt;$2.2–3.0T) are the tail-sell screen (panel 01). The separate "between $X–Y" bucket market is thin and dropped from the live view (no day edge).</td></tr>
+      <tr><td>EV (A1)</td><td>crowd mean − offer, $/share. The only EV convention shown (the −$3.3 PNG line was a bug).</td></tr>
+      <tr><td>mode</td><td>Distribution peak — shape-fragile under PCHIP; trust the central stats.</td></tr>
+      <tr><td>AVWAP</td><td>VWAP anchored at the first print (not the bell); lost + not reclaimed → front-load tranches.</td></tr>
+      <tr><td>pair gap</td><td>perp − spot; pair-close window = |gap| ≤ $2 for 15+ min, 60+ min after the cross. S6 ladder: first ~45 min = no-pair-close zone; ≤$2 from +46 min, ≤$1 from +61 min (the hedge-ops panel counts these down live); perp force-flattened by 21:00 regardless.</td></tr>
+      <tr><td>comfort zone</td><td>~22 shares (≈ €2–3k) the operator holds long-only without hedging; the D2 hedge covers only the overflow above it.</td></tr>
+      <tr><td>levels</td><td>$183 pre-hedge trigger · $162 EU prospectus ceiling · $140 reassess · $135 offer · $125 sell-everything.</td></tr>
+      <tr><td>node chip</td><td>Masthead state: PRE-ALLOC → D2/D3 → D4 → D5 → CLOSE-OUT, from your inputs + the CET clock.</td></tr>
+      <tr><td>marks</td><td>Your event annotations (PRICED / ALLOC / CROSS) drawn on panels 02–03.</td></tr>
+    </table></details>
+  </section>
+</div>
+
+<!-- ════════════════ REHEARSAL TAB (Block S5i — isolated harness) ════════════════ -->
+<div id="tab-reh" style="display:none"><div class="wrap">
+  <section>
+    <div id="rehbanner" class="rehbn">REHEARSAL — no session loaded. Pick a symbol and
+    press LOAD; everything on this tab is simulated and isolated from production.</div>
+    <div class="mkrow" style="margin:10px 0">
+      <label class="src">symbol</label><input id="reh_sym" value="NVDA" style="width:80px">
+      <label class="src">date (blank = last session)</label>
+      <input id="reh_date" placeholder="YYYY-MM-DD" style="width:120px">
+      <button onclick="rehLoad()">LOAD TAPE</button>
+      <span id="reh_status" class="src"></span>
+    </div>
+    <div id="rehlevels" class="cap"></div>
+    <div id="rehplay" style="display:none">
+      <div class="mkrow" style="align-items:center">
+        <button id="rp_play" onclick="rehPlayPause()">▶ PLAY</button>
+        <select id="rp_speed" onchange="rehSpeed()">
+          <option value="1">1× (real time)</option><option value="10">10×</option>
+          <option value="60" selected>60× (1 min/s)</option></select>
+        <button onclick="rehJump()">⏭ next state change</button>
+        <span id="rp_time" class="num" style="font-size:15px;color:var(--white)"></span>
+      </div>
+      <input type="range" id="rp_scrub" min="0" value="0" style="width:100%;
+        accent-color:var(--violet);cursor:pointer;margin:8px 0">
+      <div id="rehribbon"></div>
+    </div>
+    <div id="c_reh" class="chart" style="height:340px;margin-top:10px">
+      <div class="ph">load a tape to start the rehearsal</div></div>
+    <div id="rehshape" style="margin-top:12px"></div>
+    <div id="rehtr"></div>
+    <div id="c_rtrch" class="chart" style="height:240px;display:none;margin-bottom:12px"></div>
+    <div id="rehhops"></div>
+    <div id="c_rhops" class="chart" style="height:330px;display:none"></div>
+    <div id="rhopsread" class="hopline num" style="display:none"></div>
+    <div class="cap" style="margin-top:10px">PM distribution, the real xyz:SPCX perp,
+    the halts poller, and the indication field are <b>live SPCX — not part of the
+    rehearsal</b>; they keep running untouched on the LIVE tab.</div>
+  </section>
+</div></div>
+
+<div class="foot">Read-only advisory display — no orders, no alerts (alerting lives in
+TradingView; execution in Trade Republic). Red appears only for stops, crossed downside
+levels, and disconnection. Engine: spcx_pm_pdf_monitor.py · fallback ladder and
+conventions: spcx_pm_pdf_monitor_findings.md §10.</div>
+</div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const fmt=(x,d=1)=>x==null||isNaN(x)?"—":Number(x).toFixed(d);
+let hist=[],marks=[],reference=null,last=null,feeds={},lastPollWall=null,charts={};
+
+/* ---------- tabs ---------- */
+function showTab(which){
+  for(const t of["exec","pm","live","plan","reh"]){
+    $("tab-"+t).style.display=which===t?"block":"none";
+    $("tb-"+t).classList.toggle("on",which===t);}
+  if(which!=="plan")Object.values(charts).forEach(c=>c.resize());}
+
+/* ---------- clock ---------- */
+setInterval(()=>{ $("clock").innerHTML=new Date().toLocaleTimeString("de-DE",
+  {timeZone:"Europe/Berlin"})+"<small>CET</small>";},1000);
+
+/* ---------- websocket with auto-reconnect ---------- */
+function connect(){
+  const ws=new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen=()=>{$("conn").style.display="none";$("livedot").classList.remove("dead");
+                 setBtnsDead(false);};
+  ws.onclose=()=>{$("conn").style.display="block";$("livedot").classList.add("dead");
+                  setBtnsDead(true);setTimeout(connect,2000);};
+  ws.onerror=()=>ws.close();
+  ws.onmessage=ev=>{
+    const m=JSON.parse(ev.data);
+    if(m.type==="snapshot"){
+      hist=m.history||[];marks=m.marks||[];reference=m.reference;
+      fillForm(m.state||{});setCurveRange(m.curve_range);
+      if(m.last){apply(m.last);}else{drawHistory();}
+    }else if(m.type==="poll"){
+      hist.push({ts:m.ts,mean_ps:m.stats.mean_ps,median_ps:m.stats.median_ps,
+                 pwin:m.stats.p_win_offer,perp:m.hl?m.hl.hl_mark:null,
+                 spot:m.spot?m.spot.price:null,tails:m.tails,
+                 shape:m.day_shape&&m.day_shape.armed?m.day_shape.computed:null,
+                 avwap:m.avwap?m.avwap.avwap:null});
+      apply(m);
+    }else if(m.type==="playbook"){
+      $("playbook").outerHTML=`<div id="playbook">${m.playbook_html}</div>`;
+      if(m.state)fillForm(m.state);
+    }else if(m.type==="indication"){
+      if(document.activeElement&&document.activeElement.id!=="ind_in")
+        $("pmind").innerHTML=m.indications_html||"";
+    }else if(m.type==="marks"){marks=m.marks||[];drawTS();}
+  };
+}
+function apply(m){
+  last=m;lastPollWall=Date.now();feeds=m.feeds||{};
+  setNode(m.node);strip(m);tiles(m);levels(m);
+  $("playbook").outerHTML=`<div id="playbook">${m.playbook_html||""}</div>`;
+  $("hedgeops").innerHTML=m.hedge_ops_html||"";
+  $("tranches").innerHTML=m.tranche_html||"";
+  drawTrancheChart("c_trch",m.tranche_chart);
+  drawHedgeChart("c_hops","hopsread",m.hedge_chart);
+  if(m.halts_html!=null)$("halts").innerHTML=m.halts_html;
+  if(m.pm_html!=null){$("pmpanel").outerHTML=`<div id="pmpanel">${m.pm_html}</div>`;
+    pm3Apply();}  // re-apply the user's fee-toggle choice after each poll re-render
+  if(m.indications_html!=null&&document.activeElement&&document.activeElement.id!=="ind_in")
+    $("pmind").innerHTML=m.indications_html;
+  if(m.halts&&m.halts.alert){const rt=(m.halts.halt||{}).resumptiontradetime||"?";
+    toast(`CROSS TIME SET — resumption trade ${rt} ET`);}
+  drawShape(m.day_shape);
+  execTiles(m);drawExecChart(m);execRibbon();
+  setCurveRange(m.curve_range);
+  if(scrubTs==null){drawSurv(m);drawPDF(m);}  // scrubbed view holds until LIVE
+  drawHistory();drawTailTrade(m);}
+function drawHistory(){drawPair();drawTS();drawTails();}
+
+/* ---------- time scrub (panel 04): replay the PDF/survivor at any logged poll ----------
+   Live-while-dragging: every `input` event records the wanted position and a self-pacing
+   pump fetches it as soon as the previous fetch returns (never stacking requests), so the
+   curves animate under the thumb (~12-15 fps uncached, faster cached). Identical snaps are
+   skipped; the heavier pair/session marker redraws are throttled separately. */
+let curveRange=null,scrubTs=null,scrubWant=null,scrubBusy=false,
+    scrubDrawnTs=null,markerTimer=null;
+function setCurveRange(r){
+  if(!r)return;curveRange=r;const s=$("scrub");
+  s.min=Math.floor(r.min_ts);s.max=Math.ceil(r.max_ts);
+  if(scrubTs==null){s.value=s.max;updateScrubIdle();}}
+function updateScrubIdle(){
+  if(scrubTs!=null||!curveRange)return;
+  const h=(curveRange.max_ts-curveRange.min_ts)/3600;
+  const span=h>=48?fmt(h/24,1)+" days":fmt(h,0)+" h";
+  $("scrubinfo").textContent=`live — drag to replay ${span} (${curveRange.n} polls)`;}
+$("scrub").addEventListener("input",e=>{
+  const v=Number(e.target.value);
+  if(curveRange&&v>=curveRange.max_ts-90){goLive();return;}  // right edge snaps to live
+  scrubWant=v;pumpScrub();});
+async function pumpScrub(){
+  if(scrubBusy||scrubWant==null)return;
+  scrubBusy=true;
+  const v=scrubWant;scrubWant=null;
+  try{
+    const r=await fetch(`/api/curve?ts=${v}`);
+    if(r.ok){
+      const m=await r.json();
+      if(m.ts!==scrubDrawnTs){       // consecutive positions often snap to the same poll
+        scrubDrawnTs=m.ts;scrubTs=m.ts;
+        drawSurv(m);drawPDF(m);      // same draw fns; tail markers absent on history
+        if(!markerTimer)markerTimer=setTimeout(()=>{markerTimer=null;
+          if(scrubTs!=null){drawPair();drawTS();}},350);  // marker charts at ~3 fps
+        const dt=new Date(m.ts*1000);
+        const day=dt.toLocaleDateString("de-DE",{timeZone:"Europe/Berlin",
+          weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});
+        const tm=dt.toLocaleTimeString("de-DE",{timeZone:"Europe/Berlin",
+          hour:"2-digit",minute:"2-digit"});
+        const perp=m.pdf.perp!=null?"perp $"+fmt(m.pdf.perp,1):"perp ·";
+        $("scrubinfo").innerHTML=`<b>${day} · ${tm} CET</b> — ${perp} · `+
+          `mean $${fmt(m.stats.mean_ps,1)} · P(win) ${fmt(m.stats.p_win_offer*100,1)}%`;
+        $("scrubinfo").classList.add("hist");$("golive").classList.add("off");
+        $("golive").textContent="⏪ BACK TO LIVE";
+      }
+    }
+  }catch(_){}
+  scrubBusy=false;
+  if(scrubWant!=null)pumpScrub();    // thumb moved while fetching → chase the latest
+}
+function goLive(){
+  scrubTs=null;scrubWant=null;scrubDrawnTs=null;
+  clearTimeout(markerTimer);markerTimer=null;
+  $("golive").classList.remove("off");$("golive").textContent="● LIVE";
+  $("scrubinfo").classList.remove("hist");
+  if(curveRange)$("scrub").value=Math.ceil(curveRange.max_ts);
+  updateScrubIdle();
+  if(last){drawSurv(last);drawPDF(last);}
+  drawPair();drawTS();}
+function scrubMarkLine(){
+  if(scrubTs==null)return null;
+  return{symbol:"none",label:{show:true,formatter:"SCRUB",color:"#38bdf8",fontSize:10,
+         position:"insideEndTop",rotate:90},
+         data:[{xAxis:scrubTs*1000,
+                lineStyle:{color:"#38bdf8",type:"solid",width:1.6,opacity:.8}}]};}
+
+/* ---------- S5j interpretation charts (display only; shared live + rehearsal) ---------- */
+function drawTrancheChart(id,d){
+  const el=$(id);
+  if(!d||(!d.rows.length&&!d.crash)){el.style.display="none";return;}
+  el.style.display="block";const c=chart(id);
+  const endX=d.end_min!=null?d.end_min:Math.max(...d.rows.map(r=>r.hi||240),240);
+  if(d.crash){ // CRASH: all bands collapse into one SELL ALL block
+    c.setOption({...DARK,grid:{left:14,right:24,top:34,bottom:30,containLabel:true},
+      xAxis:{type:"value",min:0,max:endX,name:"min post-cross",nameLocation:"middle",
+             nameGap:24,...AX},yAxis:{type:"value",min:0,max:d.residual,...AX,
+             name:"sh"},
+      series:[{type:"custom",renderItem:(p,api)=>{
+        const a=api.coord([0,d.residual]),b=api.coord([endX,0]);
+        return{type:"rect",shape:{x:a[0],y:a[1],width:b[0]-a[0],height:b[1]-a[1]},
+          style:{fill:"rgba(248,113,113,.25)",stroke:"#f87171",lineWidth:2},
+          textConfig:{position:"inside"},textContent:{style:{text:
+          `SELL ALL ${fmt(d.residual,0)} sh — hard-stop ladder`,fill:"#f87171",
+          fontSize:15,fontWeight:800}}};},data:[[0,0]]}]},true);
+    return;}
+  const blocks=d.rows.map((r,k)=>({...r,cum_prev:r.cum_target-r.shares}));
+  const series=[
+    {name:"tickets",type:"custom",
+     renderItem:(p,api)=>{const r=blocks[p.dataIndex];
+       const a=api.coord([r.lo,r.cum_target]),b=api.coord([r.hi,r.cum_prev]);
+       const done=r.done,act=r.active,def=r.deferred;
+       return{type:"rect",shape:{x:a[0],y:a[1],width:Math.max(b[0]-a[0],2),
+         height:Math.max(b[1]-a[1],2)},
+         style:{fill:done?"rgba(56,189,248,.75)":def?"rgba(93,107,120,.25)":
+                r.partial?"rgba(56,189,248,.40)":"rgba(56,189,248,.13)",
+                stroke:act?"#f5a623":def?"#5d6b78":"#38bdf8",
+                lineWidth:act?2.4:1.2,lineDash:def?[5,4]:null},
+         textConfig:{position:"inside"},textContent:{style:{
+           text:`${r.name} ${fmt(r.shares,0)} sh${def?" (deferred)":""}`,
+           fill:done?"#0b0e12":"#c8d6e0",fontSize:11.5,fontWeight:700}}};},
+     data:blocks.map(r=>[r.lo,r.cum_target])},
+    {name:"target (cum)",type:"line",step:"end",showSymbol:false,color:"#8b9aa8",
+     lineStyle:{width:1.4,type:"dashed",color:"#8b9aa8"},
+     data:[[0,0],...blocks.map(r=>[r.hi,r.cum_target])]},
+    {name:"sold",type:"line",showSymbol:false,color:"#34d399",
+     lineStyle:{width:2,color:"#34d399"},
+     data:[[0,d.sold],[d.now_min!=null?d.now_min:endX,d.sold]],
+     ...(d.now_min!=null?{markLine:{symbol:"none",label:{formatter:"NOW",
+        color:"#eef3f7",fontSize:10},data:[{xAxis:d.now_min,
+        lineStyle:{color:"#eef3f7",width:1.6}}]}}:{})}];
+  c.setOption({...DARK,legend:leg(id),
+    grid:{left:14,right:24,top:40,bottom:32,containLabel:true},
+    xAxis:{type:"value",min:0,max:endX,name:"min post-cross",nameLocation:"middle",
+           nameGap:24,...AX},
+    yAxis:{type:"value",min:0,max:Math.max(d.residual,d.sold),name:"cum sh",...AX},
+    series},true);}
+
+function drawHedgeChart(id,readId,d){
+  const el=$(id),rd=$(readId);
+  if(!d){el.style.display="none";rd.style.display="none";return;}
+  el.style.display="block";rd.style.display="block";const c=chart(id);
+  const gapPts=d.series.filter(r=>r.gap!=null).map(r=>[r.ts*1000,r.gap]);
+  const bufPts=d.series.map(r=>[r.ts*1000,r.buffer!=null?r.buffer*100:null]);
+  // S6 background zones (top strip), only when the cross is known
+  const zones=[];
+  if(d.cross_ts){
+    zones.push([{xAxis:d.cross_ts*1000,itemStyle:{color:"rgba(248,113,113,.07)"}},
+                {xAxis:d.zone2_ts*1000}]);
+    zones.push([{xAxis:d.zone2_ts*1000,itemStyle:{color:"rgba(245,166,35,.07)"}},
+                {xAxis:d.zone1_ts*1000}]);
+    zones.push([{xAxis:d.zone1_ts*1000,itemStyle:{color:"rgba(52,211,153,.07)"}},
+                {xAxis:d.backstop_ts*1000}]);}
+  const topLines=[
+    {yAxis:2,lineStyle:{color:"#5d6b78",type:"dashed",width:1},label:{formatter:"+$2",fontSize:9,color:"#5d6b78"}},
+    {yAxis:-2,lineStyle:{color:"#5d6b78",type:"dashed",width:1},label:{formatter:"-$2",fontSize:9,color:"#5d6b78"}},
+    {yAxis:1,lineStyle:{color:"#5d6b78",type:"dotted",width:1},label:{formatter:"+$1",fontSize:9,color:"#5d6b78"}},
+    {yAxis:-1,lineStyle:{color:"#5d6b78",type:"dotted",width:1},label:{formatter:"-$1",fontSize:9,color:"#5d6b78"}},
+    {xAxis:d.backstop_ts*1000,lineStyle:{color:"#f87171",width:1.8},
+     label:{formatter:`21:00 backstop ~$${fmt(d.backstop_cost_ps,1)}/sh`,
+            color:"#f87171",fontSize:10,position:"insideEndTop"}}];
+  if(d.green_since)topLines.push({xAxis:d.green_since*1000,
+    lineStyle:{color:"#34d399",width:1.8},
+    label:{formatter:"READY ✓",color:"#34d399",fontSize:10,position:"insideEndBottom"}});
+  const series=[
+    {name:"gap (perp−spot)",type:"line",showSymbol:false,connectNulls:true,
+     color:"#38bdf8",xAxisIndex:0,yAxisIndex:0,
+     lineStyle:{width:2,color:"#38bdf8"},data:gapPts,
+     markLine:{symbol:"none",data:topLines},
+     markArea:{silent:true,data:zones}},
+    {name:"liq buffer %",type:"line",showSymbol:false,connectNulls:true,
+     color:"#f5a623",xAxisIndex:1,yAxisIndex:1,
+     lineStyle:{width:2,color:"#f5a623"},data:bufPts,
+     markArea:{silent:true,data:[
+       [{yAxis:0,itemStyle:{color:"rgba(245,166,35,.10)"}},{yAxis:10}],
+       [{yAxis:-100,itemStyle:{color:"rgba(248,113,113,.12)"}},{yAxis:0}]]},
+     markLine:{symbol:"none",data:[
+       {yAxis:10,lineStyle:{color:"#f5a623",type:"dashed",width:1},
+        label:{formatter:"WARN <10%",fontSize:9,color:"#f5a623"}},
+       {yAxis:0,lineStyle:{color:"#f87171",width:1.2},
+        label:{formatter:"BREACH",fontSize:9,color:"#f87171"}}]}}];
+  c.setOption({...DARK,legend:leg(id),
+    grid:[{left:14,right:24,top:36,height:"36%",containLabel:true},
+          {left:14,right:24,top:"62%",height:"28%",containLabel:true}],
+    xAxis:[{type:"time",gridIndex:0,...AX,splitLine:{show:false},
+            axisLabel:{hideOverlap:true}},
+           {type:"time",gridIndex:1,...AX,splitLine:{show:false},
+            axisLabel:{hideOverlap:true}}],
+    yAxis:[{type:"value",gridIndex:0,scale:true,name:"gap $",...AX},
+           {type:"value",gridIndex:1,scale:true,name:"buffer %",...AX}],
+    graphic:gapPts.length?[]:[{type:"text",left:"center",top:60,
+      style:{text:"awaiting cross — the gap strip arms at the first print "
+        +"(buffer strip runs from hedge entry)",fill:"#5d6b78",fontSize:12.5}}],
+    series},true);
+  const cn=d.close_now;
+  rd.innerHTML=cn.net_total!=null
+    ?`close both legs now ⇒ locked $${fmt(d.basis_ps,2)}/sh × ${fmt(d.hedged,0)} sh `
+     +`= $${fmt(cn.locked_total,0)} − gap drag $${fmt(cn.drag_total,0)} `
+     +`= <b style="color:var(--emerald)">$${fmt(cn.net_total,0)} total</b>`
+    :`locked $${fmt(d.basis_ps,2)}/sh × ${fmt(d.hedged,0)} sh = $${fmt(cn.locked_total,0)}`
+     +` — gap drag unknown until the cross prints`;}
+
+/* ---------- REHEARSAL playback (S5i — isolated; touches no production state) ---------- */
+let reh=null,rehI=0,rehTimer=null,rehSold=0,rehBusy=false,rehWant=null;
+async function rehLoad(){
+  const sym=$("reh_sym").value.trim().toUpperCase()||"NVDA";
+  const d=$("reh_date").value.trim();
+  $("reh_status").textContent="fetching tape…";
+  try{
+    const r=await fetch(`/api/rehearsal/load?symbol=${sym}${d?"&date="+d:""}`);
+    const j=await r.json();
+    if(!r.ok){$("reh_status").textContent=j.error||"load failed";return;}
+    reh=j;rehSold=j.sold||0;rehI=0;
+    $("reh_status").textContent=`${j.n} RTH bars via ${j.source}`;
+    $("rehbanner").textContent=`REHEARSAL — ${j.symbol} ${j.date} — simulated cross `
+      +`$${fmt(j.cross_px,2)} (first regular-session bar) · simulated offer `
+      +`$${fmt(j.offer,2)} (cross ÷ ${j.pop}) · simulated position 40 sh / hedge 18 — `
+      +`nothing here is live SPCX`;
+    $("rehlevels").innerHTML="<b>scaled levels (SPCX-ratio × sim offer):</b> "
+      +j.levels.map(l=>`${l.label} <b class='num'>$${fmt(l.scaled,1)}</b> `
+      +`<span class='src'>(SPCX $${fmt(l.spcx,0)})</span>`).join(" · ");
+    const s=$("rp_scrub");s.max=j.n-1;s.value=0;
+    $("rehplay").style.display="block";
+    rehSetI(0,true);
+  }catch(e){$("reh_status").textContent="load failed: "+e;}}
+function rehSetI(i,force){
+  if(!reh)return;
+  rehI=Math.max(0,Math.min(i,reh.n-1));
+  $("rp_scrub").value=rehI;
+  const dt=new Date(reh.t[rehI]*1000);
+  const mins=Math.round((reh.t[rehI]-reh.cross_ts)/60);
+  $("rp_time").textContent=dt.toLocaleTimeString("en-US",{timeZone:"America/New_York",
+    hour:"2-digit",minute:"2-digit"})+` ET · +${mins} min · ${reh.ribbon[rehI]}`;
+  drawReh();rehRibbon();
+  rehWant=rehI;rehPanelPump();
+  if(rehI>=reh.n-1)rehStop();}
+function rehPlayPause(){if(rehTimer)rehStop();else rehStart();}
+function rehStart(){
+  if(!reh)return;
+  const sp=Number($("rp_speed").value);
+  $("rp_play").textContent="⏸ PAUSE";
+  rehTimer=setInterval(()=>rehSetI(rehI+1),60000/sp);}
+function rehStop(){clearInterval(rehTimer);rehTimer=null;$("rp_play").textContent="▶ PLAY";}
+function rehSpeed(){if(rehTimer){rehStop();rehStart();}}
+function rehJump(){
+  if(!reh)return;
+  for(let j=rehI+1;j<reh.n;j++)
+    if(reh.ribbon[j]!==reh.ribbon[rehI]){rehSetI(j);return;}
+  rehSetI(reh.n-1);}
+$("rp_scrub").addEventListener("input",e=>rehSetI(Number(e.target.value)));
+function rehRibbon(){
+  // state ribbon revealed only up to the playhead; the future stays dark
+  const el=$("rehribbon");if(!reh)return;
+  const segs=[];let s0=0;
+  for(let j=1;j<=rehI;j++){
+    if(reh.ribbon[j]!==reh.ribbon[s0]||j===rehI){
+      segs.push(`<div class="rseg rs-${reh.ribbon[s0]}" style="width:${
+        (j-s0)/reh.n*100}%" title="${reh.ribbon[s0]}"></div>`);s0=j;}}
+  segs.push(`<div class="rseg rs-future" style="width:${(reh.n-rehI)/reh.n*100}%"></div>`);
+  el.innerHTML=segs.join("");}
+function drawReh(){
+  if(!reh)return;
+  const c=chart("c_reh");
+  const upto=(arr)=>arr.slice(0,rehI+1).map((v,j)=>[reh.t[j]*1000,v]);
+  const lv=reh.levels.map(l=>({name:l.label,yAxis:l.scaled,
+    label:{formatter:`${l.label} $${fmt(l.scaled,0)}`,color:"#8b9aa8",fontSize:10,
+           position:"insideEndTop"},
+    lineStyle:{color:l.label==="sell everything"?"#f87171":
+               l.label==="CRASH floor"?"#f5a623":"#3a4654",type:"dashed",width:1}}));
+  c.setOption({...DARK,legend:leg("c_reh"),
+    xAxis:{type:"time",...AX,splitLine:{show:false},axisLabel:{hideOverlap:true}},
+    yAxis:{type:"value",scale:true,name:"$",...AX},
+    series:[
+      {name:"price",type:"line",showSymbol:false,color:"#eef3f7",
+       lineStyle:{width:2.2,color:"#eef3f7"},data:upto(reh.close),
+       markLine:{symbol:"none",data:[
+         {name:"sim cross",xAxis:reh.cross_ts*1000,
+          label:{formatter:"SIM CROSS",color:"#a78bfa",fontSize:10},
+          lineStyle:{color:"#a78bfa",width:1.6}},...lv]}},
+      {name:"AVWAP (anchored)",type:"line",showSymbol:false,color:"#38bdf8",
+       lineStyle:{width:1.5,type:"dashed",color:"#38bdf8"},data:upto(reh.avwap)},
+      {name:"session high",type:"line",showSymbol:false,color:"#5d6b78",
+       lineStyle:{width:1,type:"dotted",color:"#5d6b78"},data:upto(reh.session_high)}],
+  },true);}
+async function rehPanelPump(){
+  if(rehBusy||rehWant==null)return;
+  rehBusy=true;const i=rehWant;rehWant=null;
+  try{
+    const r=await fetch(`/api/rehearsal/panel?i=${i}`);
+    if(r.ok){
+      const p=await r.json();
+      $("rehshape").innerHTML=`<div class="rehshapebn sh-${p.shape}" `
+        +`style="display:flex;align-items:center;gap:16px;border-radius:10px;`
+        +`border:1px solid var(--edge2);border-left:6px solid var(--dim);`
+        +`padding:10px 16px;background:var(--panel2)">`
+        +`<span class="num" style="font-size:21px;font-weight:800">${p.shape}</span>`
+        +`<span style="flex:1">${p.action}</span>`
+        +`<span class="src">${fmt(p.minutes_in_state,0)} min in state · SIMULATED</span></div>`;
+      $("rehtr").innerHTML=(p.tranche_html||"")+rehSoldButtons(p);
+      $("rehhops").innerHTML=p.hedge_ops_html||"";
+      drawTrancheChart("c_rtrch",p.tranche_chart);
+      drawHedgeChart("c_rhops","rhopsread",p.hedge_chart);
+    }
+  }catch(_){}
+  rehBusy=false;
+  if(rehWant!=null)rehPanelPump();}
+function rehSoldButtons(p){
+  // rehearsal-only controls: cumulative mark-sold per lean-table ticket (22 sh → 8/8/6)
+  const cum=[8,16,22];
+  const btns=cum.map((c,k)=>`<button class="mk" ${rehSold>=c?"disabled":""} `
+    +`onclick="rehMarkSold(${c})">mark T${k+1} sold (cum ${c} sh)</button>`).join(" ");
+  return `<div class="mkrow" style="margin:6px 0 12px">${btns}
+    <button class="mk" onclick="rehMarkSold(0)">reset sold</button>
+    <span class="src">sold ${fmt(rehSold,0)}/22 — rehearsal state only</span></div>`;}
+async function rehMarkSold(c){
+  await fetch("/api/rehearsal/state",{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({sold:c})});
+  rehSold=c;rehWant=rehI;rehPanelPump();}
+
+/* ---------- toast ---------- */
+function toast(msg){const t=$("toast");t.textContent=msg;t.style.display="block";
+  document.title="⚡ "+msg;setTimeout(()=>{t.style.display="none";
+  document.title="SPCX — listing day";},12000);}
+
+/* ---------- EXECUTION tab (the day view): mini tiles, live chart, state ribbon ------ */
+function execTiles(m){
+  const perp=m.hl?m.hl.hl_mark:null, spot=m.spot?m.spot.price:null;
+  const gap=(perp!=null&&spot!=null)?perp-spot:null;
+  const t=(lab,val,sub,hot)=>`<div class="tile${hot?" hot":""}"><span class="tl">${lab}
+    </span><div class="tv">${val}</div><div class="td">${sub||""}</div></div>`;
+  $("xtiles").innerHTML=`<div class="tilegrid" style="margin-bottom:4px">`
+    +t("SPOT (IEX)",spot!=null?"$"+fmt(spot,2):"—",
+       m.spot&&m.spot.status?m.spot.status:"pre-cross",spot!=null)
+    +t("PERP xyz",perp!=null?"$"+fmt(perp,2):"—","Hyperliquid mark")
+    +t("GAP perp−spot",gap!=null?"$"+fmt(gap,2):"—",
+       gap!=null?(Math.abs(gap)<=2?"inside the $2 band":"outside $2"):"needs the cross")
+    +t("P(WIN)",fmt(m.stats.p_win_offer*100,1)+"%","crowd P(close > $135)")
+    +`</div>`;}
+function drawExecChart(m){
+  if(hist.length<2)return;
+  const c=chart("c_exec");
+  const t=r=>r.ts*1000;
+  // EXEC tab is the live session surface — scope it to the last 24h (the 7-day history
+  // lives on the ANALYSIS charts). The right edge tracks the newest poll (live).
+  const cut=hist[hist.length-1].ts*1000-24*3600*1000;
+  const h=hist.filter(r=>r.ts*1000>=cut);
+  const lv=(m.levels||[]).map(l=>({name:l.label,yAxis:l.level,
+    label:{formatter:`${l.label} $${fmt(l.level,0)}`,fontSize:10,
+           color:l.downside?"#f87171":"#8b9aa8",position:"insideEndTop"},
+    lineStyle:{color:l.downside?"#5b2a2a":"#3a4654",type:"dashed",width:1}}));
+  const mk={symbol:"none",data:[...lv]};
+  if(dayState.cross_ts)mk.data.push({name:"CROSS",xAxis:dayState.cross_ts*1000,
+    label:{formatter:"CROSS",color:"#a78bfa",fontSize:10,rotate:90,
+           position:"insideEndTop"},
+    lineStyle:{color:"#a78bfa",width:1.6}});
+  c.setOption({...DARK,grid:tsGrid(),dataZoom:tsZoom("c_exec",0),
+    legend:leg("c_exec"),xAxis:tsAxis(),
+    yAxis:{type:"value",scale:true,name:"$",...AX},
+    series:[
+      {name:"spot (IEX)",type:"line",showSymbol:false,connectNulls:true,color:"#38bdf8",
+       lineStyle:{width:2.4,color:"#38bdf8"},data:h.map(r=>[t(r),r.spot]),markLine:mk},
+      {name:"perp",type:"line",showSymbol:false,connectNulls:true,color:"#f5a623",
+       lineStyle:{width:1.6,color:"#f5a623"},data:h.map(r=>[t(r),r.perp])},
+      {name:"AVWAP (anchored)",type:"line",showSymbol:false,connectNulls:true,
+       color:"#eef3f7",lineStyle:{width:1.4,type:"dashed",color:"#eef3f7"},
+       data:h.map(r=>[t(r),r.avwap!=null?r.avwap:null])}]},true);}
+function execRibbon(){
+  const el=$("execribbon");
+  const shaped=hist.filter(r=>r.shape);
+  if(!shaped.length){el.innerHTML=
+    `<div class="src">state ribbon arms at the first print — colors per the banner</div>`;
+    return;}
+  const segs=[];let s0=0;
+  for(let j=1;j<=shaped.length;j++){
+    if(j===shaped.length||shaped[j].shape!==shaped[s0].shape){
+      segs.push(`<div class="rseg rs-${shaped[s0].shape}" style="width:${
+        (j-s0)/shaped.length*100}%" title="${shaped[s0].shape}"></div>`);s0=j;}}
+  el.innerHTML=`<div style="display:flex;height:16px;border-radius:4px;overflow:hidden;`
+    +`border:1px solid var(--edge2)">${segs.join("")}</div>`;}
+
+/* ---------- S7 day-shape banner ---------- */
+function drawShape(s){
+  const el=$("shapebanner");
+  if(!s||!s.armed){el.className="";el.style.display="none";return;}
+  el.className="show sh-"+s.state;
+  $("shapestate").textContent=s.state+(s.override?" (PINNED)":"");
+  $("shapeaction").textContent=s.action;
+  const mins=s.minutes_in_state!=null?fmt(s.minutes_in_state,0)+" min in state":"just armed";
+  const sub=s.override?` · classifier says ${s.computed}`:"";
+  $("shapemeta").textContent=`${mins}${sub}`;
+  if(!document.activeElement||document.activeElement.id!=="shapesel")
+    $("shapesel").value=s.override||"";}
+async function setShapeOverride(v){
+  await fetch("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({shape_override:v||null})});}
+
+/* ---------- masthead node chip ---------- */
+function setNode(node){
+  const el=$("hdrnode");if(!node)return;
+  el.textContent=node;
+  const cls={"PRE-ALLOC":"n-PREALLOC","D2/D3":"n-D2","D4":"n-D4","D5":"n-D5",
+             "CLOSE-OUT":"n-CLOSE"}[node]||"n-PREALLOC";
+  el.className=cls;}
+
+/* ---------- status strip (feed ages tick every second) ---------- */
+function chip(label,ageS){
+  const cls=ageS==null?"r":ageS<=90?"g":ageS<=300?"a":"r";
+  return `<span class="chip ${cls}">${label} ${ageS==null?"never":fmt(ageS,0)+"s"}</span>`;}
+function strip(m){
+  const t=new Date(m.ts*1000);
+  const fl=[];
+  if(m.violations&&m.violations.length)
+    fl.push("monotonicity clipped at "+m.violations.join(", ")+" $T");
+  if(m.flags)fl.push(...m.flags);
+  $("strip").innerHTML=
+    `<span class="num" id="polltime">last poll ${t.toLocaleTimeString("de-DE",{timeZone:"Europe/Berlin"})}</span>`+
+    `<span id="agechips"></span>`+
+    (fl.length?`<div id="flags">⚑ ${fl.join(" · ")}</div>`:"");
+  tickAges();}
+function tickAges(){
+  if(!last)return;
+  const drift=(Date.now()-lastPollWall)/1000;
+  const a=k=>feeds[k]==null?null:(last.ts-feeds[k])+drift;
+  const el=$("agechips");
+  if(el)el.innerHTML=chip("PM",a("pm"))+chip("HL",a("hl"))+chip("SPOT",a("spot"));}
+setInterval(tickAges,1000);
+
+/* ---------- tiles (ordered by day-of glance priority) ---------- */
+function delta(cur,ref,scale=1,unit=""){
+  if(cur==null||ref==null)return `<span>·</span>`;
+  const d=(cur-ref)*scale;if(Math.abs(d)<1e-9)return `<span>±0</span>`;
+  return `<span class="${d>0?"up":"dn"}">${d>0?"▲":"▼"}${Math.abs(d).toFixed(1)}${unit}</span>`;}
+function tile(label,val,sub,hot=false){
+  return `<div class="tile${hot?" hot":""}"><div class="tl">${label}</div>
+  <div class="tv">${val}</div><div class="td">${sub}</div></div>`;}
+function dd(cur,p,st,scale=1,unit=""){
+  return `${delta(cur,p,scale,unit)} prev · ${delta(cur,st,scale,unit)} start`;}
+function tiles(m){
+  const s=m.stats,p=m.prev,st=m.start,hl=m.hl||{},sp=m.spot||{};
+  let spotVal="<small>no prints yet</small>",spotHot=false;
+  if(sp.price!=null&&sp.status==="live"){
+    spotVal=`$${fmt(sp.price,2)} <small>P${fmt(sp.pctile,0)}</small>`;spotHot=true;}
+  else if(sp.status==="stale")spotVal="<small>STALE</small>";
+  // pair gap = perp − spot (the §5.1 pair-close tracking number)
+  let pair="—",pairSub="needs live spot";
+  if(hl.hl_mark!=null&&sp.price!=null&&sp.status==="live"){
+    const g=hl.hl_mark-sp.price;
+    pair=`${g>0?"+":""}${fmt(g,2)}<small> $/sh</small>`;
+    pairSub=Math.abs(g)<=2?"within the ≤$2 pair-close band":"outside the ≤$2 band";}
+  $("tiles").innerHTML=
+    tile("spot",spotVal,dd(sp.price,p&&p.spot,st&&st.spot),spotHot)+
+    tile("perp mark",hl.hl_mark!=null?"$"+fmt(hl.hl_mark,2):"—",
+         dd(hl.hl_mark,p&&p.perp,st&&st.perp))+
+    tile("perp − spot",pair,pairSub)+
+    tile("perp − crowd mean",
+         hl.vs_mean_ps!=null?`${hl.vs_mean_ps>0?"+":""}${fmt(hl.vs_mean_ps)}<small> $/sh</small>`:"—",
+         "leveraged money vs the crowd")+
+    tile("p(close > $"+fmt(m.offer,0)+")",fmt(s.p_win_offer*100,1)+"<small>%</small>",
+         dd(s.p_win_offer,p&&p.pwin,st&&st.pwin,100,"pp"))+
+    tile("crowd mean",`$${fmt(s.mean_ps)}<small> · med $${fmt(s.median_ps)}</small>`,
+         dd(s.mean_ps,p&&p.mean_ps,st&&st.mean_ps))+
+    tile("ev vs $"+fmt(m.offer,0),fmt(s.ev_vs_offer_ps)+"<small> $/sh</small>",
+         "= crowd mean − offer (A1)");}
+
+/* ---------- pre-registered levels strip ---------- */
+function levels(m){
+  if(!m.levels){$("levels").innerHTML="";return;}
+  $("levels").innerHTML=m.levels.map(l=>{
+    if(l.crossed_ts){
+      const t=new Date(l.crossed_ts*1000).toLocaleTimeString("de-DE",
+        {timeZone:"Europe/Berlin",hour:"2-digit",minute:"2-digit"});
+      return `<span class="lvl x ${l.downside?"dnx":"upx"}"><b>$${fmt(l.level,0)}</b> ${l.label}
+        — CROSSED ${t} (${l.source})</span>`;}
+    return `<span class="lvl"><b>$${fmt(l.level,0)}</b> ${l.label}</span>`;}).join("");}
+
+/* ---------- charts ---------- */
+const AX={axisLine:{lineStyle:{color:"#2d3845"}},splitLine:{lineStyle:{color:"#1a212b"}}};
+const DARK={backgroundColor:"transparent",animation:false,
+  textStyle:{color:"#8b9aa8",fontFamily:"SF Mono,Menlo,monospace",fontSize:12},
+  grid:{left:14,right:24,top:58,bottom:30,containLabel:true},
+  tooltip:{trigger:"axis",backgroundColor:"#171c24",borderColor:"#2d3845",
+           textStyle:{color:"#dde5ec",fontSize:13}}};
+const LEG={textStyle:{color:"#a5b5c2",fontSize:12.5},top:0,icon:"rect",
+           itemWidth:15,itemHeight:3};
+/* per-chart legend selection — display options. Clicking a legend label toggles that
+   line; the choice survives poll redraws (notMerge resets legend state, so we re-inject
+   it on every setOption) AND page reloads (localStorage). */
+let legSel={};
+try{legSel=JSON.parse(localStorage.getItem("spcx_legsel")||"{}");}catch(e){legSel={};}
+function leg(id,defaults,style){
+  return{...LEG,...(style||{}),selectedMode:true,
+         selected:{...(defaults||{}),...(legSel[id]||{})}};}
+/* per-chart lookback slider — the RIGHT edge is HARD-pinned to live: end:100 is re-forced
+   on every poll redraw AND snapped back in real time by the datazoom handler below (so a
+   pan/right-handle drag can never push "now" off-screen, even between polls). The slider's
+   LEFT handle is the only control — drag it left to reveal more history, never losing live.
+   Only `start` is persisted (the lookback depth) — across the 45s poll redraws (notMerge
+   resets it, so we re-inject every setOption) AND reloads (localStorage). defStart tunes
+   the opening window per chart (ANALYSIS ≈ last 24h of the 7-day span; EXEC opens full). */
+const DEF_ZOOM_START=85;
+let zoomSel={};
+try{zoomSel=JSON.parse(localStorage.getItem("spcx_zoom")||"{}");}catch(e){zoomSel={};}
+let _zoomLock={};   // re-entrancy guard for the live-anchor snap-back below
+function tsZoom(id,defStart){
+  const start=(zoomSel[id]&&zoomSel[id].start!=null)?zoomSel[id].start
+              :(defStart==null?DEF_ZOOM_START:defStart);
+  return[{type:"slider",height:16,bottom:6,start:start,end:100,filterMode:"filter",
+          borderColor:"#2d3845",backgroundColor:"rgba(0,0,0,0)",
+          fillerColor:"rgba(56,189,248,.10)",
+          handleStyle:{color:"#38bdf8",borderColor:"#38bdf8"},
+          moveHandleStyle:{color:"#2d3845"},textStyle:{color:"#5d6b78",fontSize:10},
+          dataBackground:{lineStyle:{color:"#2d3845"},areaStyle:{color:"#10151c"}},
+          selectedDataBackground:{lineStyle:{color:"#38bdf8"},
+            areaStyle:{color:"rgba(56,189,248,.06)"}}}];}
+function tsGrid(top){return{left:14,right:24,top:top==null?58:top,bottom:50,
+                            containLabel:true};}
+function chart(id){
+  if(!charts[id]){const el=$(id);el.innerHTML="";
+    charts[id]=echarts.init(el,null,{renderer:"canvas"});
+    charts[id].on("legendselectchanged",e=>{legSel[id]=e.selected;
+      try{localStorage.setItem("spcx_legsel",JSON.stringify(legSel));}catch(_){}});
+    charts[id].on("datazoom",()=>{
+      if(_zoomLock[id])return;                       // ignore our own snap-back dispatch
+      const dz=charts[id].getOption().dataZoom;
+      if(!dz||!dz[0])return;
+      const start=dz[0].start;
+      // live anchor: if a pan or right-handle drag moved the right edge off "now",
+      // spring it back instantly while keeping the user's lookback (left edge).
+      if(dz[0].end!=null&&dz[0].end<99.9){
+        _zoomLock[id]=true;
+        charts[id].dispatchAction({type:"dataZoom",start:start,end:100});
+        _zoomLock[id]=false;}
+      zoomSel[id]={start:start};                     // only the lookback depth is persisted
+      try{localStorage.setItem("spcx_zoom",JSON.stringify(zoomSel));}catch(_){}});}
+  return charts[id];}
+window.addEventListener("resize",()=>Object.values(charts).forEach(c=>c.resize()));
+
+function drawSurv(m){
+  const c=chart("c_surv"),sv=m.survivor;
+  const series=[{name:"now",type:"line",showSymbol:false,color:"#eef3f7",
+                 lineStyle:{width:2.4,color:"#eef3f7"},
+                 data:sv.grid.map((k,i)=>[k,sv.S[i]])}];
+  if(reference)series.push({name:reference.label,type:"line",showSymbol:false,
+    color:"#5d6b78",lineStyle:{width:1.3,type:"dashed",color:"#5d6b78"},
+    data:reference.grid.map((k,i)=>[k,reference.S[i]])});
+  // liquidity-weighted lognormal "fair" survivor — the tail-richness reference (Q2)
+  if(m.lognormal&&m.lognormal.fair_S)series.push({name:"fair (lognormal)",type:"line",
+    showSymbol:false,color:"#a78bfa",lineStyle:{width:1.6,type:"dashed",color:"#a78bfa"},
+    data:sv.grid.map((k,i)=>[k,m.lognormal.fair_S[i]])});
+  // perp-implied cap: where the leveraged market sits on the crowd's curve
+  const perp=m.pdf.perp;
+  if(perp!=null&&m.stats.mean_ps>0){
+    const cap=perp*m.stats.mean_cap_t/m.stats.mean_ps;
+    series.push({name:"perp",type:"line",showSymbol:false,color:"#f5a623",data:[],
+      markLine:{symbol:"none",label:{color:"#f5a623",fontSize:11,
+                formatter:()=>`perp $${fmt(perp,0)}`},
+        data:[{xAxis:cap,lineStyle:{color:"#f5a623",width:1.6,type:"solid"}}]}});}
+  series.push({name:"quotes",type:"scatter",symbolSize:7,color:"#38bdf8",
+    itemStyle:{color:p=>sv.strikes[p.dataIndex].clipped?"#f87171":"#38bdf8"},
+    data:sv.strikes.map(s=>[s.k,s.p])});
+  series.push({name:"bid–ask",type:"custom",color:"#38bdf8",
+    renderItem:(params,api)=>{const s=sv.strikes[params.dataIndex];
+      if(s.bid==null||s.ask==null)return;
+      const x=api.coord([s.k,0])[0],y1=api.coord([s.k,s.bid])[1],
+            y2=api.coord([s.k,s.ask])[1];
+      return{type:"line",shape:{x1:x,y1,x2:x,y2},
+             style:{stroke:"#38bdf8",lineWidth:1,opacity:.7}};},
+    data:sv.strikes.map(s=>[s.k,s.p])});
+  c.setOption({...DARK,legend:leg("c_surv"),
+    xAxis:{type:"value",min:0.8,max:4.2,name:"cap $T",nameLocation:"middle",
+           nameGap:26,...AX},
+    yAxis:{type:"value",min:0,max:1,name:"P(cap>K)",...AX},series},true);}
+
+function drawPDF(m){
+  const c=chart("c_pdf"),pdf=m.pdf;
+  const data=pdf.price.map((x,i)=>[x,pdf.dens[i]]);
+  const band=data.filter(d=>d[0]>=pdf.p25&&d[0]<=pdf.p75);
+  const mks=[["offer $"+fmt(m.offer,0),m.offer,"#34d399"],
+             ["perp $"+fmt(pdf.perp,0),pdf.perp,"#f5a623"],
+             ["spot $"+fmt(pdf.spot,0),pdf.spot,"#38bdf8"]].filter(x=>x[1]!=null);
+  const densAt=x=>{ // linear interp of the PCHIP density at price x (for marker placement)
+    const p=pdf.price;if(x<=p[0])return pdf.dens[0];
+    for(let i=1;i<p.length;i++)if(p[i]>=x){const t=(x-p[i-1])/(p[i]-p[i-1]);
+      return pdf.dens[i-1]+t*(pdf.dens[i]-pdf.dens[i-1]);}
+    return pdf.dens[pdf.dens.length-1];};
+  const series=[
+    // 1 — PCHIP fit (exact through quotes; bumps are artifacts)
+    {name:"PCHIP fit",type:"line",showSymbol:false,color:"#eef3f7",
+     lineStyle:{width:2.2,color:"#eef3f7"},data,
+     markLine:{symbol:"none",label:{color:"#a5b5c2",fontSize:11,formatter:p=>p.name},
+       data:mks.map(([name,x,color])=>({name,xAxis:x,lineStyle:{color,width:1.6}}))}},
+    {type:"line",showSymbol:false,lineStyle:{width:0},
+     areaStyle:{color:"rgba(238,243,247,.14)"},data:band,tooltip:{show:false}}];
+  // 2 — raw interval-mass histogram (assumption-free; what the quotes directly say)
+  if(pdf.raw_hist&&pdf.raw_hist.length)series.push({name:"raw interval mass",
+    type:"custom",color:"#8b9aa8",tooltip:{show:false},
+    renderItem:(params,api)=>{const r=pdf.raw_hist[params.dataIndex];
+      const p0=api.coord([r.lo_ps,r.dens]),p1=api.coord([r.hi_ps,0]);
+      return{type:"rect",shape:{x:p0[0],y:p0[1],width:p1[0]-p0[0],height:p1[1]-p0[1]},
+             style:{fill:"rgba(139,154,168,.22)",stroke:"#5d6b78",lineWidth:.8}};},
+    data:pdf.raw_hist.map(r=>[r.lo_ps,r.dens])});
+  // 3 — liquidity-weighted lognormal fair (the audit's single-hump construction)
+  if(m.lognormal&&m.lognormal.fair_pdf)series.push({name:"lognormal fair",
+    type:"line",showSymbol:false,color:"#a78bfa",
+    lineStyle:{width:1.8,type:"dashed",color:"#a78bfa"},
+    data:pdf.price.map((x,i)=>[x,m.lognormal.fair_pdf[i]])});
+  // tail-sell strikes placed on the curve + the shaded sell-tail zone, labeled with the
+  // sell bid. Sourced from pdf.tail_pts (present on BOTH the live payload and the scrubbed
+  // /api/curve payload) so the zone stays visible while sliding through history; falls back
+  // to the live tail_trade rows. Legend-toggleable, so it's there "if you want it".
+  const tt=(m.pdf&&m.pdf.tail_pts)||(m.tail_trade&&m.tail_trade.rows)||[];
+  const tpts=tt.filter(r=>r.strike_ps!=null&&r.strike_ps<=320);
+  if(tpts.length)series.push({name:"tail-sell strikes",type:"scatter",symbolSize:9,
+    color:"#a78bfa",itemStyle:{color:"#a78bfa",borderColor:"#0b0e12",borderWidth:1.5},
+    label:{show:true,position:"top",distance:7,color:"#c4b5fd",fontSize:10.5,
+      fontFamily:"SF Mono,Menlo,monospace",
+      formatter:p=>{const r=tpts[p.dataIndex];
+        return`>${r.strike_t}T${r.sell_bid!=null?" · "+(r.sell_bid*100).toFixed(0)+"c":""}`;}},
+    markArea:{silent:true,itemStyle:{color:"rgba(167,139,250,.05)"},
+      label:{show:true,position:["94%","6%"],color:"#7c6aa8",fontSize:11,
+             formatter:"tail-sell zone"},
+      data:[[{xAxis:Math.min(...tpts.map(r=>r.strike_ps))},{xAxis:320}]]},
+    data:tpts.map(r=>[r.strike_ps,densAt(r.strike_ps)])});
+  c.setOption({...DARK,legend:leg("c_pdf"),
+    xAxis:{type:"value",min:60,max:320,name:"$/share",nameLocation:"middle",
+           nameGap:26,...AX,splitLine:{show:false}},
+    yAxis:{type:"value",name:"density",...AX},series},true);}
+
+function tsAxis(){return{type:"time",...AX,splitLine:{show:false},
+                         axisLabel:{hideOverlap:true}};}
+function drawPair(){
+  if(hist.length<2)return;
+  const c=chart("c_pair");
+  const t=r=>r.ts*1000;
+  const haveSpot=hist.some(r=>r.spot!=null);
+  const gapData=hist.map(r=>[t(r),(r.perp!=null&&r.spot!=null)?r.perp-r.spot:null]);
+  const smk=scrubMarkLine();
+  const series=[
+    {name:"perp mark",type:"line",showSymbol:false,connectNulls:true,color:"#f5a623",
+     lineStyle:{width:2.4,color:"#f5a623"},data:hist.map(r=>[t(r),r.perp]),
+     ...(smk?{markLine:smk}:{})},
+    {name:"spot",type:"line",showSymbol:false,connectNulls:true,color:"#38bdf8",
+     lineStyle:{width:2.4,color:"#38bdf8"},data:hist.map(r=>[t(r),r.spot])}];
+  if(haveSpot)series.push(
+    {name:"gap (perp−spot)",type:"line",yAxisIndex:1,showSymbol:false,connectNulls:true,
+     color:"#8b9aa8",
+     lineStyle:{width:1.2,color:"#8b9aa8"},areaStyle:{color:"rgba(139,154,168,.15)"},
+     data:gapData,
+     markLine:{symbol:"none",label:{color:"#5d6b78",fontSize:10,
+               formatter:p=>p.value>0?"+$2":"-$2"},
+       data:[{yAxis:2,lineStyle:{color:"#5d6b78",type:"dashed",width:1}},
+             {yAxis:-2,lineStyle:{color:"#5d6b78",type:"dashed",width:1}}]}});
+  const yAxes=[{type:"value",scale:true,name:"$/share",...AX}];
+  if(haveSpot)yAxes.push({type:"value",scale:true,name:"gap $",position:"right",
+                          axisLine:{lineStyle:{color:"#3a4654"}},splitLine:{show:false}});
+  c.setOption({...DARK,grid:tsGrid(),dataZoom:tsZoom("c_pair"),
+    legend:leg("c_pair"),xAxis:tsAxis(),yAxis:yAxes,series,
+    graphic:haveSpot?[]:[{type:"text",right:24,top:38,
+      style:{text:"spot pending the first print — perp leg already live",
+             fill:"#5d6b78",fontSize:12}}]},true);}
+function drawTS(){
+  if(hist.length<2)return;
+  const c=chart("c_ts");
+  const t=r=>r.ts*1000;
+  const mk={symbol:"none",label:{show:true,formatter:p=>p.name,color:"#a5b5c2",
+            rotate:90,position:"insideEndTop",fontSize:11},
+            data:marks.map(m=>({name:m.label,xAxis:m.ts*1000,
+                lineStyle:{color:"#5d6b78",type:"dotted",width:1.6}}))};
+  if(scrubTs!=null)mk.data=[...mk.data,{name:"SCRUB",xAxis:scrubTs*1000,
+    lineStyle:{color:"#38bdf8",type:"solid",width:1.6,opacity:.8}}];
+  c.setOption({...DARK,grid:tsGrid(),dataZoom:tsZoom("c_ts"),
+    legend:leg("c_ts",{"crowd median":false}),xAxis:tsAxis(),
+    yAxis:[{type:"value",scale:true,name:"$/sh",...AX},
+           {type:"value",scale:true,name:"P(win)%",position:"right",
+            axisLine:{lineStyle:{color:"#1f5c44"}},splitLine:{show:false}}],
+    series:[
+      {name:"crowd mean",type:"line",showSymbol:false,color:"#eef3f7",
+       lineStyle:{width:2,color:"#eef3f7"},data:hist.map(r=>[t(r),r.mean_ps]),markLine:mk},
+      {name:"crowd median",type:"line",showSymbol:false,color:"#8b9aa8",
+       lineStyle:{width:1.1,color:"#8b9aa8",type:"dashed"},
+       data:hist.map(r=>[t(r),r.median_ps])},
+      {name:"perp mark",type:"line",showSymbol:false,color:"#f5a623",
+       lineStyle:{width:1.8,color:"#f5a623"},data:hist.map(r=>[t(r),r.perp])},
+      {name:"spot",type:"line",showSymbol:false,color:"#38bdf8",
+       lineStyle:{width:2.2,color:"#38bdf8"},data:hist.map(r=>[t(r),r.spot])},
+      {name:"P(win)%",type:"line",yAxisIndex:1,showSymbol:false,color:"#34d399",
+       lineStyle:{width:1.3,color:"#34d399"},data:hist.map(r=>[t(r),r.pwin*100])}]},true);}
+
+function drawTails(){
+  if(hist.length<2)return;
+  const c=chart("c_tails");
+  const colors={"2.2":"#38bdf8","2.4":"#f5a623","2.6":"#7ad36a","2.8":"#c084d8","3.0":"#a78bfa"};
+  const series=[];
+  for(const k of["2.2","2.4","2.6","2.8","3.0"]){
+    const pick=(r,i)=>{const v=(r.tails||{})[k];
+                       return v&&v[i]!=null?v[i]*100:null;};
+    series.push({name:`>$${k}T bid`,type:"line",showSymbol:false,connectNulls:true,
+      color:colors[k],lineStyle:{width:3.6,color:colors[k]},
+      data:hist.map(r=>[r.ts*1000,pick(r,0)])});
+    series.push({name:`>$${k}T ask`,type:"line",showSymbol:false,connectNulls:true,
+      color:colors[k],lineStyle:{width:1.1,color:colors[k],type:"dashed"},
+      data:hist.map(r=>[r.ts*1000,pick(r,1)])});}
+  const askOff={};for(const k of["2.2","2.4","2.6","2.8","3.0"])askOff[`>$${k}T ask`]=false;
+  c.setOption({...DARK,grid:tsGrid(70),dataZoom:tsZoom("c_tails"),
+    legend:leg("c_tails",askOff,{textStyle:{color:"#c8d6e0",fontSize:13.5}}),
+    xAxis:tsAxis(),
+    yAxis:{type:"value",scale:true,name:"YES ¢",
+           nameTextStyle:{fontSize:13.5},axisLabel:{fontSize:13.5},...AX},
+    series},true);}
+
+function drawTailTrade(m){
+  const tt=m.tail_trade;if(!tt)return;
+  const sig=$("tt_signal");sig.className="ttsig "+(tt.signal_cls||"idle");sig.textContent=tt.signal;
+  if(tt.window_min!=null)$("tt_win").textContent=Math.round(tt.window_min)+"m";
+  const cents=x=>x==null?"·":(x*100).toFixed(1)+"c";
+  const dc=x=>x==null?"·":(x>=0?"+":"")+x.toFixed(1)+"c";
+  const sz=x=>x==null?"·":x>=1000?(x/1000).toFixed(1)+"k":Math.round(x).toString();
+  let rows="";
+  for(const r of tt.rows){
+    const sell=r.read&&r.read.indexOf("SELL")>=0;
+    const rip=r.read&&r.read.indexOf("ripping")>=0;
+    const bleed=r.read&&r.read.indexOf("bleeding")>=0;
+    const rcls=sell?"sell":rip?"rip":bleed?"bleed":"";
+    rows+=`<tr><td>&gt;$${r.strike_t}T</td><td class="n">${cents(r.sell_bid)}</td>
+      <td class="n">${dc(r.dbid_c)}</td>
+      <td class="n">${r.off_high_c==null?"·":r.off_high_c.toFixed(1)+"c"}</td>
+      <td class="n">${sz(r.bid_depth_sh)}</td>
+      <td class="n">${r.richness_c==null?"·":(r.richness_c>=0?"+":"")+r.richness_c.toFixed(1)+"c"}</td>
+      <td class="${rcls}">${r.read||""}</td></tr>`;}
+  $("tt_tbl").querySelector("tbody").innerHTML=rows||
+    `<tr><td colspan="7" class="ph" style="border:none">no tail quotes this poll</td></tr>`;}
+
+/* ---------- day-state form (EXECUTION tab E5) ---------- */
+/* Button-feedback hardening (S5k operator report "button does not respond": the only
+   failure mode reproducible is clicking against a dead/unreachable server — the POST
+   fails silently far from the button. Make it unmissable AT the button.) */
+function setBtnsDead(dead){
+  for(const b of document.querySelectorAll("#tab-exec .mkrow button, #pmind button"))
+    b.disabled=dead;
+  const ok=$("saveok");if(!ok)return;
+  ok.textContent=dead?"SERVER UNREACHABLE — buttons disabled until the feed reconnects "
+    +"(is the monitor process running?)":"";
+  ok.style.color=dead?"var(--red)":"var(--emerald)";}
+let dayState={};
+function fillForm(s){
+  dayState=s||{};
+  const map={fill:"f_fill",comfort:"f_comfort",hedged:"f_hedged",
+             hedge_entry:"f_hedge_entry",hedge_lev:"f_hedge_lev",sold:"f_sold",
+             cross_price:"f_crossp"};
+  for(const[k,id]of Object.entries(map))
+    if(s[k]!=null&&$(id)&&document.activeElement!==$(id))$(id).value=s[k];}
+const _num=id=>{const el=$(id);if(!el)return null;
+  const v=el.value.trim();return v===""?null:Number(v);};
+async function saveState(){
+  const body={fill:_num("f_fill"),comfort:_num("f_comfort"),hedged:_num("f_hedged"),
+              hedge_entry:_num("f_hedge_entry"),hedge_lev:_num("f_hedge_lev"),
+              sold:_num("f_sold")};
+  for(const k of Object.keys(body))if(body[k]==null)delete body[k];
+  if(!Object.keys(body).length){toast("nothing to save — type a value first");return;}
+  try{
+    const r=await fetch("/api/state",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(r.ok){dayState=j.state||dayState;
+      toast(`DAY STATE SAVED ✓  (${Object.keys(body).join(", ")})`);
+      $("saveok").textContent="saved ✓ — playbook updates instantly";}
+    else toast("SAVE FAILED (server error) — retry");
+  }catch(_){toast("SAVE FAILED — server unreachable (is the monitor process running?)");}
+  setTimeout(()=>$("saveok").textContent="",6000);}
+async function markCross(){
+  const p=_num("f_crossp");
+  if(p==null){toast("type the first print price first, then MARK CROSS");return;}
+  try{
+    const r=await fetch("/api/state",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({cross:["now",p]})});
+    if(r.ok){toast(`CROSS MARKED @ $${fmt(p,2)} — tranche clock running`);mark("CROSS");}
+    else toast("MARK CROSS FAILED (server error) — retry");
+  }catch(_){toast("MARK CROSS FAILED — server unreachable (is the monitor process running?)");}}
+/* PM3 fee toggle (Block S5k-PM follow-up): both fee variants arrive server-rendered in
+   every poll; this only swaps which one is visible. Choice survives re-renders (called
+   from apply()) and reloads (localStorage); the server's --fee-bps sets the default. */
+let pm3Bps=null;
+try{pm3Bps=localStorage.getItem("spcx_pm3bps");}catch(_){}
+function pm3Fee(b){pm3Bps=String(b);
+  try{localStorage.setItem("spcx_pm3bps",pm3Bps);}catch(_){}
+  pm3Apply();}
+function pm3Apply(){
+  const wrap=$("pm3wrap");if(!wrap)return;
+  const want=(pm3Bps==="0"||pm3Bps==="1000")?pm3Bps:(wrap.dataset.def||"0");
+  for(const b of["0","1000"]){
+    const v=$("pm3v"+b),btn=$("pm3b"+b);
+    if(v)v.style.display=b===want?"block":"none";
+    if(btn)btn.classList.toggle("on",b===want);}}
+async function sendIndication(){
+  const el=$("ind_in");const v=el?el.value.trim():"";
+  if(!v){toast("type the indicated range first (e.g. 148-152)");return;}
+  try{
+    const r=await fetch("/api/indication",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({text:v})});
+    if(r.ok)toast(`INDICATION LOGGED — ${v}`);
+    else toast("INDICATION FAILED (server error) — retry");
+  }catch(_){toast("INDICATION FAILED — server unreachable");}}
+async function mark(label){
+  await fetch("/api/mark",{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({label})});}
+function markCustom(){const l=prompt("mark label:");if(l)mark(l);}
+connect();
+</script></body></html>
