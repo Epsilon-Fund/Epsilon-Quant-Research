@@ -15,6 +15,8 @@ import math
 import os
 import sys
 
+import matplotlib
+matplotlib.use("Agg")  # headless: plot tests must not require a display
 import numpy as np
 import pandas as pd
 import pytest
@@ -467,3 +469,44 @@ def test_markdown_report_fragment(genuine_search):
     for token in ("Verdict", "Deflated Sharpe", "PBO", "Reality-Check",
                   "Post-haircut", "md test"):
         assert token in md
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Inline plotting (notebook prettiness) — must render headless without error
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_verdict_plot_two_panels(genuine_search):
+    import matplotlib.pyplot as plt
+    m, oos, _ = genuine_search
+    v = run_overfitting_audit(
+        selected_oos_returns=oos, n_trials=N, periods_per_year=PPY,
+        trial_returns=m, label="plot test", n_boot=200, seed=0,
+    )
+    fig = v.plot()
+    assert len(fig.axes) == 2  # haircut + PBO logit panels
+    plt.close(fig)
+
+
+def test_verdict_plot_one_panel_without_matrix():
+    import matplotlib.pyplot as plt
+    rng = np.random.default_rng(8)
+    sharpes = rng.normal(0, 0.05, 50)
+    v = run_overfitting_audit(
+        selected_oos_returns=rng.normal(0.001, 0.01, 1024),
+        n_trials=400, periods_per_year=PPY, trial_sharpes=sharpes, n_boot=100,
+        label="no matrix",
+    )
+    assert v.pbo is None  # no matrix -> no PBO panel
+    fig = v.plot()
+    assert len(fig.axes) == 1
+    plt.close(fig)
+
+
+def test_null_mc_plot(genuine_search):
+    import matplotlib.pyplot as plt
+    df = _make_ohlcv(_ar1_returns(0.5, 1500, seed=4))
+    res = synthetic_null_mc(df, _one_bar_momentum_sharpe, n_paths=60,
+                            mean_block_len=1.0, seed=2000)
+    fig = res.plot(label="MC plot test")
+    assert len(fig.axes) == 1
+    plt.close(fig)
