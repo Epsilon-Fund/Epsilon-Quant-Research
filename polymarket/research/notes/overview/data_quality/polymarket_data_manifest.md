@@ -49,6 +49,7 @@ Current storage state as of 2026-06-05: stale DuckDB spill and Git temp-pack gar
 | analysis feature panels | [[polymarket/research/data/analysis/block_a1_features.parquet|block_a1_features.parquet]], [[polymarket/research/data/analysis/block_a0c_features.parquet|block_a0c_features.parquet]], [[polymarket/research/data/analysis/block_a0c_roll_features.parquet|block_a0c_roll_features.parquet]], [[polymarket/research/data/analysis/block_a12_mlofi_features.parquet|block_a12_mlofi_features.parquet]], [[polymarket/research/data/analysis/block_a15_features.parquet|block_a15_features.parquet]], [[polymarket/research/data/analysis/block_a17_lightgbm_features.parquet|block_a17_lightgbm_features.parquet]] | Derived replay/feature panels for dali and Block K experiments. | dali A/P notes, MM, OD |
 | external market data | `polymarket/research/data/external/**/*.parquet` | Binance/Deribit/external history used by OD and hybrid tests. | OD notes, [[2026-06-02_binance_momentum_polymarket_hybrid]] |
 | backtest runs | `polymarket/research/data/backtests/**/*.parquet` | Generated replay/backtest outputs and old paper journals. | dali backtest scripts and paper-trading notes |
+| spread-surface work set | `polymarket/research/data/analysis/spread_surface/**/*.parquet` | SPREAD-1 caches + per-fill estimates: `mid_history/` (one `/prices-history` response per token-day — API cache, reruns free), `capture_l1/` (L1 + trade events extracted per live_clob run), `sample_market_days.parquet`, `half_spreads.parquet`. Regenerable but the mid-history cache saves ~1.1k API calls. | `scripts/spread_surface_build.py`, [[trade_anchored_spread_surface_findings]] |
 
 ## DuckDB And Compressed Files
 
@@ -114,6 +115,14 @@ These are the generated CSVs that back findings notes. Keep new result tables un
 
 - [[polymarket/research/data/analysis/csv_outputs/copytrade/copytrade_bias_systematicity.csv|copytrade bias systematicity]]
 - [[polymarket/research/data/analysis/csv_outputs/copytrade/copytrade_cohort_bias_table.csv|copytrade cohort bias table]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_semantics_check.csv|spread surface v1 semantics check]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_surface.csv|spread surface v1 surface]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_activity_breaks.csv|spread surface v1 activity breakpoints]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_validation_windows.csv|spread surface v1 validation windows]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_validation_market_cells.csv|spread surface v1 validation market-cells]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_diag_negative_rates.csv|spread surface v1 negative-rate diagnostic]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_diag_size_split.csv|spread surface v1 size-split diagnostic]]
+- [[polymarket/research/data/analysis/csv_outputs/copytrade/spread_surface_v1_diag_crosschecks.csv|spread surface v1 bounce/Roll cross-checks]]
 
 ### Dali
 

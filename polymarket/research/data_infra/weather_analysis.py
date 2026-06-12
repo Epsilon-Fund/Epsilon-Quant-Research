@@ -36,6 +36,36 @@ DEFAULT_MAX_SECONDS: int = 300
 DEFAULT_FALLBACK_CENTS: float = 3.0
 DEFAULT_SPREAD_CENTS: float = 2.0  # for Session 2.5 bid fallback
 
+# Block SPREAD-2 (opt-in): the trade-time-validated surface fallback. Weather
+# markets map to the K5 category 'other' (a SURFACE_VALIDATED category) and
+# resolve same-day (ttr < 6h), so when eval_pair(surface_fallback=True) is set,
+# the arbitrary flat-3c is replaced by the surface's 'other' taker half-spread
+# at the entry trigger price — a single principled constant per run. Default OFF.
+_SURFACE_CACHE: dict = {}
+
+
+def surface_fallback_cents_other(price: float, ttr_hours: float = 3.0) -> float:
+    """Gated surface fallback cents for a weather (category 'other') taker fill at
+    a trigger price. Lazily loads the frozen SPREAD-1 surface; returns the flat-3c
+    default if the surface artifacts are absent."""
+    from lib.copy_slippage import load_bounce_lookup, surface_fallback_cents
+    from lib.spread_surface import SpreadSurface
+
+    if "surf" not in _SURFACE_CACHE:
+        csv = Path(__file__).resolve().parents[1] / "data" / "analysis" / "csv_outputs" / "copytrade"
+        try:
+            _SURFACE_CACHE["surf"] = SpreadSurface.load(
+                csv / "spread_surface_v1_surface.csv", csv / "spread_surface_v1_activity_breaks.csv")
+            _SURFACE_CACHE["bounce"] = load_bounce_lookup(csv / "spread_surface_v1_diag_crosschecks.csv")
+        except Exception:  # noqa: BLE001 — no surface built -> keep flat-3c
+            _SURFACE_CACHE["surf"] = None
+    if _SURFACE_CACHE.get("surf") is None:
+        return DEFAULT_FALLBACK_CENTS
+    q = surface_fallback_cents(_SURFACE_CACHE["surf"], "other", price, ttr_hours,
+                               trade_rate=0.0, leader_is_maker=False,
+                               bounce_lookup=_SURFACE_CACHE.get("bounce"))
+    return q.cents
+
 
 # ----------------------------------------------------------------------------
 # Public API
@@ -671,6 +701,7 @@ def eval_pair(
     assumed_spread_cents: float = DEFAULT_SPREAD_CENTS,
     trades_glob: str = DEFAULT_TRADES_GLOB,
     return_audit: bool = False,
+    surface_fallback: bool = False,
 ):
     """LONG strategy: buy outcome at p_in, take profit if price reaches p_out, else hold.
 
@@ -704,6 +735,10 @@ def eval_pair(
     """
     if not (p_in < p_out):
         return None
+    # SPREAD-2 (opt-in): replace the flat-3c fallback with the gated surface
+    # estimate for category 'other' (weather) at the entry trigger price.
+    if surface_fallback:
+        fallback_cents = surface_fallback_cents_other(p_in)
     in_col  = f"fc_{int(round(p_in  * 100)):03d}"
     out_col = f"fc_{int(round(p_out * 100)):03d}"
     base = p_wide if family is None else p_wide[p_wide["slug_family"] == family]
@@ -765,6 +800,7 @@ def eval_pair(
         "fill_assumption": "next_same_dir",
         "min_seconds": min_seconds, "max_seconds": max_seconds,
         "fallback_cents": fallback_cents,
+        "fallback_model": "surface_fallback_other" if surface_fallback else "flat",
         "assumed_spread_cents": assumed_spread_cents,
         "n_entries": n,
         "p_tp": p_tp, "p_hold_win": p_hold_win, "p_hold_chop": p_hold_chop,

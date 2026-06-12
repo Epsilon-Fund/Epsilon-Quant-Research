@@ -43,6 +43,19 @@ from dateutil.relativedelta import relativedelta
 
 from scripts.backtest.cohort_filters_stage15 import select_top_k
 
+# Block SPREAD-2: optional category-gated surface fallback (default OFF). When a
+# qualifying next-fill is absent, the incumbent flat-3c can be replaced by the
+# trade-time-validated surface estimate for validated K5 categories. stage15
+# leaders are makers by construction (signals are pulled on maker IN cohort), so
+# the copy crosses a FULL spread. Shared core: lib/copy_slippage.py.
+from lib.copy_slippage import (
+    FLAT_FALLBACK_CENTS,
+    k5_category,
+    load_bounce_lookup,
+    surface_fallback_cents,
+)
+from lib.spread_surface import SpreadSurface
+
 ROOT = Path(__file__).resolve().parents[2]
 CLOSED_POS = str(ROOT / "data" / "closed_positions.parquet")
 TRADERS = str(ROOT / "data" / "traders.parquet")
@@ -67,6 +80,25 @@ MIN_MARKET_VOLUME_USD = 50_000.0     # was $10k
 SLIP_MIN_SECONDS = 15
 SLIP_MAX_SECONDS = 300
 FALLBACK_SLIPPAGE_CENTS = 3.0
+
+# SPREAD-2 surface-fallback artifacts (loaded lazily only when enabled)
+_CSV = ROOT / "data" / "analysis" / "csv_outputs" / "copytrade"
+SURFACE_CSV = _CSV / "spread_surface_v1_surface.csv"
+BREAKS_CSV = _CSV / "spread_surface_v1_activity_breaks.csv"
+XCHECK_CSV = _CSV / "spread_surface_v1_diag_crosschecks.csv"
+
+
+def _category_map(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+    """market_id -> K5 category (slug+question+neg_risk via the frozen CASE).
+    Built once per run when surface fallback is enabled."""
+    mp = MARKETS_PATH
+    df = con.execute(f"""
+        SELECT CAST(id AS VARCHAR) AS market_id, coalesce(slug,'') AS slug,
+               coalesce(question,'') AS question, coalesce(neg_risk,false) AS neg_risk
+        FROM read_parquet('{mp}')
+    """).df()
+    df["k5"] = k5_category(df, "slug", "question", "neg_risk")
+    return dict(zip(df["market_id"], df["k5"]))
 
 
 def _connect() -> duckdb.DuckDBPyConnection:
@@ -284,6 +316,7 @@ def run_backtest_stage15(
     test_window_end: date,
     window_label: str | None = None,
     strategy_capital_usd: float = 100_000.0,
+    surface_fallback: bool = False,
 ) -> Path:
     BACKTESTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -295,6 +328,13 @@ def run_backtest_stage15(
 
     bucket_days = BUCKET_DAYS[resolution_bucket]
     con = _connect()
+
+    # SPREAD-2 (opt-in): category-gated surface fallback instead of flat-3c.
+    _surf = _bounce = _catmap = None
+    if surface_fallback:
+        _surf = SpreadSurface.load(SURFACE_CSV, BREAKS_CSV)
+        _bounce = load_bounce_lookup(XCHECK_CSV)
+        _catmap = _category_map(con)
 
     refresh_dates = []
     d = datetime.combine(test_window_start, datetime.min.time())
@@ -364,9 +404,23 @@ def run_backtest_stage15(
 
             # Next-fill or fallback price
             leader_direction = trade.leader_direction  # 'buy' | 'sell'
+            slip_model = "flat3c"
             if trade.nf_price is not None and not pd.isna(trade.nf_price):
                 copy_price = float(trade.nf_price)
                 slip_source = "next_fill"
+            elif surface_fallback:
+                # leaders are makers here -> the copy crosses a FULL spread;
+                # validated K5 categories use the surface, others keep flat-3c.
+                cat = _catmap.get(trade.market_id, "other")
+                q = surface_fallback_cents(
+                    _surf, cat, float(trade.leader_price),
+                    float(trade.days_to_resolution) * 24.0, trade_rate=0.0,
+                    leader_is_maker=True, bounce_lookup=_bounce)
+                fb = q.cents / 100.0
+                copy_price = (float(trade.leader_price) + fb if leader_direction == "buy"
+                              else float(trade.leader_price) - fb)
+                slip_source = "fallback"
+                slip_model = q.source
             else:
                 fallback = FALLBACK_SLIPPAGE_CENTS / 100.0
                 copy_price = (float(trade.leader_price) + fallback
@@ -408,6 +462,7 @@ def run_backtest_stage15(
                 "copy_price": copy_price,
                 "slippage_cents": slippage_cents,
                 "slippage_source": slip_source,
+                "slippage_model": slip_model,
                 "copy_size_usd": size,
                 "copy_token_amount": copy_token_amount,
                 "position_resolution": res_price,
@@ -430,8 +485,9 @@ def run_backtest_stage15(
             "n_qualified_at_refresh","market_id","outcome_index","neg_risk",
             "market_volume","trade_timestamp","resolution_date","days_to_resolution",
             "resolution_bucket","leader_direction","leader_trade_usd","leader_price",
-            "copy_price","slippage_cents","slippage_source","copy_size_usd",
-            "copy_token_amount","position_resolution","copy_pnl_usd","sizing_rule",
+            "copy_price","slippage_cents","slippage_source","slippage_model",
+            "copy_size_usd","copy_token_amount","position_resolution","copy_pnl_usd",
+            "sizing_rule",
         ]).to_parquet(audit_path, compression="zstd", index=False)
 
     summary = _compute_summary(

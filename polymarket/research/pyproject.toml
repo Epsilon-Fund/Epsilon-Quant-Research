@@ -3,6 +3,7 @@ name = "polymarket-research"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "aiohttp>=3.14.1",
     "duckdb>=1.5.2",
     "gql[requests]>=4.0.0",
     "httpx>=0.28.1",

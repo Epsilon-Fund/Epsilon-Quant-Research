@@ -122,14 +122,14 @@ def main():
     t0 = time.time()
 
     # ── 1. verify the fast pipeline before trusting half a million evals ──────
-    print("verifying fast pipeline vs notebook strategy + engine.backtest ...")
+    print("verifying fast pipeline vs notebook strategy + engine.backtest ...", flush=True)
     for sym in ("btcusdt", "adausdt"):  # one per variant
         res = pd.read_pickle(HERE / "oos" / f"{sym}_cpcv.pkl")
         df = reconstruct_ohlcv_from_cpcv(res)
         worst = verify_fast_pipeline(df, roa.make_strategy_fn(sym), USE_VOL[sym],
                                      res["param_defs"], res["fixed_params"],
                                      res["config"]["cost"], n_draws=15, seed=7)
-        print(f"  {sym}: identical across 15 draws (worst |dSharpe| = {worst:.1e})")
+        print(f"  {sym}: identical across 15 draws (worst |dSharpe| = {worst:.1e})", flush=True)
 
     # ── 2. recover the audit's 400 candidate configs per asset (deterministic) ─
     audit = pd.read_pickle(HERE / "oos" / f"overfitting_audit_{AUDIT_DATE}.pkl")
@@ -140,7 +140,7 @@ def main():
         cost = res["config"]["cost"]
         df = reconstruct_ohlcv_from_cpcv(res)
         full_dfs[sym] = df
-        print(f"replaying {sym} search to recover candidate configs ...")
+        print(f"replaying {sym} search to recover candidate configs ...", flush=True)
         mat, params_list = replay_search_trial_matrix(
             df, roa.make_strategy_fn(sym), res["param_defs"], res["fixed_params"],
             n_trials=N_TRIALS, cost=cost, score_fn=roa.make_score_fn(sym),
@@ -158,7 +158,7 @@ def main():
     common = full_dfs[ASSETS[0]].index
     for sym in ASSETS[1:]:
         common = common.intersection(full_dfs[sym].index)
-    print(f"\ncommon dates: {common[0].date()} -> {common[-1].date()} ({len(common)} bars)")
+    print(f"\ncommon dates: {common[0].date()} -> {common[-1].date()} ({len(common)} bars)", flush=True)
     real, real_best_nets = {}, []
     for sym in ASSETS:
         dfc = full_dfs[sym].loc[common]
@@ -166,9 +166,9 @@ def main():
         mx, med, net = _eval_asset(dfc, payload[sym][1], USE_VOL[sym], cost)
         real[sym] = {"max": mx, "median": med}
         real_best_nets.append(net)
-        print(f"  {sym}: real max-of-400 = {mx:.2f} | median config = {med:.2f}")
+        print(f"  {sym}: real max-of-400 = {mx:.2f} | median config = {med:.2f}", flush=True)
     real_port = _portfolio_sharpe(real_best_nets)
-    print(f"  PORTFOLIO (equal-weight best configs): real = {real_port:.2f}")
+    print(f"  PORTFOLIO (equal-weight best configs): real = {real_port:.2f}", flush=True)
     payload["cost"] = cost
 
     # ── 4. null paths, all variants, parallel ──────────────────────────────────
@@ -178,7 +178,7 @@ def main():
         jobs += [(offset + k, block, demean) for k in range(n_paths)]
         offset += n_paths
     workers = max(2, (cpu_count() or 8) - 2)
-    print(f"\nrunning {len(jobs)} null paths on {workers} workers ...")
+    print(f"\nrunning {len(jobs)} null paths on {workers} workers ...", flush=True)
     with Pool(workers, initializer=_init_worker, initargs=(payload,)) as pool:
         results = pool.map(_run_path, jobs, chunksize=4)
     results.sort(key=lambda r: r[0])

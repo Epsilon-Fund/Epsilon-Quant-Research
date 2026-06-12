@@ -152,6 +152,57 @@ Practical example: if BTC is far above the 4h strike with 20 minutes left, the D
 | `resolution_bucket` | Copytrade bucket by time to market resolution, often `2d`, `7d`, `30d`, or `60d`. |
 | `invisible_share` | Share of a leader's activity that is not directly visible/copyable through the target execution surface. |
 
+## Spread-Surface (SPREAD-1) Terms
+
+Source note: [[trade_anchored_spread_surface_findings]].
+
+| term | plain-English meaning |
+|---|---|
+| `half_spread_est` / `half_spread_c` | Per-fill estimate of the half-spread a taker paid, in cents: `s_dir · (P_fill − mid_before_fill) · 100`. Negative values are kept as a model-failure diagnostic. |
+| `s_dir` | Aggressor sign of a fill: +1 taker bought, −1 taker sold. Derived as the inverse of the tape's `maker_side` on non-internal-leg rows. |
+| `mid_age_s` | Seconds between the last `/prices-history` midpoint bar strictly before the fill and the fill itself. Estimates with `mid_age_s > 1800` are excluded. |
+| `trail_tx_60m` | Trailing activity feature: distinct `transaction_hash` count on the market in the prior 60 minutes (same definition on tape and in live_clob captures). |
+| `p_lt_05` … `p_gt_95` | Price-level buckets on the token mid, edges at .05/.15/.35/.65/.85/.95. |
+| `ttr_lt_6h` … `ttr_gt_30d` | Time-to-resolution buckets (hours to `end_date`): <6h, 6–24h, 1–7d, 7–30d, >30d; `ttr_unknown` when `end_date` is missing. |
+| `act_q1` … `act_q4` | Trailing trade-rate quartile of `trail_tx_60m`, breakpoints computed per category on the build sample (stored in `spread_surface_v1_activity_breaks.csv`). |
+| `level` (surface CSV) | Fallback-chain level of an aggregate row: 0 = category×price×TTR×activity, 1 = drop TTR, 2 = category×price, 3 = price only. `predict()` walks 0→3 and skips cells with `n_fills < 50`. |
+| `frac_negative` | Share of a cell's per-fill estimates below zero — the rational-user-model failure rate for that cell; cells above ~0.4 are contamination-flagged. |
+| `MedAE` | Median absolute error between predicted and true half-spread across validation market-cells. |
+| `bounce_half_c` | Tape-only cross-check: half the price gap between consecutive opposite-sign fills within 60s with |Δmid| < 1 tick. |
+| `roll_half_c` | Tape-only cross-check: Roll spread estimator `2·√(−cov(Δp_t, Δp_{t−1}))` halved, per token, median per cell. |
+| `market-cell` | Validation unit: one captured market × (category, price-bucket, TTR-bucket) cell, with true and predicted half-spreads aggregated over its 30-min windows. |
+
+### SPREAD-1b additions (trade-time re-gate)
+
+Source note: [[spread_surface_tradetime_regate_findings]]. Columns in `spread_surface_v1b_*.csv` not already defined above:
+
+| term | plain-English meaning |
+|---|---|
+| `true_tt_half_c` | The SPREAD-1b target: quoted half-spread (ask−bid)/2 in cents from the last `best_bid_ask` event strictly before each trade print, median per window then per market-cell. |
+| `true_ta_half_c` | The SPREAD-1 target on the same window (time-averaged quoted half-spread) — kept as a diagnostic to show the trade-time compression. |
+| `n_trades` | Number of quoted trade prints behind a window's (or cell's) trade-time truth. |
+| `med_quote_age_s` | Median seconds between a trade print and the prior quote used for it (~0.02s — the trade-driven book update precedes the print; see the note §4). |
+| `pred_frac_negative` | `frac_negative` of the surface cell that supplied the prediction (`predict()` passthrough); > 0.4 marks contamination-flagged cells. |
+| `hyb_bounce_c` / `hyb_roll_c` | Hybrid-arm predictions: surface everywhere except flagged cells, where the bounce / Roll cross-check level substitutes; `*_swapped` flags mark the substituted rows. |
+| `signtest_share_vs_flat3` | Share of non-tied market-cells where the surface's absolute error beats the flat-3c incumbent's (gate ≥ 0.6; exact-float ties excluded). |
+| `spearman_nontied_targets` | Spearman computed only over cells whose true value is unique in the slice — diagnostic for how much rank signal survives once tied targets are removed. |
+
+### SPREAD-2 / Phase-5 copy-execution terms
+
+Source note: [[copytrade_spread_surface_mtm_findings]]. Columns in `spread_surface_phase5_*.csv` and the opt-in evaluator outputs:
+
+| term | plain-English meaning |
+|---|---|
+| `slippage_source` | `next_fill` (copy price from the next observed trade) or `fallback` (no qualifying next-fill in the window — the only rows the surface touches). |
+| `slippage_model` / `sf_source` | Which fallback model priced a fallback row: `flat3c` (incumbent), `surface_fallback` (gated surface), or `surface_fallback_bounce` (contaminated cell using the SPREAD-1b bounce level). |
+| `mid_at_trade` | Forward-filled `/prices-history` mid strictly before the anchor fill (lookahead-free). |
+| `leader_vs_mid_cents` | Signed cents the leader's own fill sat from mid, adverse-positive in the leader's direction (negative = filled at/inside mid, i.e. maker-like). |
+| `spread_c` / `drift_c` / `is_drift` | Next-fill cost split: `spread_c` = surface's predicted half-spread; `drift_c` = `copy_vs_mid − spread_c` (positive = market drifted beyond the spread); `is_drift` = fill landed beyond mid + predicted half-spread. |
+| `fallback_share` / `fallback_shrink_share` | Share of rows on the fallback path; of those, the share now served by the validated surface rather than flat-3c (the remainder is politics_negrisk, held on flat-3c). |
+| `mtm_equity` / `mtm_sharpe_daily_ann` / `mtm_max_drawdown_pct_of_deployed` | Lookahead-free daily mark-to-market equity (realized + unrealized vs forward-filled mid), its daily-annualized Sharpe, and max drawdown as a fraction of gross capital deployed (the MTM curve is cumulative PnL, so a peak-relative fraction is degenerate). |
+
+SPREAD-2 validated-category gate: the surface fallback applies only to the six K5 categories that cleared a SPREAD-1b bar (`crypto_4h, daily_crypto, geopolitics, sports, tech, other`); `politics_negrisk` is excluded (n=2, unvalidated) and keeps flat-3c.
+
 ## Link Discipline
 
 When writing a new Polymarket result note:
