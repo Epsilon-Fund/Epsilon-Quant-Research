@@ -1,0 +1,179 @@
+{
+  "release": {
+    "channel": "stable"
+  },
+  "sharedFolders": [
+    {
+      "path": "Attachments",
+      "guid": "af2122f5-0fe4-4d7d-8259-05858dd3fd84",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "archive",
+      "guid": "58cf434a-a049-411d-9696-29aef14bd1b6",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "docs",
+      "guid": "8f46a1bd-4a10-4658-96b9-209411de1238",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "infrastructure",
+      "guid": "0092fee9-0f1d-4446-8dae-f2dc3bcff9c8",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "live_trading",
+      "guid": "5dd953b9-6b85-49c0-8d9a-1e84ea800dc7",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "meetings",
+      "guid": "2d31a10e-2e84-43b7-bab8-1e8ce57834c3",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "midas",
+      "guid": "a3ff354a-6861-41bc-bdf7-f4d43c034bbd",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "newsletters",
+      "guid": "26366892-e33b-44a4-a74c-6938401dadd1",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "polymarket",
+      "guid": "cf5a0bdb-1c73-434b-bdb1-1dd3f5b0c220",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "topics",
+      "guid": "9a9a0420-dfdc-4cef-b643-ee4d920f00d2",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "brain/handoffs",
+      "guid": "cdae085f-0e52-4589-b401-9acd2c0f6b1f",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    },
+    {
+      "path": "brain/agents/locks",
+      "guid": "8e580c83-bf4f-4eee-b964-6680ff46576b",
+      "relay": "7ae913b2-98d9-4f94-88cc-7a4ea0c1c8d5",
+      "sync": {
+        "images": true,
+        "audio": true,
+        "videos": true,
+        "pdfs": true,
+        "otherTypes": false
+      }
+    }
+  ],
+  "endpoints": {},
+  "enableDocumentStatus": false,
+  "enableNewLinkFormat": false,
+  "enableDeltaLogging": false,
+  "enableDocumentHistory": false,
+  "enableEditorTweens": false,
+  "enableNetworkLogging": false,
+  "enableCanvasSync": false,
+  "enableVerifyUploads": false,
+  "enableAutomaticDiffResolution": true,
+  "enableDiscordLogin": false,
+  "enableSelfManageHosts": true,
+  "enableToasts": true,
+  "enablePresenceAvatars": true,
+  "enableLiveEmbeds": true,
+  "enablePreviewViewHooks": true,
+  "enableMetadataViewHooks": true,
+  "enableKanbanView": true,
+  "debugging": false,
+  "login": {
+    "provider": "github"
+  },
+  "enableSyncMenu": true,
+  "enableAttachmentSync": true,
+  "enableDocumentServer": true,
+  "enableMicrosoftLogin": true,
+  "enableGitHubLogin": true,
+  "enableOIDCLogin": true
+}

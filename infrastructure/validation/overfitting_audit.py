@@ -640,6 +640,57 @@ class OverfittingVerdict:
             lines += [""] + [f"- {n}" for n in self.notes]
         return "\n".join(lines)
 
+    def plot(self, figsize=(11, 4)):
+        """
+        Inline diagnostic figure for a notebook (matplotlib lazy-imported so the
+        module core stays numpy/pandas-only). Returns the Figure.
+
+        Left panel  — observed OOS Sharpe (with its bootstrap CI as an error bar)
+                      vs the selection haircut SR* vs the deflated Sharpe, with
+                      the materiality bar. Tells you at a glance how much of the
+                      Sharpe is search luck.
+        Right panel — the CSCV logit distribution: each value is one split's
+                      IS-best config ranked OOS; mass LEFT of 0 = overfit splits,
+                      so the shaded share left of the red line IS the PBO.
+        """
+        import matplotlib.pyplot as plt
+
+        has_pbo = self.pbo is not None
+        fig, axes = plt.subplots(1, 2 if has_pbo else 1, figsize=figsize)
+        axes = np.atleast_1d(axes)
+
+        ax = axes[0]
+        if self.dsr is not None:
+            d = self.dsr
+            vals = [d.sr_ann, d.sr_star_ann, d.deflated_sr_ann]
+            colors = ["#4878d0", "#d65f5f", "#6acc64"]
+            ax.bar(["observed\nOOS", "selection\nhaircut SR*", "deflated"], vals, color=colors)
+            lo, hi = self.sharpe_ci
+            ax.errorbar([0], [d.sr_ann], yerr=[[d.sr_ann - lo], [hi - d.sr_ann]],
+                        fmt="none", ecolor="black", capsize=4, lw=1)
+            ax.axhline(self.materiality_min_sharpe, color="gray", ls="--", lw=0.8,
+                       label=f"materiality ({self.materiality_min_sharpe})")
+            ax.axhline(0, color="black", lw=0.6)
+            ax.set_ylabel("Annualised Sharpe")
+            ax.set_title(f"{self.label}: deflated Sharpe (DSR prob {d.dsr_prob:.3f})")
+            ax.legend(fontsize=8)
+        else:
+            ax.text(0.5, 0.5, "no DSR (need trial dispersion)", ha="center", va="center")
+            ax.axis("off")
+
+        if has_pbo:
+            ax = axes[1]
+            ax.hist(self.pbo.logits, bins=40, color="#9ecae1", edgecolor="white")
+            ax.axvline(0, color="#d65f5f", ls="--", lw=1.2, label="overfit threshold")
+            ax.set_xlabel("CSCV logit  (IS-best config's OOS rank)")
+            ax.set_ylabel("splits")
+            ax.set_title(f"PBO = {self.pbo.pbo:.3f}  (mass left of 0)")
+            ax.legend(fontsize=8)
+
+        fig.suptitle(f"Overfitting audit — {self.label}  [{self.verdict}]", y=1.02)
+        fig.tight_layout()
+        return fig
+
 
 def run_overfitting_audit(
     selected_oos_returns, n_trials: float, periods_per_year: float,
@@ -990,6 +1041,24 @@ class NullMCResult:
     def mc_se(self) -> float:
         p = max(min(1.0 - self.percentile, 1.0), 1.0 / self.n_paths)
         return math.sqrt(p * (1 - p) / self.n_paths)
+
+    def plot(self, figsize=(7, 4), label=""):
+        """Histogram of the null statistic with the real value + null 95th pct.
+        matplotlib lazy-imported. Returns the Figure."""
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.hist(self.null_stats, bins=30, color="#9ecae1", edgecolor="white",
+                label=f"null ({self.n_paths} paths)")
+        ax.axvline(self.q95, color="#d65f5f", ls="--", label=f"null 95th pct = {self.q95:.2f}")
+        ax.axvline(self.real_stat, color="#2a7d2a", lw=2, label=f"real = {self.real_stat:.2f}")
+        verdict = "PASS" if self.passes else "FAIL"
+        ax.set_xlabel("statistic (e.g. max-of-N-configs Sharpe)")
+        ax.set_ylabel("null paths")
+        ax.set_title(f"{label} synthetic-null MC — real pctile {self.percentile:.3f} ({verdict})")
+        ax.legend(fontsize=8)
+        fig.tight_layout()
+        return fig
 
 
 def summarize_null_mc(real_stat: float, null_stats, mean_block_len: float,

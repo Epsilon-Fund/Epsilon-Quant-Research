@@ -1,0 +1,910 @@
+prepared_at: '2026-06-11T09:14:21Z'
+purpose: Stage-1 continuation live CLOB capture for first-mover/sports-style markets; observation
+  only; no orders/auth. Refreshed on 20260611T091421Z.
+run:
+  run_id: mm_stage1_first_mover_awake_20260611T091421Z
+  label: mm_stage1_first_mover
+  duration_hours: 16
+  rotate_minutes: 30
+  print_every_events: 1000
+  heartbeat_seconds: 60
+  stale_warning_seconds: 300
+  reconnect_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 30
+  tolerate_gaps: true
+capture:
+  ws_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
+  custom_feature_enabled: true
+  out_dir: data/live_clob/mm_stage1_first_mover
+selection:
+  source: fresh current Gamma/CLOB lean refresh; current same-day finance, sports, crypto
+    controls, and diagnostics as available
+  lane_boundary: Stage-1 measurement only; no orders/auth; politics deployment separate
+markets:
+- id: '558956'
+  condition_id: '0x675bba4df50fd123f7fbfbafa67e9b75f4092d85ce0f9148ce78fc945964c856'
+  question: Will Paraguay win the 2026 FIFA World Cup?
+  group_item_title: Paraguay
+  event_slug: world-cup-winner
+  slug: will-paraguay-win-the-2026-fifa-world-cup-967
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:53.364208Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 6721019.358165001
+  volume: 42097017.09983371
+  liquidity: 6105399.80743
+  best_bid: 0.001
+  best_ask: 0.002
+  mid: 0.0015
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '93165696161088512376930999170413968261015485018106746563527821398897374023845'
+  - '64564930076241670294516403352804569921660004975706088367725793399153499601932'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '93165696161088512376930999170413968261015485018106746563527821398897374023845'
+    book_bids: 1
+    book_asks: 139
+    book_best_bid: 0.001
+    book_bid_size: 18167354.56
+    book_best_ask: 0.002
+    book_ask_size: 2163435.59
+    book_spread: 0.001
+    book_spread_bps: 6666.666666666666
+  - token_id: '64564930076241670294516403352804569921660004975706088367725793399153499601932'
+    book_bids: 139
+    book_asks: 1
+    book_best_bid: 0.998
+    book_bid_size: 2163435.59
+    book_best_ask: 0.999
+    book_ask_size: 18167354.56
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.01502253380071
+  selection_metrics:
+    gamma_volume24hr: 6721019.358165001
+    gamma_liquidity: 6105399.80743
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558984'
+  condition_id: '0x5e614739363bbfc399469102c600e4e8260032d41e59e0bc12ebc0e71231642d'
+  question: Will Czechia win the 2026 FIFA World Cup?
+  group_item_title: Czechia
+  event_slug: world-cup-winner
+  slug: will-czechia-win-the-2026-fifa-world-cup
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:55:09.535252Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 6294624.073822999
+  volume: 31106206.54468298
+  liquidity: 9722094.46686
+  best_bid: 0.001
+  best_ask: 0.002
+  mid: 0.0015
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '35797818400757287472708740881657961304270157125643131597907636474183210188025'
+  - '7178132479418833271220202496199802982233847400465199094850639568068936253094'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '35797818400757287472708740881657961304270157125643131597907636474183210188025'
+    book_bids: 1
+    book_asks: 118
+    book_best_bid: 0.001
+    book_bid_size: 63126705.64
+    book_best_ask: 0.002
+    book_ask_size: 3639799.19
+    book_spread: 0.001
+    book_spread_bps: 6666.666666666666
+  - token_id: '7178132479418833271220202496199802982233847400465199094850639568068936253094'
+    book_bids: 118
+    book_asks: 1
+    book_best_bid: 0.998
+    book_bid_size: 3639799.19
+    book_best_ask: 0.999
+    book_ask_size: 63126705.64
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.01502253380071
+  selection_metrics:
+    gamma_volume24hr: 6294624.073822999
+    gamma_liquidity: 9722094.46686
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558969'
+  condition_id: '0x5a59d269c2b5108cd2f64c624e46ee2c8b5cfd88b882582565f927918315b6aa'
+  question: Will Algeria win the 2026 FIFA World Cup?
+  group_item_title: Algeria
+  event_slug: world-cup-winner
+  slug: will-algeria-win-the-2026-fifa-world-cup
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:55:00.961642Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 4102005.341
+  volume: 44759946.38721554
+  liquidity: 8971397.39158
+  best_bid: 0.001
+  best_ask: 0.002
+  mid: 0.0015
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '58392024727359233794992635293106675983094683080284912908526627785964160484939'
+  - '49871252661742427315226109307954871479267113637891510501334531720454017709951'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '58392024727359233794992635293106675983094683080284912908526627785964160484939'
+    book_bids: 1
+    book_asks: 109
+    book_best_bid: 0.001
+    book_bid_size: 38437212.87
+    book_best_ask: 0.002
+    book_ask_size: 8062134.75
+    book_spread: 0.001
+    book_spread_bps: 6666.666666666666
+  - token_id: '49871252661742427315226109307954871479267113637891510501334531720454017709951'
+    book_bids: 109
+    book_asks: 1
+    book_best_bid: 0.998
+    book_bid_size: 8062134.75
+    book_best_ask: 0.999
+    book_ask_size: 38437212.87
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.01502253380071
+  selection_metrics:
+    gamma_volume24hr: 4102005.341
+    gamma_liquidity: 8971397.39158
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558983'
+  condition_id: '0xbce6698c9a61376c0709a2a724a9cf0dd0236d8dea882533073b6bb062efbee0'
+  question: Will Bosnia-Herzegovina win the 2026 FIFA World Cup?
+  group_item_title: Bosnia-Herzegovina
+  event_slug: world-cup-winner
+  slug: will-bosnia-herzegovina-win-the-2026-fifa-world-cup
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:55:08.978761Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3827489.955000005
+  volume: 27995792.228717893
+  liquidity: 13824637.31687
+  best_bid: 0.001
+  best_ask: 0.002
+  mid: 0.0015
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '89770121993255619705119104591644526712193505786928967250693522950895615785005'
+  - '334114555297655433618918589540388457186530884312703967834539640747792887116'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '89770121993255619705119104591644526712193505786928967250693522950895615785005'
+    book_bids: 1
+    book_asks: 127
+    book_best_bid: 0.001
+    book_bid_size: 10314946.43
+    book_best_ask: 0.002
+    book_ask_size: 11921616.64
+    book_spread: 0.001
+    book_spread_bps: 6666.666666666666
+  - token_id: '334114555297655433618918589540388457186530884312703967834539640747792887116'
+    book_bids: 127
+    book_asks: 1
+    book_best_bid: 0.998
+    book_bid_size: 11921616.64
+    book_best_ask: 0.999
+    book_ask_size: 10314946.43
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.01502253380071
+  selection_metrics:
+    gamma_volume24hr: 3827489.955000005
+    gamma_liquidity: 13824637.31687
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558943'
+  condition_id: '0xcdb1f0400949238a63d3e88243d2ada08cd9c2a71985ced9f0cfd5e66354cf90'
+  question: Will USA win the 2026 FIFA World Cup?
+  group_item_title: USA
+  event_slug: world-cup-winner
+  slug: will-usa-win-the-2026-fifa-world-cup-467
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:46.301056Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3701876.9891270082
+  volume: 56510808.31776316
+  liquidity: 5443336.45805
+  best_bid: 0.011
+  best_ask: 0.012
+  mid: 0.0115
+  spread: 0.0010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '94603648636330087039501304492699481091005420017442244191603206509188088089447'
+  - '45270201343463663182019040935560267543606888663369415494551943549463253748361'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '94603648636330087039501304492699481091005420017442244191603206509188088089447'
+    book_bids: 11
+    book_asks: 157
+    book_best_bid: 0.011
+    book_bid_size: 2574517.3
+    book_best_ask: 0.012
+    book_ask_size: 191186.27
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 869.5652173913052
+  - token_id: '45270201343463663182019040935560267543606888663369415494551943549463253748361'
+    book_bids: 157
+    book_asks: 11
+    book_best_bid: 0.988
+    book_bid_size: 191186.27
+    book_best_ask: 0.989
+    book_ask_size: 2574517.3
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.116337885685391
+  selection_metrics:
+    gamma_volume24hr: 3701876.9891270082
+    gamma_liquidity: 5443336.45805
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558947'
+  condition_id: '0xe99cc59f32b10d23acf196d1a0e8264ea30fca198428acadd3464b06ff60e771'
+  question: Will Colombia win the 2026 FIFA World Cup?
+  group_item_title: Colombia
+  event_slug: world-cup-winner
+  slug: will-colombia-win-the-2026-fifa-world-cup-734
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:48.514643Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3626459.6449760073
+  volume: 40365688.81316193
+  liquidity: 4157970.73189
+  best_bid: 0.018
+  best_ask: 0.019
+  mid: 0.0185
+  spread: 0.0010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '98803390175521456712653678280474920637934596234667490983228578374641217211132'
+  - '66826965351166675155887515167306086307412332225034738589879767944935462342380'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '98803390175521456712653678280474920637934596234667490983228578374641217211132'
+    book_bids: 18
+    book_asks: 144
+    book_best_bid: 0.018
+    book_bid_size: 1991427.66
+    book_best_ask: 0.019
+    book_ask_size: 3193967.39
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 540.5405405405411
+  - token_id: '66826965351166675155887515167306086307412332225034738589879767944935462342380'
+    book_bids: 144
+    book_asks: 18
+    book_best_bid: 0.981
+    book_bid_size: 3193967.39
+    book_best_ask: 0.982
+    book_ask_size: 1991427.66
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.188487009679072
+  selection_metrics:
+    gamma_volume24hr: 3626459.6449760073
+    gamma_liquidity: 4157970.73189
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558941'
+  condition_id: '0x9be56371f6a29d12769b2f196847ee825b9585ebb8bfa042136be031b081eba1'
+  question: Will Netherlands win the 2026 FIFA World Cup?
+  group_item_title: Netherlands
+  event_slug: world-cup-winner
+  slug: will-netherlands-win-the-2026-fifa-world-cup-739
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:45.066939Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3345582.242223018
+  volume: 38483024.75539692
+  liquidity: 2400993.60434
+  best_bid: 0.04
+  best_ask: 0.041
+  mid: 0.0405
+  spread: 0.0010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '55935183786009449883683540312350046975246300613283087403691731856990327029236'
+  - '103711573894614472510743687764792452240919804104728889027222697502832804498206'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '55935183786009449883683540312350046975246300613283087403691731856990327029236'
+    book_bids: 36
+    book_asks: 132
+    book_best_bid: 0.04
+    book_bid_size: 408115.29
+    book_best_ask: 0.041
+    book_ask_size: 206847.56
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 246.91358024691377
+  - token_id: '103711573894614472510743687764792452240919804104728889027222697502832804498206'
+    book_bids: 132
+    book_asks: 36
+    book_best_bid: 0.959
+    book_bid_size: 206847.56
+    book_best_ask: 0.96
+    book_ask_size: 408115.29
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.422094841063064
+  selection_metrics:
+    gamma_volume24hr: 3345582.242223018
+    gamma_liquidity: 2400993.60434
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558955'
+  condition_id: '0xbaf7780f9059e34b84301fd411f8dc573b4d56adfe6e0cda33daf304b1438da4'
+  question: Will Ecuador win the 2026 FIFA World Cup?
+  group_item_title: Ecuador
+  event_slug: world-cup-winner
+  slug: will-ecuador-win-the-2026-fifa-world-cup-986
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:52.802292Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3215975.5178130036
+  volume: 45020728.86008266
+  liquidity: 4022297.64559
+  best_bid: 0.008
+  best_ask: 0.009
+  mid: 0.0085
+  spread: 0.0009999999999999992
+  neg_risk: true
+  clob_token_ids:
+  - '39971087496427056640429359043364261029374524049464674733142166279730655826181'
+  - '76638532101043658630369484092110685720624002077285242368448475410253808399541'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '39971087496427056640429359043364261029374524049464674733142166279730655826181'
+    book_bids: 8
+    book_asks: 128
+    book_best_bid: 0.008
+    book_bid_size: 2313335.48
+    book_best_ask: 0.009
+    book_ask_size: 2538936.24
+    book_spread: 0.0009999999999999992
+    book_spread_bps: 1176.470588235293
+  - token_id: '76638532101043658630369484092110685720624002077285242368448475410253808399541'
+    book_bids: 128
+    book_asks: 8
+    book_best_bid: 0.991
+    book_bid_size: 2538936.24
+    book_best_ask: 0.992
+    book_ask_size: 2313335.48
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.085728693898142
+  selection_metrics:
+    gamma_volume24hr: 3215975.5178130036
+    gamma_liquidity: 4022297.64559
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558974'
+  condition_id: '0x3a26ca6425e2d98f14935670bc22cdb0744defc6f6d83c65f8c413a921c5c70c'
+  question: Will Switzerland win the 2026 FIFA World Cup?
+  group_item_title: Switzerland
+  event_slug: world-cup-winner
+  slug: will-switzerland-win-the-2026-fifa-world-cup
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:55:03.947467Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3195153.9464799995
+  volume: 39043926.93227369
+  liquidity: 2052362.06019
+  best_bid: 0.012
+  best_ask: 0.013
+  mid: 0.0125
+  spread: 0.0009999999999999992
+  neg_risk: true
+  clob_token_ids:
+  - '62131913648515148266463816694306031394539656598501514114816028349608560215534'
+  - '45315272750116791836504013666029583517532908319286234834610455739871173419179'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '62131913648515148266463816694306031394539656598501514114816028349608560215534'
+    book_bids: 12
+    book_asks: 149
+    book_best_bid: 0.012
+    book_bid_size: 890395.72
+    book_best_ask: 0.013
+    book_ask_size: 382304.57
+    book_spread: 0.0009999999999999992
+    book_spread_bps: 799.9999999999993
+  - token_id: '45315272750116791836504013666029583517532908319286234834610455739871173419179'
+    book_bids: 149
+    book_asks: 12
+    book_best_bid: 0.987
+    book_bid_size: 382304.57
+    book_best_ask: 0.988
+    book_ask_size: 890395.72
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.126582278481022
+  selection_metrics:
+    gamma_volume24hr: 3195153.9464799995
+    gamma_liquidity: 2052362.06019
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558946'
+  condition_id: '0x32cfa52198e85e070d1b17d1b53c5c3a6aaae7736cdc33fa6aa04d353f0c2811'
+  question: Will Belgium win the 2026 FIFA World Cup?
+  group_item_title: Belgium
+  event_slug: world-cup-winner
+  slug: will-belgium-win-the-2026-fifa-world-cup-358
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:47.961968Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3090279.329030005
+  volume: 40222266.02661516
+  liquidity: 2805541.70152
+  best_bid: 0.021
+  best_ask: 0.022
+  mid: 0.0215
+  spread: 0.0009999999999999974
+  neg_risk: true
+  clob_token_ids:
+  - '30815807067456631524510535002617106205417832891402132396713720656146245200000'
+  - '71145888994888153292442623019750517622535407476309461406574461229898137896934'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '30815807067456631524510535002617106205417832891402132396713720656146245200000'
+    book_bids: 21
+    book_asks: 150
+    book_best_bid: 0.021
+    book_bid_size: 835675.82
+    book_best_ask: 0.022
+    book_ask_size: 1987077.25
+    book_spread: 0.0009999999999999974
+    book_spread_bps: 465.1162790697663
+  - token_id: '71145888994888153292442623019750517622535407476309461406574461229898137896934'
+    book_bids: 150
+    book_asks: 21
+    book_best_bid: 0.978
+    book_bid_size: 1987077.25
+    book_best_ask: 0.979
+    book_ask_size: 835675.82
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.219724067450189
+  selection_metrics:
+    gamma_volume24hr: 3090279.329030005
+    gamma_liquidity: 2805541.70152
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558973'
+  condition_id: '0xf950740bc71136155d6525cc0528a582c81f88812bff227803190c32ca25f54d'
+  question: Will Scotland win the 2026 FIFA World Cup?
+  group_item_title: Scotland
+  event_slug: world-cup-winner
+  slug: will-scotland-win-the-2026-fifa-world-cup
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:55:03.304664Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 3032004.741817996
+  volume: 42307383.41486455
+  liquidity: 12788009.97279
+  best_bid: 0.002
+  best_ask: 0.003
+  mid: 0.0025
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '105252206997885252352889070218074909957179496257006510170583432513037465278006'
+  - '83036729811309811995794968105073507480036161583897760544623930912713394505713'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '105252206997885252352889070218074909957179496257006510170583432513037465278006'
+    book_bids: 2
+    book_asks: 103
+    book_best_bid: 0.002
+    book_bid_size: 42216177.49
+    book_best_ask: 0.003
+    book_ask_size: 10115834.68
+    book_spread: 0.001
+    book_spread_bps: 4000.0
+  - token_id: '83036729811309811995794968105073507480036161583897760544623930912713394505713'
+    book_bids: 103
+    book_asks: 2
+    book_best_bid: 0.997
+    book_bid_size: 10115834.68
+    book_best_ask: 0.998
+    book_ask_size: 42216177.49
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.025062656641612
+  selection_metrics:
+    gamma_volume24hr: 3032004.741817996
+    gamma_liquidity: 12788009.97279
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558940'
+  condition_id: '0x4f3421fb2daf5cca7430ed8d8132463963081572d75434393a1808fdb8829fe8'
+  question: Will Portugal win the 2026 FIFA World Cup?
+  group_item_title: Portugal
+  event_slug: world-cup-winner
+  slug: will-portugal-win-the-2026-fifa-world-cup-912
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:44.492744Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 2772118.160567995
+  volume: 39384474.58159536
+  liquidity: 474168.97074
+  best_bid: 0.108
+  best_ask: 0.109
+  mid: 0.1085
+  spread: 0.0010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '45415751658241142530386585138386640503488308219341470020075667342738719018629'
+  - '31940783580344558651011323787577288681658737625185216525249046282994042503801'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '45415751658241142530386585138386640503488308219341470020075667342738719018629'
+    book_bids: 108
+    book_asks: 166
+    book_best_bid: 0.108
+    book_bid_size: 71710.76
+    book_best_ask: 0.109
+    book_ask_size: 32801.31
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 92.1658986175116
+  - token_id: '31940783580344558651011323787577288681658737625185216525249046282994042503801'
+    book_bids: 166
+    book_asks: 108
+    book_best_bid: 0.891
+    book_bid_size: 32801.31
+    book_best_ask: 0.892
+    book_ask_size: 71710.76
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 11.217049915872137
+  selection_metrics:
+    gamma_volume24hr: 2772118.160567995
+    gamma_liquidity: 474168.97074
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558959'
+  condition_id: '0x84edef36bded182da6a395ac6c785dba8f3e09b6c5ad041385b2042536cbef25'
+  question: Will Iran win the 2026 FIFA World Cup?
+  group_item_title: Iran
+  event_slug: world-cup-winner
+  slug: will-iran-win-the-2026-fifa-world-cup-788
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:55.140328Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 2725609.836000004
+  volume: 44626367.81879002
+  liquidity: 10606973.36286
+  best_bid: 0.001
+  best_ask: 0.002
+  mid: 0.0015
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '33747305042007778221968790541070114008811587676172030120559423448386310500957'
+  - '80777593725072886250387021020386140490553855405927920539616996585797139624012'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '33747305042007778221968790541070114008811587676172030120559423448386310500957'
+    book_bids: 1
+    book_asks: 131
+    book_best_bid: 0.001
+    book_bid_size: 4604684.36
+    book_best_ask: 0.002
+    book_ask_size: 9764394.5
+    book_spread: 0.001
+    book_spread_bps: 6666.666666666666
+  - token_id: '80777593725072886250387021020386140490553855405927920539616996585797139624012'
+    book_bids: 131
+    book_asks: 1
+    book_best_bid: 0.998
+    book_bid_size: 9764394.5
+    book_best_ask: 0.999
+    book_ask_size: 4604684.36
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.01502253380071
+  selection_metrics:
+    gamma_volume24hr: 2725609.836000004
+    gamma_liquidity: 10606973.36286
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '558938'
+  condition_id: '0x0c4cd2055d6ea89354ffddc55d6dbcef9355748112ea952fc925f3db6a5c457f'
+  question: Will Argentina win the 2026 FIFA World Cup?
+  group_item_title: Argentina
+  event_slug: world-cup-winner
+  slug: will-argentina-win-the-2026-fifa-world-cup-245
+  family: sports_recurring
+  category: ''
+  created_at: '2025-07-02T16:54:43.302408Z'
+  end_date: '2026-07-20T00:00:00Z'
+  volume24hr: 2721232.457048999
+  volume: 34858385.794686064
+  liquidity: 1125729.86645
+  best_bid: 0.093
+  best_ask: 0.094
+  mid: 0.0935
+  spread: 0.0010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '18812649149814341758733697580460697418474693998558159483117100240528657629879'
+  - '115428153746996892211798999366308897078723117634059783423375188043903703749062'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '18812649149814341758733697580460697418474693998558159483117100240528657629879'
+    book_bids: 52
+    book_asks: 118
+    book_best_bid: 0.093
+    book_bid_size: 71648.05
+    book_best_ask: 0.094
+    book_ask_size: 196486.53
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 106.95187165775411
+  - token_id: '115428153746996892211798999366308897078723117634059783423375188043903703749062'
+    book_bids: 118
+    book_asks: 52
+    book_best_bid: 0.906
+    book_bid_size: 196486.53
+    book_best_ask: 0.907
+    book_ask_size: 71648.05
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 11.031439602868184
+  selection_metrics:
+    gamma_volume24hr: 2721232.457048999
+    gamma_liquidity: 1125729.86645
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '906972'
+  condition_id: '0x4e4a7df876b0c04f0b8b29b9073eddfbaf5c787192da825ae7ca1031bc8cfd15'
+  question: Will the Fed decrease interest rates by 50+ bps after the June 2026 meeting?
+  group_item_title: 50+ bps decrease
+  event_slug: fed-decision-in-june-825
+  slug: will-the-fed-decrease-interest-rates-by-50-bps-after-the-june-2026-meeting
+  family: other_residual
+  category: ''
+  created_at: '2025-12-10T16:57:52.384504Z'
+  end_date: '2026-06-17T00:00:00Z'
+  volume24hr: 1430709.9549999998
+  volume: 19545802.884853333
+  liquidity: 1036331.78389
+  best_bid: 0.001
+  best_ask: 0.002
+  mid: 0.0015
+  spread: 0.001
+  neg_risk: true
+  clob_token_ids:
+  - '110884561568299698460551977852169332756450294345019257864587852438060900499251'
+  - '43657246144121396803720838555832481461017693669899677632500878505194847879265'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '110884561568299698460551977852169332756450294345019257864587852438060900499251'
+    book_bids: 1
+    book_asks: 107
+    book_best_bid: 0.001
+    book_bid_size: 1080431.99
+    book_best_ask: 0.002
+    book_ask_size: 534614.07
+    book_spread: 0.001
+    book_spread_bps: 6666.666666666666
+  - token_id: '43657246144121396803720838555832481461017693669899677632500878505194847879265'
+    book_bids: 107
+    book_asks: 1
+    book_best_bid: 0.998
+    book_bid_size: 534614.07
+    book_best_ask: 0.999
+    book_ask_size: 1080431.99
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.01502253380071
+  selection_metrics:
+    gamma_volume24hr: 1430709.9549999998
+    gamma_liquidity: 1036331.78389
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '906974'
+  condition_id: '0xde04b189b3f19eaccda02529a3ea67abfc46bff5c0c8fc42d8a2d0ed7b8f0d41'
+  question: Will there be no change in Fed interest rates after the June 2026 meeting?
+  group_item_title: No change
+  event_slug: fed-decision-in-june-825
+  slug: will-there-be-no-change-in-fed-interest-rates-after-the-june-2026-meeting
+  family: other_residual
+  category: ''
+  created_at: '2025-12-10T16:57:53.677378Z'
+  end_date: '2026-06-17T00:00:00Z'
+  volume24hr: 1017648.9876729996
+  volume: 14781220.040361851
+  liquidity: 1188285.72007
+  best_bid: 0.992
+  best_ask: 0.993
+  mid: 0.9924999999999999
+  spread: 0.0010000000000000009
+  neg_risk: true
+  clob_token_ids:
+  - '30767812841387255642892182147223249245545002662653079696958384408588201824258'
+  - '40302938956091099752849867077837976978448552504757012372843872340644441002059'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '30767812841387255642892182147223249245545002662653079696958384408588201824258'
+    book_bids: 110
+    book_asks: 7
+    book_best_bid: 0.992
+    book_bid_size: 181924.03
+    book_best_ask: 0.993
+    book_ask_size: 14294.23
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.075566750629733
+  - token_id: '40302938956091099752849867077837976978448552504757012372843872340644441002059'
+    book_bids: 7
+    book_asks: 110
+    book_best_bid: 0.007
+    book_bid_size: 14294.23
+    book_best_ask: 0.008
+    book_ask_size: 181924.03
+    book_spread: 0.001
+    book_spread_bps: 1333.3333333333333
+  selection_metrics:
+    gamma_volume24hr: 1017648.9876729996
+    gamma_liquidity: 1188285.72007
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '958443'
+  condition_id: '0x9352c559e9648ab4cab236087b64ca85c5b7123a4c7d9d7d4efde4a39c18056f'
+  question: Will the Iranian regime fall by June 30?
+  group_item_title: ''
+  event_slug: will-the-iranian-regime-fall-by-june-30
+  slug: will-the-iranian-regime-fall-by-june-30
+  family: geopolitics_diagnostic
+  category: ''
+  created_at: '2025-12-17T22:44:43.240223Z'
+  end_date: '2026-06-30T00:00:00Z'
+  volume24hr: 739583.9476
+  volume: 51866732.2374755
+  liquidity: 588215.24502
+  best_bid: 0.018
+  best_ask: 0.019
+  mid: 0.0185
+  spread: 0.0010000000000000009
+  neg_risk: false
+  clob_token_ids:
+  - '38397507750621893057346880033441136112987238933685677349709401910643842844855'
+  - '95949957895141858444199258452803633110472396604599808168788254125381075552218'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '38397507750621893057346880033441136112987238933685677349709401910643842844855'
+    book_bids: 18
+    book_asks: 142
+    book_best_bid: 0.018
+    book_bid_size: 15420.85
+    book_best_ask: 0.019
+    book_ask_size: 511.68
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 540.5405405405411
+  - token_id: '95949957895141858444199258452803633110472396604599808168788254125381075552218'
+    book_bids: 142
+    book_asks: 18
+    book_best_bid: 0.981
+    book_bid_size: 511.68
+    book_best_ask: 0.982
+    book_ask_size: 15420.85
+    book_spread: 0.0010000000000000009
+    book_spread_bps: 10.188487009679072
+  selection_metrics:
+    gamma_volume24hr: 739583.9476
+    gamma_liquidity: 588215.24502
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.
+- id: '957019'
+  condition_id: '0xa70fc3695a65833b91b45df6db6015096f3e1471b70352ca411b4209010e7633'
+  question: US-Iran nuclear deal by June 30?
+  group_item_title: ''
+  event_slug: us-iran-nuclear-deal-by-june-30
+  slug: us-iran-nuclear-deal-by-june-30
+  family: geopolitics_diagnostic
+  category: ''
+  created_at: '2025-12-17T20:59:21.103877Z'
+  end_date: '2026-06-30T00:00:00Z'
+  volume24hr: 485868.6977670003
+  volume: 6979519.082964059
+  liquidity: 132993.1662
+  best_bid: 0.17
+  best_ask: 0.18
+  mid: 0.175
+  spread: 0.009999999999999981
+  neg_risk: false
+  clob_token_ids:
+  - '68283792174293775430535402015214113701251372409839518501034763677920213819299'
+  - '10690391194840875541563517589463912963575786539307433160985752952931887140267'
+  fee:
+    fees_enabled: true
+    peak_effective_rate_estimate: 0.0125
+  book_tokens:
+  - token_id: '68283792174293775430535402015214113701251372409839518501034763677920213819299'
+    book_bids: 17
+    book_asks: 82
+    book_best_bid: 0.17
+    book_bid_size: 40825.3
+    book_best_ask: 0.18
+    book_ask_size: 90.45
+    book_spread: 0.009999999999999981
+    book_spread_bps: 571.4285714285704
+  - token_id: '10690391194840875541563517589463912963575786539307433160985752952931887140267'
+    book_bids: 82
+    book_asks: 17
+    book_best_bid: 0.82
+    book_bid_size: 90.45
+    book_best_ask: 0.83
+    book_ask_size: 40825.3
+    book_spread: 0.010000000000000009
+    book_spread_bps: 121.21212121212133
+  selection_metrics:
+    gamma_volume24hr: 485868.6977670003
+    gamma_liquidity: 132993.1662
+  selection_rationale: Stage-1 continuation live CLOB capture for first-mover/sports-style
+    markets; observation only; no orders/auth. Refreshed from current Gamma/CLOB on 20260611T091421Z;
+    live measurement loop only.

@@ -55,6 +55,15 @@ RUN
     # localhost live monitor (terminal dashboard), 30s refresh, with a declared live short:
     PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --watch 30 \
         --live-entry 159.9 --live-short-notional 50000 --live-margin 33000 --parquet-log
+
+BLOCK S1 (hedge grid + pre-hedge timing rule; see spcx_listing_day_gameplan.md section 7)
+-----------------------------------------------------------------------------------------
+    # (a) fill-price x fill-fraction x margin hedge grid (live EURUSD, flagged):
+    PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --grid
+    # (b) basis-decay fit on HL hourly candles (level premium vs $135), bootstrap CI:
+    PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --decay-fit
+    # (c) the one-page pre-registered rule table ("hedge X at node Y iff net basis >= Z"):
+    PYTHONPATH=. uv run python scripts/spcx_convergence_calc.py --contract xyz --decision
 Tests: PYTHONPATH=. uv run pytest tests/test_spcx_convergence_calc.py -q
 """
 from __future__ import annotations
@@ -840,6 +849,1003 @@ def make_hedge_chart(ev: ContractEval, hedge_ratios: list[float], out_path: Path
     plt.close(fig)
 
 
+# ======================================================================================
+# Block S1 (a) — hedge grid: fill-price x fill-fraction x margin-constraint
+# ======================================================================================
+# The Friday-morning question is not "is the basis positive at $135" but "given the FINAL
+# price (135..162), MY fill fraction, and my <EUR2k Hyperliquid margin, how many shares can
+# I actually lock, for how much, and what is left naked?" This grid answers every cell.
+# Pure math; the CLI layer supplies live mark / funding / EURUSD.
+
+S1_FILL_PRICE_LO = 135.0   # expected offer (S-1/A)
+S1_FILL_PRICE_HI = 162.0   # EU prospectus maximum offering price
+S1_MELTUP_ANALOGS = (0.13, 0.26, 0.39)  # Cerebras open/high analogs (calc findings)
+
+
+def fill_price_axis(lo: float = S1_FILL_PRICE_LO, hi: float = S1_FILL_PRICE_HI,
+                    step: float = 5.0) -> list[float]:
+    """$135 -> $162 in $5 steps, with BOTH corners always present (135 and the 162 EU cap)."""
+    out: list[float] = []
+    p = lo
+    while p < hi - 1e-9:
+        out.append(round(p, 2))
+        p += step
+    if not out or abs(out[0] - lo) > 1e-9:
+        out.insert(0, lo)
+    out.append(hi)
+    return out
+
+
+def shares_requested(subscription_eur: float, eurusd: float, fill_price: float) -> float:
+    """Shares a EUR subscription requests at a given final price (TR pro-rata base).
+    EUR -> USD at the live rate, then / price. Fractional shares kept (TR supports them)."""
+    if fill_price <= 0:
+        return 0.0
+    return subscription_eur * eurusd / fill_price
+
+
+def margin_cap_shares(margin_usd: float, leverage: float, mark: float,
+                      contracts_per_share: float) -> float:
+    """Max IPO shares hedgeable with `margin_usd` of isolated margin at `leverage`.
+    One hedged share needs `contracts_per_share` perp contracts (1.0 for xyz at R=1),
+    i.e. notional = contracts_per_share * mark, margin = notional / leverage."""
+    if margin_usd <= 0 or mark <= 0 or contracts_per_share <= 0 or leverage <= 0:
+        return 0.0
+    return margin_usd * leverage / (contracts_per_share * mark)
+
+
+@dataclass
+class GridCell:
+    """One (fill price, fill fraction, leverage) cell of the S1 hedge grid."""
+    fill_price: float
+    fill_frac: float
+    leverage: float
+    shares_requested: float
+    shares_filled: float
+    cap_shares: float          # margin-supported ceiling at this leverage
+    hedged_shares: float       # min(filled, cap)
+    residual_shares: float     # filled - hedged  (UNHEDGED, Frame-B sleeve)
+    basis_per_share: float     # per-IPO-share-equiv(mark) - fill_price
+    short_notional: float
+    margin_used: float
+    fee_cost: float
+    funding_income: float
+    locked_net: float          # hedged*basis - fees + funding  (NET locked $)
+    capital: float             # hedged long notional + margin_used (hedge sleeve only)
+    roc: float                 # locked_net / capital
+
+
+def build_hedge_grid(per_ipo_share_mark: float, mark: float, contracts_per_share: float,
+                     funding_hourly: float, hours_to_settle: float,
+                     fee_bps: float, fee_sides: float,
+                     subscription_eur: float, eurusd: float, margin_eur: float,
+                     fill_prices: list[float], fill_fracs: list[float],
+                     leverages: list[float]) -> list[GridCell]:
+    """The full S1(a) grid. No realized-future inputs: everything here is a function of the
+    CURRENT mark and declared constraints (decision-safe)."""
+    margin_usd = margin_eur * eurusd
+    cells: list[GridCell] = []
+    for lev in leverages:
+        cap = margin_cap_shares(margin_usd, lev, mark, contracts_per_share)
+        for price in fill_prices:
+            req = shares_requested(subscription_eur, eurusd, price)
+            basis = per_ipo_share_mark - price
+            for frac in fill_fracs:
+                filled = frac * req
+                hedged = min(filled, cap)
+                residual = filled - hedged
+                notional = hedged * contracts_per_share * mark
+                margin_used = notional / lev if lev > 0 else 0.0
+                fee = notional * (fee_bps / 1e4) * fee_sides
+                funding = funding_hourly * notional * hours_to_settle
+                locked_net = hedged * basis - fee + funding
+                cap_dep = hedged * price + margin_used
+                cells.append(GridCell(
+                    fill_price=price, fill_frac=frac, leverage=lev,
+                    shares_requested=req, shares_filled=filled, cap_shares=cap,
+                    hedged_shares=hedged, residual_shares=residual,
+                    basis_per_share=basis, short_notional=notional,
+                    margin_used=margin_used, fee_cost=fee, funding_income=funding,
+                    locked_net=locked_net, capital=cap_dep,
+                    roc=(locked_net / cap_dep) if cap_dep > 0 else float("nan"),
+                ))
+    return cells
+
+
+def render_grid_text(cells: list[GridCell], contract_name: str, mark: float,
+                     eurusd: float, eurusd_note: str, margin_eur: float,
+                     subscription_eur: float, hours: float) -> str:
+    lines: list[str] = []
+    lines.append("=" * 100)
+    lines.append(f" S1(a) HEDGE GRID  {contract_name} @ mark {mark:,.2f} | "
+                 f"EUR{subscription_eur:,.0f} subscription | margin EUR{margin_eur:,.0f} | "
+                 f"EURUSD {eurusd:.4f} ({eurusd_note})")
+    lines.append(f" cell = hedged shares | NET locked $ (fees+funding over {hours:.0f}h) | "
+                 "ROC on hedge-sleeve capital | naked residual shares")
+    lines.append("=" * 100)
+    levs = sorted({c.leverage for c in cells})
+    fracs = sorted({c.fill_frac for c in cells})
+    prices = sorted({c.fill_price for c in cells})
+    by_key = {(c.leverage, c.fill_price, c.fill_frac): c for c in cells}
+    for lev in levs:
+        cap = next(c.cap_shares for c in cells if c.leverage == lev)
+        lines.append(f"\n  leverage {lev:.1f}x  (margin-supported ceiling = {cap:,.1f} sh)")
+        head = "  fill$  " + "".join(f"| fill {f*100:>3.0f}%{'':<17}" for f in fracs)
+        lines.append(head)
+        lines.append("  " + "-" * (len(head) - 2))
+        for price in prices:
+            row = f"  {price:>5.0f}  "
+            for f in fracs:
+                c = by_key[(lev, price, f)]
+                row += (f"| {c.hedged_shares:>5.1f}sh {c.locked_net:>+7,.0f}$ "
+                        f"{c.roc*100:>4.1f}% r{c.residual_shares:>4.1f} ")
+            lines.append(row)
+    lines.append("")
+    lines.append("  read: hedged = min(fill, margin ceiling); residual r = naked Frame-B shares;")
+    lines.append("  NET locked $ = hedged x (mark - fill$) - taker fees + funding carry; ROC on")
+    lines.append("  (hedged x fill$ + margin used). Basis goes NEGATIVE when fill$ > mark.")
+    return "\n".join(lines)
+
+
+# ======================================================================================
+# Block S1 (b) — basis-decay fit on HL hourly candles (level premium vs $135)
+# ======================================================================================
+# The perp's premium to the $135 anchor has been bleeding (~+60% mid-May -> ~+20% now).
+# To rank "hedge now vs hedge Thursday night vs hedge Friday morning" we need E[basis at
+# node], i.e. a causal projection of the premium. Model (stated assumption): exponential
+# decay of the LEVEL premium, ln(mark - 135) = a + b*t. Fit by OLS on hourly closes,
+# uncertainty by DAILY-BLOCK bootstrap (hourly residuals are autocorrelated; resampling
+# whole days is the honest cheap CI). Lookahead guard: only candles whose CLOSE time is
+# <= cutoff enter the fit -- enforced inside the fitter and unit-tested.
+
+def fetch_hl_candles(coin: str, interval: str, start_utc: datetime, end_utc: datetime,
+                     timeout: float = 30.0) -> list[dict]:
+    """Read-only HL candleSnapshot pull (same endpoint family as the snapshot fetch)."""
+    import httpx  # local import so --offline / tests don't require network
+
+    req = {"type": "candleSnapshot",
+           "req": {"coin": coin, "interval": interval,
+                   "startTime": int(start_utc.timestamp() * 1000),
+                   "endTime": int(end_utc.timestamp() * 1000)}}
+    with httpx.Client(timeout=timeout) as client:
+        r = client.post(HL_INFO_URL, json=req)
+        r.raise_for_status()
+        return r.json()
+
+
+def save_candles(coin: str, interval: str, candles: list[dict],
+                 out_dir: Path = DEFAULT_OUT_DIR) -> Path:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    payload = {"fetched_at_utc": datetime.now(timezone.utc).isoformat(),
+               "coin": coin, "interval": interval, "candles": candles}
+    safe = coin.replace(":", "_")
+    ts = payload["fetched_at_utc"].replace(":", "").replace("-", "").replace(".", "")[:15]
+    p = out_dir / f"candles_{safe}_{interval}_{ts}.json"
+    p.write_text(json.dumps(payload))
+    (out_dir / f"candles_{safe}_{interval}_latest.json").write_text(json.dumps(payload))
+    return p
+
+
+def load_latest_candles(coin: str, interval: str,
+                        out_dir: Path = DEFAULT_OUT_DIR) -> Optional[dict]:
+    p = out_dir / f"candles_{coin.replace(':', '_')}_{interval}_latest.json"
+    if p.exists():
+        return json.loads(p.read_text())
+    return None
+
+
+def _ols(x: list[float], y: list[float]) -> tuple[float, float, float, float]:
+    """Stdlib OLS of y on x. Returns (a, b, se_a, se_b) for y = a + b*x."""
+    n = len(x)
+    if n < 3:
+        raise ValueError(f"need >=3 points for OLS, got {n}")
+    mx = sum(x) / n
+    my = sum(y) / n
+    sxx = sum((xi - mx) ** 2 for xi in x)
+    if sxx <= 0:
+        raise ValueError("degenerate x (no time spread)")
+    sxy = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y))
+    b = sxy / sxx
+    a = my - b * mx
+    resid = [yi - (a + b * xi) for xi, yi in zip(x, y)]
+    s2 = sum(e * e for e in resid) / (n - 2)
+    se_b = math.sqrt(s2 / sxx)
+    se_a = math.sqrt(s2 * (1.0 / n + mx * mx / sxx))
+    return a, b, se_a, se_b
+
+
+@dataclass
+class DecayFit:
+    """Causal exponential-decay fit of the level premium (mark - offer)."""
+    offer: float
+    t0_utc: datetime               # time origin (first candle close used)
+    a: float                       # ln(premium) intercept at t0
+    b: float                       # ln(premium) slope per DAY (b<0 = decay)
+    se_a: float                    # OLS standard errors (NAIVE: hourly autocorrelation
+    se_b: float                    #  understates them -- use the bootstrap for CIs)
+    n_used: int
+    n_dropped_nonpos: int          # candles dropped because premium <= 0 (log undefined)
+    window_start_utc: datetime
+    window_end_utc: datetime
+    boot_ab: list[tuple[float, float]] = field(default_factory=list)  # daily-block bootstrap
+
+    @property
+    def half_life_days(self) -> float:
+        return (-math.log(2.0) / self.b) if self.b < 0 else float("inf")
+
+    def premium_at(self, t_utc: datetime) -> float:
+        """Fitted TREND level at t (diagnostic only -- see mark_proj for decisions)."""
+        dt_days = (t_utc - self.t0_utc).total_seconds() / 86400.0
+        return math.exp(self.a + self.b * dt_days)
+
+    # Decision projections are RATE-ONLY from the live premium: the level of a traded
+    # price is taken as given, and only the fitted decay RATE is applied forward.
+    # Projecting from the fitted trend line instead would smuggle in a mean-reversion-
+    # to-trend alpha claim (e.g. "today's dip will bounce back"), which a risk rule
+    # must not assume. The trend-vs-live endpoint gap is reported as a misfit diagnostic.
+    def premium_proj(self, live_premium: float, t_from: datetime, t_utc: datetime) -> float:
+        dt_days = (t_utc - t_from).total_seconds() / 86400.0
+        return live_premium * math.exp(self.b * dt_days)
+
+    def mark_proj(self, live_premium: float, t_from: datetime, t_utc: datetime) -> float:
+        return self.offer + self.premium_proj(live_premium, t_from, t_utc)
+
+    def mark_proj_ci(self, live_premium: float, t_from: datetime, t_utc: datetime,
+                     lo_q: float = 0.025, hi_q: float = 0.975) -> tuple[float, float]:
+        """Bootstrap percentile CI of the rate-only projection. Reflects DECAY-RATE
+        uncertainty only; intraday path noise around the level is extra (flagged)."""
+        if not self.boot_ab:
+            m = self.mark_proj(live_premium, t_from, t_utc)
+            return m, m
+        dt_days = (t_utc - t_from).total_seconds() / 86400.0
+        draws = sorted(self.offer + live_premium * math.exp(b * dt_days)
+                       for _, b in self.boot_ab)
+        n = len(draws)
+        lo = draws[max(0, min(n - 1, int(lo_q * n)))]
+        hi = draws[max(0, min(n - 1, int(hi_q * n)))]
+        return lo, hi
+
+
+def fit_premium_decay(candle_times_utc: list[datetime], closes: list[float], offer: float,
+                      cutoff_utc: datetime, interval_seconds: float = 3600.0,
+                      boot_n: int = 500, seed: int = 42) -> DecayFit:
+    """Fit ln(close - offer) = a + b*days on candles whose CLOSE time is <= cutoff_utc.
+
+    LOOKAHEAD GUARD: candles closing after `cutoff_utc` are excluded HERE, inside the
+    fitter, so no caller can accidentally leak future bars into a decision. (The last
+    in-progress hourly bar is excluded automatically by the same rule.)
+    Uncertainty: daily-block bootstrap (resample whole UTC dates with replacement,
+    refit) -- honest under hourly autocorrelation, deterministic via `seed`.
+    """
+    import random
+
+    pts: list[tuple[datetime, float]] = []
+    n_dropped = 0
+    for t_open, close in zip(candle_times_utc, closes):
+        t_close = t_open + _td(seconds=interval_seconds)
+        if t_close > cutoff_utc:
+            continue  # close not known at cutoff -> excluded (no lookahead)
+        prem = close - offer
+        if prem <= 0:
+            n_dropped += 1
+            continue  # log-decay model undefined at <=0 premium; drop + count
+        pts.append((t_close, prem))
+    if len(pts) < 3:
+        raise ValueError(f"only {len(pts)} usable candles before cutoff -- cannot fit decay")
+    pts.sort(key=lambda p: p[0])
+    t0 = pts[0][0]
+    xs = [(t - t0).total_seconds() / 86400.0 for t, _ in pts]
+    ys = [math.log(p) for _, p in pts]
+    a, b, se_a, se_b = _ols(xs, ys)
+
+    # daily-block bootstrap on UTC dates
+    by_date: dict[str, list[int]] = {}
+    for i, (t, _) in enumerate(pts):
+        by_date.setdefault(t.strftime("%Y-%m-%d"), []).append(i)
+    dates = sorted(by_date)
+    boot_ab: list[tuple[float, float]] = []
+    if len(dates) >= 3 and boot_n > 0:
+        rng = random.Random(seed)
+        for _ in range(boot_n):
+            idx: list[int] = []
+            for _ in dates:
+                idx.extend(by_date[rng.choice(dates)])
+            try:
+                ab = _ols([xs[i] for i in idx], [ys[i] for i in idx])
+                boot_ab.append((ab[0], ab[1]))
+            except ValueError:
+                continue  # degenerate resample (e.g. single date drawn) -- skip
+    return DecayFit(offer=offer, t0_utc=t0, a=a, b=b, se_a=se_a, se_b=se_b,
+                    n_used=len(pts), n_dropped_nonpos=n_dropped,
+                    window_start_utc=pts[0][0], window_end_utc=pts[-1][0],
+                    boot_ab=boot_ab)
+
+
+def _td(seconds: float):
+    from datetime import timedelta
+    return timedelta(seconds=seconds)
+
+
+def load_watch_log_marks(watch_dir: Path, contract_name: str) -> list[tuple[datetime, float]]:
+    """Supplementary cross-check ONLY (per the gameplan): marks from any --watch parquet
+    shards. Never mixed into the candle fit -- compared against it."""
+    if not watch_dir.exists():
+        return []
+    import pyarrow.parquet as pq  # local import; only needed if shards exist
+
+    out: list[tuple[datetime, float]] = []
+    for shard in sorted(watch_dir.glob("*.parquet")):
+        tbl = pq.read_table(shard, columns=["fetched_at_utc", "contract", "mark"])
+        for ts, name, mark in zip(tbl.column("fetched_at_utc").to_pylist(),
+                                  tbl.column("contract").to_pylist(),
+                                  tbl.column("mark").to_pylist()):
+            if name != contract_name:
+                continue
+            try:
+                out.append((datetime.fromisoformat(ts), float(mark)))
+            except (ValueError, TypeError):
+                continue
+    return out
+
+
+def crosscheck_watchlog_vs_candles(ticks: list[tuple[datetime, float]],
+                                   candle_times_utc: list[datetime],
+                                   closes: list[float]) -> Optional[dict]:
+    """Max |watch-log mark - same-hour candle close|. None if no overlapping ticks."""
+    if not ticks:
+        return None
+    by_hour = {t.replace(minute=0, second=0, microsecond=0): c
+               for t, c in zip(candle_times_utc, closes)}
+    diffs = []
+    for t, mark in ticks:
+        key = t.replace(minute=0, second=0, microsecond=0)
+        if key in by_hour:
+            diffs.append(abs(mark - by_hour[key]))
+    if not diffs:
+        return None
+    return {"n_overlap": len(diffs), "max_abs_diff": max(diffs),
+            "mean_abs_diff": sum(diffs) / len(diffs)}
+
+
+def render_decay_text(fit: DecayFit, nodes: list[tuple[str, datetime]],
+                      live_mark: float, now_utc: datetime, crosscheck: Optional[dict],
+                      requested_since: datetime) -> str:
+    lines: list[str] = []
+    lines.append("=" * 78)
+    lines.append(" S1(b) BASIS-DECAY FIT  (level premium vs $%.0f, HL hourly closes)" % fit.offer)
+    lines.append("=" * 78)
+    if fit.window_start_utc - requested_since > _td(seconds=86400):
+        lines.append(f"  NOTE: requested history since {requested_since.date()}, venue returned "
+                     f"since {fit.window_start_utc.date()} (HL purges old hourly bars).")
+    lines.append(f"  window                    = {fit.window_start_utc:%Y-%m-%d %H:%M} -> "
+                 f"{fit.window_end_utc:%Y-%m-%d %H:%M} UTC  ({fit.n_used} hourly closes; "
+                 f"{fit.n_dropped_nonpos} dropped at premium<=0)")
+    lines.append(f"  model                     = ln(mark - {fit.offer:.0f}) = a + b*days  "
+                 "[ASSUMPTION: exponential level-premium decay]")
+    lines.append(f"  decay rate b              = {fit.b:+.4f}/day  (naive OLS se {fit.se_b:.4f}; "
+                 f"CIs below use the daily-block bootstrap, n={len(fit.boot_ab)})")
+    hl = fit.half_life_days
+    lines.append(f"  premium half-life         = {'inf (premium not decaying)' if math.isinf(hl) else f'{hl:,.1f} days'}")
+    live_prem = live_mark - fit.offer
+    trend_end = fit.premium_at(fit.window_end_utc)
+    lines.append(f"  trend-vs-live misfit      = fitted trend ${trend_end:,.2f} vs live premium "
+                 f"${live_prem:,.2f} ({(live_prem/trend_end - 1)*100:+.1f}%) -- diagnostic only")
+    lines.append("")
+    lines.append("  projected mark (RATE-ONLY from the live premium; bootstrap 95% CI on the rate;")
+    lines.append("  intraday path noise around the level is NOT in this band):")
+    for name, t in nodes:
+        m = fit.mark_proj(live_prem, now_utc, t)
+        lo, hi = fit.mark_proj_ci(live_prem, now_utc, t)
+        lines.append(f"    {name:<26} {t:%Y-%m-%d %H:%M} UTC -> "
+                     f"{m:,.2f}  [{lo:,.2f}, {hi:,.2f}]")
+    if crosscheck is None:
+        lines.append("\n  watch-log cross-check: no overlapping --watch parquet ticks found "
+                     "(shards absent or disjoint) -- fit rests on candles alone.")
+    else:
+        lines.append(f"\n  watch-log cross-check: {crosscheck['n_overlap']} overlapping ticks, "
+                     f"max |mark - candle close| = ${crosscheck['max_abs_diff']:.2f} "
+                     f"(mean ${crosscheck['mean_abs_diff']:.2f}) -- supplementary only, "
+                     "not mixed into the fit.")
+    return "\n".join(lines)
+
+
+def render_recent_sensitivity(full_fit: DecayFit, recent_fit: Optional[DecayFit],
+                              live_mark: float, now_utc: datetime,
+                              alloc_node: tuple[str, datetime],
+                              recent_days: float) -> str:
+    """Regime-shift sensitivity: the same rate-only projection under a fit restricted to
+    the last `recent_days`. If the two rates differ materially, the MODEL-FORM uncertainty
+    (which regime persists) dominates the bootstrap band and is flagged as such."""
+    if recent_fit is None:
+        return ("  recent-window sensitivity: not enough recent candles to fit -- "
+                "rely on the full-window rate only.")
+    name, t = alloc_node
+    live_prem = live_mark - full_fit.offer
+    m_full = full_fit.mark_proj(live_prem, now_utc, t)
+    m_recent = recent_fit.mark_proj(live_prem, now_utc, t)
+    lines = [
+        f"  recent-window sensitivity (last {recent_days:.0f}d, {recent_fit.n_used} closes): "
+        f"b = {recent_fit.b:+.4f}/day vs full-window {full_fit.b:+.4f}/day",
+        f"    -> {name} projected mark {m_recent:,.2f} (recent rate) vs {m_full:,.2f} "
+        f"(full rate); the decision table uses the FULL-window rate.",
+    ]
+    if abs(recent_fit.b - full_fit.b) > 2.0 * max(full_fit.se_b, 1e-9):
+        lines.append("    NOTE: the two rates differ by >2 naive-se -- a regime shift is "
+                     "visible, so model-form uncertainty EXCEEDS the bootstrap band; read "
+                     "both projections as the honest range.")
+    return "\n".join(lines)
+
+
+def make_decay_chart(fit: DecayFit, candle_times_utc: list[datetime], closes: list[float],
+                     nodes: list[tuple[str, datetime]], live_mark: float,
+                     now_utc: datetime, out_path: Path) -> None:
+    """Premium level + fitted trend (history) + rate-only projection from the live
+    premium (decision path) with its bootstrap band, decision nodes marked."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
+
+    prem = [c - fit.offer for c in closes]
+    fig, ax = plt.subplots(figsize=(9.0, 5.0))
+    ax.plot(candle_times_utc, prem, lw=0.8, alpha=0.6, color="tab:blue",
+            label="hourly premium (mark - $%.0f)" % fit.offer)
+    hist_t = []
+    t = fit.window_start_utc
+    while t <= fit.window_end_utc:
+        hist_t.append(t)
+        t += _td(seconds=6 * 3600)
+    ax.plot(hist_t, [fit.premium_at(t) for t in hist_t], color="black", lw=1.5, ls=":",
+            label=f"fitted trend (diagnostic): b={fit.b:+.4f}/day (half-life "
+                  f"{'inf' if math.isinf(fit.half_life_days) else f'{fit.half_life_days:.0f}d'})")
+    # decision projection: rate-only from the live premium
+    live_prem = live_mark - fit.offer
+    last_node_t = max(t for _, t in nodes)
+    proj_t = []
+    t = now_utc
+    while t <= last_node_t:
+        proj_t.append(t)
+        t += _td(seconds=3 * 3600)
+    ax.plot(proj_t, [fit.premium_proj(live_prem, now_utc, t) for t in proj_t],
+            color="tab:red", lw=2, label="projection: live premium x fitted decay rate")
+    band = [fit.mark_proj_ci(live_prem, now_utc, t) for t in proj_t]
+    ax.fill_between(proj_t, [lo - fit.offer for lo, _ in band],
+                    [hi - fit.offer for _, hi in band], color="tab:red", alpha=0.15,
+                    label="bootstrap 95% CI (decay rate only)")
+    for name, t in nodes:
+        ax.axvline(t, ls="--", lw=1, color="tab:red", alpha=0.8)
+        ax.text(t, ax.get_ylim()[1] * 0.95, " " + name, rotation=90, va="top", fontsize=8,
+                color="tab:red")
+    ax.axhline(0, color="black", lw=0.8)
+    ax.set_title("xyz:SPCX level premium over the $135 expected offer -- causal decay fit\n"
+                 "(hourly HL closes; dashed verticals = pre-hedge decision nodes)")
+    ax.set_ylabel("premium ($/share over offer)")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
+    ax.grid(alpha=0.3)
+    ax.legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+
+
+# ======================================================================================
+# Block S1 (c) — pre-hedge timing EV + the pre-registered rule
+# ======================================================================================
+# Pre-hedging (shorting BEFORE the allocation e-mail) trades a richer basis today against
+# the risk of being naked-short on a melt-up if the fill disappoints. Task formula, applied
+# per pre-hedged share:
+#     EV = P(fill >= prehedge) * E[net basis at node]  -  P(shortfall) * E[naked-short loss]
+# with E[naked-short loss] from the Cerebras melt-up analogs. Setting EV = 0 gives the
+# pre-registered threshold  Z = (1-p)/p * naked_loss : "hedge X shares at node Y iff net
+# basis >= Z". Everything probabilistic here is an ASSUMPTION and is printed as one.
+# NO realized-future price enters any of these functions (enforced by a source-inspection
+# unit test, like the existing no-lookahead test).
+
+def expected_meltup_move(dist: list[tuple[float, float]]) -> float:
+    """E[adverse move] under the melt-up distribution [(move_frac, weight), ...].
+    Weights are normalized here so callers can pass unnormalized odds."""
+    wsum = sum(w for _, w in dist)
+    if wsum <= 0:
+        return 0.0
+    return sum(m * w for m, w in dist) / wsum
+
+
+def naked_loss_per_share(mark_at_node: float, e_meltup_move: float,
+                         exit_fee_bps: float = 4.5) -> float:
+    """Expected $ loss per NAKED pre-hedged share if the fill falls short: forced to buy
+    back the uncovered short into the melt-up at mark*(1+move), plus the exit taker fee.
+    Conservative by design: the whole pre-hedge is treated as naked on shortfall."""
+    move_loss = mark_at_node * e_meltup_move
+    exit_fee = mark_at_node * (1.0 + e_meltup_move) * (exit_fee_bps / 1e4)
+    return move_loss + exit_fee
+
+
+def prehedge_ev_per_share(p_fill_ge: float, net_basis_at_node: float,
+                          naked_loss: float) -> float:
+    """The task formula, per pre-hedged share."""
+    return p_fill_ge * net_basis_at_node - (1.0 - p_fill_ge) * naked_loss
+
+
+def breakeven_net_basis(p_fill_ge: float, naked_loss: float) -> float:
+    """Z_naked such that the task-formula EV (pre-hedge vs NEVER hedging) is zero:
+    Z = (1-p)/p * naked_loss.  p=1 -> 0 (allocation known); p->0 -> inf (never blind)."""
+    if p_fill_ge <= 0:
+        return float("inf")
+    return (1.0 - p_fill_ge) / p_fill_ge * naked_loss
+
+
+def prehedge_threshold(p_fill_ge: float, naked_loss: float,
+                       projected_alloc_basis: float) -> float:
+    """The FULL pre-registered threshold Z*: pre-hedging at an early node must beat not
+    just 'never hedge' but 'WAIT and hedge at allocation' (where there is no naked risk
+    and the option to skip if the basis is gone, i.e. wait pays p * max(B_alloc, 0)):
+
+        EV(pre-hedge) > EV(wait)
+        p*B - (1-p)*NL > p*max(B_alloc, 0)
+        B > (1-p)/p * NL + max(B_alloc, 0)  =  Z*
+
+    `projected_alloc_basis` is TODAY'S decay-fit projection of the allocation-node net
+    basis -- frozen at pre-registration time so Z* is a constant, not a moving target."""
+    return breakeven_net_basis(p_fill_ge, naked_loss) + max(0.0, projected_alloc_basis)
+
+
+def should_hedge(net_basis: float, z_threshold: float) -> bool:
+    """The pre-registered rule, evaluated on the LIVE net basis at the node. Strict
+    inequality so the zero-basis corner can never trigger a hedge (even at Z=0)."""
+    return net_basis > z_threshold
+
+
+def net_basis_per_share(mark_at_node: float, fill_price: float, funding_hourly: float,
+                        hours_node_to_settle: float, entry_fee_bps: float = 4.5) -> float:
+    """Per-share net locked basis if hedged at `mark_at_node` against a `fill_price` long:
+    gross (mark - fill$) minus entry taker fee plus funding carry to settlement (funding
+    held constant at the current hourly rate -- stated assumption)."""
+    gross = mark_at_node - fill_price
+    fee = mark_at_node * (entry_fee_bps / 1e4)
+    funding = funding_hourly * mark_at_node * max(0.0, hours_node_to_settle)
+    return gross - fee + funding
+
+
+@dataclass
+class NodeDecision:
+    """One (fill price, node) cell of the pre-registered decision table."""
+    node: str
+    t_utc: datetime
+    fill_price: float
+    p_fill_ge: float           # ASSUMPTION (or 1.0 at the allocation node, fill known)
+    prehedge_shares: float     # X = min(pessimistic-fill shares, margin ceiling)
+    mark_used: float           # live mark (NOW) or rate-only decay projection (D1/D2)
+    mark_lo: float
+    mark_hi: float
+    net_basis: float           # net basis per share at this node's mark
+    net_basis_lo: float
+    net_basis_hi: float
+    naked_loss: float          # NL per share (no risk-relevance at the allocation node)
+    proj_alloc_basis: float    # today's projected allocation-node net basis (wait comparator)
+    z_naked: float             # (1-p)/p * NL  (pre-hedge vs NEVER hedging)
+    z_threshold: float         # Z* = z_naked + max(0, proj_alloc_basis)  (vs WAITING)
+    ev_per_share: float        # task-literal EV vs never hedging:  p*B - (1-p)*NL
+    ev_vs_wait_per_share: float  # p*(B - max(0, proj_alloc_basis)) - (1-p)*NL
+    ev_total: float            # X * ev_vs_wait_per_share (what ranks the nodes)
+    armed: bool                # X > 0 and net_basis > Z*  (the pre-registered trigger)
+
+
+def build_decision_table(fill_prices: list[float], nodes: list[tuple[str, datetime]],
+                         now_name: str, live_mark: float, fit: Optional[DecayFit],
+                         p_fill_map: dict[float, float], prehedge_fill_frac: float,
+                         meltup_dist: list[tuple[float, float]],
+                         subscription_eur: float, eurusd: float, margin_eur: float,
+                         leverage: float, contracts_per_share: float,
+                         funding_hourly: float, settle_utc: datetime,
+                         fee_bps: float = 4.5) -> list[NodeDecision]:
+    """The S1(c) decision table. Inputs are the CURRENT mark, the causal decay fit, and
+    declared assumptions -- no candle list and no settlement price can reach this code,
+    so no decision can look ahead. The LAST node is treated as allocation-known (p=1)."""
+    e_move = expected_meltup_move(meltup_dist)
+    margin_usd = margin_eur * eurusd
+    t_now = next(t for n, t in nodes if n == now_name)
+
+    def mark_at_node(name: str, t: datetime) -> tuple[float, float, float]:
+        if name == now_name or fit is None:
+            return live_mark, live_mark, live_mark
+        # rate-only projection from the LIVE premium (no trend-level reversion)
+        live_prem = live_mark - fit.offer
+        return (fit.mark_proj(live_prem, t_now, t), *fit.mark_proj_ci(live_prem, t_now, t))
+
+    rows: list[NodeDecision] = []
+    alloc_name, alloc_t = nodes[-1]
+    for price in fill_prices:
+        req = shares_requested(subscription_eur, eurusd, price)
+        cap = margin_cap_shares(margin_usd, leverage, live_mark, contracts_per_share)
+        # today's projection of the allocation-node net basis = the wait comparator
+        alloc_mark, _, _ = mark_at_node(alloc_name, alloc_t)
+        alloc_hours = (settle_utc - alloc_t).total_seconds() / 3600.0
+        alloc_basis = net_basis_per_share(alloc_mark, price, funding_hourly, alloc_hours,
+                                          fee_bps)
+        for i, (name, t) in enumerate(nodes):
+            is_alloc_node = i == len(nodes) - 1
+            mark, lo, hi = mark_at_node(name, t)
+            hours = (settle_utc - t).total_seconds() / 3600.0
+            nb = net_basis_per_share(mark, price, funding_hourly, hours, fee_bps)
+            nb_lo = net_basis_per_share(lo, price, funding_hourly, hours, fee_bps)
+            nb_hi = net_basis_per_share(hi, price, funding_hourly, hours, fee_bps)
+            nl = naked_loss_per_share(mark, e_move, exit_fee_bps=fee_bps)
+            if is_alloc_node:
+                p = 1.0   # allocation known: no fill uncertainty, no wait comparator left
+                x = cap   # ceiling; realized X = min(fill, cap), printed as the formula
+                z_naked = 0.0
+                z_star = 0.0
+            else:
+                p = p_fill_map.get(round(prehedge_fill_frac, 4))
+                if p is None:
+                    raise ValueError(f"no P(fill >= {prehedge_fill_frac:.0%}) assumption "
+                                     "provided (--p-fill)")
+                x = min(prehedge_fill_frac * req, cap)
+                z_naked = breakeven_net_basis(p, nl)
+                z_star = prehedge_threshold(p, nl, alloc_basis)
+            ev_never = prehedge_ev_per_share(p, nb, nl)
+            ev_wait = (nb if is_alloc_node
+                       else prehedge_ev_per_share(p, nb - max(0.0, alloc_basis), nl))
+            rows.append(NodeDecision(
+                node=name, t_utc=t, fill_price=price, p_fill_ge=p, prehedge_shares=x,
+                mark_used=mark, mark_lo=lo, mark_hi=hi,
+                net_basis=nb, net_basis_lo=nb_lo, net_basis_hi=nb_hi,
+                naked_loss=nl, proj_alloc_basis=alloc_basis, z_naked=z_naked,
+                z_threshold=z_star, ev_per_share=ev_never,
+                ev_vs_wait_per_share=ev_wait, ev_total=x * ev_wait,
+                armed=(x > 0 and should_hedge(nb, z_star)),
+            ))
+    return rows
+
+
+def render_decision_text(rows: list[NodeDecision], nodes: list[tuple[str, datetime]],
+                         prehedge_fill_frac: float, p_fill_map: dict[float, float],
+                         meltup_dist: list[tuple[float, float]], margin_eur: float,
+                         eurusd: float, eurusd_note: str, leverage: float,
+                         live_mark: float, contract_name: str,
+                         fit: Optional[DecayFit]) -> str:
+    e_move = expected_meltup_move(meltup_dist)
+    lines: list[str] = []
+    lines.append("=" * 100)
+    lines.append(f" S1(c) PRE-REGISTERED PRE-HEDGE RULE TABLE  ({contract_name}, "
+                 f"pre-hedge sized to the {prehedge_fill_frac*100:.0f}%-fill row, "
+                 f"leverage {leverage:.1f}x, margin EUR{margin_eur:,.0f})")
+    lines.append("=" * 100)
+    lines.append("  RULE per row: 'hedge X shares at node Y iff LIVE net basis >= Z'. Z at the")
+    lines.append("  early nodes prices BOTH risks of pre-hedging: the naked-shortfall tail AND the")
+    lines.append("  option to simply wait and hedge risk-free at allocation (Z = (1-p)/p x naked-")
+    lines.append("  loss + today's projected allocation-node basis). Final node = allocation known")
+    lines.append("  (p=1, Z=0): hedge min(fill, margin ceiling) iff net basis > 0 -- the Friday gate.")
+    lines.append("  Projections only set Z ex ante; the rule binds on the basis OBSERVED at the node.")
+    lines.append("")
+    node_names = [n for n, _ in nodes]
+    head = "  fill$ "
+    for n in node_names:
+        head += f"| {n:^30} "
+    lines.append(head)
+    lines.append("  " + "-" * (len(head) - 2))
+    by_pf: dict[float, list[NodeDecision]] = {}
+    for r in rows:
+        by_pf.setdefault(r.fill_price, []).append(r)
+    for price in sorted(by_pf):
+        row = f"  {price:>4.0f}  "
+        for r in sorted(by_pf[price], key=lambda r: node_names.index(r.node)):
+            flag = "HEDGE" if r.armed else "wait "
+            row += (f"| X{r.prehedge_shares:>5.1f} Z{r.z_threshold:>5.2f} "
+                    f"B{r.net_basis:>+6.2f} {flag} ")
+        lines.append(row)
+    lines.append("")
+    lines.append("  column glossary: X = pre-hedge shares (min of pessimistic-fill shares and the")
+    lines.append("  margin ceiling; at the final node, the ceiling -- realized X = min(fill, ceiling));")
+    lines.append("  Z = the pre-registered trigger $/sh (see RULE above; frozen at run time);")
+    lines.append("  B = net basis $/sh at the node (live at NOW, rate-only decay projection later;")
+    lines.append("  entry fee + funding-to-settle included); HEDGE = B > Z at today's projections --")
+    lines.append("  still confirm on the LIVE basis at the node before acting.")
+    lines.append("")
+    lines.append("  ASSUMPTION LEDGER (everything below is declared, not measured):")
+    pf = ", ".join(f"P(fill>={f*100:.0f}%)={p:.2f}" for f, p in sorted(p_fill_map.items()))
+    lines.append(f"    - fill probabilities: {pf}  [pure assumption; TR pro-rata is unmodelable"
+                 " offline]")
+    md = ", ".join(f"+{m*100:.0f}%:{w:g}" for m, w in meltup_dist)
+    lines.append(f"    - melt-up distribution (Cerebras analogs, weights): {md} -> "
+                 f"E[move] = +{e_move*100:.1f}%")
+    lines.append("    - shortfall is total: on a miss the WHOLE pre-hedge is treated as naked and")
+    lines.append("      bought back at the melt-up price (conservative); melt-up magnitudes are")
+    lines.append("      listing-transition moves applied un-scaled to every node's naked window")
+    lines.append("    - funding held constant at the current hourly rate; decay model is")
+    lines.append("      exponential in the level premium (see S1(b) ASSUMPTION line)")
+    lines.append(f"    - EURUSD {eurusd:.4f} ({eurusd_note}); live mark {live_mark:,.2f}"
+                 + ("" if fit is None else
+                    f"; decay b={fit.b:+.4f}/day over {fit.n_used} hourly closes"))
+    lines.append("    - LIVE-ONLY unknowns this table cannot resolve: the actual fill, the actual")
+    lines.append("      Friday basis, book depth at size, funding path, oracle/convert behavior.")
+    return "\n".join(lines)
+
+
+def render_ev_matrix_text(live_mark: float, fit: Optional[DecayFit],
+                          nodes: list[tuple[str, datetime]], now_name: str,
+                          fill_price: float, pess_fills: list[float],
+                          p_fill_map: dict[float, float],
+                          meltup_dist: list[tuple[float, float]],
+                          subscription_eur: float, eurusd: float, margin_eur: float,
+                          leverage: float, contracts_per_share: float,
+                          funding_hourly: float, settle_utc: datetime,
+                          fee_bps: float = 4.5) -> str:
+    """EV (total $) for hedge-at-node x pessimistic-fill, at ONE fill price. The final
+    node is allocation-known: p=1, no naked risk, EV = shares x net basis there."""
+    e_move = expected_meltup_move(meltup_dist)
+    margin_usd = margin_eur * eurusd
+    req = shares_requested(subscription_eur, eurusd, fill_price)
+    cap = margin_cap_shares(margin_usd, leverage, live_mark, contracts_per_share)
+    t_now = next(t for n, t in nodes if n == now_name)
+    lines: list[str] = []
+    lines.append(f"  EV matrix at fill price ${fill_price:.0f} (re-run with --offer <final> "
+                 "after the 424B prints):")
+    head = "    pess. fill "
+    for n, _ in nodes:
+        head += f"| {n:^24} "
+    lines.append(head)
+    lines.append("    " + "-" * (len(head) - 4))
+    for f in pess_fills:
+        row = f"    {f*100:>6.0f}%    "
+        for i, (name, t) in enumerate(nodes):
+            is_alloc = i == len(nodes) - 1
+            mark = (live_mark if (name == now_name or fit is None)
+                    else fit.mark_proj(live_mark - fit.offer, t_now, t))
+            hours = (settle_utc - t).total_seconds() / 3600.0
+            nb = net_basis_per_share(mark, fill_price, funding_hourly, hours, fee_bps)
+            x = min(f * req, cap)
+            if is_alloc:
+                ev = x * nb  # fill known: no naked term; this IS the locked EV at that size
+                cell = f"X{x:>5.1f} EV${ev:>+8,.0f} p=1 "
+            else:
+                p = p_fill_map.get(round(f, 4))
+                if f <= 0:
+                    cell = f"X  0.0 EV$      +0 --   "
+                elif p is None:
+                    cell = "  (no P(fill) assumption)"
+                else:
+                    nl = naked_loss_per_share(mark, e_move, exit_fee_bps=fee_bps)
+                    ev = x * prehedge_ev_per_share(p, nb, nl)
+                    cell = f"X{x:>5.1f} EV${ev:>+8,.0f} p={p:.2f}"
+            row += f"| {cell} "
+        lines.append(row)
+    lines.append("    read: EV in TOTAL $ on the pre-hedged tranche. Early nodes carry the naked-")
+    lines.append("    shortfall penalty; the final (allocation) node has none but a decayed basis.")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------------------
+# S1 CSV outputs (result tables -> csv_outputs/market_maps per the repo CSV convention)
+# --------------------------------------------------------------------------------------
+def write_s1_csvs(cells: list[GridCell], rows: list[NodeDecision], out_dir: Path) -> list[Path]:
+    import csv
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    p1 = out_dir / "spcx_s1_hedge_grid.csv"
+    with p1.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["fill_price", "fill_frac", "leverage", "shares_requested", "shares_filled",
+                    "cap_shares", "hedged_shares", "residual_shares", "basis_per_share",
+                    "short_notional", "margin_used", "fee_cost", "funding_income",
+                    "locked_net", "capital", "roc"])
+        for c in cells:
+            w.writerow([c.fill_price, c.fill_frac, c.leverage,
+                        round(c.shares_requested, 3), round(c.shares_filled, 3),
+                        round(c.cap_shares, 3), round(c.hedged_shares, 3),
+                        round(c.residual_shares, 3), round(c.basis_per_share, 4),
+                        round(c.short_notional, 2), round(c.margin_used, 2),
+                        round(c.fee_cost, 2), round(c.funding_income, 2),
+                        round(c.locked_net, 2), round(c.capital, 2), round(c.roc, 6)])
+    paths.append(p1)
+    p2 = out_dir / "spcx_s1_decision_table.csv"
+    with p2.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["fill_price", "node", "t_utc", "p_fill_ge", "prehedge_shares",
+                    "mark_used", "mark_lo", "mark_hi", "net_basis", "net_basis_lo",
+                    "net_basis_hi", "naked_loss", "proj_alloc_basis", "z_naked",
+                    "z_threshold", "ev_vs_never_per_share", "ev_vs_wait_per_share",
+                    "ev_total", "armed"])
+        for r in rows:
+            w.writerow([r.fill_price, r.node, r.t_utc.isoformat(), r.p_fill_ge,
+                        round(r.prehedge_shares, 3), round(r.mark_used, 4),
+                        round(r.mark_lo, 4), round(r.mark_hi, 4), round(r.net_basis, 4),
+                        round(r.net_basis_lo, 4), round(r.net_basis_hi, 4),
+                        round(r.naked_loss, 4), round(r.proj_alloc_basis, 4),
+                        round(r.z_naked, 4), round(r.z_threshold, 4),
+                        round(r.ev_per_share, 4), round(r.ev_vs_wait_per_share, 4),
+                        round(r.ev_total, 2), r.armed])
+    paths.append(p2)
+    return paths
+
+
+# --------------------------------------------------------------------------------------
+# S1 live inputs: EURUSD (live, flagged) + candles (cached like snapshots)
+# --------------------------------------------------------------------------------------
+def fetch_eurusd(timeout: float = 15.0) -> tuple[float, str]:
+    """Live EURUSD with the source flagged. Yahoo intraday first (same chart API the
+    Cerebras case study uses), open.er-api.com daily as fallback."""
+    import httpx
+
+    try:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?range=1d&interval=1h"
+        r = httpx.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
+        r.raise_for_status()
+        meta = r.json()["chart"]["result"][0]["meta"]
+        return float(meta["regularMarketPrice"]), "Yahoo EURUSD=X intraday"
+    except Exception:  # noqa: BLE001 - fall through to the daily source
+        pass
+    r = httpx.get("https://open.er-api.com/v6/latest/EUR", timeout=timeout)
+    r.raise_for_status()
+    d = r.json()
+    return float(d["rates"]["USD"]), f"open.er-api.com daily ({d.get('time_last_update_utc', '?')})"
+
+
+def resolve_eurusd(args: argparse.Namespace) -> tuple[float, str]:
+    """--eurusd override > live fetch (cached for --offline) > cached > error."""
+    fx_cache = args.out_dir / "fx_latest.json"
+    if args.eurusd is not None:
+        return args.eurusd, "OVERRIDE (--eurusd)"
+    if not args.offline:
+        try:
+            rate, src = fetch_eurusd()
+            args.out_dir.mkdir(parents=True, exist_ok=True)
+            fx_cache.write_text(json.dumps({
+                "fetched_at_utc": datetime.now(timezone.utc).isoformat(),
+                "rate": rate, "source": src}))
+            return rate, src
+        except Exception as exc:  # noqa: BLE001 - fall back to cache, flagged
+            if fx_cache.exists():
+                d = json.loads(fx_cache.read_text())
+                return d["rate"], f"CACHED {d['source']} @ {d['fetched_at_utc']} (live failed: {exc})"
+            raise SystemExit(f"ERROR: EURUSD fetch failed ({exc}) and no cache; pass --eurusd.")
+    if fx_cache.exists():
+        d = json.loads(fx_cache.read_text())
+        return d["rate"], f"CACHED {d['source']} @ {d['fetched_at_utc']}"
+    raise SystemExit("ERROR: --offline with no cached EURUSD; pass --eurusd.")
+
+
+def get_candles(args: argparse.Namespace, coin: str,
+                since_utc: datetime) -> tuple[list[datetime], list[float], str]:
+    """Hourly candles for the decay fit: live fetch + cache, or cache under --offline."""
+    cached = load_latest_candles(coin, "1h", args.out_dir)
+    if not args.offline:
+        try:
+            candles = fetch_hl_candles(coin, "1h", since_utc, datetime.now(timezone.utc))
+            save_candles(coin, "1h", candles, args.out_dir)
+            note = "LIVE"
+        except Exception as exc:  # noqa: BLE001 - fall back to cache, flagged
+            if cached is None:
+                raise SystemExit(f"ERROR: candle fetch failed ({exc}) and no cache.")
+            candles, note = cached["candles"], f"CACHED @ {cached['fetched_at_utc']} (live failed)"
+    else:
+        if cached is None:
+            raise SystemExit("ERROR: --offline with no cached candles; run once online.")
+        candles, note = cached["candles"], f"CACHED @ {cached['fetched_at_utc']}"
+    times = [datetime.fromtimestamp(c["t"] / 1000, timezone.utc) for c in candles]
+    closes = [float(c["c"]) for c in candles]
+    return times, closes, note
+
+
+def _parse_utc(s: str) -> datetime:
+    dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _parse_weighted_map(spec: str) -> list[tuple[float, float]]:
+    """'0.13:1,0.26:1,0.39:1' -> [(0.13,1.0), ...] (weights normalized downstream)."""
+    out = []
+    for part in spec.split(","):
+        if not part.strip():
+            continue
+        k, v = part.split(":")
+        out.append((float(k), float(v)))
+    return out
+
+
+def run_s1(args: argparse.Namespace) -> int:
+    """Drive S1 (a)+(b)+(c): grid, decay fit, decision table, per the flags given."""
+    snap, snap_age = get_snapshot(args)
+    contracts = contracts_from_snapshot(snap, ipo_base=args.ipo_base, xyz_base=args.xyz_base)
+    key = "xyz" if args.contract == "both" else args.contract
+    c = contracts.get(key)
+    if c is None:
+        print(f"ERROR: contract {key} not in snapshot.", file=sys.stderr)
+        return 2
+    if args.contract == "both":
+        print(f"[S1] --contract both -> grid/decision computed on {c.name} "
+              "(the gameplan's hedge instrument; pass --contract vntl to override).\n")
+    now_utc = datetime.now(timezone.utc)
+    pse = per_ipo_share_equiv(c.mark, c.base, c.units, args.ipo_base)
+    cps = fdv_neutral_contract_count(1.0, args.ipo_base, c.base, c.units, c.mark)
+    settle_utc = _parse_utc(args.settle_utc)
+    hours_now = max(0.0, (settle_utc - now_utc).total_seconds() / 3600.0)
+    nodes = [("NOW", now_utc), ("D1 pricing-night", _parse_utc(args.node_d1_utc)),
+             ("D2 allocation", _parse_utc(args.node_d2_utc))]
+    print(f"[S1] snapshot: {snap_age} | {c.name} mark {c.mark:,.2f} "
+          f"(per-IPO-share ${pse:,.2f}) | funding {c.funding_hourly*100:+.6f}%/hr | "
+          f"settle {settle_utc:%Y-%m-%d %H:%M} UTC ({hours_now:.0f}h away)\n")
+
+    need_grid = args.grid or args.decision
+    need_fit = args.decay_fit or args.decision
+
+    eurusd, fx_note = (resolve_eurusd(args) if (need_grid or args.decision)
+                       else (float("nan"), "n/a"))
+
+    fit: Optional[DecayFit] = None
+    if need_fit:
+        since = _parse_utc(args.decay_since)
+        times, closes, candle_note = get_candles(args, c.name, since)
+        try:
+            fit = fit_premium_decay(times, closes, args.offer, cutoff_utc=now_utc,
+                                    boot_n=args.boot_n)
+        except ValueError as exc:
+            print(f"[S1] decay fit unavailable ({exc}); decision falls back to the live "
+                  "mark at every node.", file=sys.stderr)
+        if fit is not None:
+            ticks = load_watch_log_marks(args.out_dir / "watch_log", c.name)
+            xc = crosscheck_watchlog_vs_candles(ticks, times, closes)
+            proj_nodes = nodes[1:] + [("settlement", settle_utc)]
+            recent_start = now_utc - _td(seconds=args.decay_recent_days * 86400)
+            try:
+                recent_fit: Optional[DecayFit] = fit_premium_decay(
+                    [t for t in times if t >= recent_start],
+                    [cl for t, cl in zip(times, closes) if t >= recent_start],
+                    args.offer, cutoff_utc=now_utc, boot_n=0)
+            except ValueError:
+                recent_fit = None
+            print(render_decay_text(fit, proj_nodes, c.mark, now_utc, xc, since))
+            print(render_recent_sensitivity(fit, recent_fit, c.mark, now_utc,
+                                            nodes[-1], args.decay_recent_days))
+            print(f"  candles: {candle_note}\n")
+            if args.decay_chart:
+                make_decay_chart(fit, times, closes, proj_nodes, c.mark, now_utc,
+                                 args.decay_chart)
+                print(f"[S1] wrote decay chart -> {args.decay_chart}\n")
+
+    fee_sides = 2.0 if (c.settlement == CONVERT_IN_PLACE or args.fee_both_sides) else 1.0
+    grid_cells: list[GridCell] = []
+    if need_grid:
+        grid_cells = build_hedge_grid(
+            per_ipo_share_mark=pse, mark=c.mark, contracts_per_share=cps,
+            funding_hourly=c.funding_hourly, hours_to_settle=hours_now,
+            fee_bps=args.hl_fee_bps, fee_sides=fee_sides,
+            subscription_eur=args.subscription_eur, eurusd=eurusd,
+            margin_eur=args.margin_eur, fill_prices=fill_price_axis(),
+            fill_fracs=[float(x) for x in args.grid_fills.split(",")],
+            leverages=[float(x) for x in args.grid_leverages.split(",")])
+        print(render_grid_text(grid_cells, c.name, c.mark, eurusd, fx_note,
+                               args.margin_eur, args.subscription_eur, hours_now) + "\n")
+
+    if args.decision:
+        p_fill_map = {round(k, 4): v for k, v in _parse_weighted_map(args.p_fill)}
+        meltup = _parse_weighted_map(args.meltup_dist)
+        lev = max(float(x) for x in args.grid_leverages.split(","))
+        rows = build_decision_table(
+            fill_prices=fill_price_axis(), nodes=nodes, now_name="NOW",
+            live_mark=c.mark, fit=fit, p_fill_map=p_fill_map,
+            prehedge_fill_frac=args.prehedge_fill, meltup_dist=meltup,
+            subscription_eur=args.subscription_eur, eurusd=eurusd,
+            margin_eur=args.margin_eur, leverage=lev, contracts_per_share=cps,
+            funding_hourly=c.funding_hourly, settle_utc=settle_utc,
+            fee_bps=args.hl_fee_bps)
+        print(render_decision_text(rows, nodes, args.prehedge_fill, p_fill_map, meltup,
+                                   args.margin_eur, eurusd, fx_note, lev, c.mark,
+                                   c.name, fit) + "\n")
+        print(render_ev_matrix_text(
+            c.mark, fit, nodes, "NOW", args.offer, [0.0, 0.10, 0.25], p_fill_map, meltup,
+            args.subscription_eur, eurusd, args.margin_eur, lev, cps,
+            c.funding_hourly, settle_utc, args.hl_fee_bps) + "\n")
+        csv_dir = Path(__file__).resolve().parents[1] / "data" / "analysis" / "csv_outputs" / "market_maps"
+        for p in write_s1_csvs(grid_cells, rows, csv_dir):
+            print(f"[S1] wrote {p}")
+    return 0
+
+
 # --------------------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------------------
@@ -898,6 +1904,47 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                    help="WARN band + terminal bell when the live liq buffer thins below this %% (default 10)")
     p.add_argument("--parquet-log", action="store_true",
                    help="append-only Parquet tick shards under <out-dir>/watch_log/ during --watch")
+    # ---- Block S1: hedge grid + basis-decay fit + pre-hedge timing rule ----
+    p.add_argument("--grid", action="store_true",
+                   help="S1(a): print the fill-price x fill-fraction x margin hedge grid")
+    p.add_argument("--decay-fit", action="store_true",
+                   help="S1(b): fit + print the basis-decay model on HL hourly candles")
+    p.add_argument("--decision", action="store_true",
+                   help="S1(c): print the one-page pre-registered pre-hedge rule table "
+                        "(implies the grid and the decay fit; writes the S1 CSVs)")
+    p.add_argument("--subscription-eur", type=float, default=10_000.0,
+                   help="TR subscription size in EUR (default 10000)")
+    p.add_argument("--margin-eur", type=float, default=2_000.0,
+                   help="free Hyperliquid margin in EUR for the short (default 2000)")
+    p.add_argument("--eurusd", type=float, default=None,
+                   help="override the live EURUSD rate (else fetched + source flagged)")
+    p.add_argument("--grid-fills", default="0.10,0.25,0.50,1.0",
+                   help="comma fill fractions for the grid (default 10/25/50/100%%)")
+    p.add_argument("--grid-leverages", default="1.0,1.5",
+                   help="comma leverages for the grid / decision margin ceiling (default 1.0,1.5)")
+    p.add_argument("--prehedge-fill", type=float, default=0.10,
+                   help="pessimistic fill fraction the pre-hedge is sized to (default 0.10; "
+                        "the gameplan caps pre-hedges at the 10%%-fill row)")
+    p.add_argument("--p-fill", default="0.10:0.80,0.25:0.50",
+                   help="ASSUMPTION: comma map fill_frac:P(fill>=frac) (default "
+                        "'0.10:0.80,0.25:0.50')")
+    p.add_argument("--meltup-dist", default="0.13:1,0.26:1,0.39:1",
+                   help="ASSUMPTION: melt-up move:weight map from the Cerebras analogs "
+                        "(default equal weights on +13/+26/+39%%)")
+    p.add_argument("--decay-since", default="2026-05-14T00:00:00Z",
+                   help="fit window start (HL may have purged earlier bars; flagged if so)")
+    p.add_argument("--boot-n", type=int, default=500,
+                   help="daily-block bootstrap resamples for the decay-fit CI (default 500)")
+    p.add_argument("--decay-recent-days", type=float, default=7.0,
+                   help="window for the regime-shift sensitivity refit (default last 7 days)")
+    p.add_argument("--node-d1-utc", default="2026-06-11T20:00:00Z",
+                   help="D1 pricing-night node (default Thu 22:00 CEST = 20:00 UTC)")
+    p.add_argument("--node-d2-utc", default="2026-06-12T06:00:00Z",
+                   help="D2 allocation node (default Fri 08:00 CEST = 06:00 UTC)")
+    p.add_argument("--settle-utc", default="2026-06-12T20:00:00Z",
+                   help="settlement reference for funding accrual (default Fri 16:00 ET close)")
+    p.add_argument("--decay-chart", type=Path, default=None,
+                   help="write the decay-fit + projection chart PNG here")
     return p.parse_args(argv)
 
 
@@ -1029,6 +2076,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.watch is not None:
         return run_watch(args, scenarios, close_grid)
+
+    if args.grid or args.decay_fit or args.decision:
+        return run_s1(args)
 
     snap, snap_age = get_snapshot(args)
     evals = build_evals(args, snap, scenarios, close_grid)

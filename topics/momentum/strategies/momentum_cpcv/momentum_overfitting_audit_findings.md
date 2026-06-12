@@ -24,6 +24,7 @@ tags:
 - **Why it was written:** the 2.24 number is the mean over CPCV paths of search-selected configs; nothing in the stack previously measured selection bias. This was the top never-run item on the novelty frontier list.
 - **What ran:** for each asset, a same-design 400-trial TPE search was replayed on the exact sample behind the artifacts (prices reconstructed from the pickles, not refetched), giving the full candidate-return matrix the original search effectively chose from. From that: Deflated Sharpe Ratio, PBO via CSCV, and White's Reality Check, with bootstrap CIs.
 - **One-line takeaway:** **the edge is real but the optimiser isn't adding anything** — the book's Sharpe survives the selection haircut comfortably (post-haircut ≈ 1.94, conservative lower bound ≈ 1.20, never below 0.84 even under the harshest haircut variant), but PBO is 0.57–0.92 across assets (mean 0.805), meaning the in-sample-best parameter set is *systematically not* the out-of-sample-best. The pre-registered gate therefore fires: **FLAG-FOR-REVIEW** — keep the book live, re-baseline expectations to ~1.6–1.9 portfolio Sharpe, and stop trusting per-fold optimiser winners over plateau-centre (consensus) parameters.
+- **Same-day addendum:** a 500-path synthetic-null Monte Carlo (§ below) empirically confirmed the "edge is real" leg — the search pipeline cannot manufacture the real numbers on trend-free synthetic data (portfolio at the 100th percentile of the null; all six assets clear the pre-registered 95th-percentile gate on the primary null). The verdict is unchanged: the failing leg was never edge reality, it's parameter selection.
 
 ## What was tested and why these three statistics
 
@@ -99,10 +100,39 @@ The replayed trial Sharpes are extraordinarily tight per asset (full-sample, TPE
 
 **Read:** the answer to the headline question — *does the live book's edge survive a proper overfitting haircut?* — is **yes in level terms**: a realistic forward baseline is ≈ 1.9 portfolio Sharpe (≈ 1.6 under the harshest haircut), with a conservative lower bound of ≈ 1.2 (0.84 harshest). The 2.24 headline should no longer be quoted unhaircut. The gate still fires, correctly, because PBO reveals a process problem: **the optimisation step is buying nothing** — a median (plateau-centre) config would be expected to do as well as or better OOS than the freshly-optimised winner.
 
+## Synthetic-null Monte Carlo (added 2026-06-10, same day) — the empirical cross-check
+
+The DSR's haircut is an analytic formula (normality + extreme-value assumptions). The synthetic-null MC re-asks its question **empirically**: could the best-of-400 selection have manufactured the real max Sharpe on data with **no exploitable trend structure**? Runner: `run_synthetic_null_mc.py` (this folder); raw results: `oos/synthetic_null_mc_2026-06-10.pkl`, `synthetic_null_mc_summary.csv`.
+
+**Design (pre-registered before running).** Null paths = stationary block bootstrap of bar-level relative bars (mean block 10 bars, primary), resampled **jointly** across the 6 assets (same block indices, so cross-asset correlation survives) on their common dates (2020-10-04 → 2026-04-28, 2,033 daily bars). This preserves drift, fat tails, and sub-2-week vol clustering while destroying the longer-range trend persistence momentum exploits. The statistic is identical on both sides: max-of-400-configs Sharpe per asset (the same 400 candidates as the audit — the search replay was asserted bit-identical to the audit pickle), portfolio = equal-weight of the six per-asset best-config return series. 200 primary paths; 100 paths per sensitivity variant (demeaned null, mean block 5, mean block 20). All ~1.2M backtests ran through a numpy port of the strategy verified Sharpe-identical to the notebook pipeline (`fast_momentum.py`, worst |ΔSharpe| = 0.0 across 30 random configs). **Gate: real > 95th percentile of the null distribution.**
+
+Note the real stats here are **full-period max-of-400 on common dates** (e.g. portfolio 2.83) — a different object from the CPCV OOS 2.24; the comparison is search-pipeline-vs-search-pipeline, not a restatement of the headline.
+
+| Variant | Portfolio real vs null q95 | Portfolio pctile | Assets passing (of 6) | Asset pctile range |
+|---|---|---|---|---|
+| **Primary: drift-preserving, block 10** | **2.83 vs 2.26** | **1.000** | **6/6** | 0.955–1.000 |
+| Demeaned (drift removed), block 10 | 2.83 vs 2.14 | 1.000 | 6/6 | 0.960–1.000 |
+| Block 5 (more structure destroyed) | 2.83 vs 1.86 | 1.000 | 6/6 | 0.990–1.000 |
+| Block 20 (≈month runs preserved) | 2.83 vs 2.70 | 0.970 | 2/6 | 0.910–1.000 |
+
+*Column glossary: "real vs null q95" = the real max-of-400 portfolio Sharpe against the 95th percentile of the same statistic over the null paths; "pctile" = share of null paths the real value beats (gate: > 0.95; MC standard error ≈ ±0.015 at 200 paths, ±0.022 at 100).*
+
+![[synthetic_null_mc_dist.png]]
+*Chart read: left — the real best-config portfolio Sharpe (green, 2.83) sits beyond the entire 200-path null distribution (blue), well past the null's 95th percentile (red dashed). Right — the real statistic's percentile within each null variant, per asset and portfolio; only the block-20 variant (red) dips below the 0.95 gate on individual assets.*
+
+**Reads:**
+- **Primary gate: PASS everywhere.** A 400-trial search on trend-free (but drift-, fat-tail-, and correlation-realistic) data does not reach the real numbers. This empirically confirms the DSR's conclusion without its distributional assumptions — the "real family edge" leg of the audit no longer rests on a formula.
+- **Harsher nulls pass wider.** Removing drift (demeaned) or destroying more structure (block 5) drops the null's q95 substantially — the real edge is *not* drift capture in disguise.
+- **The block-20 row is a horizon localisation, not a falsification.** With ~month-long runs preserved, the null itself partially contains trend persistence — the very phenomenon momentum trades — so the bar rises (portfolio q95 2.70) and 4/6 single assets land at the 0.91–0.94th percentile. Read: the edge lives substantially at the multi-week-to-month horizon; against nulls that already grant that structure, single-asset evidence thins while the diversified portfolio still clears (0.970). A null embedding the tested phenomenon is over-conservative by construction — the pre-registered primary is the fair test.
+- **Borderline flag:** AVAX's primary pass (0.955) is within MC error of the 0.95 gate; its demeaned/block-5 passes (0.960/1.000) and the portfolio result carry it.
+
+**Effect on the verdict: none — and that's the point.** The MC strengthens the already-passing legs (edge reality) and says nothing about the failing leg (PBO/parameter selection). The book's disposition remains **FLAG-FOR-REVIEW** with the same actions: re-baseline to post-haircut expectations, deploy plateau-centre parameters.
+
 ## Assumption ledger (realism calibration, [[CODEX]] § Realism calibration)
 
 **Modeled assumptions (could move the numbers):**
-- The trial matrix is a *same-design replay* (one 400-trial TPE on the full sample per asset), not the original discarded per-split studies; cross-trial variance and correlations are estimated from it. The original selection events optimised on ~75% train slices — the replay's objective sees the full sample.
+- The trial matrix is a *same-design replay* (one 400-trial TPE on the full sample per asset), not the original discarded per-split studies; cross-trial variance and correlations are estimated from it. The original selection events optimised on ~75% train slices — the replay's objective sees the full sample. (The replay is deterministic: the MC's re-replay reproduced the audit's trial Sharpes bit-identically.)
+- MC null construction: stationary block bootstrap of relative bars, mean block 10 (primary). The block length sets how much serial structure counts as "null" — the block-20 sensitivity shows the result's dependence on that choice and is reported, not hidden. Regime-stratified nulls (HMM labels from `topics/regime-classifier/`, currently BTC-only research) are the natural next refinement.
 - DSR's N_eff = p̄ + (1−p̄)·M (pre-registered) — raw-400 and 11,200-trial variants reported throughout; no variant changes any conclusion.
 - Portfolio haircut aggregates sleeve drags in return units (assumes sleeve selection biases are additive in means); 0.2% round-trip cost as everywhere in the stack; the representative OOS series is the median-Sharpe path.
 - PBO's 12,870 CSCV partitions are mutually dependent — no formal CI exists; block-count sensitivity (S=8/12/16) spans ±0.07 around each estimate and never approaches the 0.5 gate from above.

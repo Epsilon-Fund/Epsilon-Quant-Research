@@ -41,6 +41,12 @@ import pandas as pd
 
 from data_infra.views import latest_markets_path
 
+# Block SPREAD-2: optional category-gated surface fallback (default OFF; the flat
+# 3c fallback is unchanged unless --surface-fallback is passed). Shared core +
+# validation provenance: lib/copy_slippage.py + spread_surface_tradetime_regate_findings.
+from lib.copy_slippage import k5_category, load_bounce_lookup, reprice_fallback_rows
+from lib.spread_surface import SpreadSurface
+
 # ----------------------------------------------------------------------------
 # Constants — DOMAH is the original/default leader; main() now accepts any.
 # ----------------------------------------------------------------------------
@@ -469,6 +475,39 @@ def apply_branches(frag: pd.DataFrame, fallback_cents: float) -> pd.DataFrame:
     f["taker_source"] = taker_source
     f["taker_price"]  = taker_price
     f["fallback_cents"] = fallback_cents
+    return f
+
+
+def add_surface_fallback_columns(frag: pd.DataFrame, con: duckdb.DuckDBPyConnection,
+                                 surface_csv: Path, breaks_csv: Path,
+                                 xcheck_csv: Path) -> pd.DataFrame:
+    """Block SPREAD-2 (opt-in): attach the category-gated surface_fallback copy
+    price for this leader's FALLBACK rows (taker_source == 'fallback'), alongside
+    the incumbent flat-3c. Reuses the FROZEN SPREAD-1 surface; only validated K5
+    categories are repriced (politics_negrisk and others keep flat-3c). Leaves
+    next_fill rows untouched.
+
+    Adds: k5_category, sf_fallback_cents, sf_source, sf_used_bounce, sf_copy_price,
+    flat3c_copy_price, taker_price_surface (next_fill where present else surface
+    fallback). The default audit path does NOT call this; pass --surface-fallback."""
+    mp = latest_markets_path()
+    mkts = con.execute(f"""
+        SELECT CAST(id AS VARCHAR) AS market_id, coalesce(question,'') AS question,
+               coalesce(neg_risk,false) AS neg_risk
+        FROM read_parquet('{mp}')
+    """).df()
+    f = frag.merge(mkts, on="market_id", how="left")
+    f["k5_category"] = k5_category(f, slug_col="slug", question_col="question",
+                                   neg_risk_col="neg_risk")
+    surf = SpreadSurface.load(surface_csv, breaks_csv)
+    bounce = load_bounce_lookup(xcheck_csv)
+    f = reprice_fallback_rows(
+        f, surf, bounce, price_col="price", ttr_h_col="hours_to_resolution",
+        dir_col="direction", maker_col=(f["role"] == "maker"),
+        leader_price_col="price", is_fallback=(f["taker_source"] == "fallback"))
+    has_nf = np.isfinite(f["nf1_price"].astype(float).to_numpy())
+    f["taker_price_surface"] = np.where(has_nf, f["nf1_price"].astype(float),
+                                        f["sf_copy_price"])
     return f
 
 
@@ -1056,7 +1095,8 @@ def render_report(
 def main(leader: str | None = None,
          label: str | None = None,
          out_subdir: str | None = None,
-         family_keywords: list[tuple[str, tuple[str, ...]]] | None = None) -> None:
+         family_keywords: list[tuple[str, tuple[str, ...]]] | None = None,
+         surface_fallback: bool = False) -> None:
     leader = (leader or DOMAH).lower()
     label  = label or ("domah" if leader == DOMAH else leader[:10])
     out_dir = OUT_DIR / (out_subdir or "")
@@ -1089,6 +1129,12 @@ def main(leader: str | None = None,
     log(f"  loaded {len(closed):,} closed positions for {leader[:10]}…")
     pos = replay_positions(frag_b, closed)
     pos.to_parquet(out_dir / f"{label}_audit_positions.parquet", index=False)
+    # SPREAD-2 (opt-in): enrich fragments with the category-gated surface fallback.
+    if surface_fallback:
+        from scripts.phase5_spread_surface import BREAKS_CSV, SURFACE_CSV, XCHECK_CSV
+        frag_b = add_surface_fallback_columns(frag_b, con, SURFACE_CSV, BREAKS_CSV, XCHECK_CSV)
+        log(f"  surface_fallback: repriced {int((frag_b['sf_source'].str.startswith('surface')).sum()):,} "
+            f"fallback rows on validated categories (flat-3c kept elsewhere)")
     frag_b.to_parquet(out_dir / f"{label}_audit_fragments.parquet", index=False)
 
     # 5. Family table
@@ -1239,6 +1285,9 @@ if __name__ == "__main__":
                     help="Subdirectory under data/analysis/ to write outputs.")
     ap.add_argument("--use-proposed-keywords", action="store_true",
                     help="Use the Task-1 augmented FAMILY_KEYWORDS from domah_family_validation.py.")
+    ap.add_argument("--surface-fallback", action="store_true",
+                    help="SPREAD-2: enrich fragments with the category-gated surface "
+                         "fallback copy price (validated K5 cats; flat-3c elsewhere).")
     args = ap.parse_args()
     rules = None
     if args.use_proposed_keywords:
@@ -1247,4 +1296,4 @@ if __name__ == "__main__":
         rules = _augment_rules()
         log(f"Using proposed FAMILY_KEYWORDS (Task 1) — {sum(len(k) for _,k in rules)} keywords.")
     main(leader=args.leader, label=args.label, out_subdir=args.out_subdir,
-         family_keywords=rules)
+         family_keywords=rules, surface_fallback=args.surface_fallback)
