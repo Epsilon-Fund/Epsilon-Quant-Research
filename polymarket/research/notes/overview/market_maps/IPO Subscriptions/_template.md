@@ -10,10 +10,10 @@ tags: [ipo, subscription, log]
 
 # IPO Subscription Log — <DEAL NAME> (<TICKER>)
 
-> System: [[eu_ipo_broker_subscription_model]] · Folder guide: `IPO Subscriptions/README.md`
+> System: [[eu_ipo_broker_subscription_model]] · Hub: [[POLYMARKET_BRAIN]] · Folder guide: `README.md` (this folder)
 > Recommender: `polymarket/research/scripts/eu_ipo_capital_split.py`
 >
-> HOW TO USE: copy this file to `IPO Subscriptions/<Deal>_<TICKER>_<YYYY-MM>.md`, fill the
+> HOW TO USE: copy this file within this folder to `<Deal>_<TICKER>_<YYYY-MM>.md`, fill the
 > prospectus terms and your planned subscription BEFORE the deadline, then fill the realised-fill
 > table AFTER allocation. Keep the `Realised Fill (per broker)` table's column names exactly as
 > below — the track-record tool parses them. Use `TBD` (not 0) for anything unresolved so it is

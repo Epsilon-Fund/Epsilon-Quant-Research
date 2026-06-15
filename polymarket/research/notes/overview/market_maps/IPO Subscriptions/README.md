@@ -7,21 +7,25 @@ tags: [ipo, subscription, index]
 
 # IPO Subscriptions
 
+> Hub: [[POLYMARKET_BRAIN]] · Decision model: [[eu_ipo_broker_subscription_model]]
+
+## Plain-English Summary
+
 Operational tracking for EU retail IPO subscriptions. The **decision model + reasoning** lives in
-[[eu_ipo_broker_subscription_model]] (under `polymarket/research/notes/overview/market_maps/`); this
+[[eu_ipo_broker_subscription_model]] (under `notes/overview/market_maps/`, alongside this folder); this
 folder holds the **per-deal logs** and the **rolling per-broker fill-rate track record** built from them.
 
 ## Files
 
 | file | what it is |
 |---|---|
-| `_template.md` | Reusable per-deal log template. Copy it per deal; never edit in place. |
-| `SpaceX_SPCX_2026-06.md` | The SpaceX (`SPCX`) deal, pre-filled with known prospectus terms. |
+| [[_template]] | Reusable per-deal log template. Copy it per deal; never edit in place. |
+| [[SpaceX_SPCX_2026-06]] | The SpaceX (`SPCX`) deal, pre-filled with known prospectus terms. |
 | `README.md` | This guide. |
 
 ## Add a deal
 
-1. Copy `_template.md` → `IPO Subscriptions/<Deal>_<TICKER>_<YYYY-MM>.md`.
+1. Copy `_template.md` → `<Deal>_<TICKER>_<YYYY-MM>.md` (same folder).
 2. Fill the **Prospectus Terms** and your **Per-Broker Plan** *before* the deadline. Get the split from:
 
    ```bash

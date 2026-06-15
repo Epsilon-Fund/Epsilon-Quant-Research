@@ -10,8 +10,8 @@ tags: [ipo, subscription, log, spacex, spcx]
 
 # IPO Subscription Log — SpaceX (SPCX)
 
-> System: [[eu_ipo_broker_subscription_model]] · SpaceX cluster: [[spacex_ipo_market_map_handoff]] · [[spacex_ipo_coworker_addendum]] · [[spcx_convergence_calc_findings]] · [[spacex_pdf_construction_audit]]
-> Recommender: `polymarket/research/scripts/eu_ipo_capital_split.py` · Folder guide: `IPO Subscriptions/README.md`
+> System: [[eu_ipo_broker_subscription_model]] · Hub: [[POLYMARKET_BRAIN]] · SpaceX cluster: [[spacex_ipo_market_map_handoff]] · [[spacex_ipo_coworker_addendum]] · [[spcx_convergence_calc_findings]] · [[spacex_pdf_construction_audit]]
+> Recommender: `polymarket/research/scripts/eu_ipo_capital_split.py` · Folder guide: `README.md` (this folder)
 
 ## Plain-English Summary
 
