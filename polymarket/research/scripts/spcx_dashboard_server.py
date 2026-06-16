@@ -304,7 +304,7 @@ class DashboardServer:
 
     async def _page(self, request):
         from aiohttp import web
-        return web.Response(text=(ASSETS_DIR / "spcx_dashboard.html").read_text(),
+        return web.Response(text=(ASSETS_DIR / "spcx_dashboard.html").read_text(encoding="utf-8"),
                             content_type="text/html")
 
     async def _asset(self, request):

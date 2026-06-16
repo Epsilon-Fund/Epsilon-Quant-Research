@@ -340,6 +340,8 @@ def load_stubhub_pm(markets: list[dict]) -> dict[str, pd.DataFrame]:
         print("[stubhub pm] reconstructed from live on-chain Goldsky fills")
     frames = []
     for strike, d in out.items():
+        if d.empty:
+            continue  # skip no-fill strikes (e.g. the "Other"/No-IPO bucket) to avoid NA-concat
         f = d.copy(); f["strike"] = strike
         if "usd" not in f:
             f["usd"] = np.nan
@@ -442,6 +444,16 @@ Two panels on a shared UTC time axis with a vertical line at the **cross** (firs
 
 The question this answers: did the long-shot strikes get *bid up* into the listing, and where were
 they at the moment the stock finally printed?
+
+> **Structural caveat (important for the SPCX mapping).** Cerebras priced far above its range and
+> closed **+68%** (day-1 high **+108%**), so its market cap landed in the open-ended **`$50B+`**
+> top bucket — which *won*. That means **every Cerebras tail we plot here is a *low-side* tail**
+> (a strike the cap came in *above*), and Cerebras has **no upper-tail strike at all** (the top
+> bucket is open-ended). The SPCX trade sells **upper** tails (`>$2.8T …`, which only win on a big
+> pop). So read the Cerebras low-side tails as "how a long shot dies as certainty arrives," and
+> treat the **`$50B+` winner trajectory** (Cell 3) as the only Cerebras analog to an upper tail
+> *getting pumped by a pop*. The cleaner structural upper-tail analog is StubHub's high strikes
+> (Cell 5).
 """)
 
 code(r'''
@@ -811,41 +823,92 @@ print("\nColumn meaning: stock_*_vs_offer_% = day-1 high/close move vs the IPO o
       "relative to the cross (negative = BEFORE the cross); mean_half_life_min = avg minutes for a "
       "tail to halve after its peak.")
 
-# ---- map onto SPCX tails ----
+# ---- the two precedent mechanics, stated from the data ----
+print("\n=== HOW THE TWO PRECEDENTS BEHAVED (mechanics, not a forecast) ===")
+def hrs(mins):
+    return f"{mins/60:+.1f}h"
+print(f"Cerebras stock: +{cbrs_hi:.0f}% day-1 high / +{cbrs_cl:.0f}% close vs offer (BIG POP).")
+print(f"  Low-side tails (the 4 strikes the cap blew past) peaked a median "
+      f"{hrs(cbrs_sum['median_peak_@min'])} from the cross — i.e. DURING pre-pricing uncertainty, "
+      f"days before listing — and held only ~{cbrs_sum['mean_%max_at_cross']}% of peak by the cross. "
+      f"By listing day they were already ~dead (~0.1¢). Lesson: a long shot deflates as certainty "
+      f"arrives; it is NOT a listing-day-pop sell.")
+print(f"  The $50B+ winner (open-ended top bucket) is the ONLY Cerebras analog to an UPPER tail "
+      f"pumped by a pop: it ran toward ~91¢+ as the +108% pop materialised — but it WON, so it "
+      f"never reverted. An SPCX upper tail only behaves this way intraday IF the cap genuinely "
+      f"spikes, and reverts once the close settles below the strike.")
+print(f"\nStubHub stock: +{stub_hi:.0f}% high / {stub_cl:.0f}% close vs offer (FLOP).")
+far = [s for s in stub_tails if s in ("$10–11B", "$11–12B", "$12–13B", "≥$13B")]
+far_tbl = sell_window_table(stub_pm, far, STUB_CROSS_APPROX)
+if not far_tbl.empty:
+    print(f"  FAR upper tails {far} (the true SPCX analog) peaked a median "
+          f"{hrs(int(far_tbl['max_@min'].median()))} from the (approx) cross and held only "
+          f"~{round(far_tbl['%max_at_cross'].dropna().mean())}% of peak by it — they were bid on "
+          f"pre-listing optimism, then bled out as the flop became clear. (Note: $7–8B sits next to "
+          f"the $8–9B winner — it is near-the-money, not a true long-shot tail.)")
+
+# ---- map onto SPCX upper tails (premium-weighted, differentiated) ----
 SPCX = {">$2.8T": 9, ">$3.0T": 6, ">$3.2T": 4, ">$3.4T": 3, ">$3.6T": 3, ">$3.8T": 1, ">$4.0T": 1}
-pct_at_cross = cbrs_sum.get("mean_%max_at_cross") or 0
-print("\n=== SPCX TAIL MAP (Cerebras-like repricing) ===")
-print(f"Cerebras tails retained ~{pct_at_cross}% of their peak by the cross and peaked a median "
-      f"{cbrs_sum.get('median_peak_@min')} min relative to it.")
-print(f"{'strike':8} {'now¢':>5} {'if it behaves like a CBRS tail':>40}")
+print("\n=== SPCX UPPER-TAIL SELL PRIORITY (strip totals 1 share each) ===")
+total_prem = sum(SPCX.values())
+print(f"Total premium if you sold 1 share of every strike at today's marks: {total_prem}¢ "
+      f"(the fat 4–9¢ strikes carry {SPCX['>$2.8T']+SPCX['>$3.0T']+SPCX['>$3.2T']}¢ of it).")
+print(f"{'strike':8} {'now¢':>5} {'%strip':>7}  read")
 for k, v in SPCX.items():
-    # illustrative: a CBRS-like tail is richest pre/at cross; selling now vs waiting loses ~ (100-pct)
-    print(f"{k:8} {v:5} {'sell into the pre/at-cross euphoria; ~' + str(100 - pct_at_cross) + '% of peak lost if you wait past cross':>40}")
+    share = round(100 * v / total_prem)
+    if v >= 4:
+        note = "PRIMARY — most premium; sell into the pop's peak (front-loaded, see half-life)"
+    elif v >= 2:
+        note = "secondary — sell with the strip"
+    else:
+        note = "marginal — ~1¢ is near-free to the buyer; may not clear the fee/effort to exit"
+    print(f"{k:8} {v:5} {share:6}%  {note}")
 ''')
 
 md(r"""
 ## Takeaways for the SPCX tail-sell (pre-registered intuition)
 
-> The exact numbers are filled in by the executed cells above; this section states how to *read*
-> them into a plan.
+> The numbers are produced by the executed cells above. This section states how to *read* them into
+> a plan — and is deliberately careful about what the precedents do and do **not** prove.
 
-1. **The tails are a sell, and the clock matters more than the level.** Both precedents show
-   long-shot strikes that resolve to 0. The only decision is timing — and the data says the richest
-   prices cluster **around and just before the cross**, not after the stock has settled.
-2. **Front-load the exit.** If Cerebras tails had already lost a meaningful share of their peak by
-   the cross (see `%max_at_cross`) and halved within tens of minutes (`half_life_min`), the SPCX
-   orders should be **resting into the pre-listing pop and worked aggressively at the cross**, not
-   held for a better post-cross print.
-3. **Sell the whole tail strip, weighted to the fattest strikes.** The `>$2.8T` (9¢) and `>$3.0T`
-   (6¢) tokens carry the most premium per share; the 1¢ strikes are almost free options for the
-   buyer and barely worth the fee to exit — prioritise the 4–9¢ strikes.
-4. **n ≈ 1.x — do not over-fit.** StubHub was thin and daily-only; Cerebras is the real anchor.
-   Treat the half-life and peak-timing as *order-of-magnitude* guidance, and watch the live SPCX
-   tape (the `spcx_pm_pdf_monitor` dashboard) for confirmation rather than assuming the precedent.
+**First, the honest structural point: there are two kinds of "tail," and they behave oppositely.**
 
-**Next step:** wire the `%max_at_cross` / `half_life_min` reads into the listing-day playbook
-([[spcx_listing_day_gameplan]]) as the tail-exit schedule, and confirm against the live PM ladder on
-the [[spcx_pm_pdf_monitor_findings|PM-PDF monitor]] as SPCX crosses today.
+- A **low-side tail** (a strike the cap comes in *above*) *deflates as certainty arrives* — it is
+  richest during pre-pricing uncertainty (days before the listing) and is usually ~dead by the
+  cross. All four Cerebras tails are this kind. They are **not** what we are selling on SPCX.
+- An **upper tail** (a strike that only wins on a *big pop* — exactly the SPCX `>$2.8T …` strikes)
+  only gets *bid up by the pop itself*, intraday, and reverts once the close settles below the
+  strike. The clean precedent for this is **StubHub's far-high strikes** (they were bid on
+  pre-listing optimism, then bled when STUB flopped −20%), plus the **Cerebras `$50B+` winner** as
+  the one example of an upper bucket *pumping on a +108% pop* (it just happened to keep going and win).
+
+**What that means for SPCX today (it lists today, 2026-06-12):**
+
+1. **The direction of the trade is conditional on the pop.** SPCX upper tails are worth more *if and
+   while* the stock spikes. So the sell is not "dump at the open" — it is **sell into the peak of the
+   intraday euphoria**, when the implied cap is highest. Per the prior unwind study
+   ([[spcx_ipo_unwind_tape_findings]]), Cerebras's volume-weighted high came **~+1 min after the
+   cross** and the cross print captured **~89% of the day-1 high** — the pump is fast and early.
+2. **Front-load and work it; do not hold for "even higher."** Every tail in both precedents lost the
+   large majority of its peak value within the listing window (`%max_at_cross` ≈ single digits to
+   ~teens for the far tails; `half_life_min` short for the near-cross peaks). The exit window is
+   **narrow** — rest orders into the pop and lift them aggressively, do not wait for a better
+   post-settle print.
+3. **If SPCX is muted or flops (StubHub-like), sell *immediately*.** With no pop, the upper tails
+   have nothing to lift them and only bleed toward 0 — the StubHub far tails held <15% of peak by the
+   cross. A weak open is *more* urgent to sell, not less.
+4. **Weight the strip to the fat strikes.** `>$2.8T` (9¢) and `>$3.0T` (6¢) carry most of the
+   sellable premium; the 1¢ strikes are near-free to the buyer and may not clear the fee/effort to
+   exit. Prioritise the 4–9¢ strikes (see the priority table above).
+5. **n ≈ 1.x — do not over-fit.** StubHub was a thin ~$119K market with daily-only stock; Cerebras
+   is the real anchor but only for *low-side* and *winner* dynamics, not a true upper tail. Treat all
+   timing numbers as order-of-magnitude, and let the **live SPCX tape decide** — watch the upper-tail
+   bid/ask on the [[spcx_pm_pdf_monitor_findings|PM-PDF monitor]] (its PEAK/tail panel is built for
+   exactly these strikes) as SPCX crosses, and sell into the measured spike rather than a precedent.
+
+**Next step:** fold this tail-exit logic into the listing-day playbook ([[spcx_listing_day_gameplan]])
+as a "sell upper tails into the intraday cap-spike peak, front-loaded" rule, and confirm live against
+the PM ladder on the monitor as SPCX lists today.
 """)
 
 

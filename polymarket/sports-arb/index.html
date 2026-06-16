@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sports x Polymarket — Mission Control</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a1a;
+    --card: #12122a;
+    --border: #1e1e3a;
+    --text: #e0e0f0;
+    --muted: #6a6a8a;
+    --track-a: #f472b6;
+    --track-b: #60a5fa;
+    --track-c: #34d399;
+    --track-d: #fbbf24;
+    --glow-a: rgba(244,114,182,0.3);
+    --glow-b: rgba(96,165,250,0.3);
+    --glow-c: rgba(52,211,153,0.3);
+    --glow-d: rgba(251,191,36,0.3);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === HEADER === */
+  .header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    position: relative;
+  }
+  .header h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--track-a), var(--track-b), var(--track-c), var(--track-d));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
+  .header p {
+    color: var(--muted);
+    margin-top: 8px;
+    font-size: 0.95rem;
+  }
+
+  /* === STATS BAR === */
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    padding: 20px;
+    margin: 10px auto 30px;
+    max-width: 700px;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  /* === TRACK CONTAINER === */
+  .tracks {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 30px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* === SINGLE TRACK === */
+  .track {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+  .track::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 16px 16px 0 0;
+  }
+  .track[data-track="a"]::before { background: var(--track-a); }
+  .track[data-track="b"]::before { background: var(--track-b); }
+  .track[data-track="c"]::before { background: var(--track-c); }
+  .track[data-track="d"]::before { background: var(--track-d); }
+
+  .track-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    border: 2px solid;
+    position: relative;
+  }
+  .track[data-track="a"] .avatar { background: var(--glow-a); border-color: var(--track-a); }
+  .track[data-track="b"] .avatar { background: var(--glow-b); border-color: var(--track-b); }
+  .track[data-track="c"] .avatar { background: var(--glow-c); border-color: var(--track-c); }
+  .track[data-track="d"] .avatar { background: var(--glow-d); border-color: var(--track-d); }
+
+  .track-info h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .track[data-track="a"] .track-info h2 { color: var(--track-a); }
+  .track[data-track="b"] .track-info h2 { color: var(--track-b); }
+  .track[data-track="c"] .track-info h2 { color: var(--track-c); }
+  .track[data-track="d"] .track-info h2 { color: var(--track-d); }
+
+  .track-info .desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .track-progress {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  /* === NODES PATH === */
+  .nodes-path {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    padding: 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .node-wrapper {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .node-connector {
+    width: 40px;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+  }
+  .node-connector.completed {
+    background: var(--muted);
+  }
+  .node-connector::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid;
+    border-right: 2px solid;
+    border-color: inherit;
+    transform: rotate(45deg);
+    opacity: 0.5;
+  }
+
+  .node {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    flex-shrink: 0;
+    border: 2px solid var(--border);
+    background: var(--bg);
+  }
+
+  .node .node-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    position: absolute;
+    bottom: -20px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .node.locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .node.locked::after {
+    content: '🔒';
+    font-size: 0.6rem;
+    position: absolute;
+    top: -6px;
+    right: -4px;
+  }
+
+  .node.active {
+    border-width: 3px;
+    animation: pulse 2s infinite;
+  }
+
+  .node.completed {
+    opacity: 1;
+  }
+  .node.completed::after {
+    content: '✓';
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    font-size: 0.7rem;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--bg);
+  }
+
+  /* Track-specific node colors */
+  .track[data-track="a"] .node.active { border-color: var(--track-a); box-shadow: 0 0 20px var(--glow-a); }
+  .track[data-track="a"] .node.completed { border-color: var(--track-a); background: var(--glow-a); }
+  .track[data-track="a"] .node.completed::after { background: var(--track-a); }
+  .track[data-track="b"] .node.active { border-color: var(--track-b); box-shadow: 0 0 20px var(--glow-b); }
+  .track[data-track="b"] .node.completed { border-color: var(--track-b); background: var(--glow-b); }
+  .track[data-track="b"] .node.completed::after { background: var(--track-b); }
+  .track[data-track="c"] .node.active { border-color: var(--track-c); box-shadow: 0 0 20px var(--glow-c); }
+  .track[data-track="c"] .node.completed { border-color: var(--track-c); background: var(--glow-c); }
+  .track[data-track="c"] .node.completed::after { background: var(--track-c); }
+  .track[data-track="d"] .node.active { border-color: var(--track-d); box-shadow: 0 0 20px var(--glow-d); }
+  .track[data-track="d"] .node.completed { border-color: var(--track-d); background: var(--glow-d); }
+  .track[data-track="d"] .node.completed::after { background: var(--track-d); }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  /* === MODAL === */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    max-width: 620px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 32px;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+  }
+  .modal h3 {
+    font-size: 1.4rem;
+    margin-bottom: 6px;
+  }
+  .modal .modal-track-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .modal .goal {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .modal .goal h4 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .modal .goal p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .modal .ai-prompt {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px 0;
+    position: relative;
+  }
+  .modal .ai-prompt h4 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--track-c);
+    margin-bottom: 10px;
+  }
+  .modal .ai-prompt pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #c9d1d9;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .copy-btn:hover { background: #30363d; }
+
+  .modal .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .btn {
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    color: var(--bg);
+  }
+  .btn-secondary {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--muted); }
+
+  .track[data-track="a"] .btn-primary, .modal[data-track="a"] .btn-primary { background: var(--track-a); }
+  .modal[data-track="b"] .btn-primary { background: var(--track-b); }
+  .modal[data-track="c"] .btn-primary { background: var(--track-c); }
+  .modal[data-track="d"] .btn-primary { background: var(--track-d); }
+
+  /* === PLAYER PICKER === */
+  .picker-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+  }
+  .picker-overlay.open { display: flex; }
+
+  .picker {
+    text-align: center;
+    max-width: 440px;
+    width: 100%;
+    padding: 20px;
+  }
+  .picker h2 {
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .picker p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 28px;
+  }
+  .picker-options {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+  }
+  .picker-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .picker-btn:hover {
+    transform: scale(1.12);
+    border-color: var(--track-a);
+    box-shadow: 0 0 24px var(--glow-a);
+  }
+  .picker-btn:nth-child(2):hover { border-color: var(--track-b); box-shadow: 0 0 24px var(--glow-b); }
+  .picker-btn:nth-child(3):hover { border-color: var(--track-c); box-shadow: 0 0 24px var(--glow-c); }
+  .picker-btn:nth-child(4):hover { border-color: var(--track-d); box-shadow: 0 0 24px var(--glow-d); }
+
+  /* === LEADERBOARD === */
+  .leaderboard {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 20px;
+    margin: -10px auto 20px;
+    max-width: 600px;
+  }
+  .lb-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 18px;
+    flex: 1;
+    max-width: 140px;
+    transition: all 0.3s;
+  }
+  .lb-player.is-you {
+    border-color: var(--muted);
+    box-shadow: 0 0 12px rgba(255,255,255,0.05);
+  }
+  .lb-initial {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    color: var(--bg);
+  }
+  .lb-player:nth-child(1) .lb-initial { background: var(--track-a); }
+  .lb-player:nth-child(2) .lb-initial { background: var(--track-b); }
+  .lb-player:nth-child(3) .lb-initial { background: var(--track-c); }
+  .lb-player:nth-child(4) .lb-initial { background: var(--track-d); }
+  .lb-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+  .lb-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .lb-meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .change-player {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    margin-left: 8px;
+    transition: all 0.2s;
+  }
+  .change-player:hover { border-color: var(--muted); color: var(--text); }
+
+  /* === NODE COMPLETED-BY BADGE === */
+  .completed-by {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bg);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header h1 { font-size: 1.6rem; }
+    .stats-bar { gap: 15px; }
+    .stat-value { font-size: 1.4rem; }
+    .tracks { padding: 0 15px 40px; }
+    .track { padding: 18px 20px; }
+    .modal { padding: 24px; }
+    .leaderboard { gap: 8px; }
+    .lb-player { padding: 8px 12px; }
+    .picker-btn { width: 65px; height: 65px; font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Sports x Polymarket</h1>
+  <p>Mission Control — Phase 1: Data &amp; Analysis</p>
+</div>
+
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-value" id="total-completed">0</div>
+    <div class="stat-label">Completed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="total-nodes">0</div>
+    <div class="stat-label">Total Nodes</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="total-progress">0%</div>
+    <div class="stat-label">Progress</div>
+  </div>
+</div>
+
+<div class="leaderboard" id="leaderboard"></div>
+
+<!-- Player Picker -->
+<div class="picker-overlay" id="picker-overlay">
+  <div class="picker">
+    <h2>Who are you?</h2>
+    <p>Pick your initial to track your progress</p>
+    <div class="picker-options">
+      <button class="picker-btn" onclick="pickPlayer('U')">U</button>
+      <button class="picker-btn" onclick="pickPlayer('E')">E</button>
+      <button class="picker-btn" onclick="pickPlayer('A')">A</button>
+      <button class="picker-btn" onclick="pickPlayer('M')">M</button>
+    </div>
+  </div>
+</div>
+
+<div class="tracks" id="tracks-container"></div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal" data-track="">
+    <button class="modal-close" id="modal-close">&times;</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script src="tracks.js"></script>
+<script>
+// ============================================================
+// PLAYERS
+// ============================================================
+const PLAYERS = ["U", "E", "A", "M"];
+const PLAYER_COLORS = { U: "var(--track-a)", E: "var(--track-b)", A: "var(--track-c)", M: "var(--track-d)" };
+const PLAYER_KEY = "sxp_player";
+
+function getCurrentPlayer() {
+  return localStorage.getItem(PLAYER_KEY);
+}
+
+function pickPlayer(initial) {
+  localStorage.setItem(PLAYER_KEY, initial);
+  document.getElementById("picker-overlay").classList.remove("open");
+  render();
+}
+
+function showPicker() {
+  document.getElementById("picker-overlay").classList.add("open");
+}
+
+// ============================================================
+// STATE MANAGEMENT (localStorage)
+// ============================================================
+const STATE_KEY = "sxp_progress";
+const COMPLETIONS_KEY = "sxp_completions"; // tracks who completed what
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STATE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
+
+function saveState(state) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function loadCompletions() {
+  try {
+    const saved = localStorage.getItem(COMPLETIONS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
+
+function saveCompletions(data) {
+  localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(data));
+}
+
+function getNodeState(trackId, nodeIdx) {
+  const state = loadState();
+  return state[`${trackId}_${nodeIdx}`] || "pending";
+}
+
+function getNodeCompletedBy(trackId, nodeIdx) {
+  const comp = loadCompletions();
+  return comp[`${trackId}_${nodeIdx}`] || null;
+}
+
+function setNodeState(trackId, nodeIdx, status) {
+  const state = loadState();
+  const comp = loadCompletions();
+  state[`${trackId}_${nodeIdx}`] = status;
+  if (status === "completed") {
+    comp[`${trackId}_${nodeIdx}`] = getCurrentPlayer() || "?";
+  } else {
+    delete comp[`${trackId}_${nodeIdx}`];
+  }
+  saveState(state);
+  saveCompletions(comp);
+}
+
+function getPlayerCounts() {
+  const comp = loadCompletions();
+  const counts = {};
+  PLAYERS.forEach(p => counts[p] = 0);
+  Object.values(comp).forEach(p => { if (counts[p] !== undefined) counts[p]++; });
+  return counts;
+}
+
+function getNodeStatus(trackId, nodeIdx, node) {
+  const saved = getNodeState(trackId, nodeIdx);
+  if (saved === "completed") return "completed";
+  // First non-completed, non-locked node is active
+  if (node.locked) {
+    // Check if all previous nodes are completed
+    const allPrevDone = TRACKS.find(t => t.id === trackId).nodes
+      .slice(0, nodeIdx)
+      .every((_, i) => getNodeState(trackId, i) === "completed");
+    return allPrevDone ? "active" : "locked";
+  }
+  // Find first non-completed
+  const track = TRACKS.find(t => t.id === trackId);
+  for (let i = 0; i < track.nodes.length; i++) {
+    if (getNodeState(trackId, i) !== "completed") {
+      return i === nodeIdx ? "active" : (i < nodeIdx ? "pending" : "pending");
+    }
+  }
+  return "pending";
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  const container = document.getElementById("tracks-container");
+  container.innerHTML = "";
+
+  let totalNodes = 0;
+  let totalCompleted = 0;
+
+  TRACKS.forEach(track => {
+    const trackEl = document.createElement("div");
+    trackEl.className = "track";
+    trackEl.setAttribute("data-track", track.id);
+
+    const completedInTrack = track.nodes.filter((_, i) => getNodeState(track.id, i) === "completed").length;
+    totalNodes += track.nodes.length;
+    totalCompleted += completedInTrack;
+
+    trackEl.innerHTML = `
+      <div class="track-header">
+        <div class="avatar">${track.emoji}</div>
+        <div class="track-info">
+          <h2>${track.name}</h2>
+          <div class="desc">${track.desc}</div>
+        </div>
+        <div class="track-progress" style="color: var(--track-${track.id})">${completedInTrack}/${track.nodes.length}</div>
+      </div>
+      <div class="nodes-path" id="path-${track.id}"></div>
+    `;
+    container.appendChild(trackEl);
+
+    const path = document.getElementById(`path-${track.id}`);
+    track.nodes.forEach((node, idx) => {
+      const status = getNodeStatus(track.id, idx, node);
+      const wrapper = document.createElement("div");
+      wrapper.className = "node-wrapper";
+
+      if (idx > 0) {
+        const conn = document.createElement("div");
+        conn.className = `node-connector ${getNodeState(track.id, idx - 1) === "completed" ? "completed" : ""}`;
+        wrapper.appendChild(conn);
+      }
+
+      const nodeEl = document.createElement("div");
+      nodeEl.className = `node ${status}`;
+      const completedBy = getNodeCompletedBy(track.id, idx);
+      const byBadge = completedBy ? `<span class="completed-by" style="background:${PLAYER_COLORS[completedBy] || 'var(--muted)'}">${completedBy}</span>` : '';
+      nodeEl.innerHTML = `${node.icon}<span class="node-num">${idx + 1}</span>${byBadge}`;
+
+      if (status !== "locked") {
+        nodeEl.onclick = () => openModal(track, idx, status);
+      }
+
+      wrapper.appendChild(nodeEl);
+      path.appendChild(wrapper);
+    });
+  });
+
+  document.getElementById("total-completed").textContent = totalCompleted;
+  document.getElementById("total-nodes").textContent = totalNodes;
+  document.getElementById("total-progress").textContent = Math.round((totalCompleted / totalNodes) * 100) + "%";
+
+  // Leaderboard
+  const counts = getPlayerCounts();
+  const currentPlayer = getCurrentPlayer();
+  const lb = document.getElementById("leaderboard");
+  lb.innerHTML = PLAYERS.map(p => `
+    <div class="lb-player ${p === currentPlayer ? 'is-you' : ''}">
+      <div class="lb-initial">${p}</div>
+      <div class="lb-meta">
+        <div class="lb-count">${counts[p]}</div>
+        <div class="lb-label">nodes</div>
+      </div>
+      ${p === currentPlayer ? '<button class="change-player" onclick="showPicker()">switch</button>' : ''}
+    </div>
+  `).join("");
+}
+
+function openModal(track, idx, status) {
+  const node = track.nodes[idx];
+  const overlay = document.getElementById("modal-overlay");
+  const modal = document.getElementById("modal");
+  const content = document.getElementById("modal-content");
+
+  modal.setAttribute("data-track", track.id);
+
+  const isCompleted = getNodeState(track.id, idx) === "completed";
+
+  content.innerHTML = `
+    <div class="modal-icon">${node.icon}</div>
+    <div class="modal-track-label" style="color: var(--track-${track.id})">${track.name} — Node ${idx + 1}</div>
+    <h3>${node.title}</h3>
+
+    <div class="goal">
+      <h4>What to do</h4>
+      <p>${node.description}</p>
+    </div>
+
+    <div class="goal">
+      <h4>Done when</h4>
+      <p>${node.done_when}</p>
+    </div>
+
+    <div class="ai-prompt">
+      <h4>📋 Copy this into your AI</h4>
+      <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+      <pre>${node.ai_prompt}</pre>
+    </div>
+
+    ${(() => {
+        const who = getNodeCompletedBy(track.id, idx);
+        return who ? `<div class="goal"><h4>Completed by</h4><p><span style="display:inline-block;width:28px;height:28px;border-radius:50%;background:${PLAYER_COLORS[who]};color:#000;text-align:center;line-height:28px;font-weight:700;margin-right:6px">${who}</span> Player ${who}</p></div>` : '';
+      })()}
+
+    <div class="actions">
+      ${isCompleted
+        ? `<button class="btn btn-secondary" onclick="markNode('${track.id}', ${idx}, 'pending')">↩ Mark Incomplete</button>`
+        : `<button class="btn btn-primary" onclick="markNode('${track.id}', ${idx}, 'completed')">✓ Mark Complete</button>`
+      }
+      <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+    </div>
+  `;
+
+  overlay.classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").classList.remove("open");
+}
+
+function markNode(trackId, idx, status) {
+  setNodeState(trackId, idx, status);
+  closeModal();
+  render();
+}
+
+function copyPrompt(btn) {
+  const pre = btn.parentElement.querySelector("pre");
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy", 2000);
+  });
+}
+
+// Close modal on overlay click
+document.getElementById("modal-overlay").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// Close on Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
+// Initial render
+if (!getCurrentPlayer()) showPicker();
+render();
+</script>
+</body>
+</html>
