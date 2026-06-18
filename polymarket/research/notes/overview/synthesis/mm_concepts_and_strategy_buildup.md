@@ -78,19 +78,19 @@ The first two terms are what you earn; the last two are what kill you. **Adverse
 
 **The empirical backbone (K5-STRESS, deterministic full-population 60s markouts).** This single table is *why* the strat is built the way it is — adverse selection is wildly category-dependent:
 
-| category | 60s markout (adverse cost) | maker-favorable fills |
-|---|---:|---:|
-| tech | −87 bps | 39.3% |
-| economics | −203 bps | 33.8% |
-| geopolitics | −230 bps | 43.0% |
-| sports | −232 bps | 40.6% |
-| culture | −312 bps | 40.4% |
-| **politics_negrisk** | **−336 bps** | 48.3% |
-| other | −403 bps | 41.2% |
-| finance | −778 bps | 45.8% |
-| daily_crypto | −1,051 bps | 50.3% |
-| weather | −1,387 bps | 35.3% |
-| **crypto_4h** | **−1,886 bps** | 39.7% |
+| category             | 60s markout (adverse cost) | maker-favorable fills |
+| -------------------- | -------------------------: | --------------------: |
+| tech                 |                    −87 bps |                 39.3% |
+| economics            |                   −203 bps |                 33.8% |
+| geopolitics          |                   −230 bps |                 43.0% |
+| sports               |                   −232 bps |                 40.6% |
+| culture              |                   −312 bps |                 40.4% |
+| **politics_negrisk** |               **−336 bps** |                 48.3% |
+| other                |                   −403 bps |                 41.2% |
+| finance              |                   −778 bps |                 45.8% |
+| daily_crypto         |                 −1,051 bps |                 50.3% |
+| weather              |                 −1,387 bps |                 35.3% |
+| **crypto_4h**        |             **−1,886 bps** |                 39.7% |
 
 **Read.** Fast crypto (4h up/down) is a slaughterhouse: −1,886 bps of adverse selection per fill. Politics NegRisk is **~5.6× milder** (−336 bps) and has the **highest maker-favorable rate** (48.3%). The slow, judgment-resolved markets (politics, sports, tech) are where a passive maker is least picked off — because there is no fast external venue (a Binance) leading the price and no second-by-second information arriving. **This table is the empirical case for "build the bot in slow markets, not crypto."** Source: [[block_k5_stress_findings]]. *(Caveat: this is the **full population** of maker fills; the **skilled** K5 cohort's realized markouts are maker-favorable — see §2.0b — so how toxic our own fills are depends on our fill selection, itself a live unknown per §1.9.)*
 
