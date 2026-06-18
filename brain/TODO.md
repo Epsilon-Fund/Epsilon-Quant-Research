@@ -178,6 +178,37 @@ Open MM tasks:
 - [ ] **Capacity/speed caveat for OD expansion:** live-paper instrumentation needed. See [[od_cross_asset_updown_scoping]].
 - [ ] Do NOT spawn new single-venue quoting/anchor/continuous-hedge variants — exhausted.
 
+### MM Path B — Broad L2 Data Ingestion (added 2026-06-16)
+
+> **New research restart.** Thesis: profitability through structural edge (wide spreads + uninformed flow), not informational edge. Requires broad L2 order book data across categories for weeks/months to measure spread, adverse selection, and toxicity per market type. Architecture doc: `infrastructure/data/polymarket_l2_ingestion.md`.
+
+**Phase 1 — VPS + capture infrastructure (target: 2026-06-17)**
+
+- [ ] Provision Hetzner CX32 VPS (~€6.50/month). SSH key-only, firewall SSH-only.
+- [ ] Write `mm_discovery_daemon.py` — Gamma API poller → `live_universe.json`. Universes: politics NegRisk, sports/esports, culture/other, crypto (control).
+- [ ] Refactor `mm_stage1_live_control.py` into `mm_capture_daemon.py` — reads universe from JSON, hot-reload on universe change, auto-reconnect with exponential backoff.
+- [ ] Deploy capture as systemd service with restart-on-failure + discovery as systemd timer (every 15 min).
+- [ ] Verify: all 4 WS event types flowing for a small test universe (~10 markets).
+
+**Phase 2 — Compression + cloud sync (target: 2026-06-17)**
+
+- [ ] Write `mm_compress_pipeline.py` — JSONL.gz → typed Parquet (book/trades/price_change/bba tables).
+- [ ] Set up Cloudflare R2 bucket + rclone config. Hourly cron: compress + sync + optional local cleanup.
+- [ ] Adapt `mm_stage1_analyze_capture.py` to read new parquet schema for quick spread/depth/toxicity snapshots.
+
+**Phase 3 — Validation + let it run (target: 2026-06-18)**
+
+- [ ] 24h soak test: check file completeness, gap report, cloud sync health.
+- [ ] First broad spread/adverse-selection snapshot across captured universes.
+
+**Phase 4 — Path B analysis (target: after 2+ weeks of data)**
+
+- [ ] Spread map by category × time-of-day.
+- [ ] Realized adverse selection measurement per category (trade prints + subsequent book moves).
+- [ ] VPIN toxicity per market.
+- [ ] Fill simulation with hftbacktest queue models on captured L2.
+- [ ] **The gate:** find markets where `spread − adverse_selection − costs > 0` with CI-positive confidence.
+
 ---
 
 ## OD — Options-Delta (state 2026-06-06) — REFRAMED as the valuation/signal layer
