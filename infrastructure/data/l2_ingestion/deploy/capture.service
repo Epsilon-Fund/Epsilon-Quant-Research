@@ -1,0 +1,2 @@
+# systemd unit for the WS capture daemon (24/7, restart-on-failure).
+# Placeholder — [Unit]/[Service]/[Install] sections to be filled in during deployment.

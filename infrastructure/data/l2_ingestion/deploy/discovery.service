@@ -1,0 +1,2 @@
+# systemd unit (oneshot) that runs the market discovery daemon once per trigger.
+# Driven by discovery.timer. Placeholder — sections to be filled in during deployment.

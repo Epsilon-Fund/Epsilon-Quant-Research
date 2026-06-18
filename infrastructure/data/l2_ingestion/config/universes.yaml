@@ -1,0 +1,81 @@
+# universes.yaml — which Polymarket markets the L2 ingestion pipeline captures.
+#
+# This is INPUT CONFIG, read by the discovery daemon. The daemon polls the Gamma
+# API on the schedule below, applies each universe's filter, and writes the
+# resulting list of live asset IDs to live_universe.json (the OUTPUT data that
+# the capture daemon consumes). See ../README.md and the architecture spec at
+# infrastructure/data/polymarket_l2_ingestion.md.
+#
+# Thesis (Path B): profitability through structural edge — wide spreads +
+# uninformed taker flow — not informational edge. We capture broad L2 across
+# market types to measure where spread > adverse selection + costs.
+
+# ---------------------------------------------------------------------------
+# Global settings — apply across all universes.
+# ---------------------------------------------------------------------------
+settings:
+  # How often the discovery daemon re-polls Gamma and rewrites live_universe.json.
+  # Market creation/resolution is slow (hours), so 15 min is plenty.
+  discovery_interval_minutes: 15
+
+  # Safety cap per universe. The CLOB WS supports ~500 asset IDs per connection;
+  # total target across all universes is ~500-800, possibly needing 2 connections.
+  # This cap prevents one runaway category from starving the others / the socket.
+  max_markets_per_universe: 400
+
+  # Polymarket CLOB market-channel WebSocket (book, price_change,
+  # last_trade_price, best_bid_ask).
+  ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/market"
+
+  # Gamma REST API base used by discovery to enumerate active markets.
+  gamma_api_url: "https://gamma-api.polymarket.com/markets"
+
+# ---------------------------------------------------------------------------
+# Universes — one block per market category we capture.
+# Each block: human name, Gamma filter criteria, and WHY we capture it.
+# `approx_markets` is an estimate from the spec, used only for sanity-checking
+# capacity; the live count comes from the daemon's actual Gamma query.
+# ---------------------------------------------------------------------------
+universes:
+
+  politics_negrisk:
+    name: "Politics (NegRisk)"
+    # WHY: best historical structural-maker edge (+2,290 bps). The live-loop
+    # anchor — the category we most expect Path B to work in.
+    why: "Best historical structural-maker edge (+2,290 bps). Live-loop anchor."
+    approx_markets: 400
+    filter:
+      active: true
+      tags: ["politics"]
+      neg_risk: true        # NegRisk (multi-outcome) markets only
+
+  sports:
+    name: "Sports / eSports"
+    # WHY: low adverse selection (232 bps historical), wide spreads, high
+    # uninformed retail flow — the textbook environment for structural MM edge.
+    why: "Low adverse selection (232 bps), wide spreads, high uninformed flow."
+    approx_markets: 300
+    filter:
+      active: true
+      tags: ["sports", "esports"]
+
+  culture:
+    name: "Culture / Other"
+    # WHY: passed the K5-STRESS gate with decent structural maker returns.
+    # Secondary candidate for Path B edge.
+    why: "K5-STRESS gate pass, decent structural maker returns."
+    approx_markets: 100
+    filter:
+      active: true
+      tags: ["culture", "pop-culture", "entertainment"]
+
+  crypto_control:
+    name: "Crypto (negative control)"
+    # WHY: high adverse selection (1,886 bps). This is the NEGATIVE CONTROL — we
+    # should NOT be profitable here. If Path B shows edge in crypto too, the
+    # measurement is suspect.
+    why: "High adverse selection (1,886 bps). Negative control — expect NO edge."
+    approx_markets: 50
+    filter:
+      active: true
+      tags: ["crypto"]
