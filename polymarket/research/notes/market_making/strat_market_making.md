@@ -97,3 +97,4 @@ Strategy A. So MM's live value is now (a) explaining the maker moat and (b) copy
 Sibling strat: [[strat_options_delta]]. Foundation: [[block_k_maker_options_research]]. Full arc + glossary:
 [[block_k_plain_english_synthesis]]. Pivot handoff: [[2026-05-30_maker_options_delta_pivot]]. Copytrade
 re-merge: [[profile_domah]], [[copytrade_relayer_implications]].
+Data + methodology: [[polymarket_l2_ingestion]] (L2 ingestion architecture/roadmap) · [[mm_backtesting_methodology_explainer]] (how institutional MM backtesting works, and what it means for us).
