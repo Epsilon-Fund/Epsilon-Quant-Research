@@ -65,6 +65,7 @@ Git is the only sync layer. The model is **one personal branch per collaborator,
 - **Personal state never participates.** `local_agents/<handle>.md` and `scratch/<handle>/` are git-ignored — they exist only on your machine and can never conflict in any branch or merge.
 - **Shared templates:** `brain/agents/templates/` is tracked under `brain/` so every machine can seed its private overlay.
 - **Tracked vs ignored:** `brain/**/*.md` is tracked; only `brain/generated/`, top-level `local_agents/`, and top-level `scratch/` are ignored.
+- **Line endings (cross-platform).** History is LF, enforced by `.gitattributes` (`* text=auto eol=lf`), so Mac (`justin`) and Windows (`alvaro`) both pull and merge `main` cleanly. **Do not set `core.autocrlf=true`** on Windows — leave `.gitattributes` as the single source of truth. Full rationale + one-time renormalization: [[MERGE_PROTOCOL]] § 6.
 
 ### Onboarding a new collaborator
 
@@ -82,13 +83,14 @@ Exact first-run steps (copy-pasteable; replace `<handle>` with your GitHub handl
    git checkout main && git pull && git checkout -b <handle>
    git push -u origin <handle>
    ```
+   Then set line-ending config (especially on **Windows** — required, not optional): `git config --local core.autocrlf false && git config --local core.eol lf && git config --local merge.renormalize true`. The repo standardizes on LF via `.gitattributes`; do **not** set `core.autocrlf=true`. Rationale + Windows working-tree refresh: [[MERGE_PROTOCOL]] § 6.
 5. **Set up your daily commit/push task** (scheduled task or cron) targeting **your own branch, never main**. It should: stage only `brain/`, `polymarket/research/notes/`, `docs/`, `README.md`, `tools/` Markdown; commit; pull your own remote branch (`git pull --no-rebase origin <handle>`); push to `<handle>`; abort and report on any conflict or error; never force-push; never pull or merge main. This task is per-person — Justin's is configured on his machine; you configure your own.
 6. **Every session start (and after any merge to main):** `git checkout <handle> && git merge main`. Conflicts → [[MERGE_PROTOCOL]].
 7. **Where things go:** durable notes follow [[VAULT_MAP]] § Where to write things (findings into `polymarket/research/notes/<cluster>/` etc., with hub backlinks); personal WIP goes in `scratch/<handle>/` and personal preferences in `local_agents/` (both git-ignored, never shared).
 
 ## 5. Starting a session (human or agent)
 
-1. Catch up from main: `git checkout <handle> && git merge main` (conflicts → [[MERGE_PROTOCOL]]).
+1. Catch up from main (daily canon check): after any `alvaro`/`justin` merge `origin/main` is usually ahead, so `git fetch && git checkout <handle> && git merge main` (conflicts → [[MERGE_PROTOCOL]]). Then `git add --renormalize .` to confirm LF before working — this repo keeps LF in the index across Mac (`justin`) and Windows (`alvaro`); EOL safeguard in [[MERGE_PROTOCOL]] § 6.
 2. Run the Agent Bootstrap ([[VAULT_MAP]] § Agent Bootstrap).
 3. Read your shared role convention: [[codex_lane]] or [[cowork_lane]].
 4. Read [[TODO]] — the authoritative live task list — before suggesting next actions.

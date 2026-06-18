@@ -27,6 +27,7 @@ Hub links: [[VAULT_MAP]] | [[SKILL_MAP]] | [[TODO]] | [[CODEX]] | [[COWORK]]
 | Cadence | Skill | What it does | Output |
 |---|---|---|---|
 | Daily (start) | Daily Brief | Read changed notes, [[TODO]], recent git state | screen-length brief |
+| Daily (start) | Canon Check | Find the most-updated canon (`justin` vs `origin/main` after any `alvaro`/`justin` merge), catch up via [[MERGE_PROTOCOL]], and confirm LF normalization before any work | clean, up-to-date, LF-normalized branch |
 | During active work | Agent Scratch Log | Keep Codex/Cowork WIP separate until promoted | `scratch/<agent>/` (local-only) |
 | Daily (end) | Chronicler | Record what changed and why | `brain/handoffs/` or hub status line |
 | On branch close | Rock Tumbler | Convert messy branch work into a canonical findings note | `*_findings.md` |
@@ -66,3 +67,5 @@ When you want this automated rather than manual, wire `tools/brain_hygiene.py` i
 - Commit/push EOD to your own branch (the per-person `brain-commit-push` task); merge main into your branch at session start and after anyone merges to main.
 - New `brain/**/*.md` is tracked automatically (gitignore was inverted 2026-06-07). Only `brain/generated/`, top-level `local_agents/`, and top-level `scratch/` are ignored — those last two are per-person state and never participate in any branch or merge.
 - Keep generated data and large artifacts out of the note layer; `brain/generated/` is regenerable and never committed.
+- **Line endings are LF in the index, cross-platform.** Mac (`justin`) and Windows (`alvaro`) share `main`; `.gitattributes` (`* text=auto eol=lf`) keeps history LF so merges never produce whitespace-only conflicts. Set `core.autocrlf false` + `core.eol lf` + `merge.renormalize true` per clone and let `.gitattributes` be the single source of truth — see [[MERGE_PROTOCOL]] § 6.
+- **Daily canon check (start of day).** Before working, find the most-updated canon — usually `origin/main` after an `alvaro`/`justin` merge, or your own branch if you pushed last — then `git checkout <handle> && git merge main` ([[MERGE_PROTOCOL]] § 1) and `git add --renormalize .` to confirm LF before continuing.
