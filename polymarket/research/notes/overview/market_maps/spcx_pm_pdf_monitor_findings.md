@@ -546,6 +546,10 @@ Tab order is now **EXECUTION | PM | ANALYSIS | PLAN | REHEARSAL** (the four dire
 
 **Freeze.** FROZEN, absolutely — next change after the close, in the postmortem.
 
+## 10.10 Listing day closed — trade realized (the postmortem the freeze pointed to)
+
+SPCX listed 2026-06-12 and the trade is **CLOSED, profitable**: 11 shares long @ the $135 offer (€116 TR), unhedged (inside the comfort zone, per the overflow rule), sold the whole position into the day-1 pop — 6 @ ~€140 ($163) + 5 @ $172 — **flat, ~€300 net**. The dashboard ran through the day as the read-only advisory surface; it placed no orders (execution was manual on TR, as designed). Its honest contribution was confirmation + sell-into-strength discipline, not signal. At the close the instruments read PM mean $168.7 / perp $168.4 / P(close>$135) 98.6% — directionally right all day, modestly rich vs the $163–172 the operator actually sold into. **The monitor process is stopped; `playbook_state.json` persists the final closed state (fill 11 / sold 11 / hedged 0); the 705-shard listing-day poll log + the static dashboard HTML are preserved for review (relaunch read-only with `--serve --backfill-days 7` to scrub the session).** Full grading against the pre-registered gameplan: **[[spcx_listing_postmortem]]**. The freeze is now permanent — this thread is done.
+
 ## 11. Decision and next step
 
 - **Gate outcome:** Block S5 is **built, tested, live-verified**. The −$3.3 ambiguity is closed (bug, not convention — use mean−offer). No edge claim is made here: at the 06-10 poll the bucket mispricing is gone (+1.5pp) and the perp-vs-crowd gap is ±$4 — this is a **measurement instrument**, consistent with the thread's merits-a-measurement-loop posture, not a signal.

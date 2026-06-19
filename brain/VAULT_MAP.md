@@ -38,6 +38,7 @@ A two-project quantitative research monorepo. The projects **share no code** —
 2. If that file does not exist, create `local_agents/` and copy the matching template from `brain/agents/templates/<role>.local.template.md` into it, then tell the user "seeded your local <role> overlay - edit it to set your personal preferences."
 3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
 4. You operate on a personal branch named after the operator's GitHub handle. Commit/push only to that branch — never main. Merge main into your branch at session start; all merges follow [[MERGE_PROTOCOL]].
+5. **Daily canon check (start of day).** Establish the most-updated canon before working: after any `alvaro`/`justin` merge, `origin/main` is usually ahead, so `git fetch && git checkout <handle> && git merge main` (conflicts → [[MERGE_PROTOCOL]]). Then `git add --renormalize .` to confirm LF — this repo keeps LF in the index across Mac (`justin`) and Windows (`alvaro`); EOL safeguard in [[MERGE_PROTOCOL]] § 6. Only once the branch is current and LF-clean do you begin work.
 
 Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
 

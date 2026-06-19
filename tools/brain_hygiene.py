@@ -47,6 +47,10 @@ EXCLUDE_REL_PREFIXES = (
 )  # generated output + local-only overlays/scratch (ephemeral brain/agents/locks/*.lock.md skipped in discover_md_files)
 # Per-folder convention files where a shared basename is expected and not a navigation bug.
 EXPECTED_DUP_BASENAMES = {"README", "CLAUDE", "INDEX", "__init__", "PLAN", "TODO"}
+# Conventional repo/code docs that legitimately carry no YAML frontmatter: READMEs render
+# the YAML block as raw text on GitHub, CLAUDE.md is loaded as agent instructions, and
+# PLAN/INDEX are code-doc conventions — none are vault notes, so don't flag them.
+FRONTMATTER_EXEMPT_BASENAMES = {"README", "CLAUDE", "PLAN", "INDEX"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf", ".webp", ".canvas"}
 HUB_BASENAMES = {
     "COWORK", "CODEX", "TODO", "POLYMARKET_BRAIN", "VAULT_MAP",
@@ -59,6 +63,10 @@ RECENT_DAYS = 7
 
 WIKILINK_RE = re.compile(r"!?\[\[([^\]]+)\]\]")
 CHECKBOX_RE = re.compile(r"^\s*[-*]\s+\[ \]\s+(.*)$")
+# Code spans/fences are stripped before wikilink parsing so documentation that
+# *shows* a wikilink as an example (e.g. `[[basename]]`) isn't counted as a real link.
+FENCED_CODE_RE = re.compile(r"```.*?```|~~~.*?~~~", re.DOTALL)
+INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 
 # --------------------------------------------------------------------------- helpers
@@ -85,10 +93,17 @@ def has_summary(text: str) -> bool:
     return any(h in low for h in SUMMARY_HEADINGS)
 
 
+def strip_code(text: str) -> str:
+    """Drop fenced code blocks and inline code spans so their contents aren't
+    parsed as wikilinks (docs often show `[[basename]]` as an illustrative example)."""
+    text = FENCED_CODE_RE.sub("", text)
+    return INLINE_CODE_RE.sub("", text)
+
+
 def parse_wikilinks(text: str) -> list[str]:
-    """Return raw wikilink targets (without alias/heading)."""
+    """Return raw wikilink targets (without alias/heading), ignoring code spans."""
     out = []
-    for raw in WIKILINK_RE.findall(text):
+    for raw in WIKILINK_RE.findall(strip_code(text)):
         target = raw.split("|", 1)[0].split("#", 1)[0].strip()
         if target:
             out.append(target)
@@ -216,7 +231,7 @@ def main() -> int:
     no_frontmatter: list[str] = []
     no_summary: list[str] = []
     for rel, text in texts.items():
-        if not has_frontmatter(text):
+        if not has_frontmatter(text) and Path(rel).stem not in FRONTMATTER_EXEMPT_BASENAMES:
             no_frontmatter.append(rel)
         if is_findings_note(rel) and not has_summary(text):
             no_summary.append(rel)

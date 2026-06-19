@@ -38,6 +38,16 @@ if "${GIT[@]}" diff --cached --quiet; then
   echo "nothing to sync"; exit 0
 fi
 
+# EOL guard: refuse to commit CRLF in staged TEXT files (-I skips binary).
+# Backstop to .gitattributes (eol=lf); matters most if this ever runs on Windows.
+CR_HITS="$("${GIT[@]}" grep --cached -I -l -F "$(printf '\r')" -- "${SCOPE[@]}" 2>/dev/null || true)"
+if [ -n "$CR_HITS" ]; then
+  echo "ABORT: CRLF detected in staged text files — refusing to commit mixed endings:"
+  echo "$CR_HITS"
+  echo "Fix: run 'git add --renormalize .' (LF via .gitattributes), then retry. See brain/MERGE_PROTOCOL.md § 6."
+  exit 1
+fi
+
 N="$("${GIT[@]}" diff --cached --name-only | wc -l | tr -d ' ')"
 if ! "${GIT[@]}" commit -m "chore(brain): daily sync $(date '+%Y-%m-%d') ($BRANCH, $N files)"; then
   echo "commit failed"; exit 1

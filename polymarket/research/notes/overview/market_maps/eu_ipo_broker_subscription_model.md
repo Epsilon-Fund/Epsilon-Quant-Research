@@ -259,7 +259,7 @@ The safe default is therefore **`oversubscribe = 1.0`: total subscription == C**
 
 ## STEP 4 — Reusable subscription log + rolling fill-rate track record
 
-A dedicated, human-navigable folder **`IPO Subscriptions/`** (vault root, per the user's explicit request) holds the operational tracking system:
+A dedicated, human-navigable folder **`IPO Subscriptions/`** (under `notes/overview/market_maps/`, alongside this note) holds the operational tracking system:
 
 - **`_template.md`** — the reusable per-deal template: deal, ticker, prospectus terms (expected/max price, tranche size, per-broker deadline), subscription per broker, and post-allocation fields (realised fill, effective price, day-1 open/close, realised P&L). The realised-fill table uses fixed column names so the tool can parse it.
 - **`SpaceX_SPCX_2026-06.md`** — the template **instantiated for SpaceX**, pre-filled with the known prospectus terms ($135 expected, `SPCX`, 555,555,555 Class A offered, listing anticipated 2026-06-12, ~13.076B total shares ⇒ ~$1.765T at offer). Subscription/fill fields are left blank to fill in.

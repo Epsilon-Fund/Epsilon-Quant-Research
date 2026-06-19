@@ -48,6 +48,8 @@ Rules:
 
 Run when a unit of work on a personal branch is ready to become shared baseline:
 
+> **Line endings first (cross-platform).** Mac (`justin`, LF) and Windows (`alvaro`, CRLF) share `main`. `.gitattributes` (`* text=auto eol=lf`, see § 6) keeps history LF, and `merge.renormalize=true` lets merges ignore EOL-only differences. Before merging, confirm both tips are normalized so the merge doesn't surface whitespace-only (`^M`) conflicts: on each branch run `git add --renormalize .`, and if `git diff --cached --stat` is non-empty, commit that renormalization as its **own** commit first — never fold a line-ending rewrite into a content merge.
+
 ```bash
 git checkout main
 git pull origin main
@@ -84,6 +86,7 @@ You are resolving git merge conflicts in the Markdown "brain" of the epsilon-qua
    and list every such flag in your final report.
 6. Preserve frontmatter; if both sides edited frontmatter, union tags/hubs and keep the most recent date fields.
 7. After resolving, reread the file cold per CODEX.md § Markdown quality standard: no orphaned conflict markers, no broken wikilinks introduced.
+8. LINE ENDINGS ARE NEVER A SEMANTIC CONFLICT. If two versions of a line differ only by CRLF vs LF (a trailing `^M`), do NOT flag it under rule 5 — resolve silently to LF (the repo standard, enforced by `.gitattributes`) and write the file with LF throughout.
 
 Report per file: what was unioned, what was deduped, and any human-decision flags. Do not `git add` or commit unless asked.
 ```
@@ -95,4 +98,27 @@ Report per file: what was unioned, what was deduped, and any human-decision flag
 
 ## 5. Per-person scheduled task
 
-The daily `brain-commit-push` scheduled task is **per-person** and must target its owner's branch, never main. Justin's is configured (definition lives outside the repo at `~/Documents/Claude/Scheduled/brain-commit-push/SKILL.md`); each new collaborator configures their own equivalent on their machine — see [[ONBOARDING]] § Onboarding a new collaborator. The task: stages brain + research-notes Markdown only, commits, pushes to the current personal branch; refuses to run on main; aborts and reports on push/pull failure; never force-pushes; never pulls or merges main (catching up from main is a deliberate session-start step, not part of the EOD push).
+The daily `brain-commit-push` scheduled task is **per-person** and must target its owner's branch, never main. Justin's is configured (definition lives outside the repo at `~/Documents/Claude/Scheduled/brain-commit-push/SKILL.md`); each new collaborator configures their own equivalent on their machine — see [[ONBOARDING]] § Onboarding a new collaborator. The task: stages brain + research-notes Markdown only, commits, pushes to the current personal branch; refuses to run on main; aborts and reports on push/pull failure; never force-pushes; never pulls or merges main (catching up from main is a deliberate session-start step, not part of the EOD push). It also refuses to commit CRLF in staged text files (a `git grep --cached -I` guard) — a backstop to § 6.
+
+## 6. Line endings — LF in the index, cross-platform safe (EOL safeguard)
+
+This repo is shared by a Mac collaborator (`justin`, LF) and a Windows collaborator (`alvaro`, whose default git/editor emit CRLF). To keep `origin/main` cleanly mergeable AND pullable on both platforms, **the index is normalized to LF** by the repo-root `.gitattributes` (`* text=auto eol=lf` + binary markers + the preserved nbstripout/ipynb rules). `eol=lf` makes a fresh checkout write LF on every OS, so a Windows re-save can't silently flip a file to CRLF. This is the single source of truth — see the live `.gitattributes` for the exact rules.
+
+**Why it matters.** Git diffs line-by-line, so a CRLF file looks like *every line changed* versus its LF twin. Before this safeguard, `origin/main` (CRLF) differed from `justin` (LF) on ~178 files that were byte-identical apart from `^M` — turning a trivial sync into a phantom mega-merge. LF-in-index makes both platforms see identical bytes.
+
+**One-time history fix.** When this landed (commit `2c9e31b` on `justin`), the 22 files committed with CRLF before the rule (`infrastructure/backtester/*.py`, `midas/**`, `.obsidian/` assets) were rewritten to LF via a dedicated `git add --renormalize .` commit — kept separate from any content change. `origin/main` still carries CRLF broadly until it is renormalized the same way (a deliberate merge to main); until then `merge.renormalize=true` lets local merges ignore the EOL noise.
+
+**Per-platform git config (set once per clone, local — identical on Mac and Windows):**
+
+```bash
+git config --local core.autocrlf false
+git config --local core.eol lf
+git config --local core.safecrlf warn
+git config --local merge.renormalize true
+```
+
+With `.gitattributes` governing, `core.autocrlf=true` is **wrong** on Windows — it re-injects CRLF on the way back in. Leave `.gitattributes` as the single source of truth.
+
+**Windows collaborator (`alvaro`) — required, not optional.** The Windows clone is the live CRLF source. Alvaro must (1) set the four configs above, (2) after the normalization reaches `main`, refresh his working tree (`git add --renormalize .`, or re-clone) so it holds LF blobs, and (3) set his editor (VS Code etc.) to LF with no EOL-rewriting autoformatter. If he skips this, every file he opens-and-saves re-stages as a full-content CRLF diff and re-creates the phantom-merge problem.
+
+**Smell test.** If a commit shows every line of a file changed, that's an EOL rewrite leaking into a content commit — split it into its own renormalization commit before pushing.

@@ -1,3 +1,36 @@
-*.ipynb filter=nbstripout
-*.zpln filter=nbstripout
-*.ipynb diff=ipynb
+# Epsilon Quant Research — line-ending normalization (cross-platform).
+# Mac collaborator (justin) uses LF; Windows collaborator (alvaro) emits CRLF.
+# Goal: store LF in the repo (index) AND check out LF on every platform, so
+# merges never produce whitespace-only (CRLF) conflicts.
+# Rationale + one-time history fix + per-platform git config: brain/MERGE_PROTOCOL.md § 6.
+
+# --- Default: treat everything as text, normalize to LF in repo AND working tree ---
+# eol=lf forces LF in the working tree even on Windows, so a re-save can't flip to CRLF.
+* text=auto eol=lf
+
+# --- Binary / asset types: never EOL-convert, never line-diff (all hold NUL bytes) ---
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.odt   binary
+*.docx  binary
+*.xlsx  binary
+*.pptx  binary
+*.pkl   binary
+*.pickle binary
+*.parquet binary
+*.duckdb binary
+*.zip   binary
+*.gz    binary
+*.xz    binary
+*.so    binary
+*.dylib binary
+
+# --- Notebooks: preserve existing nbstripout + ipynb-diff behavior.
+# -text guarantees no EOL coercion while keeping the filter and diff driver intact.
+*.ipynb -text filter=nbstripout diff=ipynb
+*.zpln  -text filter=nbstripout

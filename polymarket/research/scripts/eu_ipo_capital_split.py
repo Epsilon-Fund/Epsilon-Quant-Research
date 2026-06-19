@@ -76,8 +76,8 @@ UNKNOWN stays UNKNOWN and only affects the split through the user-supplied matur
 
 Companion notes:
   notes/overview/market_maps/eu_ipo_broker_subscription_model.md  (the decision model)
-  IPO Subscriptions/_template.md                                  (per-deal log template)
-  IPO Subscriptions/SpaceX_SPCX_2026-06.md                        (instantiated SpaceX deal)
+  notes/overview/market_maps/IPO Subscriptions/_template.md            (per-deal log template)
+  notes/overview/market_maps/IPO Subscriptions/SpaceX_SPCX_2026-06.md  (instantiated SpaceX deal)
 
 RUN
 ---
@@ -635,7 +635,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     ap.add_argument(
         "--log-dir", type=str, default=None,
-        help="path to the IPO Subscriptions folder (default: <repo>/IPO Subscriptions).",
+        help="path to the IPO Subscriptions folder (default: <repo>/polymarket/research/notes/overview/market_maps/IPO Subscriptions).",
     )
     ap.add_argument("--track-record", action="store_true", help="print rolling per-broker fill rates and exit.")
     ap.add_argument(
@@ -650,7 +650,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         _selftest()
         return 0
 
-    log_dir = Path(args.log_dir) if args.log_dir else _repo_root() / "IPO Subscriptions"
+    log_dir = Path(args.log_dir) if args.log_dir else _repo_root() / "polymarket/research/notes/overview/market_maps/IPO Subscriptions"
 
     if args.track_record:
         stats = track_record(log_dir)

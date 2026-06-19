@@ -1,3 +1,21 @@
+---
+title: gbrain Retrieval Layer
+created: 2026-06-10
+status: active
+owner: justin
+project: infra
+para: area
+hubs:
+  - VAULT_MAP
+  - CODEX
+  - COWORK
+tags:
+  - tooling
+  - gbrain
+  - retrieval
+  - brain
+---
+
 # gbrain — local read-only retrieval layer over the vault
 
 A **disposable, local** semantic + graph index on top of our existing Markdown vault (github.com/garrytan/gbrain). Our `.md` + hubs + basename-wikilink graph remain the sole source of record; gbrain is read-only on the files and lives entirely in `~/.gbrain`. Set up 2026-06-10.
