@@ -2,13 +2,34 @@
 #
 # This is INPUT CONFIG, read by the discovery daemon. The daemon polls the Gamma
 # API on the schedule below, applies each universe's filter, and writes the
-# resulting list of live asset IDs to live_universe.json (the OUTPUT data that
-# the capture daemon consumes). See ../README.md and the architecture spec at
-# infrastructure/data/polymarket_l2_ingestion.md.
+# resulting list of live asset IDs to data/live_universe.json (the OUTPUT data
+# that the capture daemon consumes). See ../README.md and the architecture spec
+# at infrastructure/data/polymarket_l2_ingestion.md.
 #
 # Thesis (Path B): profitability through structural edge — wide spreads +
 # uninformed taker flow — not informational edge. We capture broad L2 across
 # market types to measure where spread > adverse selection + costs.
+#
+# --- About tag_id ---
+# The Gamma API filters markets by a NUMERIC tag_id query parameter
+# (GET /markets?tag_id=64&active=true&closed=false), NOT by string tag names.
+# The numeric IDs below come from the Polymarket Gamma /sports and /tags
+# endpoints. tag_id 64 is the umbrella "eSports" tag and covers ALL eSports
+# games: CS2, LoL, Valorant, Dota2, MLBB, Overwatch, CoD, EA FC, PUBG,
+# R6 Siege, Rocket League, Honor of Kings, Wild Rift, StarCraft 2, StarCraft BW.
+#
+# --- About market selection / capacity ---
+# "active=true" is NOT a liquidity filter — each tag has 1,000+ "active" markets,
+# most with little or no volume (~2/3 of active eSports markets had $0 24h volume
+# in a 2026-06-18 survey). A zero-volume market is a wasted WS slot: no trades
+# means nothing to measure. So the PRIMARY selector is `min_volume24hr` (the
+# floor) per universe, NOT the count cap. Markets are fetched ordered by 24h
+# volume (desc); the daemon keeps everything above the floor and stops as soon as
+# volume drops below it (which also keeps us under Gamma's ~offset-2000 paging
+# limit). `max_markets_per_universe` is only a SAFETY BACKSTOP — if it binds,
+# that's a signal volume surged and we should add a WS connection, not silently
+# truncate. WS capacity is ~500 asset IDs per connection; the floors below target
+# ~700 assets total (~2 connections).
 
 # ---------------------------------------------------------------------------
 # Global settings — apply across all universes.
@@ -18,23 +39,25 @@ settings:
   # Market creation/resolution is slow (hours), so 15 min is plenty.
   discovery_interval_minutes: 15
 
-  # Safety cap per universe. The CLOB WS supports ~500 asset IDs per connection;
-  # total target across all universes is ~500-800, possibly needing 2 connections.
-  # This cap prevents one runaway category from starving the others / the socket.
-  max_markets_per_universe: 400
+  # SAFETY BACKSTOP only — NOT the primary selector (that's per-universe
+  # min_volume24hr below). Set generously so the volume floor decides what we
+  # capture and rising volume just lets more markets qualify. If this ever binds,
+  # the daemon logs a warning: it means volume surged past plan — add a WS
+  # connection rather than silently dropping liquid markets.
+  max_markets_per_universe: 600
 
   # Polymarket CLOB market-channel WebSocket (book, price_change,
   # last_trade_price, best_bid_ask).
   ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 
   # Gamma REST API base used by discovery to enumerate active markets.
-  gamma_api_url: "https://gamma-api.polymarket.com/markets"
+  gamma_api_url: "https://gamma-api.polymarket.com"
 
 # ---------------------------------------------------------------------------
 # Universes — one block per market category we capture.
-# Each block: human name, Gamma filter criteria, and WHY we capture it.
-# `approx_markets` is an estimate from the spec, used only for sanity-checking
-# capacity; the live count comes from the daemon's actual Gamma query.
+# Each block: human name, Gamma filter criteria (numeric tag_id), and WHY we
+# capture it. `approx_markets` is an estimate used only for capacity sanity-
+# checks; the live count comes from the daemon's actual Gamma query.
 # ---------------------------------------------------------------------------
 universes:
 
@@ -45,37 +68,43 @@ universes:
     why: "Best historical structural-maker edge (+2,290 bps). Live-loop anchor."
     approx_markets: 400
     filter:
+      tag_id: 2              # Politics
       active: true
-      tags: ["politics"]
-      neg_risk: true        # NegRisk (multi-outcome) markets only
+      neg_risk: true         # market-level property — checked per market, NOT an API query param
+      # Anchor universe — keep the liquid core. ~242 markets / ~484 assets clear
+      # this floor (2026-06-18 survey). Higher than eSports because politics has
+      # a deep liquid body and we want the established markets here.
+      min_volume24hr: 10000  # USD 24h volume floor
 
-  sports:
-    name: "Sports / eSports"
-    # WHY: low adverse selection (232 bps historical), wide spreads, high
-    # uninformed retail flow — the textbook environment for structural MM edge.
-    why: "Low adverse selection (232 bps), wide spreads, high uninformed flow."
-    approx_markets: 300
+  esports:
+    name: "eSports"
+    # WHY: eSports is our thesis bet. It shares the favorable structural
+    # characteristics of traditional sports (low adverse selection ~232 bps,
+    # wide spreads, high uninformed retail flow) but faces LESS competition
+    # from sophisticated market makers because volume is lower. That gap —
+    # uninformed flow with thin pro-MM presence — is where structural edge lives.
+    why: "Thesis bet: sports-like low adverse selection + uninformed flow, but thinner pro-MM competition due to lower volume."
+    approx_markets: 200
     filter:
+      tag_id: 64             # eSports umbrella (all games — see header note)
       active: true
-      tags: ["sports", "esports"]
+      # More PERMISSIVE floor than politics ON PURPOSE: the eSports thesis edge
+      # lives in the lower-volume mid-tail (uninformed flow + thin pro-MM
+      # competition), so we deliberately reach further down. Above $0 so we still
+      # require real flow. ~105 markets / ~210 assets clear this (2026-06-18).
+      min_volume24hr: 1000   # USD 24h volume floor
 
-  culture:
-    name: "Culture / Other"
-    # WHY: passed the K5-STRESS gate with decent structural maker returns.
-    # Secondary candidate for Path B edge.
-    why: "K5-STRESS gate pass, decent structural maker returns."
-    approx_markets: 100
-    filter:
-      active: true
-      tags: ["culture", "pop-culture", "entertainment"]
-
-  crypto_control:
-    name: "Crypto (negative control)"
-    # WHY: high adverse selection (1,886 bps). This is the NEGATIVE CONTROL — we
-    # should NOT be profitable here. If Path B shows edge in crypto too, the
-    # measurement is suspect.
-    why: "High adverse selection (1,886 bps). Negative control — expect NO edge."
-    approx_markets: 50
-    filter:
-      active: true
-      tags: ["crypto"]
+  # --- DISABLED for now (2026-06-18) ---------------------------------------
+  # Negative control, re-enable once politics+esports capture is validated.
+  # Kept here with its rationale so we don't re-derive it later. Note: crypto's
+  # "active" set is dominated by hundreds of tiny hourly BTC/ETH up-down micro-
+  # markets, so when re-enabled it MUST use a volume floor (see capacity notes).
+  # crypto_control:
+  #   name: "Crypto (negative control)"
+  #   # WHY: high adverse selection (1,886 bps). NEGATIVE CONTROL — we should NOT
+  #   # be profitable here. If Path B shows edge in crypto too, measurement suspect.
+  #   why: "High adverse selection (1,886 bps). Negative control — expect NO edge."
+  #   approx_markets: 50
+  #   filter:
+  #     tag_id: 21         # Crypto
+  #     active: true

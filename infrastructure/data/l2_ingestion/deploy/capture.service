@@ -1,2 +1,39 @@
-# systemd unit for the WS capture daemon (24/7, restart-on-failure).
-# Placeholder — [Unit]/[Service]/[Install] sections to be filled in during deployment.
+# systemd unit for the WS capture daemon — the critical 24/7 component.
+# Runs forever; systemd restarts it automatically if it ever exits.
+#
+# Install: copy to /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now capture.service
+
+[Unit]
+Description=Epsilon L2 capture daemon (24/7 Polymarket CLOB WS capture)
+# Don't start until the network is actually up (WS needs DNS + connectivity).
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/epsilon/l2_ingestion
+ExecStart=/opt/epsilon/l2_ingestion/venv/bin/python capture/daemon.py
+
+# Always bring it back, with a 5s pause between attempts (avoids a tight crash
+# loop hammering the WS server if something is persistently wrong).
+Restart=always
+RestartSec=5
+
+# The daemon handles SIGTERM/SIGINT as a graceful shutdown (flush + close gzip
+# shards). Give it room to finish before systemd force-kills.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Safety net on a 4 GB server: if a leak ever pushes the daemon past 2 GB,
+# the kernel kills it and systemd restarts it, instead of OOM-killing the box.
+MemoryMax=2G
+
+# Log stdout+stderr to journald under a clear identifier.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=l2-capture
+
+[Install]
+WantedBy=multi-user.target

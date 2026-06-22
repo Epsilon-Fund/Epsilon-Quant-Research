@@ -1,2 +1,23 @@
-# systemd unit (oneshot) that runs the market discovery daemon once per trigger.
-# Driven by discovery.timer. Placeholder — sections to be filled in during deployment.
+# systemd unit (oneshot) — one market-discovery poll cycle.
+# Triggered by discovery.timer every 15 min; do NOT enable this directly,
+# enable discovery.timer instead.
+
+[Unit]
+Description=Epsilon L2 market discovery (one poll cycle)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/epsilon/l2_ingestion
+# discovery imports the vendored GammaClient (data_infra.gamma); PYTHONPATH must
+# point at the vendored copy (see DEPLOY.md — rsync of polymarket/research/data_infra).
+Environment=PYTHONPATH=/opt/epsilon/l2_ingestion/vendor
+ExecStart=/opt/epsilon/l2_ingestion/venv/bin/python discovery/daemon.py --once
+
+# No Restart= — this is a periodic oneshot; the timer re-runs it. A failed cycle
+# just keeps the last good live_universe.json and retries on the next tick.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=l2-discovery

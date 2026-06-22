@@ -1,0 +1,3 @@
+C:\Users\alvar\Projects\Epsilon Fund\Epsilon-Quant-Research\infrastructure\data\l2_ingestion\data\raw\2026-06-18\esports_11.jsonl.gz
+C:\Users\alvar\Projects\Epsilon Fund\Epsilon-Quant-Research\infrastructure\data\l2_ingestion\data\raw\2026-06-18\politics_negrisk_11.jsonl.gz
+C:\Users\alvar\Projects\Epsilon Fund\Epsilon-Quant-Research\infrastructure\data\l2_ingestion\data\raw\2026-06-18\unknown_11.jsonl.gz

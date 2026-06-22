@@ -1,2 +1,15 @@
-# systemd timer that triggers compress.service every hour.
-# Placeholder — [Timer] OnCalendar/OnUnitActiveSec to be filled in during deployment.
+# systemd timer — runs compress.service every hour.
+# Install: copy to /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now compress.timer
+
+[Unit]
+Description=Run Epsilon L2 compression every hour
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=1min
+Unit=compress.service
+
+[Install]
+WantedBy=timers.target

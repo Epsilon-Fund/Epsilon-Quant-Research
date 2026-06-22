@@ -1,0 +1,14 @@
+# Python dependencies for the L2 ingestion pipeline.
+# Install into the venv:  ./venv/bin/pip install -r requirements.txt
+
+# --- core (one per component) ---
+websocket-client>=1.8     # capture daemon: CLOB WebSocket client
+pyyaml>=6.0               # discovery daemon: read config/universes.yaml
+pandas>=2.0               # compression pipeline: build typed frames
+pyarrow>=14.0             # compression pipeline: write Parquet
+
+# --- required by the vendored GammaClient (polymarket/research/data_infra/gamma.py)
+# that the discovery daemon imports. Not optional: discovery fails to import
+# without these. See DEPLOY.md (vendor/ copy + PYTHONPATH). ---
+httpx>=0.27               # GammaClient: HTTP calls to the Gamma API
+tenacity>=8.0             # GammaClient: retry/backoff on transient API errors

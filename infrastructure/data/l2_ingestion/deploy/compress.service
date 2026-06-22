@@ -1,2 +1,20 @@
-# systemd unit (oneshot) that runs the compression pipeline + cloud sync once per trigger.
-# Driven by compress.timer. Placeholder — sections to be filled in during deployment.
+# systemd unit (oneshot) — one compression pass (completed JSONL.gz -> Parquet).
+# Triggered by compress.timer hourly; enable compress.timer, not this directly.
+
+[Unit]
+Description=Epsilon L2 compression pass (JSONL.gz -> Parquet)
+# No network needed — purely local file conversion.
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/epsilon/l2_ingestion
+# No --input: scan data/raw for completed (>1h old), not-yet-processed shards.
+ExecStart=/opt/epsilon/l2_ingestion/venv/bin/python compression/pipeline.py
+
+# Parsing + DataFrame build can be memory-heavy on a big backlog; cap it.
+MemoryMax=1G
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=l2-compress

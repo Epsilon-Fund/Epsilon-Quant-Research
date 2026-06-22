@@ -1,2 +1,17 @@
-# systemd timer that triggers discovery.service every 15 minutes.
-# Placeholder — [Timer] OnCalendar/OnUnitActiveSec to be filled in during deployment.
+# systemd timer — runs discovery.service every 15 minutes.
+# Install: copy to /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now discovery.timer
+
+[Unit]
+Description=Run Epsilon L2 market discovery every 15 minutes
+
+[Timer]
+# First run shortly after boot, then every 15 min measured from the last run.
+OnBootSec=2min
+OnUnitActiveSec=15min
+# Allow a little scheduling slack (saves power / batches wakeups).
+AccuracySec=30s
+Unit=discovery.service
+
+[Install]
+WantedBy=timers.target
