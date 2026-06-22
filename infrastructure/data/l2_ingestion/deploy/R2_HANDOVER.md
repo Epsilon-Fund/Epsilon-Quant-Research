@@ -1,8 +1,8 @@
-# L2 Pipeline — R2 Cloud Backup Setup
+# L2 Pipeline — R2 Cloud Backup Setup (Handover)
 
 ## Context
 
-We have a Polymarket L2 data capture pipeline running 24/7 on this VPS. It records live order book data for our market-making research. Everything is working — capture, discovery, compression — but the **cloud backup** (Cloudflare R2) still needs to be set up.
+We have a Polymarket L2 data capture pipeline running 24/7 on a Hetzner VPS. It records live order book data for our market-making research. Everything is working — capture, discovery, compression — but the **cloud backup** (Cloudflare R2) still needs to be set up.
 
 Your task: set up R2 so the data gets backed up to the cloud automatically.
 
@@ -12,105 +12,100 @@ Your task: set up R2 so the data gets backed up to the cloud automatically.
 |---|---|---|
 | capture.service | Running 24/7 | Records WebSocket data to JSONL.gz files |
 | discovery.timer | Every 15 min | Refreshes the list of markets to capture |
-| compress.timer | Every hour | Converts JSONL.gz to Parquet |
-| sync.timer | **NOT enabled yet** | Will upload to R2 — needs R2 setup first |
+| compress.timer | Every hour | Converts JSONL.gz → Parquet |
+| sync.timer | **NOT enabled** | Uploads to R2 — needs R2 setup first |
 
-Pipeline lives at: `/opt/epsilon/l2_ingestion/`
+## VPS access
 
-## Step 1 — Create a Cloudflare account and R2 bucket
+- IP: `89.167.68.98`
+- Connect: `ssh root@89.167.68.98`
+- You need your SSH public key added first (Carlos will do this — send him the output of `cat ~/.ssh/id_rsa.pub`)
+- Pipeline lives at: `/opt/epsilon/l2_ingestion/`
 
-1. Go to https://dash.cloudflare.com and sign up (free tier is enough)
+## What you need to do
+
+### 1. Create a Cloudflare account and R2 bucket
+
+1. Go to https://dash.cloudflare.com and sign up (free)
 2. Go to **R2** in the sidebar
-3. Click **Create bucket**, name it exactly: **epsilon-polymarket-data**
-4. Note your **Account ID** (visible in the URL or R2 overview page). The S3 endpoint will be: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
+3. Click **Create bucket**, name it exactly: `epsilon-polymarket-data`
+4. Note your **Account ID** (visible in the URL or R2 overview page)
 
-## Step 2 — Create an API token for the bucket
+### 2. Create an API token for the bucket
 
 1. In R2, click **Manage R2 API Tokens** → **Create API token**
 2. Permissions: **Object Read & Write**, scoped to the `epsilon-polymarket-data` bucket
-3. Copy the **Access Key ID** and **Secret Access Key** (shown only once — save them somewhere safe)
+3. Copy the **Access Key ID** and **Secret Access Key** (shown only once — save them)
 
-## Step 3 — Configure rclone on the VPS
+### 3. Configure rclone on the VPS
 
-SSH in and run:
+SSH into the server and run:
 
 ```bash
-ssh root@89.167.68.98
 rclone config
 ```
 
 Answer the prompts:
-- `n` (new remote) → name: **r2**
-- Storage: **s3**
-- Provider: **Cloudflare**
+- `n` (new remote) → name: `r2`
+- Storage: `s3`
+- Provider: `Cloudflare`
 - `access_key_id`: paste your Access Key ID
 - `secret_access_key`: paste your Secret Access Key
-- `region`: **auto**
+- `region`: `auto`
 - `endpoint`: `https://<YOUR_ACCOUNT_ID>.r2.cloudflarestorage.com`
 - Accept defaults for everything else → `y` to confirm → `q` to quit
 
-## Step 4 — Test the connection
+### 4. Test the connection
 
 ```bash
 rclone lsd r2:epsilon-polymarket-data
 ```
 
-Should return empty with no errors. If it errors, double-check the credentials and endpoint.
+Should return empty (no error). If it errors, the credentials or endpoint are wrong.
 
-## Step 5 — Do a manual sync test
+### 5. Do a manual sync test
 
 ```bash
 cd /opt/epsilon/l2_ingestion
 bash sync/sync_cloud.sh
 ```
 
-Then check that data appeared in R2:
+Check that data appeared in R2:
 
 ```bash
-rclone ls r2:epsilon-polymarket-data/parquet/ | head -10
+rclone lsd r2:epsilon-polymarket-data
 ```
 
-You should see `.parquet` files listed.
+You should see `parquet/` and `raw/` folders.
 
-## Step 6 — Enable the automatic sync timer
+### 6. Enable the automatic sync timer
 
 ```bash
 systemctl enable --now sync.timer
-systemctl list-timers | grep sync
 ```
 
-This runs the sync every 6 hours automatically. You should see the next scheduled run time.
+This will run the sync every 6 hours automatically.
 
-## Step 7 — Verify everything is healthy
+### 7. Verify everything is healthy
 
 ```bash
 cd /opt/epsilon/l2_ingestion
 ./venv/bin/python monitoring/health_check.py
 ```
 
-All 5 components should be GREEN now (including sync).
+All components should be GREEN (including sync now).
 
-## Troubleshooting
+## If something goes wrong
 
-Check sync logs:
+Check logs:
 ```bash
 journalctl -u sync.service --since "1 hour ago"
-```
-
-Check capture logs (live):
-```bash
-journalctl -u capture.service -f
-```
-(Ctrl+C to stop watching — this does NOT stop the capture daemon)
-
-Check all timers at a glance:
-```bash
-systemctl list-timers --all | grep -E 'discovery|compress|sync'
+journalctl -u capture.service -f  # live capture log, Ctrl+C to stop watching
 ```
 
 ## What NOT to touch
 
-- **Do not restart capture.service** unless there's a RED alert — it's recording live data and a restart means a brief gap
-- **Do not delete** anything in `data/raw/` or `data/parquet/` manually — the sync script handles cleanup
-- **Do not touch** `/opt/epsilon/` files outside of `l2_ingestion/` — there's a separate dashboard running
-- **Do not touch** `epsilon-dashboard.service`
+- Do not modify or restart `capture.service` — it's recording live data
+- Do not delete anything in `data/raw/` or `data/parquet/` manually
+- Do not touch `/opt/epsilon/` files outside of `l2_ingestion/`
+- Do not touch `epsilon-dashboard.service` — it's a separate project
