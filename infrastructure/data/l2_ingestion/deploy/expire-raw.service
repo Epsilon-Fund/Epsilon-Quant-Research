@@ -1,9 +1,9 @@
-# systemd unit (oneshot) — expire verified, aged-out raw shards from the R2 archive.
-# Triggered by expire-raw.timer (daily); enable the timer, not this directly.
+# systemd unit (oneshot) — expire verified raw shards from the R2 archive.
+# Triggered by expire-raw.timer (every 6h); enable the timer, not this directly.
 # Parquet is kept forever; this only deletes raw whose non-empty parquet is confirmed in R2.
 
 [Unit]
-Description=Epsilon L2 R2 raw archive expiry (delete verified raw older than retention)
+Description=Epsilon L2 R2 raw archive expiry (delete verified raw as soon as parquet confirmed)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,7 +11,6 @@ Wants=network-online.target
 Type=oneshot
 User=root
 WorkingDirectory=/opt/epsilon/l2_ingestion
-# RAW_R2_RETENTION_DAYS defaults to 7 inside the script; override here if needed.
 ExecStart=/usr/bin/bash /opt/epsilon/l2_ingestion/sync/expire_r2_raw.sh
 
 StandardOutput=journal

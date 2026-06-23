@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# expire_r2_raw.sh — expire OLD raw shards from the R2 archive once they are
+# expire_r2_raw.sh — expire raw shards from the R2 archive as soon as they are
 # VERIFIED parsed, so cloud storage does not grow without bound. Parquet is the
-# keeper (kept forever); raw is only a short rolling buffer.
+# keeper (kept forever); raw is deleted the moment its parquet is confirmed.
 #
-# A raw object  r2:<bucket>/raw/{date}/{shard}.jsonl.gz  is deleted ONLY when ALL hold:
-#   1. {date} is strictly older than RAW_R2_RETENTION_DAYS (default 7)
-#   2. a parquet for that shard exists in r2:<bucket>/parquet/{date}/.../*_{shard}.parquet
-#   3. that parquet object is non-empty (size > 0)
+# A raw object  r2:<bucket>/raw/{date}/{shard}.jsonl.gz  is deleted ONLY when:
+#   1. a parquet for that shard exists in r2:<bucket>/parquet/{date}/.../*_{shard}.parquet
+#   2. that parquet object is non-empty (size > 0)
 # Anything that fails verification is KEPT and logged as a WARN. This NEVER touches
 # parquet, NEVER touches research-live-clob/, and never deletes raw that is not
 # provably represented by a non-empty parquet.
@@ -22,15 +21,13 @@
 # Usage:
 #   expire_r2_raw.sh            # real run (deletes eligible raw from R2)
 #   expire_r2_raw.sh --dry-run  # preview only; deletes nothing
-#   RAW_R2_RETENTION_DAYS=0 expire_r2_raw.sh --dry-run   # test the gate against all dates
 #
-# Linux / GNU coreutils assumed (date -d). Run on the VPS via systemd timer.
+# Linux / GNU coreutils assumed. Run on the VPS via systemd timer (every 6h).
 
 set -euo pipefail
 
 REMOTE="r2"
 BUCKET="epsilon-polymarket-data"
-RAW_R2_RETENTION_DAYS="${RAW_R2_RETENTION_DAYS:-7}"
 DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
@@ -42,9 +39,8 @@ log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG_FILE"; }
 
 command -v rclone >/dev/null 2>&1 || { log "ERROR: rclone not found in PATH"; exit 2; }
 
-cutoff="$(date -u -d "${RAW_R2_RETENTION_DAYS} days ago" +%Y-%m-%d)"
 label=""; [ "$DRY_RUN" -eq 1 ] && label="(DRY RUN) "
-log "=== ${label}expire_r2_raw start (retention=${RAW_R2_RETENTION_DAYS}d, delete dates < ${cutoff}) ==="
+log "=== ${label}expire_r2_raw start (delete any raw with confirmed non-empty parquet in R2) ==="
 
 raw_list="$(mktemp)"; pq_list="$(mktemp)"
 trap 'rm -f "$raw_list" "$pq_list"' EXIT
@@ -57,7 +53,7 @@ if ! rclone lsf -R --files-only --format "ps" --separator $'\t' "$REMOTE:$BUCKET
     log "ERROR: could not list R2 parquet — aborting, nothing deleted"; exit 1
 fi
 
-deleted=0 kept_recent=0 kept_unverified=0 freed=0
+deleted=0 kept_unverified=0 freed=0
 while IFS=$'\t' read -r rawpath rawsize; do
     [ -n "$rawpath" ] || continue
     case "$rawpath" in *.jsonl.gz) ;; *) continue ;; esac
@@ -65,9 +61,6 @@ while IFS=$'\t' read -r rawpath rawsize; do
 
     date="${rawpath%%/*}"
     [[ "$date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || continue   # ignore non-date-partition paths
-    if [[ ! "$date" < "$cutoff" ]]; then                        # date >= cutoff -> too recent, keep
-        kept_recent=$((kept_recent + 1)); continue
-    fi
 
     base="${rawpath##*/}"; stem="${base%.jsonl.gz}"
     # verify: a NON-EMPTY parquet exists for this shard ({table}_{stem}.parquet under same date)
@@ -89,6 +82,6 @@ while IFS=$'\t' read -r rawpath rawsize; do
     fi
 done < "$raw_list"
 
-log "${label}summary: ${deleted} raw shard(s) $([ "$DRY_RUN" -eq 1 ] && echo 'eligible' || echo 'deleted') (~$((freed / 1024 / 1024)) MiB), kept_recent=${kept_recent}, kept_unverified=${kept_unverified}"
+log "${label}summary: ${deleted} raw shard(s) $([ "$DRY_RUN" -eq 1 ] && echo 'eligible' || echo 'deleted') (~$((freed / 1024 / 1024)) MiB), kept_unverified=${kept_unverified}"
 log "=== ${label}expire_r2_raw done ==="
 exit 0
