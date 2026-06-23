@@ -1,0 +1,15 @@
+# systemd timer — runs expire-raw.service once a day (raw ages by whole days, so
+# daily granularity is plenty). Install: copy to /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now expire-raw.timer
+
+[Unit]
+Description=Run Epsilon L2 R2 raw archive expiry daily
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+AccuracySec=10min
+Unit=expire-raw.service
+
+[Install]
+WantedBy=timers.target
