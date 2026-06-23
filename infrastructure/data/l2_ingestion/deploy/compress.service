@@ -12,8 +12,9 @@ WorkingDirectory=/opt/epsilon/l2_ingestion
 # No --input: scan data/raw for completed (>1h old), not-yet-processed shards.
 ExecStart=/opt/epsilon/l2_ingestion/venv/bin/python compression/pipeline.py
 
-# Parsing + DataFrame build can be memory-heavy on a big backlog; cap it.
-MemoryMax=1G
+# Memory cap: each shard can peak ~1-2 GB (esports price_change has 3M+ rows).
+# 3G leaves headroom for Python overhead while still protecting the 4 GB server.
+MemoryMax=3G
 
 StandardOutput=journal
 StandardError=journal

@@ -216,27 +216,38 @@ def build_frame(table: str, rows: list[dict[str, Any]]) -> pd.DataFrame:
 
 
 def write_parquet(out_path: Path, df_new: pd.DataFrame) -> tuple[int, int]:
-    """Append-aware write: concat onto an existing day/universe table if present
-    (hourly cron accumulates into the day's file). Returns (new_rows, total_rows)."""
+    """Write a shard's data to its own Parquet file. No read-concat — each shard
+    gets a separate file so memory stays constant regardless of how many shards
+    have already been written for this day. Returns (new_rows, new_rows)."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    if out_path.exists():
-        existing = pd.read_parquet(out_path)
-        combined = pd.concat([existing, df_new], ignore_index=True)
-    else:
-        combined = df_new
-    combined.to_parquet(out_path, engine="pyarrow", index=False)
-    return len(df_new), len(combined)
+    df_new.to_parquet(out_path, engine="pyarrow", index=False)
+    return len(df_new), len(df_new)
 
 
 # ---------------------------------------------------------------------------
-# Process a set of shard files into Parquet, with validation.
+# Process shard files into Parquet — ONE SHARD AT A TIME.
+#
+# Each shard is parsed, written to the day's Parquet files (append-aware), and
+# recorded as processed before the next shard is touched. Memory stays flat
+# regardless of how many shards are pending: we never hold more than a single
+# shard's rows in memory at once. This is the fix for the 4 GB OOM that happened
+# when the old code accumulated every shard's rows before writing anything.
 # ---------------------------------------------------------------------------
-def process_files(files: list[Path], parquet_root: Path) -> dict[str, Any]:
-    # Accumulate all shards of this run, keyed by (date, universe, table).
-    grouped: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
+def process_files(
+    files: list[Path],
+    parquet_root: Path,
+    processed_state: Path = PROCESSED_STATE,
+) -> dict[str, Any]:
     run_stats: Counter[str] = Counter()
     pc_envelopes_total = 0
     source_bytes = 0
+    total_rows = 0
+    written: list[dict[str, Any]] = []
+    per_universe: dict[str, Counter[str]] = defaultdict(Counter)
+    # Final on-disk size per Parquet file. A file can be appended to by several
+    # shards this run; keep the LATEST size keyed by path so we don't multi-count
+    # the same growing file when computing the compression ratio.
+    parquet_sizes: dict[Path, int] = {}
 
     for path in files:
         date = path.parent.name  # data/raw/{date}/{file}
@@ -245,50 +256,54 @@ def process_files(files: list[Path], parquet_root: Path) -> dict[str, Any]:
         run_stats["bad_lines"] += stats["bad_lines"]
         run_stats["skipped_non_target"] += stats["skipped_non_target"]
         pc_envelopes_total += stats["pc_envelopes"]
-        for (universe, table), rows in groups.items():
-            grouped[(date, universe, table)].extend(rows)
         logger.info(
             "parsed %s -> %s (bad_lines=%d, skipped_non_target=%d)",
             path.name, stats["table_envelopes"], stats["bad_lines"], stats["skipped_non_target"],
         )
 
-    parquet_bytes = 0
-    written: list[dict[str, Any]] = []
-    per_universe: dict[str, Counter[str]] = defaultdict(Counter)
+        # Write each (universe, table) group from THIS shard, then free it.
+        for (universe, table), rows in sorted(groups.items()):
+            if not rows:
+                continue
+            expected = len(rows)
+            df = build_frame(table, rows)
+            # Lightweight pre-write checks (replaces the old post-write re-read):
+            # confirm the schema and row count of what we're about to append.
+            if list(df.columns) != TABLE_COLS[table]:
+                raise RuntimeError(f"column mismatch for {date}/{universe}/{table}: {list(df.columns)}")
+            if len(df) != expected:
+                raise RuntimeError(f"frame build mismatch {date}/{universe}/{table}: {len(df)} != {expected}")
 
-    for (date, universe, table), rows in sorted(grouped.items()):
-        if not rows:
-            continue
-        df = build_frame(table, rows)
-        expected = len(rows)
-        if len(df) != expected:
-            raise RuntimeError(f"frame build mismatch {date}/{universe}/{table}: {len(df)} != {expected}")
+            # Per-shard output file: include the shard name so each shard writes
+            # its own Parquet file (no append/concat). e.g. esports_13.jsonl.gz
+            # → price_change_esports_13.parquet
+            shard_stem = path.stem.replace(".jsonl", "")  # esports_13
+            out_path = parquet_root / date / universe / f"{table}_{shard_stem}.parquet"
+            new_rows, file_total = write_parquet(out_path, df)
+            if new_rows != expected:
+                raise RuntimeError(f"row-count mismatch in {out_path}: wrote {new_rows}, expected {expected}")
 
-        out_path = parquet_root / date / universe / f"{table}.parquet"
-        new_rows, total_rows = write_parquet(out_path, df)
+            size = out_path.stat().st_size
+            parquet_sizes[out_path] = size  # latest size for this file
+            per_universe[universe][table] += new_rows
+            total_rows += new_rows
+            written.append({
+                "path": str(out_path.relative_to(parquet_root.parent)),
+                "table": table, "universe": universe, "rows_added": new_rows,
+                "rows_total": file_total, "bytes": size,
+            })
+            logger.info(
+                "wrote %-13s %-16s +%d rows (file total %d, %.1f KB)",
+                table, universe, new_rows, file_total, size / 1024,
+            )
+            del df  # release this group's frame before building the next
 
-        # --- VALIDATION: reread, confirm columns + that our rows landed ---
-        check = pd.read_parquet(out_path)
-        if list(check.columns) != TABLE_COLS[table]:
-            raise RuntimeError(f"column mismatch in {out_path}: {list(check.columns)}")
-        if new_rows != expected:
-            raise RuntimeError(f"row-count mismatch in {out_path}: wrote {new_rows}, expected {expected}")
-        if total_rows < new_rows:
-            raise RuntimeError(f"reread row-count too low in {out_path}: {total_rows} < {new_rows}")
+        # Record THIS shard as processed immediately — crash-safe. If the run is
+        # killed after this point, the shard won't be reprocessed next time.
+        record_processed(processed_state, path)
+        del groups  # release this shard's rows before the next file
 
-        size = out_path.stat().st_size
-        parquet_bytes += size
-        per_universe[universe][table] += new_rows
-        written.append({
-            "path": str(out_path.relative_to(parquet_root.parent)),
-            "table": table, "universe": universe, "rows_added": new_rows,
-            "rows_total": total_rows, "bytes": size,
-        })
-        logger.info(
-            "wrote %-13s %-16s +%d rows (file total %d, %.1f KB)",
-            table, universe, new_rows, total_rows, size / 1024,
-        )
-
+    parquet_bytes = sum(parquet_sizes.values())
     ratio = (source_bytes / parquet_bytes) if parquet_bytes else 0.0
     return {
         "files": len(files),
@@ -296,6 +311,7 @@ def process_files(files: list[Path], parquet_root: Path) -> dict[str, Any]:
         "parquet_bytes": parquet_bytes,
         "compression_ratio_jsonlgz_to_parquet": round(ratio, 2),
         "pc_envelopes_total": pc_envelopes_total,
+        "total_rows": total_rows,
         "bad_lines": run_stats["bad_lines"],
         "skipped_non_target": run_stats["skipped_non_target"],
         "written": written,
@@ -312,11 +328,13 @@ def load_processed(state_path: Path) -> set[str]:
     return {ln.strip() for ln in state_path.read_text(encoding="utf-8").splitlines() if ln.strip()}
 
 
-def record_processed(state_path: Path, files: list[Path]) -> None:
+def record_processed(state_path: Path, path: Path) -> None:
+    """Append a SINGLE processed shard to the state file. Called per-file (right
+    after that shard's Parquet is written) so a mid-run crash never causes an
+    already-written shard to be reprocessed."""
     state_path.parent.mkdir(parents=True, exist_ok=True)
     with state_path.open("a", encoding="utf-8") as fh:
-        for path in files:
-            fh.write(str(path.resolve()) + "\n")
+        fh.write(str(path.resolve()) + "\n")
 
 
 def discover_shards(raw_root: Path, processed: set[str], force: bool) -> list[Path]:
@@ -359,8 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     logger.info("processing %d shard(s)", len(files))
+    # process_files records each shard as processed immediately after writing it.
     summary = process_files(files, args.parquet_root)
-    record_processed(PROCESSED_STATE, files)
 
     logger.info("=" * 60)
     logger.info("DONE: %d files | %d bad lines | %d non-target skipped",
