@@ -1,0 +1,2 @@
+# systemd timer that triggers compress.service every hour.
+# Placeholder — [Timer] OnCalendar/OnUnitActiveSec to be filled in during deployment.

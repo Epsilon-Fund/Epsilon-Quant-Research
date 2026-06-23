@@ -1,0 +1,2 @@
+# systemd unit (oneshot) that runs the compression pipeline + cloud sync once per trigger.
+# Driven by compress.timer. Placeholder — sections to be filled in during deployment.
