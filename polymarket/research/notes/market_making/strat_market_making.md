@@ -80,6 +80,16 @@ Strategy A. So MM's live value is now (a) explaining the maker moat and (b) copy
 - Live data and collection semantics: [[mm_clob_capture_semantics]], [[block_a0_runbook]], [[dali_live_l2_capture_plan]]
 - Maker-fill entry (bridge to OD Strategy A): [[block_kpeg_findings]], [[block_kpeg_robustness_findings]], [[block_kpeg_robustness_review]]
 
+## MM Path B — L2 Data Ingestion + Backtesting Framework (added 2026-06-16, updated 2026-06-24)
+
+**New research restart.** Single-venue maker is dead, but the structural edge thesis (wide spreads + uninformed flow in slow politics/sports markets) remains untested live. Requires broad L2 order book data to measure spread, adverse selection, and toxicity — then a calibrated fill simulator to test strategies realistically.
+
+**L2 Pipeline (OPERATIONAL):** 24/7 capture running on Hetzner VPS since 2026-06-19. Architecture: [[polymarket_l2_ingestion]]. Captures book, trades, price_change, best_bid_ask across politics NegRisk, esports, crypto (control). Compression pipeline converts hourly JSONL.gz → per-shard Parquet (OOM fix deployed 2026-06-22, MemoryMax raised 1G→3G on 2026-06-24). Cloud backup to Cloudflare R2 (pending Justin's final rclone config + sync retention fix). ~20 GB raw + ~4.6 GB parquet accumulated. Code: `infrastructure/data/l2_ingestion/`.
+
+**Backtesting Framework (PHASE 0 PENDING):** professional MM backtesting requires calibrated queue models — can't just replay prices. Deep research on queue models completed (Cont-Stoikov, Moallemi-Yuan, hftbacktest L2 probabilistic models). Six Phase 0 interface decisions identified. Justin builds engine + placeholder quoter; Carlos builds queue model + latency model + real strategy. See [[mm_backtesting_methodology_explainer]] for full methodology, research findings, and phased roadmap.
+
+**Path to first live test:** L2 data accumulates (2+ weeks by ~2026-07-03) → Phase 0 interface agreement → parallel build → placeholder calibration → real strategy testing. Critical gate: Join 3 (can the queue model be calibrated to match live fills?).
+
 ## Open tasks (authoritative list in `brain/TODO.md` § MM)
 
 - [ ] **Decompose why top-3 makers dominate** (speed/queue vs capital vs carry-risk) from K5 wallet data —

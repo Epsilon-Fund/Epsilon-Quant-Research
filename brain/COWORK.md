@@ -22,6 +22,7 @@ Thread status is authoritative in [[TODO]] and [[VAULT_MAP]] § Active research 
 | **copytrade** | `polymarket/research/` + `polymarket/execution/` (Midas) | [[COWORK]] § copytrade cluster below | `brain/TODO.md` § copytrade |
 | **MM — Market-Making** | `polymarket/research/` | [[strat_market_making]] | `brain/TODO.md` § MM |
 | **OD — Options-Delta** | `polymarket/research/` | [[strat_options_delta]] | `brain/TODO.md` § OD |
+| **L2 Data Ingestion** | `infrastructure/data/l2_ingestion/` | `brain/TODO.md` § MM Path B | `brain/TODO.md` § MM Path B |
 | **dali / Polymarket research lineage** | `polymarket/research/` (shared infra) | [[COWORK]] § dali cluster below | `brain/TODO.md` § dali |
 
 `brain/TODO.md` is the authoritative live task list. Read it before suggesting next actions.

@@ -178,30 +178,34 @@ Open MM tasks:
 - [ ] **Capacity/speed caveat for OD expansion:** live-paper instrumentation needed. See [[od_cross_asset_updown_scoping]].
 - [ ] Do NOT spawn new single-venue quoting/anchor/continuous-hedge variants — exhausted.
 
-### MM Path B — Broad L2 Data Ingestion (added 2026-06-16)
+### MM Path B — Broad L2 Data Ingestion (added 2026-06-16, updated 2026-06-24)
 
-> **New research restart.** Thesis: profitability through structural edge (wide spreads + uninformed flow), not informational edge. Requires broad L2 order book data across categories for weeks/months to measure spread, adverse selection, and toxicity per market type. Architecture doc: `infrastructure/data/polymarket_l2_ingestion.md`.
+> **New research restart.** Thesis: profitability through structural edge (wide spreads + uninformed flow), not informational edge. Requires broad L2 order book data across categories for weeks/months to measure spread, adverse selection, and toxicity per market type. Architecture doc: `infrastructure/data/polymarket_l2_ingestion.md`. Pipeline code: `infrastructure/data/l2_ingestion/`.
 
-**Phase 1 — VPS + capture infrastructure (target: 2026-06-17)**
+**Phase 1 — VPS + capture infrastructure — DONE**
 
-- [ ] Provision Hetzner CX32 VPS (~€6.50/month). SSH key-only, firewall SSH-only.
-- [ ] Write `mm_discovery_daemon.py` — Gamma API poller → `live_universe.json`. Universes: politics NegRisk, sports/esports, culture/other, crypto (control).
-- [ ] Refactor `mm_stage1_live_control.py` into `mm_capture_daemon.py` — reads universe from JSON, hot-reload on universe change, auto-reconnect with exponential backoff.
-- [ ] Deploy capture as systemd service with restart-on-failure + discovery as systemd timer (every 15 min).
-- [ ] Verify: all 4 WS event types flowing for a small test universe (~10 markets).
+- [x] Provisioned Hetzner CX23 VPS (2 vCPU, 4 GB RAM, 40 GB disk, Helsinki). IP: `89.167.68.98`, hostname `Midas`.
+- [x] Built `discovery/daemon.py` — Gamma API poller → `data/live_universe.json`. Universes: politics NegRisk, sports/esports, crypto (control), unknown (catch-all).
+- [x] Built `capture/daemon.py` — reads universe from JSON, hot-reload on change, auto-reconnect with exponential backoff. Records all 4 WS event types (book, price_change, best_bid_ask, last_trade_price) to hourly JSONL.gz shards per universe.
+- [x] Deployed as systemd: `capture.service` (24/7) + `discovery.timer` (15 min) + `compress.timer` (hourly) + `sync.timer` (6h, pending R2 config).
+- [x] Verified: all 4 event types flowing across all universes. Capturing since 2026-06-19.
 
-**Phase 2 — Compression + cloud sync (target: 2026-06-17)**
+**Phase 2 — Compression + cloud sync — DONE (sync pending Justin's rclone config)**
 
-- [ ] Write `mm_compress_pipeline.py` — JSONL.gz → typed Parquet (book/trades/price_change/bba tables).
-- [ ] Set up Cloudflare R2 bucket + rclone config. Hourly cron: compress + sync + optional local cleanup.
-- [ ] Adapt `mm_stage1_analyze_capture.py` to read new parquet schema for quick spread/depth/toxicity snapshots.
+- [x] Built `compression/pipeline.py` — JSONL.gz → typed Parquet (book/trades/price_change/bba tables). Per-shard processing with crash recovery (OOM fix deployed 2026-06-22, MemoryMax raised from 1G→3G on 2026-06-24).
+- [x] Justin created Cloudflare R2 bucket (`epsilon-polymarket-data`). `sync/sync_cloud.sh` built (rclone copy for raw, rclone sync for parquet, 7-day local raw retention). **Pending:** Justin to configure rclone on VPS + enable `sync.timer`. **Also pending:** Justin to fix `sync_cloud.sh` retention — raw→3 days, add parquet pruning after 7 days, switch parquet from `sync` to `copy` (instructions delivered, see `justin_sync_fix_instructions.md` in Cowork outputs).
+- [x] Built `monitoring/health_check.py` — per-component GREEN/YELLOW/RED status, gap detection, inventory report.
+- [ ] Adapt analysis scripts to read new per-shard parquet schema for quick spread/depth/toxicity snapshots.
 
-**Phase 3 — Validation + let it run (target: 2026-06-18)**
+**Phase 3 — Validation + let it run — IN PROGRESS**
 
-- [ ] 24h soak test: check file completeness, gap report, cloud sync health.
+- [x] 4+ days of continuous capture (2026-06-19 through present). ~20 GB raw, ~4.6 GB parquet.
+- [x] Health check: capture GREEN, compression GREEN (backlog cleared), sync GREEN (last ran 45m ago at last check), gaps YELLOW (5 disconnects/24h, normal).
+- [x] 4 GB swap file added as safety net (persistent via `/etc/fstab`).
+- [ ] Full health check with sync GREEN (blocked on Justin's rclone config).
 - [ ] First broad spread/adverse-selection snapshot across captured universes.
 
-**Phase 4 — Path B analysis (target: after 2+ weeks of data)**
+**Phase 4 — Path B analysis (target: after 2+ weeks of data, ~2026-07-03)**
 
 - [ ] Spread map by category × time-of-day.
 - [ ] Realized adverse selection measurement per category (trade prints + subsequent book moves).
