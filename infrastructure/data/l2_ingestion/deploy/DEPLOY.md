@@ -1,3 +1,13 @@
+---
+title: "Deploying the L2 Ingestion Pipeline on the Hetzner VPS"
+created: 2026-06-18
+status: active
+owner: alvaro
+project: mm
+para: project
+tags: [data, infrastructure, deploy, market-making]
+---
+
 # Deploying the L2 Ingestion Pipeline on the Hetzner VPS
 
 Step-by-step guide to run the Polymarket L2 capture pipeline 24/7 on our existing

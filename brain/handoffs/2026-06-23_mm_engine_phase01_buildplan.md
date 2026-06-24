@@ -125,4 +125,4 @@ Then:
 
 ## Pointers
 
-[[mm_backtest_infra_plan]] (the plan) · [[mm_backtesting_methodology_explainer]] (queue/latency/realism) · [[mm_concepts_and_strategy_buildup]] (the strat, for the eventual real `quote()`) · [[mm_clob_capture_semantics]] (data + audit) · [[mm_maker_infra_audit_findings]] (the live maker safety/signing to bridge at Join 2). Consolidates: `dali_clob_replay_features.py`, `od_v4_queue_replay.py`, `dali_block_k2_quoting_sim.py`, `dali_paper_backtest.py`.
+[[2026-06-16_mm_backtest_infra_plan]] (the plan) · [[mm_backtesting_methodology_explainer]] (queue/latency/realism) · [[mm_concepts_and_strategy_buildup]] (the strat, for the eventual real `quote()`) · [[mm_clob_capture_semantics]] (data + audit) · [[mm_maker_infra_audit_findings]] (the live maker safety/signing to bridge at Join 2). Consolidates: `dali_clob_replay_features.py`, `od_v4_queue_replay.py`, `dali_block_k2_quoting_sim.py`, `dali_paper_backtest.py`.

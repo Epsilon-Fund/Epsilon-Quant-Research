@@ -16,3 +16,8 @@ The three components never call each other directly. They coordinate through fil
 - compression **writes** Parquet; `sync/` uploads it to the cloud.
 
 This decoupling means any component can crash or restart without taking the others down. `deploy/` holds the systemd units/timers that keep each one alive. `monitoring/` checks the whole chain is healthy.
+
+## Operational docs
+
+- [[DEPLOY]] — step-by-step deployment of the pipeline on the Hetzner VPS.
+- [[R2_HANDOVER]] — Cloudflare R2 cloud-backup setup + handover notes.

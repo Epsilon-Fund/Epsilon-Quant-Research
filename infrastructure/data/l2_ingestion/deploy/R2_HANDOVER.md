@@ -1,3 +1,13 @@
+---
+title: "L2 Pipeline — R2 Cloud Backup Setup (Handover)"
+created: 2026-06-18
+status: active
+owner: alvaro
+project: mm
+para: project
+tags: [data, infrastructure, r2, backup, handover]
+---
+
 # L2 Pipeline — R2 Cloud Backup Setup (Handover)
 
 ## Context

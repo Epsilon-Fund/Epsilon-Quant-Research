@@ -20,7 +20,7 @@ tags:
 # MM L2 Capture — VPS → Cloudflare R2 Setup
 
 > Hubs: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · [[COWORK]]
-> Capture semantics (what the feed can/can't prove): [[mm_clob_capture_semantics]] · Where all the data lives: [[polymarket_data_manifest]] · Architecture/roadmap: [[polymarket_l2_ingestion]] · Engine that replays it: [[mm_engine_phase01_buildplan]]
+> Capture semantics (what the feed can/can't prove): [[mm_clob_capture_semantics]] · Where all the data lives: [[polymarket_data_manifest]] · Architecture/roadmap: [[polymarket_l2_ingestion]] · Engine that replays it: [[2026-06-23_mm_engine_phase01_buildplan]]
 
 ## Plain-English Summary
 
