@@ -61,6 +61,11 @@ The Phase 0 plug-point `queue_model(book_state, our_order) → fill?` is an over
 
 ## Phased roadmap (agreed with Justin)
 
+> **Operational companion:** [[mm_backtest_research_roadmap]] has the full phase-by-phase checklist,
+> iteration loop, calibration philosophy (what transfers between strategies vs what doesn't),
+> kill criteria, and data dependency table. This section below is the summary; the roadmap is
+> the working document.
+
 ### Phase 0 — Interface agreement (half-day session)
 
 Six decisions to lock down:
@@ -93,6 +98,12 @@ Plug in real strategy. Backtest → live small → compare → tweak → repeat,
 The L2 capture pipeline running on the VPS (see [[polymarket_l2_ingestion]]) feeds this backtester. It captures all 4 event types needed: book snapshots, trades, price_change (with order-level detail), and best bid/ask. The per-shard parquet output structure works directly with `pd.read_parquet("directory/")` for loading into the backtester.
 
 Current data: capturing since 2026-06-19, ~5 days accumulated, 4 universes (politics_negrisk, esports, crypto, unknown). Phase 4 analysis (first spread/adverse-selection snapshots) targets ~2026-07-03 after 2+ weeks of data.
+
+## Related documents
+
+- [[mm_backtest_research_roadmap]] — operational skeleton: phases, gates, iteration loop, kill criteria
+- [[strat_market_making]] — MM strategy hub (MM Path B section)
+- [[polymarket_l2_ingestion]] — L2 data pipeline architecture
 
 ## Open questions for Phase 0
 

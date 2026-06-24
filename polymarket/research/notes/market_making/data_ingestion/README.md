@@ -15,6 +15,8 @@ tags:
 
 # MM Data Ingestion — Architecture & Roadmap
 
+> Hub: [[strat_market_making]] · [[POLYMARKET_BRAIN]]
+
 ## Why this exists
 
 We're restarting the MM research line from scratch. The thesis (Path B) is:

@@ -1,0 +1,16 @@
+# systemd timer — runs expire-raw.service every 6 hours (aligned with sync_cloud.sh
+# cadence so raw is expired shortly after each upload+parquet confirmation cycle).
+# Install: copy to /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now expire-raw.timer
+
+[Unit]
+Description=Run Epsilon L2 R2 raw archive expiry every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:30:00
+Persistent=true
+AccuracySec=10min
+Unit=expire-raw.service
+
+[Install]
+WantedBy=timers.target

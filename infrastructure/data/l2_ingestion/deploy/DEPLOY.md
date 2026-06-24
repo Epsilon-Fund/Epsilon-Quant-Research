@@ -1,3 +1,16 @@
+<<<<<<< HEAD
+=======
+---
+title: "Deploying the L2 Ingestion Pipeline on the Hetzner VPS"
+created: 2026-06-18
+status: active
+owner: alvaro
+project: mm
+para: project
+tags: [data, infrastructure, deploy, market-making]
+---
+
+>>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 # Deploying the L2 Ingestion Pipeline on the Hetzner VPS
 
 Step-by-step guide to run the Polymarket L2 capture pipeline 24/7 on our existing
@@ -26,7 +39,11 @@ crashes. We talk to the server over SSH.
 | Hostname | `Midas` (Helsinki) |
 | Access | SSH as `root` (already working) |
 
+<<<<<<< HEAD
 > ⚠️ **DO NOT TOUCH** the existing `/opt/epsilon/` repo clone or the running
+=======
+> **DO NOT TOUCH** the existing `/opt/epsilon/` repo clone or the running
+>>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 > `epsilon-dashboard.service`. Everything below lives in a **new** subfolder,
 > `/opt/epsilon/l2_ingestion/`, and uses its own systemd units. We never modify
 > or restart the dashboard.
@@ -173,7 +190,11 @@ vps# ./venv/bin/python capture/daemon.py --duration-seconds 60
 vps# ./venv/bin/python compression/pipeline.py --input data/raw/$(date -u +%F)/ --force
 
 # 4) sync — upload to R2 and report
+<<<<<<< HEAD
 vps# ./venv/bin/bash sync/sync_cloud.sh
+=======
+vps# bash sync/sync_cloud.sh
+>>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 
 # 5) health check — should be mostly GREEN right after the above
 vps# ./venv/bin/python monitoring/health_check.py

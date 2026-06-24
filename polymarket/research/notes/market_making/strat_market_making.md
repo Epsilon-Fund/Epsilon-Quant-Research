@@ -86,7 +86,7 @@ Strategy A. So MM's live value is now (a) explaining the maker moat and (b) copy
 
 **L2 Pipeline (OPERATIONAL):** 24/7 capture running on Hetzner VPS since 2026-06-19. Architecture: [[polymarket_l2_ingestion]]. Captures book, trades, price_change, best_bid_ask across politics NegRisk, esports, crypto (control). Compression pipeline converts hourly JSONL.gz → per-shard Parquet (OOM fix deployed 2026-06-22, MemoryMax raised 1G→3G on 2026-06-24). Cloud backup to Cloudflare R2 (pending Justin's final rclone config + sync retention fix). ~20 GB raw + ~4.6 GB parquet accumulated. Code: `infrastructure/data/l2_ingestion/`.
 
-**Backtesting Framework (PHASE 0 PENDING):** professional MM backtesting requires calibrated queue models — can't just replay prices. Deep research on queue models completed (Cont-Stoikov, Moallemi-Yuan, hftbacktest L2 probabilistic models). Six Phase 0 interface decisions identified. Justin builds engine + placeholder quoter; Carlos builds queue model + latency model + real strategy. See [[mm_backtesting_methodology_explainer]] for full methodology, research findings, and phased roadmap.
+**Backtesting Framework (PHASE 0 PENDING):** professional MM backtesting requires calibrated queue models — can't just replay prices. Deep research on queue models completed (Cont-Stoikov, Moallemi-Yuan, hftbacktest L2 probabilistic models). Six Phase 0 interface decisions identified. Justin builds engine + placeholder quoter; Carlos builds queue model + latency model + real strategy. See [[mm_backtesting_methodology_explainer]] for methodology and research findings; [[mm_backtest_research_roadmap]] for the operational skeleton (phases, gates, iteration loop, kill criteria).
 
 **Path to first live test:** L2 data accumulates (2+ weeks by ~2026-07-03) → Phase 0 interface agreement → parallel build → placeholder calibration → real strategy testing. Critical gate: Join 3 (can the queue model be calibrated to match live fills?).
 
@@ -107,4 +107,4 @@ Strategy A. So MM's live value is now (a) explaining the maker moat and (b) copy
 Sibling strat: [[strat_options_delta]]. Foundation: [[block_k_maker_options_research]]. Full arc + glossary:
 [[block_k_plain_english_synthesis]]. Pivot handoff: [[2026-05-30_maker_options_delta_pivot]]. Copytrade
 re-merge: [[profile_domah]], [[copytrade_relayer_implications]].
-Data + methodology: [[polymarket_l2_ingestion]] (L2 ingestion architecture/roadmap) · [[mm_backtesting_methodology_explainer]] (how institutional MM backtesting works, and what it means for us).
+Data + methodology: [[polymarket_l2_ingestion]] (L2 ingestion architecture/roadmap) · [[mm_backtesting_methodology_explainer]] (how institutional MM backtesting works, and what it means for us) · [[mm_backtest_research_roadmap]] (operational phases, gates, iteration loop, kill criteria).
