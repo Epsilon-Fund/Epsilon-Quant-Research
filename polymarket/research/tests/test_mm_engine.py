@@ -338,7 +338,7 @@ def test_best_bid_ask_does_not_mutate_book():
 
 def test_symmetric_quoter_basic():
     q = SymmetricQuoter()
-    fresh = BookState(YES, bids=[(0.47, 500)], asks=[(0.49, 400)], ts_exchange=1, stale=False)
+    fresh = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=False)
     orders = q.quote(fresh, inventory=0.0, params={"half_spread": 0.01, "size": 50.0})
     by_side = {o.side: o for o in orders}
     assert by_side["BUY"].price == 0.47 and by_side["SELL"].price == 0.49
@@ -348,29 +348,40 @@ def test_symmetric_quoter_basic():
     assert q.quote(fresh, inventory=999.0, params={"half_spread": 0.01, "size": 50.0}) == orders
 
     # stale or one-sided book -> no quotes
-    stale = BookState(YES, bids=[(0.47, 500)], asks=[(0.49, 400)], ts_exchange=1, stale=True)
+    stale = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=True)
     assert q.quote(stale, 0.0, {}) == []
-    one_sided = BookState(YES, bids=[(0.47, 500)], asks=[], ts_exchange=1, stale=False)
+    one_sided = BookState(YES, bids=((0.47, 500),), asks=(), ts_exchange=1, stale=False)
     assert q.quote(one_sided, 0.0, {}) == []
 
 
 def test_optimistic_queue_trade_through():
     qm = OptimisticQueue()
-    book = BookState(YES, bids=[(0.47, 500)], asks=[(0.49, 400)], ts_exchange=1, stale=False)
+    book = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=False)
     order = Order(YES, "BUY", 0.47, 100.0)
     base = 1_781_000_000_000
 
-    # First a SELL of 200 at 0.47: consumes queue-ahead (500), no fill yet.
+    # First a SELL of 200 at 0.47: seeds queue-ahead from the book (500), consumes 200 -> 300, no fill.
     t1 = MarketEvent("last_trade", YES, base, "", 0, _trade_msg(YES, base, "SELL", 0.47, 200))
-    assert qm.fill(order, book, t1) == 0.0
+    r1 = qm.fill(order, book, t1)
+    assert r1.qty == 0.0 and r1.queue_ahead == 300.0
 
     # Next a SELL of 400: 300 left ahead is cleared, 100 overflow fills our order.
     t2 = MarketEvent("last_trade", YES, base + 1, "", 0, _trade_msg(YES, base + 1, "SELL", 0.47, 400))
-    assert qm.fill(order, book, t2) == 100.0
+    r2 = qm.fill(order, book, t2)
+    assert r2.qty == 100.0 and r2.queue_ahead == 0.0
 
     # A BUY (wrong aggressor side for a resting bid) never fills it.
     t3 = MarketEvent("last_trade", YES, base + 2, "", 0, _trade_msg(YES, base + 2, "BUY", 0.47, 999))
-    assert qm.fill(order, book, t3) == 0.0
+    assert qm.fill(order, book, t3).qty == 0.0
+
+
+def test_optimistic_queue_get_queue_ahead_seeds_from_cached_book():
+    qm = OptimisticQueue()
+    book = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=False)
+    order = Order(YES, "BUY", 0.47, 100.0)
+    # on_event caches the book per token so get_queue_ahead can seed without a book arg.
+    qm.on_event(MarketEvent("book", YES, 1, "", 0, {}), book)
+    assert qm.get_queue_ahead(order) == 500.0
 
 
 def test_constant_latency():

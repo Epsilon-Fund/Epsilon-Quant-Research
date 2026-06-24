@@ -122,8 +122,8 @@ class BookTracker:
 
     def snapshot(self, token_id: str, ts_exchange: int) -> BookState:
         tb = self._token(token_id)
-        bids = tb.book.levels("bid")[: self.depth]
-        asks = tb.book.levels("ask")[: self.depth]
+        bids = tuple(tb.book.levels("bid")[: self.depth])
+        asks = tuple(tb.book.levels("ask")[: self.depth])
         stale = self._is_stale(tb, ts_exchange)
         return BookState(
             token_id=token_id,

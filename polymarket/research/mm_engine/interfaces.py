@@ -54,22 +54,24 @@ class MarketEvent:
     payload: dict                  # raw fields (levels+sizes / price+side / etc.)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BookState:
     """Reconstructed top-N book for one token at one instant.
 
-    ``bids`` are sorted best-first (descending price); ``asks`` best-first (ascending
-    price). ``stale`` is ``True`` when the book is not yet anchored by a full ``book``
-    snapshot, when it sits beyond the staleness window, or when a capture gap / WS
-    disconnect has invalidated it until the next full ``book`` re-anchors it. Strategies
-    must not quote off a stale book.
+    Frozen + tuple-typed so a snapshot is an immutable value that can be shared across the
+    strategy, queue model, and telemetry without any of them mutating it (agreed with
+    Alvaro when the interface was frozen). ``bids`` are sorted best-first (descending
+    price); ``asks`` best-first (ascending price). ``stale`` is ``True`` when the book is
+    not yet anchored by a full ``book`` snapshot, when it sits beyond the staleness window,
+    or when a capture gap / WS disconnect has invalidated it until the next full ``book``
+    re-anchors it. Strategies must not quote off a stale book.
     """
 
     token_id: str
-    bids: list[tuple[float, float]]  # (price, size), top-N
-    asks: list[tuple[float, float]]
+    bids: tuple[tuple[float, float], ...]  # (price, size), top-N, best-first
+    asks: tuple[tuple[float, float], ...]
     ts_exchange: int
-    stale: bool                      # True if beyond staleness window or across a capture gap
+    stale: bool                            # True if beyond staleness window or across a capture gap
 
 
 @dataclass(frozen=True)
@@ -89,18 +91,34 @@ class Order:
     tag: str = ""      # optional free-form label (e.g. "symmetric")
 
 
+@dataclass(frozen=True)
+class FillResult:
+    """Outcome of a queue-model fill check for one resting order against one trade.
+
+    ``qty`` is the filled quantity (0..order size) realized by this trade. ``queue_ahead``
+    is the model's estimate of resting size still ahead of our order *after* the trade —
+    raw telemetry the validation layer (and the per-quote queue snapshot) need.
+    """
+
+    qty: float
+    queue_ahead: float
+
+
 @runtime_checkable
 class QueueModel(Protocol):          # ALVARO
     """How a resting order advances through the queue and when it fills.
 
     The engine calls :meth:`on_event` for every market event (so the model can track
     size-ahead / book mutations), and :meth:`fill` whenever a trade could touch our
-    resting order. :meth:`calibrate` tunes the model from our own live fills — the one
-    thing public anonymous L2 can never give us offline (see methodology explainer §1).
+    resting order. :meth:`get_queue_ahead` returns the current size-ahead estimate for a
+    resting order (snapshotted per quote, no trade needed). :meth:`calibrate` tunes the
+    model from our own live fills — the one thing public anonymous L2 can never give us
+    offline (see methodology explainer §1).
     """
 
     def on_event(self, ev: MarketEvent, book: BookState) -> None: ...
-    def fill(self, our_order, book: BookState, trade: MarketEvent | None) -> float: ...  # filled qty (0..order size)
+    def fill(self, our_order, book: BookState, trade: MarketEvent | None) -> FillResult: ...
+    def get_queue_ahead(self, our_order) -> float: ...
     def calibrate(self, live_fills) -> None: ...
 
 

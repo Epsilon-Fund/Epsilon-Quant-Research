@@ -21,6 +21,7 @@ from __future__ import annotations
 from mm_engine.events import GapMarker, envelope_to_events
 from mm_engine.interfaces import (
     BookState,
+    FillResult,
     LatencyModel,
     MarketEvent,
     Order,
@@ -36,6 +37,7 @@ __all__ = [
     "BookState",
     "ConstantLatency",
     "Decision",
+    "FillResult",
     "GapMarker",
     "LatencyModel",
     "MarketEvent",
