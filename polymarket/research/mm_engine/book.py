@@ -67,11 +67,23 @@ class _TokenBook:
 
 @dataclass
 class BookTracker:
-    """Maintains a :class:`ClobBook` per token and emits :class:`BookState` snapshots."""
+    """Maintains a :class:`ClobBook` per token and emits :class:`BookState` snapshots.
+
+    Also accumulates an **L1 cross-check**: whenever a ``best_bid_ask`` (telemetry) event
+    arrives, the reconstructed top-of-book (built only from ``book`` + ``price_change``) is
+    compared to the native L1 the event reports. ``l1_crosscheck_summary()`` returns the
+    matching fractions — the Phase-1 acceptance "reconstructed L1 matches ``best_bid_ask`` on
+    a high reported fraction." Only fresh (anchored, non-gap, non-stale) states are scored.
+    """
 
     staleness_ms: int = DEFAULT_STALENESS_MS
     depth: int = DEFAULT_DEPTH
+    l1_tol: float = 1e-6   # PM prices live on a 0.001 grid; treat as exact match
     _books: dict[str, _TokenBook] = field(default_factory=dict)
+    _l1_total: int = 0
+    _l1_bid: int = 0
+    _l1_ask: int = 0
+    _l1_both: int = 0
 
     def _token(self, token_id: str) -> _TokenBook:
         tb = self._books.get(token_id)
@@ -110,8 +122,11 @@ class BookTracker:
 
         elif ev.type == "best_bid_ask":
             # Telemetry only — never mutates the executable book (replay-features rule).
-            tb.telemetry_best_bid = _to_float(ev.payload.get("best_bid"))
-            tb.telemetry_best_ask = _to_float(ev.payload.get("best_ask"))
+            claimed_bid = _to_float(ev.payload.get("best_bid"))
+            claimed_ask = _to_float(ev.payload.get("best_ask"))
+            self._l1_crosscheck(tb, ev.ts_exchange, claimed_bid, claimed_ask)
+            tb.telemetry_best_bid = claimed_bid
+            tb.telemetry_best_ask = claimed_ask
 
         elif ev.type == "last_trade":
             # Trades do not mutate the resting book here; the fill simulator (Phase 1)
@@ -139,3 +154,44 @@ class BookTracker:
         if not tb.book.is_complete:
             return True
         return (ts_exchange - tb.last_depth_ts) > self.staleness_ms
+
+    def _l1_crosscheck(
+        self,
+        tb: _TokenBook,
+        ts_exchange: int,
+        claimed_bid: float | None,
+        claimed_ask: float | None,
+    ) -> None:
+        # Only score against a fresh, anchored reconstruction; a stale/gapped book is
+        # not expected to match, and scoring it would understate accuracy.
+        if self._is_stale(tb, ts_exchange):
+            return
+        top = tb.book.top()
+        bid_ok = (
+            top.bid_price is not None
+            and claimed_bid is not None
+            and abs(top.bid_price - claimed_bid) <= self.l1_tol
+        )
+        ask_ok = (
+            top.ask_price is not None
+            and claimed_ask is not None
+            and abs(top.ask_price - claimed_ask) <= self.l1_tol
+        )
+        self._l1_total += 1
+        self._l1_bid += int(bid_ok)
+        self._l1_ask += int(ask_ok)
+        self._l1_both += int(bid_ok and ask_ok)
+
+    def l1_crosscheck_summary(self) -> dict:
+        """Fraction of fresh ``best_bid_ask`` events whose native L1 matches our rebuild."""
+        n = self._l1_total
+        frac = (lambda x: (x / n) if n else None)
+        return {
+            "compared": n,
+            "bid_match": self._l1_bid,
+            "ask_match": self._l1_ask,
+            "both_match": self._l1_both,
+            "bid_match_frac": frac(self._l1_bid),
+            "ask_match_frac": frac(self._l1_ask),
+            "both_match_frac": frac(self._l1_both),
+        }
