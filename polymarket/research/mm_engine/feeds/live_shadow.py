@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Protocol
 
 from mm_engine.events import GapMarker, envelope_to_events
@@ -117,6 +118,7 @@ def live_shadow_feed(
     custom_feature_enabled: bool = True,
     timeout: float = 5.0,
     max_events: int | None = None,
+    record_to: Path | str | None = None,
 ) -> Iterator[MarketEvent | GapMarker]:
     """Yield ``MarketEvent``s from a read-only market-channel connection.
 
@@ -124,6 +126,12 @@ def live_shadow_feed(
     :class:`FrameTransport` to replay recorded frames offline. ``max_events`` bounds the
     stream (handy for a short live smoke). On a real disconnect a
     :class:`GapMarker` is emitted and the feed stops (no reconnect in Phase 0).
+
+    ``record_to``: if given, every capture envelope this session produces is appended to that
+    JSONL file (the exact ``envelope()`` records, with the session's own receive clocks). The
+    file is therefore a replayable shard — feeding it back through ``replay_feed`` reproduces
+    this session's events byte-for-byte, which is what makes the record→replay reconciliation
+    a real same-code-path / divergence test (not two replays of pre-captured data).
     """
     if metadata is None:
         metadata = {t: TokenMeta(token_id=t) for t in token_ids}
@@ -135,6 +143,11 @@ def live_shadow_feed(
         "type": "market",
         "custom_feature_enabled": bool(custom_feature_enabled),
     }
+    rec_fh = None
+    if record_to is not None:
+        rec_path = Path(record_to)
+        rec_path.parent.mkdir(parents=True, exist_ok=True)
+        rec_fh = rec_path.open("a", encoding="utf-8")
     emitted = 0
     try:
         transport.send(json.dumps(subscription))
@@ -147,10 +160,14 @@ def live_shadow_feed(
                 yield GapMarker(reason="disconnect")
                 break
             for rec in envelope(raw, metadata):
+                if rec_fh is not None:
+                    rec_fh.write(json.dumps(rec, sort_keys=True, separators=(",", ":")) + "\n")
                 for ev in envelope_to_events(rec):
                     yield ev
                     emitted += 1
                     if max_events is not None and emitted >= max_events:
                         return
     finally:
+        if rec_fh is not None:
+            rec_fh.close()
         transport.close()
