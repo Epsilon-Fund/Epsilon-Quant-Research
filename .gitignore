@@ -10,8 +10,13 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# /lib/ and /lib64/ are ANCHORED to the repo root on purpose: they are setuptools
+# build outputs created at the project root. Left unanchored (lib/) they also matched
+# real source packages anywhere in the tree — e.g. polymarket/research/lib/ — and kept
+# that package from ever being committed (broke `from lib.clob_book import ClobBook`
+# for anyone who cloned). venv lib/ dirs stay ignored via the venv rules below.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
