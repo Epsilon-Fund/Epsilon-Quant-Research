@@ -1,7 +1,7 @@
 ---
 title: "How Institutional Market-Making Backtesting Works — and What It Means for Us (Anonymous L2, Mixed Market Speeds, Gappy Data)"
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-23
 status: active
 owner: justin
 project: polymarket
@@ -23,7 +23,7 @@ tags:
 # How Institutional Market-Making Backtesting Works — and What It Means for Us
 
 > Hubs: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · concepts: [[mm_concepts_and_strategy_buildup]] · our data limits: [[mm_clob_capture_semantics]]
-> An **understanding** document (deep-research + internal mapping). The work-division plan between Justin and Alvaro is the **next** step, deliberately not in here.
+> An **understanding** document (deep-research + internal mapping) that now also walks **the engine we actually built** (§6 — written to be audited and defended). Build plan + handoff: [[2026-06-23_mm_engine_phase01_buildplan|mm_engine build plan]].
 
 ## Plain-English Summary
 
@@ -31,6 +31,7 @@ tags:
 - **Queue position is the binding constraint in every market we touch, and we can only ever *model* it.** Our public Polymarket L2 is **anonymous** (aggregated price levels, no order IDs, no maker identity, no queue). On-chain `OrderFilled` data (via Goldsky) is **ground truth for fills** but does **not** recover queue position or our own fill rate — and there is **no public L3/order-level feed** (§1b). So fill rate is a live-only unknown.
 - **Latency is NOT one-size-fits-all — it scales with market speed, and our targets span both regimes.** Negligible in **slow** markets (politics, pre-game/outright sports — resolution in days, books move in seconds). **Material** in **fast** markets we also examine: **crypto 4h/daily** (Binance leads the PM; speed arbitrage is documented) and **in-play sports** (prices jump on goals; exchanges engineer delays to protect makers). A latency model is cheap and worth building; its *importance* is market-dependent (§2).
 - **The punchline that should drive the plan:** the dominant unknown — our true passive fill rate net of adverse selection — **cannot be backtested from public data.** It can only be calibrated from *our own* live fills. So the 1-contract live loop is **not downstream of the backtest; it is the instrument that makes the backtest trustworthy.** Build the bot and backtester as **one event-driven code path**, run replay and 1-contract-live in parallel, calibrate, then size.
+- **What we've built so far (§6).** A strategy-agnostic event-driven engine — *same code path* for replay and live-shadow — with **honest economics** (maker rebate; PnL split into realized / mark-to-mid-unrealized / settled) and a **0%-gap** same-code-path reconciliation. The realism of the *fill rate itself* still rides on the stub queue model until Alvaro's models + Join-2 calibration land.
 
 ---
 
@@ -158,11 +159,60 @@ Reconcile the backtest against **shadow/live on the same dates**, tuning the two
 
 **Building blocks of a MM bot:** market-data handler → **order-book builder** → **quoting/signal logic** → **order manager** (place/cancel/replace, *idempotent*, rate-limit throttled — exchange APIs are unreliable, so track orders *before* submit and *query before resubmit*) → **inventory/position tracker** → **risk limits + kill-switch** (daily-loss pause, drawdown flatten, *reconciliation-mismatch halt*) → **journal/telemetry** → **startup + continuous reconciliation** ([Hummingbot arch](https://hummingbot.org/blog/hummingbot-architecture---part-1/), [Nautilus live](https://nautilustrader.io/docs/latest/concepts/live/)).
 
-> **MAP TO US — the decisive point.** Because the dominant unknown (queue/fill rate) is calibratable *only* from our own live fills (§1, §1b), **the bot is not downstream of the backtest — it is the calibration instrument.** So: build **one event-driven engine** with shared quoting code; run **replay (optimistic+pessimistic queue bounds) and 1-contract live in parallel**; use live fills to **calibrate the queue model and the latency constant**; then trust the backtest enough to size. We already have much of the bot — `maker_engine.py`, `negrisk_inventory.py`, `resolution_handler.py`, venue adapter (256 tests, [[mm_maker_infra_audit_findings]]). Missing: **(i) the shared backtest↔live code path, (ii) a queue model, (iii) calibration telemetry** (queue rank at fill, fill share, own round-trip).
+> **MAP TO US — the decisive point.** Because the dominant unknown (queue/fill rate) is calibratable *only* from our own live fills (§1, §1b), **the bot is not downstream of the backtest — it is the calibration instrument.** So: **one event-driven engine** with shared quoting code; run **replay (optimistic+pessimistic queue bounds) and 1-contract live in parallel**; use live fills to **calibrate the queue model and the latency constant**; then trust the backtest enough to size. **We built exactly this — see §6.** The shared backtest↔live engine, raw telemetry, and the 0%-gap reconciliation now exist in `polymarket/research/mm_engine/`; the live execution path bridges to the existing `maker_engine.py` / `negrisk_inventory.py` / `resolution_handler.py` safety+signing (256 tests, [[mm_maker_infra_audit_findings]]) at Join 2. What remains is **Alvaro's real queue/latency models** (the stub is optimistic) and **Join-2 live calibration**.
 
 ---
 
-## 6. The mapping table (institutional practice → us)
+## 6. What we actually built — the `mm_engine`, end to end (built to be audited and defended)
+
+This is the concrete realization of §5: **one strategy-agnostic, event-driven engine** in `polymarket/research/mm_engine/`. The *same* `run_engine` function drives both replay and live-shadow — only the feed differs — which is the same-code-path that makes a backtest trustworthy. Strategy, queue model, and latency model are pluggable behind the frozen `interfaces.py`; today they're a placeholder **symmetric quoter** plus stub models (Alvaro's real ones drop in at Join 1).
+
+### 6.1 The loop — four steps per event
+
+`engine.py:run_engine` walks the event stream and, for each event, does four things:
+
+1. **Event in.** `feeds/replay.py` (captured data) or `feeds/live_shadow.py` (live WS) emit *identical* `MarketEvent`s. A `GapMarker` (capture gap / disconnect) marks the book **stale** and **cancels all resting orders** — what a real disconnect does to your quotes.
+2. **Book updates** (`book.py:BookTracker`). A `book` event is a full snapshot (re-anchor); **every `price_change` mutates the running book** (level size changed / added / removed); `best_bid_ask` mutates nothing — it's used only as a **checksum** against our reconstructed top. The tracker maintains top-N, flags `stale`, and cross-checks reconstructed L1 vs native `best_bid_ask`. *Reconstruction is exact only on complete, unambiguous intervals* — Alvaro's audit came back **≈100% clean on decisive checkpoints** (CI lower ~99%); the only "mismatches" are sub-millisecond same-timestamp bursts (flagged *ambiguous*, not errors), and a capture gap marks the book stale so we never trust reconstruction across one. Periodic snapshots re-sync any drift; the native L1 catches divergence.
+3. **Fills first** (`fills.py:FillSimulator`). On a *real* `last_trade`, only orders placed on **earlier** events can fill (no lookahead). Two gates: **latency** (your quote must have had time to land) then **queue** (`QueueModel.fill → FillResult(qty, queue_ahead)`). Backtest realizes fills; live-shadow logs only.
+4. **Mark equity, then re-quote.** The strategy proposes quotes; `orders.py:OrderManager` reconciles them against what's resting — place / cancel / replace / throttle / idempotent no-op, with **deterministic client IDs** (reproducible replay); then a `get_queue_ahead` snapshot is logged per resting order.
+
+Why this is *correct*, not just functional: fills-before-requote = **lookahead-safe**; deterministic IDs = **reproducible**; gap→cancel-all = **realistic disconnect**; reconstructed-vs-native L1 = **self-auditing book**. Everything is written raw by `telemetry.py` (fill log, order log, per-quote queue snapshots) so the analysis layer computes metrics downstream.
+
+### 6.2 The economics layer — what makes the PnL *honest*
+
+**How PnL is actually computed (read this first — it's not a "spread" formula).** PnL is **derived from the simulated fills**: the queue × latency model decides which of our resting quotes fill against the real trade tape, and PnL falls out as **realized** (offsetting fills) + **settled** (resolution) + **rebate**. The engine does *not* compute "spread × round-trips." "Spread capture" is only the *label* for the realized PnL you get *when a round trip actually completes* (you filled the bid **and** later the ask) — and that isn't guaranteed: one-sided fills are common, and then there's no spread captured, just inventory that settles later. The maker equation `profit = spread + rebate − adverse selection − inventory/resolution risk` is a **practitioner PnL-attribution heuristic** — gross capture (spread + rebate) minus two cost channels — *not* the engine's calculation, and its "adverse selection / inventory" terms are **emergent from the fills, and only as accurate as the (currently optimistic) queue + latency model.** *Attribution (be precise — it is **not** "the GM/AS decomposition," which a microstructure-literate reader will catch):* the additive spread decomposition traces to the empirical microstructure literature — Stoll (1978), Ho-Stoll (1981), Glosten-Harris (1988), Madhavan-Smidt (1991), **Huang-Stoll (1997)**; Glosten-Milgrom is the microfoundation for the *adverse-selection* term and Avellaneda-Stoikov for the *inventory* term; the rebate is a maker-taker institutional add-on, in neither. (Our foundational note [[block_k_plain_english_synthesis]] correctly attributes only adverse selection to GM.) This layer makes that fill-derived PnL **honest**:
+
+- **Fee + maker rebate (`fees.py`).** We quote passively → **0 maker fee**, and *earn* `rebate = rebate_rate · fee_rate · qty · p·(1−p)` (taker fee peaks at 50¢; crypto `0.07` → 1.75¢, exactly what K3 measured). The schedule resolves **per-market `fee` field → canonical `FEE_BY_CATEGORY`** (one source of truth, lazy-imported — no duplicated numbers) **→ `fee_free`** bound. The taker-fee path is wired for a future crossing leg but unused (passive-only).
+- **Three-way PnL.** `gross` / `net_ex_rebate` / `net_with_rebate` — the K5-STRESS `net_without_rebate` discipline: because the rebate is *policy-fragile* (PM can change it; historically charged 0 on many markets), a rebate-only "edge" must be visible. `net_ex_rebate` is the conservative read.
+- **Realized / unrealized / settled — the mark-to-mid lesson, made measurable.** An average-cost ledger (`_Pos`/`_apply_fill`) splits PnL: offsetting round-trips → **realized** (spread actually banked); open inventory marked-to-mid → **unrealized**, flagged as *paper*; `EngineResult.settle(resolution_map)` carries open inventory to the **$1/$0 payoff → settled** (matching our prior research's `position·(payoff − entry) + rebate`, *not* mark-to-mid). The worked example says it all: **±$53 / −$47 settled vs +$1 mark-to-mid** — the K-PEG inflation trap, now a number instead of an assumption. This is how we *measure* whether resolution matters rather than guess it.
+- **Record → replay — the same-code-path proof.** The replayer is a deterministic *"fake venue"*: it re-emits recorded events as if they were happening live. `feeds/live_shadow.py:record_to` has a live session record its own event frames; `reconcile.py:reconcile_against_recording` then replays that exact shard and checks the engine made the *identical* decisions → **0% gap**. *Why it matters:* it guarantees the backtest runs the **exact logic that runs live** — there's no "the live bot does something the backtest didn't." (It proves adapter-parity + determinism, **not** real-fill realism — that's Join 2.)
+
+### 6.3 Honest now vs still-on-the-stub (how to defend it)
+
+- **Honest now:** rebate modeled from the canonical schedule; realizable money separated from mark-to-mid paper; settlement matches our own methodology; same-code-path proven at 0% gap; book reconstruction 100% clean.
+- **Still on the stub (by design):** fills use the **optimistic** stub queue model, so the *fill rate* — and therefore how much PnL lands in realized vs settled — is optimistic until Alvaro's `RiskAverse`/`ProbQueue` models and **Join-2 live calibration**; `settle()` needs the resolution map wired for a real run; the taker-fee path is unexercised.
+- **The defense, in one line:** we never present a single flattering number — every result is **bracketed** (optimistic vs pessimistic queue), reported **with and without rebate**, and **split realized / unrealized / settled**, with the explicit statement that the true fill rate is calibrated *live* (§8). That is exactly what an honest MM backtest looks like.
+
+### 6.4 Module map (file → role)
+
+| file | role |
+|---|---|
+| `interfaces.py` | the frozen contract: `MarketEvent`, `BookState`, `Order`, `FillResult` + `QueueModel`/`LatencyModel`/`Strategy` protocols |
+| `events.py` | event + `GapMarker` types; envelope→events normalization (shared by both feeds) |
+| `feeds/replay.py` · `feeds/live_shadow.py` | the two adapters (+ `record_to` for record→replay) |
+| `book.py` | `BookTracker` — top-N reconstruction, staleness/gaps, L1 cross-check |
+| `strategies.py` | `SymmetricQuoter` placeholder (the A/B baseline) |
+| `orders.py` | `OrderManager` — place/cancel/replace, idempotent, throttle, deterministic IDs |
+| `queue_models.py` · `latency_models.py` | `OptimisticQueue` / `ConstantLatency` stubs → **Alvaro's lane** |
+| `fills.py` | `FillSimulator` — latency gate × queue gate against the real trade tape |
+| `fees.py` | `FeeModel` / `FeeSchedule` — per-market → category → fee_free; rebate + taker-fee |
+| `engine.py` | `run_engine` + `EngineResult` (3-way PnL, realized/unrealized) + `settle()` |
+| `reconcile.py` | the Join-1 artifact: `reconcile_against_recording`, gap vs tolerance |
+| `telemetry.py` | raw append-only fill / order / quote logs |
+
+---
+
+## 7. The mapping table (institutional practice → us)
 
 | institutional practice | transfers to our setting? | what we do |
 |---|---|---|
@@ -179,7 +229,7 @@ Reconcile the backtest against **shadow/live on the same dates**, tuning the two
 
 ---
 
-## 7. The hard constraint to internalize *before* we plan
+## 8. The hard constraint to internalize *before* we plan
 
 **Queue position and our true fill rate cannot be backtested from public data** — not from anonymous L2, not from Goldsky on-chain fills, and there is no public L3. In the **fast** markets (crypto 4h/daily, in-play sports) **latency is a second live-only unknown** on top. So the deliverable of our backtesting effort is **not** "is the strategy profitable?" It is:
 
@@ -201,7 +251,7 @@ Every backtest number is conditional on a queue (and latency) assumption; the li
 
 **Strategy:** [Avellaneda-Stoikov](https://people.orie.cornell.edu/sfs33/LimitOrderBook.pdf) · [Guéant-Lehalle-Fernandez-Tapia](https://arxiv.org/abs/1105.3115) · [Glosten-Milgrom](https://www.sciencedirect.com/science/article/pii/0304405X85900443) · [Hummingbot XEMM](https://hummingbot.org/strategies/v1-strategies/cross-exchange-market-making/)
 
-**Verification caveats:** A-S liquidity term is `(2/γ)` (a `(2/k)` variant circulates — wrong); Glosten-Milgrom market-breakdown is qualitative, not a crisp cutoff; latency-race "tax" has two conflated figures (~0.5 bp UK vs ~1.5 bp US-extrapolated, same paper); *which* CEX leads crypto price discovery is unsettled (state it as "a fast CEX leads the slower PM"); Betfair-delay/courtsiding and the crypto "15–20% resolve in final 10s" figures are practitioner/anecdotal; the Polymarket microstructure preprint is single-author/recent; some hftbacktest code-level details come from an AI-generated docs mirror (concepts corroborated by official docs); on-chain "no L3" means no *public* L3.
+**Verification caveats:** A-S liquidity term is `(2/γ)` (a `(2/k)` variant circulates — wrong); Glosten-Milgrom market-breakdown is qualitative, not a crisp cutoff; latency-race "tax" has two conflated figures (~0.5 bp UK vs ~1.5 bp US-extrapolated, same paper); *which* CEX leads crypto price discovery is unsettled (state it as "a fast CEX leads the slower PM"); Betfair-delay/courtsiding and the crypto "15–20% resolve in final 10s" figures are practitioner/anecdotal; the Polymarket microstructure preprint is single-author/recent; some hftbacktest code-level details come from an AI-generated docs mirror (concepts corroborated by official docs); on-chain "no L3" means no *public* L3. The maker-PnL equation is a **practitioner attribution heuristic**, *not* "the Glosten-Milgrom / Avellaneda-Stoikov decomposition" — GM/AS are microfoundations for two terms only; the additive spread decomposition descends from Stoll (1978) / Ho-Stoll (1981) / Glosten-Harris (1988) / Madhavan-Smidt (1991) / Huang-Stoll (1997), and the rebate is a maker-taker institutional feature in neither.
 
 ## Cross-links
 
