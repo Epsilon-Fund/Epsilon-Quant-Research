@@ -89,6 +89,12 @@ secrets.toml
 journal_logs/
 journal_logs_*/
 
+# Superforecasting skill — per-book forecast ledger (append-only runtime data; treat
+# like trades.json: never commit). One ledger per book; the books share no state.
+# (polymarket book is also covered by `polymarket/research/data/` below; listed here too for clarity.)
+polymarket/research/data/superforecast/
+live_trading/data/superforecast/
+
 # polymarket/research (was polymarket-copy/.gitignore — consolidated on restructure)
 polymarket/research/data/
 polymarket/research/.env
@@ -116,3 +122,11 @@ brain/**/.DS_Store
 /Users/
 /home/
 /private/
+
+# data-contract layer monitoring artifacts — regenerable (references, drift logs,
+# append-only manifests, failure reports). Code is tracked; this state is not.
+infrastructure/data/schemas/data_monitoring/
+polymarket/research/data_infra/schemas/data_monitoring/
+
+# changepoint detector append-only output (regenerable break logs)
+infrastructure/changepoint/changepoints/
