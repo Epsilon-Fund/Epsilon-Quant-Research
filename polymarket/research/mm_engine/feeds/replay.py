@@ -22,13 +22,16 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from mm_engine.events import GapMarker, envelope_to_events, _iso_to_epoch_ms
+from mm_engine.feeds._merge import order_and_interleave
 from mm_engine.interfaces import MarketEvent
 
 
 # capture_gaps.jsonl control event_types that constitute a real data gap.
 GAP_EVENT_TYPES = frozenset({"disconnect_or_error"})
 
-_EXCLUDE_NAMES = {"capture_gaps.jsonl"}
+# The gaps log ships as capture_gaps.jsonl OR capture_gaps.jsonl.gz (real R2 captures gzip it);
+# either way it is a control log, never a data shard.
+_GAP_LOG_STEM = "capture_gaps"
 
 
 def _open_text(path: Path):
@@ -56,7 +59,7 @@ def _resolve_shards(source) -> list[Path]:
             shards = [
                 p
                 for p in path.iterdir()
-                if p.name not in _EXCLUDE_NAMES
+                if not p.name.startswith(_GAP_LOG_STEM)   # excludes capture_gaps.jsonl[.gz]
                 and not p.name.endswith(".manifest.json")
                 and (p.suffix == ".jsonl" or p.name.endswith(".jsonl.gz"))
             ]
@@ -68,11 +71,14 @@ def _resolve_shards(source) -> list[Path]:
 
 
 def _gap_log_for(source) -> Path | None:
-    """Find a sibling/contained ``capture_gaps.jsonl`` for ``source``, if any."""
+    """Find a sibling/contained ``capture_gaps.jsonl`` (or ``.jsonl.gz``) for ``source``."""
     if isinstance(source, (str, Path)):
         path = Path(source)
-        candidate = (path if path.is_dir() else path.parent) / "capture_gaps.jsonl"
-        return candidate if candidate.exists() else None
+        base = path if path.is_dir() else path.parent
+        for name in ("capture_gaps.jsonl", "capture_gaps.jsonl.gz"):
+            candidate = base / name
+            if candidate.exists():
+                return candidate
     return None
 
 
@@ -100,35 +106,13 @@ def replay_feed(
     ``capture_gaps.jsonl`` when present.
     """
     shards = _resolve_shards(source)
-
-    # Flatten to events, keeping a stable arrival sequence for tie-breaking.
-    indexed: list[tuple[int, int, int, MarketEvent, int | None]] = []
-    seq = 0
-    for shard in shards:
-        for rec in _iter_lines(shard):
-            for ev in envelope_to_events(rec):
-                # Gap placement uses receive time; fall back to ts_exchange if a record's
-                # received_at is missing/malformed, so a gap marker is never silently
-                # dropped/delayed (both clocks are ms-epoch and close in value).
-                recv_ms = _iso_to_epoch_ms(ev.ts_local_iso)
-                if recv_ms is None:
-                    recv_ms = ev.ts_exchange
-                indexed.append((ev.ts_exchange, ev.ts_monotonic_ns, seq, ev, recv_ms))
-                seq += 1
-
-    # Lookahead-free ordering: event time first, then local monotonic clock, then arrival.
-    indexed.sort(key=lambda t: (t[0], t[1], t[2]))
+    events: list[MarketEvent] = [
+        ev for shard in shards for rec in _iter_lines(shard) for ev in envelope_to_events(rec)
+    ]
 
     if gaps is None:
         gap_log = _gap_log_for(source)
         gaps = load_capture_gaps(gap_log) if gap_log is not None else []
-    gap_times = sorted(gaps)
 
-    gi = 0
-    for _ts, _ns, _seq, ev, recv_ms in indexed:
-        # Emit any gap markers whose disconnect time is at or before this event's receive
-        # time, so the book is marked stale from the disconnect until the next full `book`.
-        while gi < len(gap_times) and recv_ms >= gap_times[gi]:
-            yield GapMarker(reason="capture_gap", detail={"disconnect_ms": gap_times[gi]})
-            gi += 1
-        yield ev
+    # Shared ordering + gap interleaving (identical to the Parquet adapter — see _merge).
+    yield from order_and_interleave(events, gaps)
