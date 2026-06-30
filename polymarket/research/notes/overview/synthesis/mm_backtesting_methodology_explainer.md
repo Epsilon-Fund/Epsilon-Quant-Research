@@ -199,7 +199,7 @@ Why this is *correct*, not just functional: fills-before-requote = **lookahead-s
 |---|---|
 | `interfaces.py` | the frozen contract: `MarketEvent`, `BookState`, `Order`, `FillResult` + `QueueModel`/`LatencyModel`/`Strategy` protocols |
 | `events.py` | event + `GapMarker` types; envelope→events normalization (shared by both feeds) |
-| `feeds/replay.py` · `feeds/live_shadow.py` | the two adapters (+ `record_to` for record→replay) |
+| `feeds/replay.py` · `feeds/replay_parquet.py` · `feeds/live_shadow.py` | the feed adapters — JSONL replay, **Parquet replay** (equivalence-tested byte-identical to JSONL), and live-shadow (+ `record_to` for record→replay) |
 | `book.py` | `BookTracker` — top-N reconstruction, staleness/gaps, L1 cross-check |
 | `strategies.py` | `SymmetricQuoter` placeholder (the A/B baseline) |
 | `orders.py` | `OrderManager` — place/cancel/replace, idempotent, throttle, deterministic IDs |
