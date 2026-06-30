@@ -24,7 +24,6 @@ from mm_engine_fixtures import (
     book_msg,
     events,
     frames,
-    pc_msg,
     trade_msg,
     write_replay_jsonl,
 )
@@ -106,17 +105,21 @@ def test_order_manager_idempotent_replace_throttle():
     from mm_engine.interfaces import Order
     om = OrderManager(throttle_ms=1000)
 
-    ops0 = om.reconcile([Order(YES, "BUY", 0.47, 100.0)], ts=0)
-    assert [o.op for o in ops0] == ["place"]
-    assert om.reconcile([Order(YES, "BUY", 0.47, 100.0)], ts=100) == []  # idempotent
-    ops2 = om.reconcile([Order(YES, "BUY", 0.48, 100.0)], ts=200)
-    assert [o.op for o in ops2] == ["throttled"]
+    # reconcile now returns (ops, removed): removed = orders that left the book this tick.
+    ops0, rem0 = om.reconcile([Order(YES, "BUY", 0.47, 100.0)], ts=0)
+    assert [o.op for o in ops0] == ["place"] and rem0 == []
+    ops1, rem1 = om.reconcile([Order(YES, "BUY", 0.47, 100.0)], ts=100)
+    assert ops1 == [] and rem1 == []                       # idempotent: nothing removed
+    ops2, rem2 = om.reconcile([Order(YES, "BUY", 0.48, 100.0)], ts=200)
+    assert [o.op for o in ops2] == ["throttled"] and rem2 == []   # throttle keeps the order
     assert om.active_orders()[0].order.price == 0.47
-    ops3 = om.reconcile([Order(YES, "BUY", 0.48, 100.0)], ts=1500)
+    ops3, rem3 = om.reconcile([Order(YES, "BUY", 0.48, 100.0)], ts=1500)
     assert [o.op for o in ops3] == ["replace"]
+    assert [a.order.price for a in rem3] == [0.47]         # old side of the replace removed
     assert om.active_orders()[0].order.price == 0.48
-    ops4 = om.reconcile([], ts=1600)
+    ops4, rem4 = om.reconcile([], ts=1600)
     assert [o.op for o in ops4] == ["cancel"] and om.active_orders() == []
+    assert [a.order.price for a in rem4] == [0.48]         # cancelled order returned
 
 
 def test_gap_cancels_resting_orders():

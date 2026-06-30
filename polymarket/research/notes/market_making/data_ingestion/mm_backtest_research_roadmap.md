@@ -16,6 +16,11 @@ relationship: >
 
 > Hub: [[strat_market_making]] · [[COWORK]]
 
+## Plain-English Summary
+
+- The **step-by-step, gated skeleton** for building a calibrated MM backtester on Polymarket and iteratively researching strategies through it — each phase advances only when its gate passes.
+- The "what, in what order" companion to [[mm_backtesting_methodology_explainer]] (the "why"); the research/modelling counterpart to Justin's infrastructure plan. Feeds [[strat_market_making]] MM Path B; depends on L2 data from [[polymarket_l2_ingestion]].
+
 ## What this document is
 
 The step-by-step skeleton for building a calibrated MM backtester on Polymarket, then iteratively

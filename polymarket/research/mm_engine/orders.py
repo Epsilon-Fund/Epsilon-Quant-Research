@@ -70,9 +70,17 @@ class OrderManager:
     def active_orders(self) -> list[ActiveOrder]:
         return list(self._active.values())
 
-    def reconcile(self, desired: list[Order], ts: int) -> list[OrderOp]:
-        """Diff ``desired`` against the active set; return the ops to log/execute."""
+    def reconcile(self, desired: list[Order], ts: int) -> tuple[list[OrderOp], list[ActiveOrder]]:
+        """Diff ``desired`` against the active set.
+
+        Returns ``(ops, removed)`` where ``ops`` is the place/cancel/replace/throttled log
+        and ``removed`` is every :class:`ActiveOrder` that left the book this reconcile — a
+        cancelled order, or the **old side** of a replace (cancel+place). The engine feeds
+        ``removed`` to ``queue_model.forget`` so the next order at that ``(token,side,price)``
+        re-seeds at the back of the queue rather than inheriting stale queue state.
+        """
         ops: list[OrderOp] = []
+        removed: list[ActiveOrder] = []
         desired_by_key: dict[tuple[str, str], Order] = {
             (o.token_id, o.side): o for o in desired
         }
@@ -81,6 +89,7 @@ class OrderManager:
         for key in list(self._active):
             if key not in desired_by_key:
                 ao = self._active.pop(key)
+                removed.append(ao)
                 ops.append(
                     OrderOp(ts, "cancel", ao.client_id, ao.order.token_id, ao.order.side,
                             ao.order.price, ao.order.size)
@@ -98,28 +107,35 @@ class OrderManager:
             elif self.throttle_ms > 0 and (ts - ao.last_change_ts) < self.throttle_ms:
                 ops.append(OrderOp(ts, "throttled", ao.client_id, o.token_id, o.side, o.price, o.size))
             else:
+                removed.append(ao)        # old side of the replace leaves the book
                 cid = self._next_id()
                 self._active[key] = ActiveOrder(o, cid, ts, ts, float(o.size))
                 ops.append(OrderOp(ts, "replace", cid, o.token_id, o.side, o.price, o.size))
 
-        return ops
+        return ops, removed
 
-    def cancel_all(self, ts: int) -> list[OrderOp]:
-        """Cancel every active order (used on a capture gap / disconnect)."""
+    def cancel_all(self, ts: int) -> tuple[list[OrderOp], list[ActiveOrder]]:
+        """Cancel every active order (used on a capture gap / disconnect).
+
+        Returns ``(ops, removed)`` — ``removed`` is every cancelled :class:`ActiveOrder`, for
+        the same ``queue_model.forget`` teardown as :meth:`reconcile`.
+        """
         ops: list[OrderOp] = []
+        removed: list[ActiveOrder] = []
         for key in list(self._active):
             ao = self._active.pop(key)
+            removed.append(ao)
             ops.append(
                 OrderOp(ts, "cancel", ao.client_id, ao.order.token_id, ao.order.side,
                         ao.order.price, ao.order.size)
             )
-        return ops
+        return ops, removed
 
-    def drop_filled(self, eps: float = 1e-9) -> list[str]:
-        """Remove fully-filled orders (remaining <= eps); return their client ids."""
-        dropped: list[str] = []
+    def drop_filled(self, eps: float = 1e-9) -> list[ActiveOrder]:
+        """Remove fully-filled orders (remaining <= eps); return the removed ActiveOrders."""
+        dropped: list[ActiveOrder] = []
         for key, ao in list(self._active.items()):
             if ao.remaining <= eps:
-                dropped.append(ao.client_id)
+                dropped.append(ao)
                 del self._active[key]
         return dropped

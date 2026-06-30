@@ -246,8 +246,11 @@ def run_engine(
     for item in feed:
         if isinstance(item, GapMarker):
             tracker.note_gap(item)
-            for op in om.cancel_all(last_ts):
+            ops, removed = om.cancel_all(last_ts)
+            for op in ops:
                 tele.orders.emit(op.as_dict())
+            for ao in removed:
+                queue_model.forget(ao.order)   # gap-cancelled orders relinquish queue state
             continue
 
         ev: MarketEvent = item
@@ -297,7 +300,8 @@ def run_engine(
                     "trade_price": float(ev.payload.get("price")),
                     "trade_size": float(ev.payload.get("size")),
                 })
-            om.drop_filled()
+            for ao in om.drop_filled():
+                queue_model.forget(ao.order)   # filled-out order relinquishes its queue slot
 
         # 2. mark net-with-rebate equity to current mids
         equity_path.append(
@@ -307,10 +311,13 @@ def run_engine(
         # 3. re-quote and reconcile
         inventory = positions.get(ev.token_id, _Pos()).qty
         desired = strategy.quote(book, inventory, params)
-        for op in om.reconcile(desired, ev.ts_exchange):
+        ops, removed = om.reconcile(desired, ev.ts_exchange)
+        for op in ops:
             if op.op == "place":
                 placed_count += 1
             tele.orders.emit(op.as_dict())
+        for ao in removed:
+            queue_model.forget(ao.order)   # cancelled / replaced-out orders re-seed at back
         quote_count += 1
 
         # 4. per-quote queue snapshot
@@ -335,6 +342,13 @@ def run_engine(
             "mid": m,
             "orders": snap,
         })
+
+    # stream end: finalize any deferred (within-timestamp) cancel attribution so the queue
+    # model's final state is consistent for post-run reads (our models provide this; the
+    # frozen QueueModel protocol does not require it, hence the guard).
+    flush = getattr(queue_model, "flush_pending_cancels", None)
+    if callable(flush):
+        flush()
 
     return EngineResult(
         mode=mode,

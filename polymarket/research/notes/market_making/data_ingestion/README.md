@@ -17,6 +17,11 @@ tags:
 
 > Hub: [[strat_market_making]] · [[POLYMARKET_BRAIN]]
 
+## Plain-English Summary
+
+- Architecture + roadmap for the **broad Polymarket L2 capture pipeline** (`book`, `price_change`, `last_trade_price`, `best_bid_ask`) that feeds the MM Path B research line.
+- Three file-coordinated components — `discovery/` (universe selection), `capture/` (24/7 WS daemon → hourly JSONL.gz), `compression/` (→ typed Parquet → Cloudflare R2) — plus `deploy/` and `monitoring/`. Full architecture spec: [[polymarket_l2_ingestion]].
+
 ## Why this exists
 
 We're restarting the MM research line from scratch. The thesis (Path B) is:

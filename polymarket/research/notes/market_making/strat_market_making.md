@@ -98,3 +98,5 @@ Sibling strat: [[strat_options_delta]]. Foundation: [[block_k_maker_options_rese
 [[block_k_plain_english_synthesis]]. Pivot handoff: [[2026-05-30_maker_options_delta_pivot]]. Copytrade
 re-merge: [[profile_domah]], [[copytrade_relayer_implications]].
 Data + methodology: [[polymarket_l2_ingestion]] (L2 ingestion architecture/roadmap) · [[mm_backtesting_methodology_explainer]] (how institutional MM backtesting works, and what it means for us).
+Engine (`mm_engine/`): [[2026-06-23_mm_engine_phase01_buildplan]] (Phase 0/1 build plan + Alvaro handoff) · [[mm_engine_fee_pnl_settlement]] (fee/rebate, three-way PnL, settlement, record→replay) · [[mm_engine_queue_models]] (the three queue models — Optimistic/RiskAverse/Prob — and the fill-rate bound they produce) · [[mm_queue_model_audit_fixes_findings]] (forget() teardown, logical floor, order-invariant netting + L2 coincidence measurement).
+External scan: [[2026-06-28_external_repo_audit]] (5 quant GitHubs triaged against our live threads, MM-first).
