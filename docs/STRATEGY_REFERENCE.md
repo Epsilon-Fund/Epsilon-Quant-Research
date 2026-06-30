@@ -60,7 +60,7 @@ This document is a formal reference for the crypto-momentum research stack: the 
 
 - Momentum primers and topic hub: [[topics/momentum/README|momentum README]], [[topics/momentum/research/other-notes/W1|momentum week 1]], [[topics/momentum/research/other-notes/W2|momentum week 2]].
 - Data/artifact map: [[docs/CRYPTO_DATA_MANIFEST|crypto data manifest]].
-- ML and regime filters: [[topics/ml-prediction/notebooks/README|ML prediction README]], [[topics/regime-classifier/README|regime classifier README]].
+- ML and regime filters: [[topics/ml-prediction/notebooks/README|ML prediction README]], [[topics/regime-classifier/README|regime classifier README]]. Causal break detector: [[changepoint_detector_findings]] (the `changepoint-audit` skill — lookahead-free CUSUM / Page-Hinkley / BOCPD).
 - Stat-arb research: [[topics/statistical-arbitrage/README|stat-arb README]], [[topics/statistical-arbitrage/strategies/testing/README|pairs trading README]].
 - Research topic stubs: [[topics/long-short/README|long-short README]], [[topics/memecoin-defi/README|memecoin DeFi README]].
 
