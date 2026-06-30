@@ -62,11 +62,24 @@ def _files(directory: Path, table: str) -> list[str]:
     return sorted(str(p) for p in directory.glob(f"{table}_*.parquet"))
 
 
+def _available_cols(con: duckdb.DuckDBPyConnection, files: list[str]) -> set[str]:
+    """Columns actually present in ``files`` (one DESCRIBE; cheap)."""
+    return {r[0] for r in con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [files]).fetchall()}
+
+
 def _read_rows(con: duckdb.DuckDBPyConnection, files: list[str], cols: list[str]) -> list[tuple]:
-    select = ", ".join(cols)
+    # Schema-drift tolerance: the LIVE VPS pipeline's tables are NOT byte-identical to the
+    # local converter's — they carry an extra ``universe`` column (ignored, since we project
+    # by name), trades add ``fee_rate_bps``/``transaction_hash``, and crucially the ``bba``
+    # table ships ``spread`` instead of ``bid_size``/``ask_size``. So we project each requested
+    # column if present and NULL-fill it otherwise (bba_event maps a missing size to None, and
+    # nothing downstream reads it). Extra columns are dropped by the explicit projection. This
+    # lets one adapter read both the converter fixture AND the real VPS Parquet.
+    have = _available_cols(con, files)
+    proj = ", ".join(c if c in have else f"NULL AS {c}" for c in cols)
     # ORDER is re-imposed globally by order_and_interleave; ORDER BY here only for tidiness.
     return con.execute(
-        f"SELECT {select} FROM read_parquet(?) ORDER BY timestamp_ms, received_ns", [files]
+        f"SELECT {proj} FROM read_parquet(?) ORDER BY timestamp_ms, received_ns", [files]
     ).fetchall()
 
 
