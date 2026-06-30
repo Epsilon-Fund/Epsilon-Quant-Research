@@ -18,7 +18,7 @@ tags:
 
 # MM Engine — Phase 0 & 1 Build Plan + Alvaro Handoff
 
-> Plan: [[mm_backtest_infra_plan|2026-06-16_mm_backtest_infra_plan]] · Why: [[mm_backtesting_methodology_explainer]] · Data limits: [[mm_clob_capture_semantics]].
+> Plan: [[2026-06-16_mm_backtest_infra_plan]] · Why: [[mm_backtesting_methodology_explainer]] · Data limits: [[mm_clob_capture_semantics]].
 > **Naming:** "Phase 0/1" here = the **backtest-engine** effort (NOT the politics live-loop phases). The three joins from the plan: **Join 0** = agree interface (Phase 0); **Join 1** = reconciliation; **Join 2** = calibration.
 
 ## Context (state as of 2026-06-23)
@@ -28,6 +28,16 @@ VPS→cloud **live L2 capture is up and verified** (continuous, gap-free going f
 **Reuse, don't rebuild:** `polymarket/research/lib/clob_book.py` (`ClobBook` — the book builder/OFI), `scripts/dali_clob_replay_features.py` (replay/state logic; note its convention: `best_bid_ask` is telemetry-only, never mutates the executable book), the capture format from `scripts/dali_live_clob_capture.py`, and `polymarket/execution/maker/` (safety + signing — only bridged later, at Join 2's real 1-contract step).
 
 **Engine home:** new package `polymarket/research/mm_engine/` (research venv; reuses `lib/clob_book`). Live-**shadow** (read-only WS) lives in the same package. Real 1-contract execution bridges to `execution/maker/` at Join 2, not before — that keeps Phase 0/1 inside one venv.
+
+---
+
+## Status — live progress (2026-06-28)
+
+- **Machine (Justin) — DONE.** Phase-0 scaffold + Phase-1 engine: feed adapters (replay + live-shadow), `BookTracker`, order manager, fill simulator, telemetry, reconciliation harness, `SymmetricQuoter`. Same-code-path proven (record→replay **0% gap**). Economics layer added: **fee + maker rebate** (`fees.py`, reuses canonical `FEE_BY_CATEGORY`), **three-way PnL** (gross / net_ex_rebate / net_with_rebate), **realized / unrealized / settled** split + `EngineResult.settle()`.
+- **Parquet adapter — DONE.** `feeds/replay_parquet.py` replays the typed VPS Parquet; equivalence-tested **byte-identical** to the JSONL adapter (real `research-live-clob` shard, 1,675 events) and **source-invariant** engine output. The gappy 1-week fixture was converted JSONL→Parquet (gaps preserved). → the durable, gap-free **VPS Parquet is now replayable**.
+- **Models (Alvaro) — DONE (Tasks 1–3 + hardening).** Reconstruction audit **PASSED** (~100% clean on decisive checkpoints, CI lower ~99%; sub-ms bursts flagged ambiguous). Three queue models behind the interface — `OptimisticQueue` / `RiskAverseQueue` / `ProbQueue` (power-law `f` + `calibrate()` hook) forming a provably-ordered bracket; `ConstantLatency`. **Task 4 (validation gates) deferred until after Join 1.**
+- **NOW — Join 1 (reconciliation), in progress.** Run the book/bracket/determinism checks on the **clean gap-free VPS Parquet** (via `replay_parquet`); use the converted gappy fixture only as a deliberate gap-handling test. Check A (record→replay) is self-contained. Then **Task 4 → bracketed backtesting → Join 2 (live calibration)**.
+- **Standing reminder:** every pre-Join-2 number is **bracketed** (optimistic/pessimistic queue) and **conditional** — real fill-rate realism only arrives at Join-2 calibration.
 
 ---
 

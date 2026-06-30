@@ -223,6 +223,77 @@ Do not guess column meaning from the name alone.
 Do not define one-off terms.
 ```
 
+### Data-contract gate prompt
+
+```markdown
+Run the `data-contract` skill on <dataset> before proceeding.
+
+Before any backtest / walk-forward / CPCV / replay / analysis run, validate the
+primary dataset's contract and FAIL CLOSED on violation:
+
+- Polymarket (from polymarket/research/):
+  PYTHONPATH=. uv run python -m data_infra.schemas.cli validate <pm_trades|pm_closed_positions|pm_traders|pm_l2_*>
+- crypto (from repo root):
+  PYTHONPATH=. .venv/bin/python -m infrastructure.data.schemas.cli validate <crypto_ohlcv_daily|crypto_ohlcv_hourly>
+
+In code, gate the entry script's bootstrap with `guard_dataset("<dataset>")`
+(crypto: `from infrastructure.data.schemas import guard_dataset`; PM:
+`from data_infra.schemas import guard_dataset`). It aborts on any schema /
+append-only / lowercase-0x / finite / lookahead violation. Drift (PSI+KS) and
+missing-bar gaps are warnings, never blockers. Emergency bypass only:
+`EPSILON_DATA_CONTRACT=warn|off`. Never bypass for a real run. The plain-English
+failure report lands under `…/schemas/data_monitoring/reports/`.
+```
+
+### Changepoint-audit prompt
+
+```markdown
+Use the `changepoint-audit` skill on <series> (lookahead-free).
+
+Run a causal structural-break detector and use the breaks for gating / embargo:
+
+  PYTHONPATH=. .venv/bin/python -m infrastructure.changepoint.cli detect \
+      <parquet> --column Close --returns --standardize --detector bocpd \
+      --out infrastructure/changepoint/changepoints/<name>.parquet
+  PYTHONPATH=. .venv/bin/python -m infrastructure.changepoint.cli benchmark   # lag/FPR
+  PYTHONPATH=. .venv/bin/python -m infrastructure.changepoint.cli kappa-demo  # vs regime transitions
+
+In code: CUSUM/Page-Hinkley = O(1)/bar mean-shift first line; BOCPD = run-length
+posterior with a real change_prob (catches mean AND variance shifts). Detector
+state at t uses only data ≤ t (no-lookahead, tested). Integration helpers:
+`changepoint_features` (causal feature for regime-classifier Stage 2),
+`fresh_break_gate` (block trend entries for a cooldown after a break),
+`embargo_indices_from_breaks` (purge windows for cpcv_engine). ruptures is
+OFFLINE-only (labelling/validation), never wired live. This COMPLEMENTS the
+batch HMM→XGBoost regime-classifier — it does not replace it.
+```
+
+### Calibrate prompt
+
+```markdown
+Use the `calibrate` skill to score how good these probabilities are.
+
+Score calibration on the forked superforecasting ledger (read-only) — pick the
+book (the two books share no state):
+
+  crypto (from repo root):
+    PYTHONPATH=. uv run --no-project python -m infrastructure.calibration.cli --book crypto score
+    PYTHONPATH=. uv run --no-project python -m infrastructure.calibration.cli --book crypto report --out docs/assets/<name>.png
+  polymarket (from polymarket/research/):
+    PYTHONPATH=. uv run python -m lib.calibration.cli --book polymarket score
+
+Reports Brier + Murphy decomposition (reliability − resolution + uncertainty),
+log-loss, ECE/MCE, a reliability diagram with Wilson bands, Spiegelhalter's Z,
+and calibration-in-the-large. In code, import the engine
+(`from infrastructure.calibration import core` / `from lib.calibration import core`)
+for `brier_score`, `murphy_decomposition`, `reliability_table`,
+`isotonic_recalibrate` / `platt_recalibrate` (reuse the walk_forward pattern),
+and the markets layer (`implied_prob_*`, `devig`, `market_edge`, `realized_edge`).
+Read the Wilson bands, not just the dots — an off-diagonal point whose band
+straddles the diagonal is not yet miscalibration. `calibration_table` reproduces
+`ml_metrics.calibration_table` byte-for-byte. Read-only: it never writes the ledger.
+```
+
 ## Skill detail
 
 ### Daily Brief
@@ -263,19 +334,27 @@ These are not brain workflows by themselves. They are tools an agent can call wh
 | `presentations` | Slide decks | A research or investor update needs PPTX/slides |
 | `imagegen` | Bitmap visuals | Need an illustrative/generated image, not a chart/code-native asset |
 | `cost-mode` | Concise Claude Code behavior | Budget/token discipline matters; user says cost, budget, tokens, or `/cost-mode` |
+| `superforecasting` | Logging a forecast, settling/scoring it (Brier), and reviewing calibration | A decision or claim needs a resolvable, dated, Brier-scored probability — "will X happen", "should I", "how likely", or a calibration review. Set `SF_BOOK=polymarket` or `crypto` first (one ledger per book) |
 | `skill-creator` / `skill-installer` | Extending agent capability | You want a new reusable skill or to install one from a repo |
+| `changepoint-audit` | Causal, lookahead-free structural-break detection (CUSUM / Page-Hinkley / BOCPD) on a timestamped series | You need a **live** regime-shift signal (the regime-classifier is batch-only), a causal `change_prob` feature for regime Stage 2, a fresh-break gate on trend entries, or break timestamps to embargo in `cpcv_engine`. Crypto instance in `infrastructure/changepoint/`; first-party, prompt-invoked; complements (≠ replaces) `topics/regime-classifier/` |
+| `calibrate` | Scoring how good probabilistic forecasts/prices are: Brier + Murphy decomposition, log-loss, ECE/MCE, reliability diagram (Wilson bands), Spiegelhalter's Z, isotonic/Platt recalibration, model-vs-market edge | You ask how well-calibrated a model/forecaster is, want a Brier/reliability read or an over/under-confidence check, to recalibrate probabilities, or to compare model-p vs market-implied-p. Read-only consumer of the forked superforecasting ledger; per-project byte-identical engine (`infrastructure/calibration/` crypto · `polymarket/research/lib/calibration/` PM); set `--book` / `SF_BOOK` |
 
 Runtime skills should be mentioned in prompts only when they matter. Example: "Run a Janitor pass; use `systematic-debugging` if the hygiene scanner output looks inconsistent" is better than asking every skill to load every time.
 
+`superforecasting` is **vendored** (MIT, [`deusyu/superforecasting-skill`](https://github.com/deusyu/superforecasting-skill)) into `.agents/skills/superforecasting/` with symlinks in `.claude/skills/` + `~/.codex/skills/` and a `skills-lock.json` entry (upstream commit `8913b08`). Local fork: the forecast ledger is **repo-controlled and one-per-book** — `SF_BOOK=polymarket` → `polymarket/research/data/superforecast/`, `SF_BOOK=crypto` → `live_trading/data/superforecast/` (git-ignored append-only runtime data, like `trades.json`; the two books share no state). **Guardrail — anti-post-hoc:** the `sf.py` state machine rejects any edit to a forecast once it is settled/scored, so a probability can never be rewritten with hindsight (the engine's `TRANSITIONS` table is the enforcement point). Provenance + the two ledger paths: [[2026-06-29_superforecasting_skill_vendored]].
+
+`calibrate` is **first-party** (built in-repo, NOT vendored) and sits on top of that ledger as a **read-only consumer** — it scores forecasts but never writes the ledger or re-implements its state machine. Packaging mirrors `data-contract`: `.agents/skills/calibrate/` with symlinks in `.claude/skills/` + `~/.codex/skills/` and the source commit at the top of its SKILL.md; the engine is `core.py`, duplicated **byte-identical** into each project (`infrastructure/calibration/` crypto · `polymarket/research/lib/calibration/` PM), never cross-imported. It reuses the crypto stack's conventions rather than duplicating them: `infrastructure/backtester/ml_metrics.py:calibration_table` (reproduced byte-for-byte, gate-checked for no regression) and `infrastructure/ml/walk_forward.py`'s `IsotonicRegression(out_of_bounds='clip')` recalibration pattern (pure-numpy fallback where sklearn is absent). Design + gate results + embedded reliability diagram: [[calibration_scoring_layer_findings]].
+
 ### Runtime efficiency skills
 
-Unlike the prompt-invoked brain passes above, these are **description-triggered automatically in Claude Code**: the skill's frontmatter description matches the task and Claude Code loads it without anyone asking. Vendored (adapted) from [BuilderIO/skills](https://github.com/BuilderIO/skills) into `.agents/skills/` with symlinks in `.claude/skills/`; source commit recorded at the top of each SKILL.md. The orchestration variant is not a vendored skill — it is law in [[COWORK]] § Delegation discipline.
+Unlike the prompt-invoked brain passes above, these are **description-triggered automatically in Claude Code**: the skill's frontmatter description matches the task and Claude Code loads it without anyone asking. Vendored (adapted) from [BuilderIO/skills](https://github.com/BuilderIO/skills) into `.agents/skills/` with symlinks in `.claude/skills/`; source commit recorded at the top of each SKILL.md. The orchestration variant is not a vendored skill — it is law in [[COWORK]] § Delegation discipline. `data-contract` is also **first-party** (built in-repo, not vendored), but follows the same packaging: `.agents/skills/data-contract/` with symlinks in `.claude/skills/` and `~/.codex/skills/`, source commit recorded at the top of its SKILL.md. Its code lives under each project's `…/schemas/` package (engine + contracts), not in the skill dir.
 
 | Skill | Auto-trigger condition | What it does | Guardrails |
 |---|---|---|---|
 | `efficient-fable` (Codex / Claude Code: full pattern, auto-triggered) | Token-heavy implementation work: CPCV/walk-forward sweeps across assets, DuckDB scans over polymarket fills/positions, multi-notebook runs, log/capture-output reduction, broad repo or vault scans, repetitive bounded edits | Main agent orchestrates; cheap subagents do bounded heavy lifting; judgment, integration, and final review stay in the main agent | Every handoff packet restates the [[CODEX]] invariants (uv never bare pip, `PYTHONPATH=. uv run` from `polymarket/research/`, lookahead-free metrics, append-only parquet, writes per [[VAULT_MAP]] § Where to write things, commits only to the operator branch); "find prior work" subtasks use gbrain MCP tools, not hub reads; subagent reports are leads, not facts — verify before relying |
 | `efficient-fable-orchestration` (Cowork: read-only fan-out, law-driven) | Token-heavy READING in Cowork: vault scans, repo audits, multi-source gathering | Cowork spawns parallel read-only subagents and keeps judgment/synthesis local | Subagents never edit files or run analyses; anything implementation-shaped still becomes a pre-registered Codex prompt — see [[COWORK]] § Delegation discipline |
 | `stay-within-limits` | Before/within: CPCV parameter sweeps, per-asset notebook waves, bulk Polymarket reprocessing, any run expected > 30 min or > 2 parallel subagents | Checks 5-hour/weekly usage between waves (`npx -y ccusage@latest blocks --active --json`), pauses new work at 95% of either limit, resumes via self-contained wake prompts; wave throttle 3 | Never interrupt in-flight subagents to save budget; a budget-pause handoff mid-branch follows the Chronicler convention (what ran, what's pending, where results landed) |
+| `data-contract` (Codex / Claude Code: first-party, auto-triggered) | About to run a backtest / walk-forward / CPCV / replay / analysis over a known dataset (PM fills/L2 or crypto OHLCV parquet), OR the data looks wrong (NaN/Inf, duplicate/missing bars, non-lowercase 0x addresses, a mutated shard, future-dated rows, a drifted distribution) | Validates schema + invariants (finite, lowercase-0x, monotone-where-real, cadence, lookahead-free, append-only) via `pandera.polars` and computes PSI+KS drift vs a stored reference; a fail-closed `guard_dataset()` aborts the run on violation; writes a plain-English markdown failure report; drift + missing-bar gaps are warnings | Per-project, NEVER cross-import (`infrastructure/data/schemas/` crypto · `polymarket/research/data_infra/schemas/` PM); only imposes invariants the instrument actually has (PM fills carry no monotone clause; the OHLCV refetch cache carries no append-only clause); drift never blocks; coverage caps on huge files are logged; emergency bypass `EPSILON_DATA_CONTRACT=warn\|off` (never for a real run) |
 
 ## Future skills (deferred)
 
