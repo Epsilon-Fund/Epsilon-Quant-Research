@@ -44,7 +44,8 @@ EXCLUDE_REL_PREFIXES = (
     "brain/generated",
     "scratch/",
     "local_agents/",
-)  # generated output + local-only overlays/scratch (ephemeral brain/agents/locks/*.lock.md skipped in discover_md_files)
+    "library/",
+)  # generated output + local-only overlays/scratch + the public skills library (package docs, not vault notes; ephemeral brain/agents/locks/*.lock.md skipped in discover_md_files)
 # Per-folder convention files where a shared basename is expected and not a navigation bug.
 EXPECTED_DUP_BASENAMES = {"README", "CLAUDE", "INDEX", "__init__", "PLAN", "TODO"}
 # Conventional repo/code docs that legitimately carry no YAML frontmatter: READMEs render

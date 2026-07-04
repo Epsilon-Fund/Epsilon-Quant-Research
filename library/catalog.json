@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-07-04T20:41:12Z",
+  "generator": "tools/skills_catalog.py",
+  "note": "PUBLIC-CANDIDATE catalog. Nothing here is published: every entry is blocked on the human IP/strategy scrub (scrub_status).",
+  "entries": [
+    {
+      "id": "rigorkit-changepoint",
+      "kind": "library-package",
+      "version": "0.1.0",
+      "summary": "Causal, lookahead-free structural-break detection (CUSUM / Page-Hinkley / BOCPD) for regime gating, causal features, and purged-CV embargo.",
+      "license": "Apache-2.0",
+      "source": "library/changepoint",
+      "invocation": "pip install rigorkit-changepoint",
+      "published": false,
+      "scrub_status": "pending-human-review",
+      "bundled_skills": [
+        {
+          "id": "changepoint-audit",
+          "summary": "Detect structural breaks / regime shifts in a timestamped series, lookahead-free, for gating or purged-CV embargo. Use when you need a causal, real-time regime-shift signal (CUSUM / Page-Hinkley / BOCPD) on returns or any series \u2014 to feed a regime classifier, gate trend entries on a fresh break, or hand break timestamps to a purged cross-validation engine as embargo windows. Complements (does not replace) batch segmenters like HMM or ruptures.",
+          "install": "python -m rigorkit.changepoint.skills install"
+        }
+      ]
+    }
+  ]
+}
