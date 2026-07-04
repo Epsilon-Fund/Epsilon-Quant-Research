@@ -77,6 +77,18 @@ tags:
 
 - [ ] Idea graph + strategy branch registry + roadmap index, navigable by concept not folder. See [[OBSIDIAN_INFRA_ROADMAP]] § Indeaverse. Build last.
 
+## Skills Lifecycle — reflection engine + public library (state 2026-07-04)
+
+> One funnel: discover → decide (recurrence × build-cost) → build → validate → package → publish. Backlog: [[candidates]] (`brain/reflection/candidates.md`, authoritative). Registry: [[SKILL_MAP]]. Publish end: top-level `library/` (public candidates; **never imports epsilon internals**). Kickoff handoff: [[2026-07-04_skills_lifecycle_phase1]].
+
+- [x] **Reflection engine live** (2026-07-04): `.agents/skills/reflection-engine/` + weekly scheduled pass `reflection-weekly` (Mondays 09:31, runs while the desktop app is open) + on-demand. First pass logged 22 candidates; built RC-004 (nbstripout absolute-path pin, `tools/fix_nbstripout_filter.sh`), RC-006 (missing `__init__.py` × 2), RC-007 (guard pre-commit hook, `tools/git_hooks/`).
+- [x] **Library Phase 0+1 proven** (2026-07-04): `library/changepoint/` = `rigorkit-changepoint` v0.1.0 (Apache-2.0, name provisional) — pip module + in-package `changepoint-audit` skill bundle + installer CLI; 21+1 tests green standalone in a fresh venv; **epsilon dogfoods it back** via the `infrastructure/changepoint` shim (20 regression tests green). Decoupling enforced by `tests/test_decoupling.py` (ast-based).
+- [x] **Machine-readable catalog + dashboard** (2026-07-04): `tools/skills_catalog.py` → committed `library/catalog.json` (public candidates, scrub-flagged) + `brain/generated/skills_catalog.json` / `skills_dashboard.html`. Website colleague consumes `library/catalog.json`.
+- [ ] **HUMAN — RC-005:** the launchd `brain-commit-push` job has been dead since ~06-13: macOS TCC blocks `/bin/bash` from reading the repo under `~/Desktop` (`Operation not permitted` in `brain/generated/launchd.err`). Grant Full Disk Access (or Files-and-Folders → Desktop) to `/bin/bash` in System Settings → Privacy & Security, or move the repo out of `~/Desktop`. Until then brain markdown piles up uncommitted.
+- [ ] **HUMAN — IP/strategy scrub (hard gate):** nothing in `library/` publishes (repo split, PyPI, website) until the scrub review signs off; `library/catalog.json` entries stay `scrub_status: pending-human-review`. Library name `rigorkit` is provisional — final naming at the same checkpoint.
+- [ ] **Collaborators:** run `bash tools/fix_nbstripout_filter.sh` + `bash tools/git_hooks/install.sh` once per clone; after pulling, `uv pip install -e "library/changepoint[dev]" --python .venv/bin/python` (the `infrastructure/changepoint` shim needs it).
+- [ ] Phase 2 packaging (when reflection or a thread demands it): `calibrate`, then `data-contract`. Phase 3: overfitting harness + CPCV/walk-forward as pip modules. Planned vendor batch (RC-013/020/021): causal-inference, critical-thinking, thinking-frameworks subset, BuilderIO agent-watchdog + efficient-frontier, kepano obsidian-markdown — needs the per-file vetting session.
+
 ---
 
 ## SPCX — SpaceX IPO convergence trade — ✅ CLOSED PROFITABLE 2026-06-12 (~€300 net)
