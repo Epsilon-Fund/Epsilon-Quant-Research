@@ -152,6 +152,10 @@ def library_entries() -> list[dict]:
         version = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
         desc = re.search(r'^description\s*=\s*"([^"]+)"', text, re.MULTILINE)
         lic = re.search(r'^license\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        scrub = pyproject.parent / "SCRUB.md"
+        scrub_status = "pending-human-review"
+        if scrub.is_file() and re.search(r"^\*\*VERDICT: APPROVED\*\*", scrub.read_text(encoding="utf-8"), re.MULTILINE):
+            scrub_status = "approved"
         pkg = {
             "id": name.group(1) if name else pyproject.parent.name,
             "kind": "library-package",
@@ -161,7 +165,7 @@ def library_entries() -> list[dict]:
             "source": str(pyproject.parent.relative_to(ROOT)),
             "invocation": f"pip install {name.group(1) if name else pyproject.parent.name}",
             "published": False,
-            "scrub_status": "pending-human-review",
+            "scrub_status": scrub_status,
             "bundled_skills": [],
         }
         for skill_md in sorted(pyproject.parent.glob("src/**/skills/*/SKILL.md")):
@@ -245,8 +249,9 @@ def main() -> int:
     public = {
         "generated_at": catalog["generated_at"],
         "generator": catalog["generator"],
-        "note": ("PUBLIC-CANDIDATE catalog. Nothing here is published: every entry is "
-                 "blocked on the human IP/strategy scrub (scrub_status)."),
+        "note": ("PUBLIC-CANDIDATE catalog. Only entries with scrub_status 'approved' "
+                 "(per-package SCRUB.md, human-authorized) may be surfaced publicly; "
+                 "'published' flips when the package is actually released (PyPI/repo split)."),
         "entries": [e for e in entries if e["kind"] == "library-package"],
     }
     (ROOT / "library" / "catalog.json").write_text(json.dumps(public, indent=2) + "\n", encoding="utf-8")

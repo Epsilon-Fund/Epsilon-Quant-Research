@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-04T20:41:12Z",
+  "generated_at": "2026-07-04T21:13:26Z",
   "generator": "tools/skills_catalog.py",
-  "note": "PUBLIC-CANDIDATE catalog. Nothing here is published: every entry is blocked on the human IP/strategy scrub (scrub_status).",
+  "note": "PUBLIC-CANDIDATE catalog. Only entries with scrub_status 'approved' (per-package SCRUB.md, human-authorized) may be surfaced publicly; 'published' flips when the package is actually released (PyPI/repo split).",
   "entries": [
     {
       "id": "rigorkit-changepoint",
@@ -12,7 +12,7 @@
       "source": "library/changepoint",
       "invocation": "pip install rigorkit-changepoint",
       "published": false,
-      "scrub_status": "pending-human-review",
+      "scrub_status": "approved",
       "bundled_skills": [
         {
           "id": "changepoint-audit",
