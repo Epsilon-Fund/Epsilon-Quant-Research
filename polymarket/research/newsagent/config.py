@@ -42,26 +42,31 @@ LIVE_MARKETS: dict[str, dict] = {
     "putin-out-before-2027": {
         "guardian_q": "putin AND (resign OR succession OR power OR health)",
         "wp_keys": ["putin", "russia"],
+        "gdelt_keys": ["vladimir putin"],
         "region": "geopolitics", "mtype": "shock",
     },
     "strait-of-hormuz-traffic-returns-to-normal-by-july-31": {
         "guardian_q": "\"strait of hormuz\" AND (shipping OR traffic OR reopen OR tanker)",
         "wp_keys": ["hormuz"],
+        "gdelt_keys": ["strait of hormuz"],
         "region": "geopolitics", "mtype": "shock",
     },
     "will-there-be-no-change-in-fed-interest-rates-after-the-july-2026-meeting": {
         "guardian_q": "\"federal reserve\" AND (rates OR cut OR powell OR fomc)",
         "wp_keys": ["federal reserve", "interest rate"],
+        "gdelt_keys": ["federal reserve"],
         "region": "US", "mtype": "slow",
     },
     "us-x-iran-diplomatic-meeting-by-july-17-2026-20260625223459704": {
         "guardian_q": "iran AND (meeting OR talks OR diplomatic OR negotiation)",
         "wp_keys": ["iran"],
+        "gdelt_keys": ["iran", "united states"],
         "region": "geopolitics", "mtype": "shock",
     },
     "will-the-democratic-party-control-the-house-after-the-2026-midterm-elections": {
         "guardian_q": "(democrats OR republicans) AND (house OR midterm OR congress)",
         "wp_keys": ["united states house", "midterm", "democratic party"],
+        "gdelt_keys": ["democratic party"],
         "region": "US", "mtype": "slow",
     },
 }

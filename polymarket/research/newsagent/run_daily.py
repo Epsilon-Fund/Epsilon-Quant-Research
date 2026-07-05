@@ -29,7 +29,35 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import config, dashboard, engine, features, feeds, fvmodel, ledger
+from . import config, dashboard, engine, features, feeds, fvmodel, gdelt_bq, ledger
+
+
+def _gdelt_burst(slug: str, date: str, series_all: dict) -> dict | None:
+    """Burst feature for one market-day from the cached GDELT series (None = absent)."""
+    series = series_all.get(slug)
+    if not series:
+        return None
+    return gdelt_bq.burst_z(series, date.replace("-", ""))
+
+
+def _refresh_gdelt(date: str) -> None:
+    """Incremental daily pull (last 20 days, one small scan). NEVER breaks the live
+    path: any failure (no credential, quota, network) leaves the cached series as-is
+    and the burst feature degrades to None (gamma term inert)."""
+    ok, why = gdelt_bq.bigquery_available()
+    if not ok:
+        print(f"  gdelt: skipped ({why})")
+        return
+    name_keys = {s: c["gdelt_keys"] for s, c in config.LIVE_MARKETS.items()
+                 if c.get("gdelt_keys")}
+    if not name_keys:
+        return
+    start = (datetime.fromisoformat(date) - timedelta(days=20)).strftime("%Y-%m-%d")
+    try:
+        gdelt_bq.pull_daily_series(name_keys, start, date)
+        print(f"  gdelt: series refreshed {start} -> {date} ({len(name_keys)} markets)")
+    except Exception as e:
+        print(f"  gdelt: refresh failed, using cached series ({e})")
 
 
 def day_dir(date: str) -> Path:
@@ -47,6 +75,7 @@ def _load_day(d: Path, slug: str) -> tuple[dict, dict] | None:
 
 def stage_fetch(date: str) -> None:
     d = day_dir(date)
+    _refresh_gdelt(date)
     for slug, cfg in config.LIVE_MARKETS.items():
         mkt = feeds.market_state(slug)
         if mkt["closed"]:
@@ -124,8 +153,10 @@ def stage_extract(date: str, features_file: str | None) -> None:
 
 
 def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
-                    state: dict, params: dict, p0_pct: float) -> dict:
-    """One market's Stage-B pass: S_t from NEW articles, state step, FV, band, flag."""
+                    state: dict, params: dict, p0_pct: float,
+                    gdelt_series: dict | None = None) -> dict:
+    """One market's Stage-B pass: S_t from NEW articles (GDELT-burst amplified),
+    state step, FV, band, flag."""
     mtype = cfg.get("mtype", "shock")
     tp = fvmodel.type_params(params, mtype)
     feats = features.features_for(slug, pkt["articles"])
@@ -134,13 +165,15 @@ def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
     new = [r for r in feats if r["cache_key"] not in counted]
     prev = {"date": st["date"], "A": st["A"]} if st else None
 
-    bd = fvmodel.breakdown(p0_pct, prev, date, new, mtype, params)
-    s_t = fvmodel.daily_score(new)
+    burst = _gdelt_burst(slug, date, gdelt_series or {})
+    vol_z = burst["vol_z"] if burst else None
+    bd = fvmodel.breakdown(p0_pct, prev, date, new, mtype, params, vol_z=vol_z)
+    s_t = fvmodel.amplify(fvmodel.daily_score(new), vol_z, params.get("gamma", 0.0))
     nxt = fvmodel.step_state(prev, date, s_t, tp["lam"], tp["a_clip"], tp["s_min"])
     state[slug] = {"date": nxt["date"], "A": nxt["A"],
                    "counted": (list(counted) + [r["cache_key"] for r in new])[-300:]}
 
-    fv = fvmodel.fair_value(p0_pct, nxt["A"], params["alpha"])
+    fv = fvmodel.fair_value(p0_pct, nxt["A"], params["alpha"], tp["shift_clip"])
     half = fvmodel.band_half_pp(feats, mtype, params)
     n_rel = fvmodel.n_relevant(feats)
     flag = fvmodel.divergence_flag(fv, mkt["mid"] * 100, half, n_rel,
@@ -153,7 +186,7 @@ def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
             "band_hi_pct": round(min(99.0, fv + half), 1),
             "half_pp": half, "n_relevant": n_rel, "mtype": mtype,
             "A": round(nxt["A"], 4), "s_t": round(s_t, 3), "divergence": flag,
-            "breakdown": bd, "missing_features": missing}
+            "gdelt": burst, "breakdown": bd, "missing_features": missing}
 
 
 def stage_publish(date: str, write_ledger: bool) -> None:
@@ -161,6 +194,7 @@ def stage_publish(date: str, write_ledger: bool) -> None:
     params = fvmodel.load_params()
     priors = fvmodel.load_priors()
     state = fvmodel.load_state()
+    gdelt_series = gdelt_bq.load_series()
     series_path = config.DATA / "fv_series.json"
     fv_series = json.loads(series_path.read_text()) if series_path.exists() else {}
     snapshots = []
@@ -173,7 +207,7 @@ def stage_publish(date: str, write_ledger: bool) -> None:
             continue
         mkt, pkt = loaded
         rec = _compute_market(slug, cfg, mkt, pkt, date, state, params,
-                              priors[slug]["p0_pct"])
+                              priors[slug]["p0_pct"], gdelt_series)
         if rec["missing_features"]:
             print(f"  WARN {rec['missing_features']} uncached articles for {slug[:50]} "
                   "(run --stage extract) — they contribute 0 evidence today")
@@ -247,6 +281,7 @@ def stage_backfill_compute(date: str, days: int) -> None:
     bdir = config.DATA / "backfill"
     params = fvmodel.load_params()
     priors = fvmodel.load_priors()
+    gdelt_series = gdelt_bq.load_series()
     end = datetime.fromisoformat(date)
     state = fvmodel.load_state()
     series_path = config.DATA / "fv_series.json"
@@ -273,9 +308,13 @@ def stage_backfill_compute(date: str, days: int) -> None:
             feats = features.features_for(slug, pkt["articles"])
             new = [r for r in feats if r["cache_key"] not in counted]
             counted |= {r["cache_key"] for r in new}
-            s_t = fvmodel.daily_score(new)
+            burst = _gdelt_burst(slug, t, gdelt_series)
+            s_t = fvmodel.amplify(fvmodel.daily_score(new),
+                                  burst["vol_z"] if burst else None,
+                                  params.get("gamma", 0.0))
             st = fvmodel.step_state(st, t, s_t, tp["lam"], tp["a_clip"], tp["s_min"])
-            fv = fvmodel.fair_value(priors[slug]["p0_pct"], st["A"], params["alpha"])
+            fv = fvmodel.fair_value(priors[slug]["p0_pct"], st["A"], params["alpha"],
+                                    tp["shift_clip"])
             half = fvmodel.band_half_pp(feats, mtype, params)
             entry = {"date": t, "fv_pct": round(fv, 1),
                      "band_lo_pct": round(max(1.0, fv - half), 1),

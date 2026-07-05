@@ -1,4 +1,4 @@
-"""GDELT GKG historical tone/volume via Google BigQuery (STRETCH: deep calibration).
+"""GDELT GKG historical tone/volume via Google BigQuery (NOW BUILDING: v2.1 feature).
 
 Why BigQuery: the GDELT DOC 2.0 API sits behind an aggressive datacenter-IP
 throttle (persistent 429s reproduced from two unrelated IPs, incl. the Hetzner
@@ -47,6 +47,110 @@ WHERE _PARTITIONTIME BETWEEN TIMESTAMP(@start) AND TIMESTAMP(@end)
   AND LOWER(DocumentIdentifier) LIKE @like_pattern
 GROUP BY day ORDER BY day
 """
+
+SERIES_CACHE = DATA / "gdelt_daily.json"
+
+# Cost discipline: ONE scan per date range covers ALL markets (COUNTIF per name-set
+# over the same DATE/AllNames/V2Tone columns) — dry-run measured ~3.4 GB for a
+# 35-day window, ~0.3% of the 1 TB/mo free tier. Name keys are AND-substring
+# matches against LOWER(AllNames); several markets in one event family may share
+# an attention series — acceptable and declared, because the burst feature is a
+# per-market z-score against its own trailing baseline (relative, not absolute).
+
+
+def _match_expr(keys: list[str]) -> str:
+    parts = " AND ".join(
+        "names LIKE '%" + k.lower().replace("'", "").replace("%", "") + "%'"
+        for k in keys)
+    return f"({parts})"
+
+
+def build_multi_market_sql(name_keys: dict[str, list[str]], start: str, end: str) -> str:
+    """One partitioned scan, per-day volume + mean tone per market name-set."""
+    cols = []
+    for i, (slug, keys) in enumerate(sorted(name_keys.items())):
+        m = _match_expr(keys)
+        cols.append(f"COUNTIF({m}) AS n_{i},\n  AVG(IF({m}, tone, NULL)) AS tone_{i}")
+    cols_sql = ",\n  ".join(cols)
+    return f"""
+SELECT SUBSTR(CAST(DATE AS STRING), 1, 8) AS day,
+  {cols_sql}
+FROM (
+  SELECT DATE, LOWER(AllNames) AS names,
+         CAST(SPLIT(V2Tone, ',')[OFFSET(0)] AS FLOAT64) AS tone
+  FROM `gdelt-bq.gdeltv2.gkg_partitioned`
+  WHERE _PARTITIONTIME BETWEEN TIMESTAMP('{start}') AND TIMESTAMP('{end}')
+)
+GROUP BY day ORDER BY day
+"""
+
+
+def load_series() -> dict:
+    return json.loads(SERIES_CACHE.read_text()) if SERIES_CACHE.exists() else {}
+
+
+def pull_daily_series(name_keys: dict[str, list[str]], start: str, end: str,
+                      max_gb: float = 25.0) -> dict:
+    """Pull per-day {n, tone} per market and merge into the local cache.
+
+    Dry-runs first and refuses to run past max_gb (free-tier guard). Returns the
+    merged cache {slug: {YYYYMMDD: {n, tone}}}."""
+    ok, why = bigquery_available()
+    if not ok:
+        raise RuntimeError(f"GDELT BigQuery path unavailable: {why}")
+    from google.cloud import bigquery
+    client = bigquery.Client()
+    sql = build_multi_market_sql(name_keys, start, end)
+    dry = client.query(sql, job_config=bigquery.QueryJobConfig(dry_run=True))
+    gb = dry.total_bytes_processed / 1e9
+    if gb > max_gb:
+        raise RuntimeError(f"query would scan {gb:.1f} GB > guard {max_gb} GB — "
+                           "narrow the date range")
+    rows = list(client.query(sql).result())
+    slugs = sorted(name_keys)
+    cache = load_series()
+    for r in rows:
+        for i, slug in enumerate(slugs):
+            n = getattr(r, f"n_{i}")
+            tone = getattr(r, f"tone_{i}")
+            cache.setdefault(slug, {})[r.day] = {
+                "n": int(n), "tone": round(float(tone), 3) if tone is not None else None}
+    SERIES_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    SERIES_CACHE.write_text(json.dumps(cache, indent=1, sort_keys=True))
+    return cache
+
+
+def burst_z(series: dict[str, dict], day: str, trailing: int = 14,
+            z_clip: float = 3.0) -> dict | None:
+    """Attention-burst feature for one market-day from its own daily series.
+
+    vol_z: z-score of the day's matched-article count vs the trailing `trailing`
+    days (needs >= 5 of them; else None). tone / tone_shift reported for display
+    and future calibration — NOT wired into the FV direction (tone->direction is
+    question-specific; see findings note)."""
+    from datetime import datetime, timedelta
+    d0 = datetime.strptime(day, "%Y%m%d")
+    today = series.get(day)
+    if today is None:
+        return None
+    hist = []
+    for k in range(1, trailing + 1):
+        rec = series.get((d0 - timedelta(days=k)).strftime("%Y%m%d"))
+        if rec is not None:
+            hist.append(rec)
+    if len(hist) < 5:
+        return None
+    ns = [h["n"] for h in hist]
+    mean = sum(ns) / len(ns)
+    var = sum((x - mean) ** 2 for x in ns) / len(ns)
+    sd = max(var ** 0.5, 1.0, 0.1 * mean)   # floor: tiny/quiet series can't fake a burst
+    vol_z = max(-z_clip, min(z_clip, (today["n"] - mean) / sd))
+    tones = [h["tone"] for h in hist if h["tone"] is not None]
+    tone_base = sum(tones) / len(tones) if tones else None
+    tone_shift = (round(today["tone"] - tone_base, 3)
+                  if today["tone"] is not None and tone_base is not None else None)
+    return {"n": today["n"], "n_trailing_mean": round(mean, 1),
+            "vol_z": round(vol_z, 3), "tone": today["tone"], "tone_shift": tone_shift}
 
 
 def bigquery_available() -> tuple[bool, str]:

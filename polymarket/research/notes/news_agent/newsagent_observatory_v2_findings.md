@@ -25,7 +25,7 @@ tags:
 - **What this note is:** the build record of the Observatory rebuild (2026-07-05). The public page now presents **Epsilon's own fair-value probability** per liquid politics/macro question, produced by a two-stage hybrid model, and judged over time against **actual resolved outcomes**. Polymarket is only the discovery layer (which liquid questions matter) and display context — **never the benchmark**. This does NOT reopen the closed "our % beats the mid" claim; both v0/v0b gate failures stay displayed on the page.
 - **The mechanism:** Stage A — a cheap LLM (Haiku-class) extracts structured features per news article (relevance, stance, event phase, strength, tone, novelty), one extraction per (market, article), cached forever. Stage B — a transparent log-odds model turns features into the fair value: a one-time onboarding prior (five-perspective ensemble, never shown the mid) plus a decayed evidence state, with the **single evidence weight α fitted on resolved outcomes** from the v0 gate archive (9 resolved markets, 53 lookahead-free pairs).
 - **What shipped today:** the full daily loop ran end-to-end — packets (Guardian full-text + Wikipedia Current Events), out-of-band Haiku extraction (374 articles), Stage-B FV + bands + divergence flags for the 5-market live slate, append-only ledger snapshots (sf-2026-001…005 updated), a 14-day labeled reconstructed FV time-series, and the redesigned site-styled dashboard (charts, FV-construction breakdown, divergence layer, reliability panel).
-- **One-line status:** live and honest — no divergence flag fired today (the one large FV-vs-mid gap, Fed −35.8pp, was correctly withheld by the confidence leg); the internal "is there edge in flagged divergences?" question is **pre-registered below and not run**.
+- **One-line status:** live and honest — no divergence flag fired today; the internal "is there edge in flagged divergences?" question is **pre-registered below and not run**. Same-day v2.1 addendum: the GDELT/BigQuery attention layer went live once the credential arrived (see § GDELT attention layer; final params α=3.1 fitted, γ=1.0 declared, slow-market shift cap ±1.5 logits declared).
 
 ## What changed vs the shipped v1 Observatory (design)
 
@@ -114,7 +114,7 @@ Read: the two slow markets behave as designed — Dems-House moved off its prior
 
 1. **`ANTHROPIC_API_KEY`** for unattended daily runs (extraction + onboarding of new markets). Until then: out-of-band flow per `run_daily.py` docstring.
 2. **`GUARDIAN_API_KEY`** registered dev key (demo key in use; 500 calls/day is enough but unregistered).
-3. **GDELT/BigQuery (stretch):** GCP project → BigQuery API → service account (BigQuery User + Job User) → JSON key → `GOOGLE_APPLICATION_CREDENTIALS`; then `uv add google-cloud-bigquery`. Module `newsagent/gdelt_bq.py` is scaffolded, fails with exact instructions, and includes the residential-IP DOC-API fallback with the mandatory client-side `seendate` filter.
+3. ~~GDELT/BigQuery~~ — **DONE 2026-07-05 late**: credential delivered (`secrets/newsfeed-epsilon-721cd7176ae8.json`, gitignored; service account `gdelt-reader@newsfeed-epsilon`), `google-cloud-bigquery` added, auth + access verified, attention layer live (see § GDELT attention layer). For unattended runs the cron environment needs `GOOGLE_APPLICATION_CREDENTIALS` exported (path above) — same env block as the API keys.
 4. **Scheme A source-weighting sign-off** (unchanged; table in [[newsagent_repo_data_radar_findings]]; flat Scheme B running).
 5. **Website handoff:** `data/newsagent/showcase/` (showcase.json + index.html) to the site colleague; the page is style-matched to epsilon-webs1te (read-only borrow — nothing shipped into his repo).
 
@@ -129,10 +129,26 @@ PYTHONPATH=. uv run python -m newsagent.run_daily --stage all      # with API ke
 
 Settlement: `sf settle` per resolved market (SF_BOOK=polymarket), refresh the slate in `config.py`, re-run `scripts/newsagent_stageb_calibration.py --fit` including the new resolved pairs, then `calibrate` renders the public track record.
 
+GDELT (v2.1): the daily series refresh runs automatically inside `--stage fetch` when `GOOGLE_APPLICATION_CREDENTIALS` is exported (fails soft otherwise); a full re-pull is `scripts/newsagent_stageb_calibration.py --pull-gdelt` (dry-run guarded, ~3.4 GB per 42-day window).
+
+## GDELT attention layer — v2.1, BUILT 2026-07-05 late (was STRETCH; creds arrived)
+
+**What it is.** GDELT GKG (via Google BigQuery, project `newsfeed-epsilon`) now supplies a per-market **global-attention series**: matched-article volume + mean V2Tone per day, from ONE consolidated partitioned scan covering all archive + live name-sets (AND-substring matches on `AllNames`). Auth verified live; the full 42-day pull dry-ran at **~3.4 GB ≈ 0.3% of the 1 TB/mo free tier** (dry-run guard refuses anything > 25 GB); the daily incremental refresh (last 20 days) runs inside `--stage fetch` and **degrades silently to "feature absent" on any failure** — the live Guardian+RSS path is untouched.
+
+**How it enters the FV (direction-safe by construction):** `S'_t = S_t · (1 + γ·max(0, vol_z))` — a positive volume burst (z-score vs the market's own 14-day trailing mean, clipped at 3, sd floored so quiet series can't fake bursts) **amplifies** the day's Stage-A directional evidence; it can never create evidence (S=0 stays 0), never dampens (quiet days are neutral), and never sets direction. **Tone is pulled, cached, and displayed** (analytical mode: "n articles today, z, tone + shift") but is NOT wired into the number — tone→direction is question-specific and would need its own calibration; recorded as future work.
+
+**Calibration honesty — γ is DECLARED, not fitted.** The joint grid initially chose γ at the grid edge, and extending the grid showed in-sample Brier improving **monotonically** to γ=4 with no plateau (0.459 → 0.42): on 53 pairs from one shock month the fit simply wants to saturate every burst day to the S-clip — burst-saturation overfit, not a measurable elasticity. So γ = **1.0 declared** (a 1σ attention burst doubles the day's evidence), and the calibration script now refuses to grid γ (prints the sensitivity curve as a diagnostic only). α remains the single fitted parameter: **α = 3.1** at the declared γ (pooled Brier 0.4458 vs 0.4628 prior-only).
+
+**Second guard correction (worked example #2):** the slow-market evidence cap had been expressed in A-units, which silently loosened when α was refit (Dems-House crept back to 92.2%). Restated **α-invariantly in logit units**: a slow market's FV can move at most **±1.5 logit-units from its prior on news alone** (`shift_clip_logits`, applied at output; shock markets uncapped — a completed event *should* saturate). Post-fix live run: Fed 83.9% (mid 89.5), Dems-House 84.2% (mid 83.5) — both slow markets currently sit exactly at the declared cap after persistently one-directional coverage; whether that cap is well-placed is a forward-ledger question, stated on the page via the breakdown.
+
+**Live read at ship (quiet Sunday):** all five markets show negative vol_z (no bursts) → amplification inert today; the GKG series itself is validated by history — Starmer attention 1,020 → 4,177 articles across the Burnham weekend, Iran 4,009 on deal-signing day, exactly where the market repriced.
+
+**Data:** series cache `data/newsagent/live/gdelt_daily.json` (14 name-sets × 42 days, merge-on-refresh); pull via `scripts/newsagent_stageb_calibration.py --pull-gdelt`; per-pair `vol_z` added to `newsagent_stageb_pairs.csv`.
+
 ## STRETCH / BACKLOG (marked; nothing here blocks the shipped loop)
 
-- **Historical GKG calibration at scale** (BigQuery V2Tone per query/day as a Stage-B feature; the client scaffold ships in `gdelt_bq.py`) — needs the GCP credential.
-- **Event-driven cadence** — news-burst triggers re-running Stage B intraday (Stage A cache makes this nearly free).
+- **GDELT tone → direction calibration** — tone/tone-shift are now pulled + displayed; wiring them into the FV needs per-question-type direction mapping and more resolved outcomes.
+- **Event-driven cadence** — news-burst triggers re-running Stage B intraday (Stage A cache + the now-live GDELT burst signal make this nearly free).
 - **Local extraction model** — zero out API cost for Stage A once volumes justify it.
 - **Q-DIV-EDGE gate** — as pre-registered above, only after the sample floor.
 - **Scheme A weights** in `SOURCE_W_DEFAULT`'s place once signed off; per-source reliability tiers plug into `contribution()`.

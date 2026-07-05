@@ -254,3 +254,60 @@ def test_ledger_snapshot_uses_sf_cli_shape():
     # the probability normalization contract stays percent -> fraction
     fc = {"p_pct": 40.0, "band_lo_pct": 30.0, "band_hi_pct": 50.0}
     assert 0.0 < fc["p_pct"] / 100.0 < 1.0
+
+
+# ---------------------------------------------------------------- GDELT (v2.1) --
+
+from newsagent import gdelt_bq
+
+
+def test_amplify_direction_preserving_and_graceful():
+    assert fvmodel.amplify(0.5, 2.0, 1.0) == pytest.approx(1.5)
+    assert fvmodel.amplify(-0.5, 2.0, 1.0) == pytest.approx(-1.5)   # sign preserved
+    assert fvmodel.amplify(0.0, 3.0, 1.0) == 0.0                    # burst can't create evidence
+    assert fvmodel.amplify(0.5, None, 1.0) == 0.5                   # no series -> inert
+    assert fvmodel.amplify(0.5, 2.0, 0.0) == 0.5                    # gamma off -> inert
+    assert fvmodel.amplify(0.5, -2.0, 1.0) == 0.5                   # quiet day never dampens
+    assert fvmodel.amplify(2.0, 3.0, 1.5) == fvmodel.S_CLIP         # S-clip preserved
+
+
+def test_burst_z_from_series():
+    series = {f"202606{d:02d}": {"n": 100, "tone": -2.0} for d in range(1, 15)}
+    series["20260615"] = {"n": 400, "tone": -5.0}
+    b = gdelt_bq.burst_z(series, "20260615")
+    assert b["vol_z"] == 3.0                     # huge burst, clipped at 3
+    assert b["tone_shift"] == pytest.approx(-3.0)
+    assert gdelt_bq.burst_z(series, "20990101") is None      # unknown day
+    assert gdelt_bq.burst_z({"20260615": {"n": 5, "tone": 0}}, "20260615") is None  # short baseline
+
+
+def test_burst_z_quiet_series_no_fake_burst():
+    # tiny counts: sd floor prevents 0->2 articles registering as a 3-sigma burst
+    series = {f"202606{d:02d}": {"n": 0, "tone": None} for d in range(1, 15)}
+    series["20260615"] = {"n": 2, "tone": 1.0}
+    b = gdelt_bq.burst_z(series, "20260615")
+    assert b["vol_z"] <= 2.0
+
+
+def test_breakdown_with_burst_still_sums():
+    day = [{"article": {"title": "a", "domain": "d"},
+            "features": F(stance="toward_yes", phase="completed", strength=0.9)},
+           {"article": {"title": "b", "domain": "d"},
+            "features": F(stance="toward_no", phase="planned", strength=0.5)}]
+    params = dict(PARAMS, gamma=1.0)
+    prev = {"date": "2026-07-03", "A": 0.4}
+    bd = fvmodel.breakdown(20.0, prev, "2026-07-05", day, "shock", params, vol_z=2.0)
+    total = bd["p0_pct"] + bd["carry_pp"] + sum(a["pp_effect"] for a in bd["articles"])
+    assert total == pytest.approx(bd["fv_pct"], abs=0.05)
+    # matches the pipeline: amplified S -> step -> fair_value
+    s_eff = fvmodel.amplify(fvmodel.daily_score(day), 2.0, 1.0)
+    nxt = fvmodel.step_state(prev, "2026-07-05", s_eff, params["lambda"]["shock"])
+    assert bd["fv_pct"] == pytest.approx(
+        fvmodel.fair_value(20.0, nxt["A"], params["alpha"]), abs=0.05)
+
+
+def test_gdelt_html_absent_is_empty():
+    assert dashboard._gdelt_html(None) == ""
+    out = dashboard._gdelt_html({"n": 1200, "n_trailing_mean": 400.0, "vol_z": 2.1,
+                                 "tone": -3.2, "tone_shift": -1.1})
+    assert "1,200" in out and "+2.1" in out

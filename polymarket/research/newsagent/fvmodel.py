@@ -50,6 +50,14 @@ RELEVANT_MIN = 0.4     # article counts as "relevant" for band/flag purposes
 
 DEFAULT_PARAMS = {
     "alpha": 0.35,             # placeholder until fit_alpha() runs; overwritten by fit
+    # GDELT attention-burst amplification (v2.1): S'_t = S_t * (1 + gamma*max(0, vol_z)).
+    # Direction still comes ONLY from Stage-A article evidence; a world-news volume
+    # burst can amplify a directional day, never create one (S_t=0 stays 0).
+    # DECLARED at 1.0 (a 1-sigma attention burst doubles the day's evidence), NOT
+    # fitted: the in-sample Brier on the 53-pair archive improves monotonically in
+    # gamma with no plateau — burst-saturation overfit, not a measurable elasticity.
+    # 0 = feature off (also the graceful value when the BigQuery series is absent).
+    "gamma": 1.0,
     # Per-day evidence decay — DECLARED (n too small to fit): shock news goes stale
     # fast; structural questions retain evidence longer. The archive comparison
     # preferred faster decay; these are round mid-range judgment values.
@@ -57,11 +65,12 @@ DEFAULT_PARAMS = {
     "floor_pp": {"slow": 8.0, "shock": 12.0},  # band half-width floors (declared)
     # Slow/structural guards (DECLARED): a drip of mildly-positive daily coverage is
     # NOT mounting evidence — a slow market's FV may move only on decisive days
-    # (|S_t| >= s_min) and may accumulate at most a_clip logit-units/alpha of news
-    # evidence between genuine developments. Without these, persistent one-sided
-    # coverage compounds to absurd extremes (the Dems-House 98.9% worked example).
+    # (|S_t| >= s_min), and its total news-driven shift from the prior is capped in
+    # LOGIT units (alpha-invariant: an earlier A-unit cap silently loosened when
+    # alpha was refit — the Dems-House 98.9%/92.2% worked examples). null = no cap
+    # (shock markets: a completed event SHOULD saturate the sigmoid).
     "s_min": {"slow": 0.5, "shock": 0.0},
-    "a_clip": {"slow": 1.5, "shock": A_CLIP},
+    "shift_clip_logits": {"slow": 1.5, "shock": None},
     "fitted_on": None, "n_pairs": 0, "n_markets": 0,
     "notes": "defaults — not yet fit on resolved outcomes",
 }
@@ -119,6 +128,17 @@ def daily_score(feats: list[dict]) -> float:
     return max(-S_CLIP, min(S_CLIP, s))
 
 
+def amplify(s_t: float, vol_z: float | None, gamma: float) -> float:
+    """GDELT burst amplification of a day's directional evidence (S-clip preserved).
+
+    vol_z None (no series / short baseline) or gamma 0 -> unchanged. Only positive
+    bursts amplify; quiet days never dampen Stage-A evidence."""
+    if vol_z is None or gamma <= 0.0 or s_t == 0.0:
+        return s_t
+    s = s_t * (1.0 + gamma * max(0.0, vol_z))
+    return max(-S_CLIP, min(S_CLIP, s))
+
+
 def step_state(prev: dict | None, date: str, s_t: float, lam: float,
                a_clip: float = A_CLIP, s_min: float = 0.0) -> dict:
     """Advance the evidence state one observation day (decay by elapsed days, add S_t).
@@ -141,13 +161,19 @@ def step_state(prev: dict | None, date: str, s_t: float, lam: float,
 def type_params(params: dict, mtype: str) -> dict:
     """Resolve per-market-type knobs with backward-compatible defaults."""
     return {"lam": params["lambda"].get(mtype, params["lambda"]["shock"]),
-            "a_clip": params.get("a_clip", {}).get(mtype, A_CLIP),
-            "s_min": params.get("s_min", {}).get(mtype, 0.0)}
+            "a_clip": A_CLIP,
+            "s_min": params.get("s_min", {}).get(mtype, 0.0),
+            "shift_clip": params.get("shift_clip_logits", {}).get(mtype)}
 
 
-def fair_value(p0_pct: float, a_state: float, alpha: float) -> float:
-    """FV in percent, clipped to [1, 99]."""
-    fv = sigmoid(logit(p0_pct / 100.0) + alpha * a_state) * 100.0
+def fair_value(p0_pct: float, a_state: float, alpha: float,
+               shift_clip: float | None = None) -> float:
+    """FV in percent, clipped to [1, 99]. shift_clip caps the total news-driven
+    logit shift from the prior (slow-market guard, alpha-invariant)."""
+    shift = alpha * a_state
+    if shift_clip is not None:
+        shift = max(-shift_clip, min(shift_clip, shift))
+    fv = sigmoid(logit(p0_pct / 100.0) + shift) * 100.0
     return min(99.0, max(1.0, fv))
 
 
@@ -194,9 +220,11 @@ def divergence_flag(fv_pct: float, mid_pct: float, half_pp: float, n_rel: int,
 
 
 def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list[dict],
-              mtype: str, params: dict) -> dict:
+              mtype: str, params: dict, vol_z: float | None = None) -> dict:
     """FV construction, article by article. Marginal pp effects sum exactly to
-    FV − p0 (sequential marginals over: decay carry, then articles by |c| desc)."""
+    FV − p0 (sequential marginals over: decay carry, then articles by |c| desc).
+    vol_z folds the GDELT burst amplification into the per-article scale so the
+    displayed steps still sum to the published FV."""
     alpha = params["alpha"]
     tp = type_params(params, mtype)
     lam, a_clip = tp["lam"], tp["a_clip"]
@@ -219,20 +247,28 @@ def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list
                      "c": round(w * c, 4), "weight": w, "features": r.get("features")})
     rows.sort(key=lambda x: -abs(x["c"]))
 
-    # mirror daily_score exactly: S-clip pro-rata, then the slow-market drip filter
+    # mirror the daily pipeline exactly: S-clip pro-rata, then burst amplification,
+    # then the slow-market drip filter — allocated back onto articles via `scale`
     s_raw = sum(x["c"] for x in rows)
     scale = 1.0 if abs(s_raw) <= S_CLIP or s_raw == 0 else S_CLIP / abs(s_raw)
-    below_threshold = abs(max(-S_CLIP, min(S_CLIP, s_raw))) < tp["s_min"]
+    s_clipped = max(-S_CLIP, min(S_CLIP, s_raw))
+    s_eff = amplify(s_clipped, vol_z, params.get("gamma", 0.0))
+    if s_clipped != 0:
+        scale *= s_eff / s_clipped
+    below_threshold = abs(s_eff) < tp["s_min"]
     if below_threshold:
         scale = 0.0   # day not decisive enough for this market type: zero effect
 
+    def _fv_at(a: float) -> float:
+        return fair_value(p0_pct, min(a_clip, max(-a_clip, a)), alpha, tp["shift_clip"])
+
     running_a = carry_a
-    prev_fv = sigmoid(base_logit + alpha * min(a_clip, max(-a_clip, running_a))) * 100
+    prev_fv = _fv_at(running_a)
     carry_pp = prev_fv - p0_pct
     steps = []
     for x in rows:
         running_a += x["c"] * scale
-        fv_here = sigmoid(base_logit + alpha * min(a_clip, max(-a_clip, running_a))) * 100
+        fv_here = _fv_at(running_a)
         steps.append({**{k: x[k] for k in ("title", "domain", "c")},
                       "pp_effect": round(fv_here - prev_fv, 2)})
         prev_fv = fv_here
@@ -247,10 +283,13 @@ def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list
 def fit_alpha(pairs: list[dict], grid_max: float = 6.0, step: float = 0.05) -> dict:
     """Fit the single evidence weight on resolved outcomes.
 
-    pairs: [{p0_pct, A, y, family}] — one per (market, snapshot). Returns the
-    grid-search result with pooled Briers; per-family honesty is the caller's job."""
+    pairs: [{p0_pct, A, y, family, shift_clip?}] — one per (market, snapshot).
+    Returns the grid-search result with pooled Briers; per-family honesty is the
+    caller's job. shift_clip is honored per pair so slow-market guards hold at
+    every alpha candidate (alpha-invariant by construction)."""
     def brier(alpha: float) -> float:
-        return sum((fair_value(x["p0_pct"], x["A"], alpha) / 100.0 - x["y"]) ** 2
+        return sum((fair_value(x["p0_pct"], x["A"], alpha,
+                               x.get("shift_clip")) / 100.0 - x["y"]) ** 2
                    for x in pairs) / len(pairs)
 
     grid = [round(i * step, 2) for i in range(int(grid_max / step) + 1)]

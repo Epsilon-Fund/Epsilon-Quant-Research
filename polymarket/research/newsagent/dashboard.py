@@ -119,6 +119,7 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
             "n_relevant": sb.get("n_relevant", 0),
             "volume24h": mkt["volume24h"], "liquidity": mkt["liquidity"],
             "drivers": s.get("drivers", [])[:3],
+            "gdelt": sb.get("gdelt"),
             "breakdown": sb.get("breakdown"),
             "evidence": [{"title": a["title"], "domain": a["domain"],
                           "seendate": a.get("seendate", ""), "url": a.get("url", "")}
@@ -143,8 +144,11 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
                    "news article (relevance, stance, event phase, strength; cached per "
                    "article), and a fitted log-odds model turns them into the fair "
                    "value and band. The single evidence weight is calibrated on "
-                   "resolved outcomes only. Every number decomposes into the "
-                   "article-level contributions shown in analytical mode."),
+                   "resolved outcomes only. A global-attention signal (GDELT GKG "
+                   "article volume for the question's entities) can amplify a day's "
+                   "directional evidence when world coverage bursts; it never sets "
+                   "the direction. Every number decomposes into the article-level "
+                   "contributions shown in analytical mode."),
         "divergence_rule": (f"Flag shown only when |FV − mid| ≥ {DIVERGENCE_GAP_PP:g}pp "
                             f"AND band half-width ≤ {DIVERGENCE_HALF_MAX_PP:g}pp AND "
                             f"≥ {DIVERGENCE_NREL_MIN} relevant articles in 72h. "
@@ -299,6 +303,19 @@ def _breakdown_html(bd: dict | None) -> str:
 <tr class="tot"><td>fair value</td><td></td><td class="mono">{bd["fv_pct"]:.1f}%</td></tr></table>"""
 
 
+def _gdelt_html(g: dict | None) -> str:
+    if not g:
+        return ""
+    tone = (f' · tone {g["tone"]:+.1f}'
+            + (f' (shift {g["tone_shift"]:+.1f} vs 14d)' if g.get("tone_shift") is not None else "")
+            if g.get("tone") is not None else "")
+    return (f'<div class="sub">global attention (GDELT GKG)</div>'
+            f'<p class="note" style="margin-top:.1rem">{g["n"]:,} matched articles today '
+            f'(z = {g["vol_z"]:+.1f} vs 14-day mean {g["n_trailing_mean"]:,.0f}){tone}. '
+            f'Volume bursts amplify the day\'s directional evidence; tone is shown for '
+            f'transparency and is not wired into the number.</p>')
+
+
 def render_html(sc: dict) -> str:
     cards = ""
     for c in sc["markets"]:
@@ -328,6 +345,7 @@ def render_html(sc: dict) -> str:
       <div class="chart">{_svg_series(c["series"])}</div>
       <div class="analytical">
         {_breakdown_html(c.get("breakdown"))}
+        {_gdelt_html(c.get("gdelt"))}
         <div class="sub">cited drivers</div><ul>{drivers or "<li class='dim'>none today</li>"}</ul>
         <div class="sub">evidence feed (what the extractor read — headline + link only)</div><ul class="ev">{ev}</ul>
         <div class="sub">ledger {html.escape(c["sf_id"] or "—")} · 24h vol ${c["volume24h"]:,} · {c["n_relevant"]} relevant articles/72h</div>
