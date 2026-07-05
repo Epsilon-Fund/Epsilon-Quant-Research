@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rigorkit-changepoint"
+name = "lemma-changepoint"
 version = "0.1.0"
 description = "Causal, lookahead-free structural-break detection (CUSUM / Page-Hinkley / BOCPD) for regime gating, causal features, and purged-CV embargo."
 readme = "README.md"
@@ -33,10 +33,10 @@ offline = ["ruptures>=1.1"]        # batch labelling/validation ONLY (never live
 dev = ["pytest>=8", "pyarrow>=14"]
 
 [project.scripts]
-rigorkit-changepoint = "rigorkit.changepoint.cli:main"
+lemma-changepoint = "lemma.changepoint.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rigorkit"]
+packages = ["src/lemma"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "README.md", "LICENSE", "NOTICE"]

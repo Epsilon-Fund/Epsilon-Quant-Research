@@ -114,7 +114,7 @@ def append_changepoints(df: pd.DataFrame, path: str | Path) -> Path:
     """Append-only persist of a stream DataFrame to parquet. Existing rows are
     preserved; new `ts` rows are added (dedup on ts, keep first-seen). Never
     rewrites history (append-only invariant). Requires a parquet engine
-    (`pip install rigorkit-changepoint[parquet]`)."""
+    (`pip install lemma-changepoint[parquet]`)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     new = df.reset_index()

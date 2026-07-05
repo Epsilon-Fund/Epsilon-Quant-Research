@@ -1,5 +1,5 @@
 """
-rigorkit.calibrate — proper-score calibration diagnostics for probabilistic
+lemma.calibrate — proper-score calibration diagnostics for probabilistic
 forecasts.
 
 Answers "are these probabilities any good?" — not with an opinion, but with
@@ -10,7 +10,7 @@ recalibration, and a markets layer (model-p vs de-vigged implied-p, realized
 edge over resolved markets).
 
 Public API:
-    from rigorkit.calibrate import brier_score, murphy_decomposition, ece
+    from lemma.calibrate import brier_score, murphy_decomposition, ece
     brier_score(prob, label)
     murphy_decomposition(prob, label, n_bins=None)   # exact identity form
     reliability_table(prob, label, n_bins=10)        # + Wilson bands

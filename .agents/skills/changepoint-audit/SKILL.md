@@ -13,7 +13,7 @@ description: >
 Source: epsilon-quant-research @ commit 6f6eca0d5e1d46ec388401b304670ae1e6527a9e
 (branch justin). First-party skill (NOT vendored). Prompt-invoked (soft) — it is
 NOT an auto-trigger safety gate. ENGINE EXTRACTED 2026-07-04 to the decoupled
-skills library: library/changepoint/ (package `rigorkit-changepoint`, Apache-2.0);
+skills library: library/changepoint/ (package `lemma-changepoint`, Apache-2.0; renamed from rigorkit 2026-07-05);
 infrastructure/changepoint/ is now a same-API shim over it (install:
 `uv pip install -e "library/changepoint[dev]" --python .venv/bin/python`).
 Every invocation below is unchanged. A Polymarket instance, if needed, installs

@@ -1,8 +1,8 @@
 """
-core.py — calibration scoring layer (epsilon shim over rigorkit-calibrate).
+core.py — calibration scoring layer (epsilon shim over lemma-calibrate).
 
 SHIM since 2026-07-05: the engine was extracted to the decoupled skills library
-(`library/calibrate/`, package `rigorkit-calibrate`) — see
+(`library/calibrate/`, package `lemma-calibrate`) — see
 brain/reflection/candidates.md RC-024 and library/README.md. Epsilon consumes
 the library one-way; this module re-exports the identical public API and adds
 back the one epsilon-specific piece the public package deliberately does not
@@ -28,7 +28,7 @@ import os
 from pathlib import Path
 
 try:
-    from rigorkit.calibrate.core import (  # noqa: F401
+    from lemma.calibrate.core import (  # noqa: F401
         brier_score,
         calibration_in_the_large,
         calibration_table,
@@ -47,10 +47,10 @@ try:
         reliability_table,
         spiegelhalter_z,
     )
-    from rigorkit.calibrate import core as _core
+    from lemma.calibrate import core as _core
 except ImportError as e:  # pragma: no cover - environment guard, not logic
     raise ImportError(
-        "rigorkit-calibrate is not installed in this venv. From the repo root:\n"
+        "lemma-calibrate is not installed in this venv. From the repo root:\n"
         "  uv pip install -e \"library/calibrate[dev]\" --python <this-venv>/bin/python\n"
         "(see the module docstring for the per-project line)"
     ) from e

@@ -21,7 +21,7 @@ ALLOWED_TOP_LEVEL = {
     # declared deps (pyproject)
     "numpy", "pandas", "pyarrow", "ruptures",
     # itself
-    "rigorkit",
+    "lemma",
 }
 
 

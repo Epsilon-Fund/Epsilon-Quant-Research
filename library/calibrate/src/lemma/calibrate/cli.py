@@ -1,9 +1,9 @@
 """
 cli.py — command-line entry for the calibration scoring engine.
 
-    rigorkit-calibrate --ledger <dir> score           # scorecard (add --json)
-    rigorkit-calibrate --ledger <dir> table           # pred prob vs observed freq
-    rigorkit-calibrate --ledger <dir> report --out reliability.png
+    lemma-calibrate --ledger <dir> score           # scorecard (add --json)
+    lemma-calibrate --ledger <dir> table           # pred prob vs observed freq
+    lemma-calibrate --ledger <dir> report --out reliability.png
 
 The ledger directory may also come from $SF_LEDGER_DIR. A wrapping stack can
 pass a ``books`` mapping (book name -> ledger dir) to ``main`` to expose a
@@ -52,7 +52,7 @@ _fmt_scorecard = format_scorecard
 
 def main(argv: list[str] | None = None, books: dict | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="rigorkit-calibrate",
+        prog="lemma-calibrate",
         description="Score forecast/market calibration on a forecast ledger (read-only).",
     )
     p.add_argument("--ledger", default=None,

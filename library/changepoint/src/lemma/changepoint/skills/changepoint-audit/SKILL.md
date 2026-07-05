@@ -13,7 +13,7 @@ license: Apache-2.0
 # Changepoint Audit
 
 A causal, lookahead-free structural-break detector, backed by the
-`rigorkit-changepoint` Python package. Its state at time t is a pure function of
+`lemma-changepoint` Python package. Its state at time t is a pure function of
 data ≤ t, so appending future bars never changes a past output (the no-lookahead
 invariant, asserted in the package's tests). It **complements** batch regime
 models (HMM/Viterbi, ruptures), which use the full history and cannot run live:
@@ -30,7 +30,8 @@ this runs bar by bar, in real time.
 ## Setup
 
 ```bash
-pip install rigorkit-changepoint            # or: uv pip install rigorkit-changepoint
+# from git (no package registry — the repo is the distribution):
+pip install "lemma-changepoint @ git+https://github.com/Epsilon-Fund/lemma.git#subdirectory=changepoint"
 # extras: [parquet] for parquet IO, [offline] for the batch ruptures wrapper
 ```
 
@@ -49,20 +50,20 @@ Per-bar output schema: `{ts, cp_flag, run_length_mode, change_prob, statistic}`.
 
 ```bash
 # detect on a parquet series (log-returns), append-only output
-rigorkit-changepoint detect prices.parquet --column Close --returns --standardize \
+lemma-changepoint detect prices.parquet --column Close --returns --standardize \
     --detector bocpd --out changepoints/prices_bocpd.parquet
 
 # detection-lag / false-positive-rate benchmark on synthetic series
-rigorkit-changepoint benchmark
+lemma-changepoint benchmark
 
 # Cohen's kappa vs Markov-switching regime transitions
-rigorkit-changepoint kappa-demo --tolerance 10
+lemma-changepoint kappa-demo --tolerance 10
 ```
 
 In code:
 
 ```python
-from rigorkit.changepoint import run_detector, LiveDetector
+from lemma.changepoint import run_detector, LiveDetector
 
 # batch (causal) over a series -> per-bar DataFrame
 stream = run_detector(values, name="bocpd", timestamps=index)
@@ -75,7 +76,7 @@ row = live.update(ts, x_t)   # {ts, cp_flag, run_length_mode, change_prob, stati
 ## Integration (the three consumers)
 
 ```python
-from rigorkit.changepoint import (
+from lemma.changepoint import (
     changepoint_features, fresh_break_gate, embargo_indices_from_breaks)
 
 # 1) regime model features — causal columns (merge into your feature matrix)

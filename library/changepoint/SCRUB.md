@@ -1,4 +1,4 @@
-# IP / Strategy Scrub — rigorkit-changepoint v0.1.0
+# IP / Strategy Scrub — lemma-changepoint v0.1.0
 
 **VERDICT: APPROVED** — 2026-07-04, review delegated by Justin (chat, 2026-07-04:
 "you have git access… you have access and permission"), executed by the
@@ -30,7 +30,11 @@ APPROVED verdict stands.
 
 ## Open at publish time
 
-- Library name `rigorkit` remains provisional — rename (if desired) before any
-  PyPI publish; a rename after PyPI is painful.
-- PyPI publish itself not yet done: the page's `pip install` line goes live in
-  spirit only until the package is uploaded or the repo is split public.
+- **Resolved 2026-07-05:** library brand = `lemma` (renamed from the
+  provisional `rigorkit` while nothing was public — this scrub's content
+  verdict is unaffected: same code bodies, names only). **No PyPI** — the
+  distribution is the public repo itself (copy the skill bundle, or
+  `pip install` from git); no registry name is needed.
+- Remaining release step (human-only): `git subtree split library/` →
+  `Epsilon-Fund/lemma` public repo + the deliberate catalog copy onto the
+  website. Until then the documented git-install URL does not resolve.

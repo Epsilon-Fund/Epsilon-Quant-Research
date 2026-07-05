@@ -1,4 +1,4 @@
-"""End-to-end demo of rigorkit-calibrate on two synthetic forecasters.
+"""End-to-end demo of lemma-calibrate on two synthetic forecasters.
 
 Runs in a couple of seconds with no arguments and no data files:
 
@@ -15,8 +15,8 @@ What it shows, in order:
    (fit on one half, applied to the other).
 4. The markets layer: de-vigging book odds and tracking realized edge over
    resolved markets.
-5. If matplotlib is installed (`pip install "rigorkit-calibrate[plot]"`), a
-   reliability diagram PNG comparing all three curves.
+5. If matplotlib is installed (the package's `[plot]` extra), a reliability
+   diagram PNG comparing all three curves.
 
 Everything is seeded and deterministic. Only numpy + pandas are required.
 """
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from rigorkit.calibrate import (
+from lemma.calibrate import (
     brier_score,
     devig,
     ece,
@@ -102,7 +102,7 @@ def main() -> None:
 
     # --- 5. reliability diagram (optional extra) --------------------------------
     try:
-        from rigorkit.calibrate import reliability_diagram
+        from lemma.calibrate import reliability_diagram
         out = reliability_diagram(
             {"well-calibrated": (pg, yg),
              "over-confident": (po, yo),
@@ -114,7 +114,7 @@ def main() -> None:
               f"\nrecalibrated curve sits back on the diagonal.")
     except ImportError:
         print("\n(matplotlib not installed — skipping the reliability diagram; "
-              "pip install \"rigorkit-calibrate[plot]\")")
+              "install the package's [plot] extra)")
 
 
 if __name__ == "__main__":

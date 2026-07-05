@@ -1,13 +1,13 @@
 """
 CLI for the causal changepoint detector.
 
-    python -m rigorkit.changepoint.cli detect prices.parquet --column Close --returns \
+    python -m lemma.changepoint.cli detect prices.parquet --column Close --returns \
         --detector bocpd --out changepoints/prices_bocpd.parquet
 
-    python -m rigorkit.changepoint.cli benchmark
-    python -m rigorkit.changepoint.cli kappa-demo
+    python -m lemma.changepoint.cli benchmark
+    python -m lemma.changepoint.cli kappa-demo
 
-(Also installed as the `rigorkit-changepoint` console script. Reading/writing
+(Also installed as the `lemma-changepoint` console script. Reading/writing
 parquet needs the [parquet] extra.)
 """
 from __future__ import annotations
@@ -91,7 +91,7 @@ def _cmd_kappa_demo(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="rigorkit-changepoint")
+    ap = argparse.ArgumentParser(prog="lemma-changepoint")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     d = sub.add_parser("detect", help="run a detector over a parquet series")

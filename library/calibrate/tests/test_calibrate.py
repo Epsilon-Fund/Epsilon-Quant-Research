@@ -18,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
-from rigorkit.calibrate import core as C
+from lemma.calibrate import core as C
 
 
 # ── synthetic forecasters ───────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ def test_cli_score_json_roundtrip():
     with tempfile.TemporaryDirectory() as d:
         ledger = _write_ledger(Path(d))
         out = subprocess.run(
-            [sys.executable, "-m", "rigorkit.calibrate.cli",
+            [sys.executable, "-m", "lemma.calibrate.cli",
              "--ledger", str(ledger), "score", "--json"],
             capture_output=True, text=True, timeout=120,
         )
@@ -195,7 +195,7 @@ def test_cli_score_json_roundtrip():
 
 def test_skills_installer_lists_bundle():
     out = subprocess.run(
-        [sys.executable, "-m", "rigorkit.calibrate.skills", "list"],
+        [sys.executable, "-m", "lemma.calibrate.skills", "list"],
         capture_output=True, text=True, timeout=120,
     )
     assert out.returncode == 0, out.stderr

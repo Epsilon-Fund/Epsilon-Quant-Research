@@ -1,5 +1,5 @@
 """
-rigorkit.changepoint — causal, lookahead-free structural-break detection.
+lemma.changepoint — causal, lookahead-free structural-break detection.
 
 A live first line (CUSUM / Page-Hinkley, O(1)/bar) plus a Bayesian run-length
 posterior (BOCPD, Adams & MacKay 2007) that emits a real `change_prob`. Every
@@ -8,7 +8,7 @@ bars can never change a past output (the no-lookahead invariant, asserted in
 tests). Complements batch segmenters (HMM, ruptures), which cannot run live.
 
 Public API:
-    from rigorkit.changepoint import run_detector, LiveDetector, make_detector
+    from lemma.changepoint import run_detector, LiveDetector, make_detector
     s = run_detector(values, name="bocpd")              # per-bar DataFrame
     live = LiveDetector("cusum"); live.update(ts, x_t)  # thin real-time hook
 

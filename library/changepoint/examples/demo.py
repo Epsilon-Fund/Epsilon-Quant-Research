@@ -1,4 +1,4 @@
-"""End-to-end demo of rigorkit-changepoint on a synthetic regime-shift series.
+"""End-to-end demo of lemma-changepoint on a synthetic regime-shift series.
 
 Runs in a few seconds with no arguments and no data files:
 
@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from rigorkit.changepoint import (
+from lemma.changepoint import (
     LiveDetector,
     breaks_from_stream,
     causal_standardize,

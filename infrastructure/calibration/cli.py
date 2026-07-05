@@ -1,7 +1,7 @@
 """
 cli.py — command-line entry for the calibration scoring layer (epsilon shim).
 
-SHIM since 2026-07-05: parsing/formatting live in rigorkit-calibrate
+SHIM since 2026-07-05: parsing/formatting live in lemma-calibrate
 (`library/calibrate/`); this wrapper injects the epsilon book -> ledger-path
 mapping so the historical invocation lines keep working unchanged:
 
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import sys
 
-from rigorkit.calibrate.cli import main as _main
+from lemma.calibrate.cli import main as _main
 
 from .core import _books
 

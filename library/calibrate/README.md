@@ -1,4 +1,4 @@
-# rigorkit-calibrate
+# lemma-calibrate
 
 Proper-score calibration diagnostics for probabilistic forecasts: **Brier +
 Murphy decomposition** (reliability − resolution + uncertainty), log-loss,
@@ -23,10 +23,21 @@ disciplines are built in:
 
 ## Install
 
+No package registry — the repo is the distribution. Two ways in:
+
+**Just the agent skill** (no Python install): copy the bundle into your
+agent's skills directory:
+
 ```bash
-pip install rigorkit-calibrate              # engine (numpy + pandas only)
-pip install "rigorkit-calibrate[plot]"      # + matplotlib reliability diagrams
-pip install "rigorkit-calibrate[sklearn]"   # + sklearn recalibration backends
+cp -r src/lemma/calibrate/skills/calibrate  .claude/skills/
+```
+
+**The engine as a Python package** (deps: numpy + pandas only), straight from
+git:
+
+```bash
+pip install "lemma-calibrate @ git+https://github.com/Epsilon-Fund/lemma.git#subdirectory=calibrate"
+# extras: [plot] matplotlib reliability diagrams · [sklearn] sklearn recalibration backends
 ```
 
 The recalibrators run without sklearn (pure-numpy PAV / IRLS fallbacks);
@@ -35,7 +46,7 @@ Spiegelhalter's Z needs no scipy (stdlib `math.erf`).
 ## Quick start
 
 ```python
-from rigorkit.calibrate import (
+from lemma.calibrate import (
     brier_score, murphy_decomposition, reliability_table,
     spiegelhalter_z, isotonic_recalibrate, reliability_diagram)
 
@@ -50,7 +61,7 @@ reliability_diagram({"model": (prob, label)}, "reliability.png")
 Markets layer:
 
 ```python
-from rigorkit.calibrate import implied_prob_decimal, devig, market_edge, realized_edge
+from lemma.calibrate import implied_prob_decimal, devig, market_edge, realized_edge
 
 fair = devig(implied_prob_decimal([2.10, 1.85]))  # strip the overround
 market_edge(model_p, fair)                        # model prob − fair implied prob
@@ -65,9 +76,9 @@ Score an append-only forecast ledger — a directory containing
 tool emitting that shape works):
 
 ```bash
-rigorkit-calibrate --ledger path/to/ledger score            # scorecard (--json)
-rigorkit-calibrate --ledger path/to/ledger table            # pred vs observed
-rigorkit-calibrate --ledger path/to/ledger report --out reliability.png
+lemma-calibrate --ledger path/to/ledger score            # scorecard (--json)
+lemma-calibrate --ledger path/to/ledger table            # pred vs observed
+lemma-calibrate --ledger path/to/ledger report --out reliability.png
 ```
 
 `$SF_LEDGER_DIR` substitutes for `--ledger`. The reader **never writes** the
@@ -95,8 +106,8 @@ The package ships a Claude-Code-compatible skill bundle
 ([Agent Skills spec](https://agentskills.io)) and an installer:
 
 ```bash
-python -m rigorkit.calibrate.skills install --project   # ./.claude/skills/
-python -m rigorkit.calibrate.skills install --global    # ~/.claude/skills/
+python -m lemma.calibrate.skills install --project   # ./.claude/skills/
+python -m lemma.calibrate.skills install --global    # ~/.claude/skills/
 ```
 
 ## License

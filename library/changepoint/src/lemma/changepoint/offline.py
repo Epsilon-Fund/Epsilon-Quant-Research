@@ -93,7 +93,7 @@ def ruptures_offline(series, model: str = "rbf", pen: float = 10.0,
     if not _HAS_RUPTURES:
         raise RuntimeError(
             "ruptures is not installed. It is an offline-only validation dep; "
-            "install with `pip install rigorkit-changepoint[offline]`. The online "
+            "install with `pip install lemma-changepoint[offline]`. The online "
             "detectors (CUSUM/Page-Hinkley/BOCPD) do not need it.")
     x = np.asarray(series, dtype=float).reshape(-1, 1)
     algo = _rpt.Pelt(model=model, min_size=min_size).fit(x)

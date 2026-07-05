@@ -3,11 +3,13 @@
 skills_catalog.py — machine-readable catalog + minimal local dashboard for the
 skills lifecycle (brain/reflection/candidates.md RC-003).
 
-Reads three canonical surfaces:
+Reads four canonical surfaces:
   1. .agents/skills/*/SKILL.md          — installed agent skills (frontmatter)
   2. brain/SKILL_MAP.md                 — brain workflow / runtime skill tables
   3. library/*/pyproject.toml (+ bundled src/**/skills/*/SKILL.md)
                                         — extracted public-candidate packages
+  4. library/skills/*/SKILL.md          — standalone public-candidate skill
+                                          bundles (prompt-ware, no engine)
 
 Emits:
   brain/generated/skills_catalog.json   — FULL internal catalog (git-ignored, regenerable)
@@ -156,14 +158,17 @@ def library_entries() -> list[dict]:
         scrub_status = "pending-human-review"
         if scrub.is_file() and re.search(r"^\*\*VERDICT: APPROVED\*\*", scrub.read_text(encoding="utf-8"), re.MULTILINE):
             scrub_status = "approved"
+        pkg_name = name.group(1) if name else pyproject.parent.name
+        # no package registry: the repo is the distribution (git-install optional)
         pkg = {
-            "id": name.group(1) if name else pyproject.parent.name,
+            "id": pkg_name,
             "kind": "library-package",
             "version": version.group(1) if version else None,
             "summary": desc.group(1) if desc else "",
             "license": lic.group(1) if lic else None,
             "source": str(pyproject.parent.relative_to(ROOT)),
-            "invocation": f"pip install {name.group(1) if name else pyproject.parent.name}",
+            "invocation": (f'pip install "{pkg_name} @ git+https://github.com/Epsilon-Fund/'
+                           f'lemma.git#subdirectory={pyproject.parent.name}"'),
             "published": False,
             "scrub_status": scrub_status,
             "bundled_skills": [],
@@ -179,15 +184,42 @@ def library_entries() -> list[dict]:
     return entries
 
 
+def library_bundle_entries() -> list[dict]:
+    """Standalone skill bundles under library/skills/ — prompt-ware, no engine.
+    Distribution = copy the folder into an agent's skills directory."""
+    entries = []
+    for skill_md in sorted((ROOT / "library" / "skills").glob("*/SKILL.md")):
+        meta = parse_skill_md(skill_md)
+        scrub = skill_md.parent / "SCRUB.md"
+        scrub_status = "pending-human-review"
+        if scrub.is_file() and re.search(r"^\*\*VERDICT: APPROVED\*\*",
+                                         scrub.read_text(encoding="utf-8"), re.MULTILINE):
+            scrub_status = "approved"
+        entries.append({
+            "id": meta["name"],
+            "kind": "library-bundle",
+            "version": None,
+            "summary": meta.get("description", ""),
+            "license": meta.get("license") or "Apache-2.0",
+            "source": str(skill_md.parent.relative_to(ROOT)),
+            "invocation": f"cp -r skills/{skill_md.parent.name}  .claude/skills/",
+            "published": False,
+            "scrub_status": scrub_status,
+            "bundled_skills": [],
+        })
+    return entries
+
+
 # ── dashboard ────────────────────────────────────────────────────────────────
 def render_dashboard(catalog: dict) -> str:
     kinds = {}
     for e in catalog["entries"]:
         kinds.setdefault(e["kind"], []).append(e)
-    order = ["library-package", "agent-skill", "runtime-efficiency", "brain-workflow",
-             "runtime", "future-deferred"]
+    order = ["library-package", "library-bundle", "agent-skill", "runtime-efficiency",
+             "brain-workflow", "runtime", "future-deferred"]
     titles = {
-        "library-package": "Library packages (public candidates — scrub pending)",
+        "library-package": "Library packages (public candidates — per-package scrub)",
+        "library-bundle": "Library skill bundles (public candidates — copy-from-repo)",
         "agent-skill": "Installed agent skills (.agents/skills)",
         "runtime-efficiency": "Runtime efficiency skills (auto-triggered)",
         "brain-workflow": "Brain workflow passes",
@@ -235,11 +267,12 @@ def render_dashboard(catalog: dict) -> str:
 
 
 def main() -> int:
-    entries = library_entries() + agent_skills() + skill_map_entries()
+    entries = library_entries() + library_bundle_entries() + agent_skills() + skill_map_entries()
     catalog = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "generator": "tools/skills_catalog.py",
-        "sources": [".agents/skills/*/SKILL.md", "brain/SKILL_MAP.md", "library/*/pyproject.toml"],
+        "sources": [".agents/skills/*/SKILL.md", "brain/SKILL_MAP.md",
+                    "library/*/pyproject.toml", "library/skills/*/SKILL.md"],
         "entries": entries,
     }
     GENERATED.mkdir(parents=True, exist_ok=True)
@@ -251,13 +284,15 @@ def main() -> int:
         "generator": catalog["generator"],
         "note": ("PUBLIC-CANDIDATE catalog. Only entries with scrub_status 'approved' "
                  "(per-package SCRUB.md, human-authorized) may be surfaced publicly; "
-                 "'published' flips when the package is actually released (PyPI/repo split)."),
-        "entries": [e for e in entries if e["kind"] == "library-package"],
+                 "'published' flips when the library repo is actually split public "
+                 "(no package registry — the repo is the distribution)."),
+        "entries": [e for e in entries if e["kind"] in ("library-package", "library-bundle")],
     }
     (ROOT / "library" / "catalog.json").write_text(json.dumps(public, indent=2) + "\n", encoding="utf-8")
 
     print(f"entries: {len(entries)}  "
           f"(library {sum(1 for e in entries if e['kind'] == 'library-package')}, "
+          f"bundles {sum(1 for e in entries if e['kind'] == 'library-bundle')}, "
           f"agent {sum(1 for e in entries if e['kind'] == 'agent-skill')}, "
           f"map {sum(1 for e in entries if e['kind'] in ('brain-workflow', 'runtime', 'runtime-efficiency', 'future-deferred'))})")
     print(f"wrote: {GENERATED / 'skills_catalog.json'}")

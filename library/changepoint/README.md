@@ -1,4 +1,4 @@
-# rigorkit-changepoint
+# lemma-changepoint
 
 Causal, **lookahead-free** structural-break detection for quantitative research:
 CUSUM and Page-Hinkley as O(1)/bar live first lines, and Bayesian Online
@@ -23,16 +23,27 @@ three integrations quant research actually needs:
 
 ## Install
 
+No package registry — the repo is the distribution. Two ways in:
+
+**Just the agent skill** (no Python install): copy the bundle into your
+agent's skills directory:
+
 ```bash
-pip install rigorkit-changepoint            # engine (numpy + pandas only)
-pip install "rigorkit-changepoint[parquet]" # + parquet IO for the CLI/persist
-pip install "rigorkit-changepoint[offline]" # + ruptures (batch labelling ONLY)
+cp -r src/lemma/changepoint/skills/changepoint-audit  .claude/skills/
+```
+
+**The engine as a Python package** (deps: numpy + pandas only), straight from
+git:
+
+```bash
+pip install "lemma-changepoint @ git+https://github.com/Epsilon-Fund/lemma.git#subdirectory=changepoint"
+# extras: [parquet] parquet IO for the CLI/persist · [offline] ruptures (batch labelling ONLY)
 ```
 
 ## Quick start
 
 ```python
-from rigorkit.changepoint import run_detector, LiveDetector, breaks_from_stream
+from lemma.changepoint import run_detector, LiveDetector, breaks_from_stream
 
 stream = run_detector(log_returns, name="bocpd", timestamps=idx)
 breaks = breaks_from_stream(stream)          # timestamps where cp_flag fired
@@ -44,10 +55,10 @@ row = live.update(ts, x_t)                   # one dict per closed bar
 CLI:
 
 ```bash
-rigorkit-changepoint detect prices.parquet --column Close --returns --standardize \
+lemma-changepoint detect prices.parquet --column Close --returns --standardize \
     --detector bocpd --out changepoints/prices_bocpd.parquet
-rigorkit-changepoint benchmark     # detection lag / false-positive rate
-rigorkit-changepoint kappa-demo    # Cohen's kappa vs Markov-switching transitions
+lemma-changepoint benchmark     # detection lag / false-positive rate
+lemma-changepoint kappa-demo    # Cohen's kappa vs Markov-switching transitions
 ```
 
 ## Runnable demo
@@ -72,8 +83,8 @@ The package ships a Claude-Code-compatible skill bundle
 ([Agent Skills spec](https://agentskills.io)) and an installer:
 
 ```bash
-python -m rigorkit.changepoint.skills install --project   # ./.claude/skills/
-python -m rigorkit.changepoint.skills install --global    # ~/.claude/skills/
+python -m lemma.changepoint.skills install --project   # ./.claude/skills/
+python -m lemma.changepoint.skills install --global    # ~/.claude/skills/
 ```
 
 ## Guarantees & benchmarks
@@ -81,7 +92,7 @@ python -m rigorkit.changepoint.skills install --global    # ~/.claude/skills/
 - **No lookahead** (tested): the output for bars `1..k` is identical whether or
   not bars `k+1..n` exist.
 - **Append-only persistence** (tested): `append_changepoints` never rewrites history.
-- Synthetic benchmarks (reproduce with `rigorkit-changepoint benchmark`):
+- Synthetic benchmarks (reproduce with `lemma-changepoint benchmark`):
   mean-shift recall ≈ 1.0 (PH/BOCPD) with 1–4 bar median lag; variance-shift
   recall ≈ 1.0 for BOCPD (mean-only detectors are blind there); false alarms
   < 2 per 1000 stationary bars.

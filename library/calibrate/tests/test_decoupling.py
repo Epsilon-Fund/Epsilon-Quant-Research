@@ -22,7 +22,7 @@ ALLOWED_TOP_LEVEL = {
     # imported lazily inside functions)
     "numpy", "pandas", "matplotlib", "sklearn",
     # itself
-    "rigorkit",
+    "lemma",
 }
 
 

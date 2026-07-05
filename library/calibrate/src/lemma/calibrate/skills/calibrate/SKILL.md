@@ -14,7 +14,7 @@ license: Apache-2.0
 
 # Calibrate
 
-A calibration scoring layer backed by the `rigorkit-calibrate` Python package.
+A calibration scoring layer backed by the `lemma-calibrate` Python package.
 It answers "are these probabilities any good?" — not with an opinion, but with
 proper scores, decompositions, and diagnostics. Its optional ledger reader is a
 **read-only consumer**: it never writes events and never re-implements a
@@ -32,7 +32,8 @@ ledger's state machine.
 ## Setup
 
 ```bash
-pip install rigorkit-calibrate          # engine (numpy + pandas only)
+# from git (no package registry — the repo is the distribution):
+pip install "lemma-calibrate @ git+https://github.com/Epsilon-Fund/lemma.git#subdirectory=calibrate"
 # extras: [plot] for reliability-diagram PNGs, [sklearn] for the sklearn
 # recalibration backends (a pure-numpy fallback runs without it)
 ```
@@ -61,7 +62,7 @@ binned, it reports the within-bin-variance `residual` rather than hiding it.
 On arrays:
 
 ```python
-from rigorkit.calibrate import (
+from lemma.calibrate import (
     brier_score, murphy_decomposition, reliability_table, ece,
     spiegelhalter_z, isotonic_recalibrate, reliability_diagram)
 
@@ -77,9 +78,9 @@ On a forecast ledger (a directory with `forecasts/events.jsonl`; rows with
 superforecasting-skill convention):
 
 ```bash
-rigorkit-calibrate --ledger path/to/ledger score          # scorecard (--json for machine output)
-rigorkit-calibrate --ledger path/to/ledger table          # pred prob vs observed freq
-rigorkit-calibrate --ledger path/to/ledger report --out reliability.png
+lemma-calibrate --ledger path/to/ledger score          # scorecard (--json for machine output)
+lemma-calibrate --ledger path/to/ledger table          # pred prob vs observed freq
+lemma-calibrate --ledger path/to/ledger report --out reliability.png
 ```
 
 `$SF_LEDGER_DIR` substitutes for `--ledger`. All commands are read-only.
@@ -87,7 +88,7 @@ rigorkit-calibrate --ledger path/to/ledger report --out reliability.png
 ## Markets layer
 
 ```python
-from rigorkit.calibrate import implied_prob_decimal, devig, market_edge, realized_edge
+from lemma.calibrate import implied_prob_decimal, devig, market_edge, realized_edge
 
 ip = devig(implied_prob_decimal([2.10, 1.85]))   # strip the overround
 edge = market_edge(model_p, ip)                   # model prob − fair implied prob

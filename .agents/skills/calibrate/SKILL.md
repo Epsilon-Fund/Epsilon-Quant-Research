@@ -15,7 +15,8 @@ description: >
 Source: epsilon-quant-research @ commit 6f6eca0d5e1d46ec388401b304670ae1e6527a9e
 (branch justin). First-party skill (NOT vendored). Built on top of the forked
 superforecasting ledger (see .agents/skills/superforecasting/, upstream commit
-8913b08). ENGINE EXTRACTED 2026-07-05 to library/calibrate/ (rigorkit-calibrate);
+8913b08). ENGINE EXTRACTED 2026-07-05 to library/calibrate/ (lemma-calibrate,
+renamed from rigorkit-calibrate the same day);
 the two project modules are same-API shims over it (byte-identical to each
 other; they add back the epsilon book->ledger-path mapping). Every invocation
 line below is unchanged. Mirrors the data-contract packaging layout

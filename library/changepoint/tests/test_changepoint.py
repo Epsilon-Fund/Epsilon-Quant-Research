@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from rigorkit.changepoint import (
+from lemma.changepoint import (
     LiveDetector,
     append_changepoints,
     breaks_from_stream,
@@ -27,7 +27,7 @@ from rigorkit.changepoint import (
     make_detector,
     run_detector,
 )
-from rigorkit.changepoint import offline
+from lemma.changepoint import offline
 
 DETECTOR_NAMES = ["cusum", "page_hinkley", "bocpd"]
 

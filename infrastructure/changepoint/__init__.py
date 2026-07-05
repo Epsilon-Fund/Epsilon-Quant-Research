@@ -2,7 +2,7 @@
 infrastructure.changepoint — causal, lookahead-free structural-break detection.
 
 SHIM since 2026-07-04: the engine was extracted to the decoupled skills library
-(`library/changepoint/`, package `rigorkit-changepoint`) as the Phase-1 packaging
+(`library/changepoint/`, package `lemma-changepoint`) as the Phase-1 packaging
 proof — see brain/reflection/candidates.md RC-001 and library/README.md. Epsilon
 consumes the library one-way; this module re-exports the identical public API so
 every existing import (`from infrastructure.changepoint import run_detector`)
@@ -24,7 +24,7 @@ Epsilon-context notes (unchanged by the extraction):
 from __future__ import annotations
 
 try:
-    from rigorkit.changepoint import (  # noqa: F401
+    from lemma.changepoint import (  # noqa: F401
         BOCPD,
         CUSUM,
         DETECTORS,
@@ -45,11 +45,11 @@ try:
         match_breaks,
         run_detector,
     )
-    from rigorkit.changepoint import offline  # noqa: F401
+    from lemma.changepoint import offline  # noqa: F401
 except ImportError as e:  # pragma: no cover - environment guard, not logic
     raise ImportError(
         "infrastructure.changepoint is a shim over the extracted library package "
-        "'rigorkit-changepoint' (library/changepoint/). Install it into the crypto "
+        "'lemma-changepoint' (library/changepoint/). Install it into the crypto "
         "venv first:  uv pip install -e 'library/changepoint[dev]' --python .venv/bin/python"
     ) from e
 

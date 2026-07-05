@@ -3,11 +3,11 @@ Install the agent-skill bundles shipped inside this package into an agent's
 skills directory (pattern credit: goldmansachs/gs-quant `gs_quant/skills`,
 Apache-2.0).
 
-    python -m rigorkit.calibrate.skills list
-    python -m rigorkit.calibrate.skills install --project   # ./.claude/skills/
-    python -m rigorkit.calibrate.skills install --global    # ~/.claude/skills/
-    python -m rigorkit.calibrate.skills install --target DIR
-    python -m rigorkit.calibrate.skills uninstall --project
+    python -m lemma.changepoint.skills list
+    python -m lemma.changepoint.skills install --project   # ./.claude/skills/
+    python -m lemma.changepoint.skills install --global    # ~/.claude/skills/
+    python -m lemma.changepoint.skills install --target DIR
+    python -m lemma.changepoint.skills uninstall --project
 
 A "skill" is any directory next to this file containing a SKILL.md
 (agentskills.io Agent Skills spec). Install = copy the directory.
@@ -84,7 +84,7 @@ def _cmd_uninstall(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="rigorkit.calibrate.skills")
+    ap = argparse.ArgumentParser(prog="lemma.changepoint.skills")
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name, fn in (("list", _cmd_list), ("install", _cmd_install), ("uninstall", _cmd_uninstall)):
         p = sub.add_parser(name)
