@@ -465,7 +465,15 @@ def band_mult_coverage(pairs: list[dict], alpha: float, nominal: float = 0.8) ->
 
     grid = [round(0.25 * k, 2) for k in range(1, 13)]   # 0.25 .. 3.0
     scores = {bm: coverage(bm) for bm in grid}
-    best = min(grid, key=lambda bm: (abs(scores[bm] - nominal), bm))
+    # Selection = "narrowest knob AT nominal" (the v3.1 findings phrasing): the
+    # smallest band_mult whose coverage >= nominal. With ~3 scoreable buckets,
+    # coverage is quantized to thirds, so "closest to nominal" can tie-break
+    # INTO undercoverage (2/3 = 0.667 vs 0.8) on pure granularity — for a
+    # public band the covering side of the tie is the honest one. Falls back
+    # to closest-to-nominal only if no knob reaches nominal.
+    covering = [bm for bm in grid if scores[bm] >= nominal]
+    best = min(covering) if covering else \
+        min(grid, key=lambda bm: (abs(scores[bm] - nominal), bm))
     return {"band_mult": best, "coverage_at_best": round(scores[best], 3),
             "nominal": nominal, "n_pairs": len(rows),
             "curve": [{"band_mult": bm, "coverage": round(c, 3)}

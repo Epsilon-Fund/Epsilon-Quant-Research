@@ -777,3 +777,175 @@ def test_html_bias_explainer_rendered():
     out = dashboard.render_html(sc)
     assert "how the number formed" in out
     assert "leaned YES" in out
+
+
+# =============================================================== v3.2 additions ==
+
+from newsagent import sourcelean
+
+
+# ------------------------------------------------------------ lean table -------
+
+def test_lean_table_verified_domains_and_unrated():
+    assert sourcelean.get_lean("theguardian.com") == -2      # AllSides: Left
+    assert sourcelean.get_lean("bbc.co.uk") == 0             # Center
+    assert sourcelean.get_lean("politico.com") == -1         # Lean Left
+    assert sourcelean.get_lean("foxnews.com") == 2           # Right
+    assert sourcelean.get_lean("dailymail.co.uk") == 1       # Lean Right
+    # honestly unrated: no verified rating / out of scope
+    assert sourcelean.get_lean("news.sky.com") is None
+    assert sourcelean.get_lean("newsletter:ING THINK") is None
+    assert sourcelean.get_lean("en.wikipedia.org (Current events)") is None
+    assert sourcelean.get_lean("unknown.example") is None
+
+
+def test_lean_mult_declared_map_and_labels():
+    assert sourcelean.lean_mult(0) == 1.0
+    assert sourcelean.lean_mult(-1) == sourcelean.lean_mult(1) == 0.9   # extremity, not side
+    assert sourcelean.lean_mult(-2) == sourcelean.lean_mult(2) == 0.75
+    assert sourcelean.lean_mult(None) == 1.0                            # unrated -> no adjustment
+    assert sourcelean.lean_label(-2) == "left" and sourcelean.lean_label(None) == "unrated"
+    assert sourcelean.lean_bucket(-1) == "left" and sourcelean.lean_bucket(1) == "right"
+    assert sourcelean.lean_bucket(0) == "center" and sourcelean.lean_bucket(None) == "unrated"
+
+
+def test_annotate_composes_reliability_and_lean(monkeypatch):
+    monkeypatch.setattr(sourceweights, "_WEIGHTS", None)
+    monkeypatch.setattr(sourceweights, "_IFFY", set())
+    monkeypatch.setattr(sourceweights, "refresh", lambda force=False: {
+        "fetched_at": "2026-07-05T00:00:00+00:00",
+        "rsp_status_by_id": {"the guardian": "s-gr", "bbc": "s-gr"},
+        "iffy_domains": ["badnews.example"]})
+    rows = [{"article": {"domain": "theguardian.com"}},   # rel 1.0 x lean |2| 0.75
+            {"article": {"domain": "bbc.co.uk"}},         # rel 1.0 x lean 0 -> 1.0
+            {"article": {"domain": "badnews.example"}},   # blocklist stays 0
+            {"article": {"domain": "unknown.example"}}]   # neutral both axes
+    out = sourceweights.annotate(rows)
+    assert out[0]["source_w_rel"] == 1.0 and out[0]["source_lean"] == -2
+    assert out[0]["source_w"] == pytest.approx(0.75)
+    assert out[1]["source_w"] == pytest.approx(1.0)
+    assert out[2]["source_w"] == 0.0                       # lean can never resurrect a blocklisted source
+    assert out[3]["source_w"] == 1.0 and out[3]["source_lean"] is None
+    monkeypatch.setattr(sourceweights, "_WEIGHTS", None)
+
+
+# ----------------------------------------------- bias explainer: lean axis -----
+
+def test_source_bias_breakdown_lean_mix_and_coverage():
+    rows = [
+        {"features": F(stance="toward_yes"), "source_w": 0.75, "source_w_rel": 1.0,
+         "source_lean": -2, "article": {"domain": "theguardian.com"}},
+        {"features": F(stance="toward_yes"), "source_w": 1.0, "source_w_rel": 1.0,
+         "source_lean": 0, "article": {"domain": "bbc.co.uk"}},
+        {"features": F(stance="toward_no"), "source_w": 0.75, "source_w_rel": 1.0,
+         "source_lean": 2, "article": {"domain": "foxnews.com"}},
+        {"features": F(stance="neutral"), "source_w": 1.0, "source_w_rel": 1.0,
+         "source_lean": None, "article": {"domain": "unknown.example"}},
+    ]
+    b = fvmodel.source_bias_breakdown(rows)
+    assert b["coverage"] == {"left": 1, "center": 1, "right": 1, "unrated": 1}
+    assert b["lean_mix"]["toward_yes"] == {"more-biased": 1, "centrist": 1, "unrated": 0}
+    assert b["lean_mix"]["toward_no"] == {"more-biased": 1, "centrist": 0, "unrated": 0}
+    assert "[lean mix:" in b["sentence"]
+    assert b["leans"]["theguardian.com"] == "left"
+    # reliability tiers still grouped on the reliability-only weight
+    assert "higher-reliability" in b["yes_tiers"]
+
+
+# --------------------------------------------------- evidence-quality badge ----
+
+def test_evidence_quality_tiers():
+    assert fvmodel.evidence_quality(6, 10.0)["tier"] == "strong"
+    assert fvmodel.evidence_quality(3, 15.0)["tier"] == "moderate"
+    assert fvmodel.evidence_quality(1, 15.0)["tier"] == "thin"
+    assert fvmodel.evidence_quality(6, 25.0)["tier"] == "thin"    # wide band alone is thin
+    q = fvmodel.evidence_quality(0, 30.0)
+    assert "discount" in q["note"]
+
+
+# --------------------------------------------------------------- movers --------
+
+def _series_two_live():
+    return {"m1": [
+        {"date": "2026-07-03", "fv_pct": 35.0, "band_lo_pct": 25.0, "band_hi_pct": 45.0,
+         "mid_pct": 30.0, "segment": "backfill"},
+        {"date": "2026-07-04", "fv_pct": 40.0, "band_lo_pct": 30.0, "band_hi_pct": 50.0,
+         "mid_pct": 31.0, "segment": "live"},
+        {"date": "2026-07-05", "fv_pct": 52.0, "band_lo_pct": 42.0, "band_hi_pct": 62.0,
+         "mid_pct": 33.0, "segment": "live"},
+    ]}
+
+
+def test_movers_from_live_series_only():
+    sc = dashboard.build_showcase([_snapshot31()], _series_two_live())
+    items = sc["movers"]["items"]
+    assert len(items) == 1 and items[0]["delta_pp"] == pytest.approx(12.0)
+    assert items[0]["from_date"] == "2026-07-04" and items[0]["to_date"] == "2026-07-05"
+    # one live point (backfill never counts) -> no movers, explanatory note
+    sc2 = dashboard.build_showcase([_snapshot31()], _series())
+    assert sc2["movers"]["items"] == []
+    assert "two published" in sc2["movers"]["note"]
+
+
+# ----------------------------------------------------------------- feed --------
+
+def test_feed_aggregates_dedupes_and_counts_private():
+    s1 = _snapshot31(slug="m1", with_newsletter=True)
+    s2 = _snapshot31(slug="m2")
+    # same public article in both packets -> one feed item, two market refs
+    sc = dashboard.build_showcase([s1, s2], _series())
+    feed = sc["feed"]
+    assert len(feed["items"]) == 1
+    assert {m["slug"] for m in feed["items"][0]["markets"]} == {"m1", "m2"}
+    assert feed["n_private"] == 1
+    assert feed["items"][0]["lean"] == "unrated"     # domain "d" is unrated
+
+
+# ------------------------------------------------------------ dashboard v3.2 ---
+
+def test_html_v32_layout_feed_pane_and_donut_grid():
+    sc = dashboard.build_showcase(
+        [_snapshot31(slug=f"m{i}", flag=(i == 0)) for i in range(3)], _series())
+    out = dashboard.render_html(sc)
+    # page-level 2-column shell: sticky feed pane left, markets right
+    assert 'class="feedpane"' in out and "position:sticky" in out
+    assert 'class="layout"' in out and "grid-template-columns:330px" in out
+    # every market's donut is in the overview grid, visible without expanding
+    assert out.count("fair value donut") == 3
+    assert 'class="donutgrid"' in out
+    # movers + evidence-quality badge surfaces
+    assert "Big movers" in out
+    assert "evidence:" in out and "qual-" in out
+    # responsive stack under 820px
+    assert "max-width:820px" in out
+
+
+def test_html_v32_design_tokens_swapped():
+    sc = dashboard.build_showcase([_snapshot31()], _series())
+    out = dashboard.render_html(sc)
+    assert "#242423" in out and "#49413c" in out and "#cc5c44" in out
+    assert "#C8FF00" not in out and "#0a0a0a" not in out    # old dark/lime theme fully gone
+    assert "εpsilon" in out                                  # site wordmark
+    assert "AllSides" in out                                 # lean attribution present
+
+
+def test_html_v32_evidence_moved_out_of_cards():
+    sc = dashboard.build_showcase([_snapshot31()], _series())
+    out = dashboard.render_html(sc)
+    body_start = out.index('id="cards"')
+    footer_start = out.index("<footer")
+    card_zone = out[body_start:footer_start]
+    # the per-card evidence list is gone; cards point at the shared feed instead
+    assert '<ul class="ev">' not in card_zone
+    assert "shared news feed" in card_zone
+    # the feed itself renders exactly once, in the left pane
+    assert out.count('<ul class="ev">') == 1
+
+
+def test_html_v32_still_scrubbed_with_lean():
+    sc = dashboard.build_showcase([_snapshot31(with_newsletter=True)], _series_two_live())
+    out = dashboard.render_html(sc)
+    assert "ZQX-SECRET" not in out and "newsletter:" not in out
+    assert "private analysis item" in out
+    assert "/Users/" not in out and "<script src" not in out
+    assert "beat the mid" not in out.lower()

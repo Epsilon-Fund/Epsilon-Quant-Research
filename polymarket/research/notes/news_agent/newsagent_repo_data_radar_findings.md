@@ -88,3 +88,14 @@ Verdicts per the same [[2026-06-28_external_repo_audit]] lens (liftable-now, lic
 | **Calibration libs** (scikit-learn calibration, `calibration` pkgs) | BSD/MIT | **Skip (first-party wins)** | the vendored `calibrate` skill already provides Brier + Murphy decomposition, reliability diagrams, ECE/MCE on our own ledger format; an external lib would add a dependency without capability. Isotonic/Platt recalibration stays deferred per the "don't bolt on recalibration prematurely" pattern (§ above). |
 | **forecasting-tools (MIT)** | MIT | **Adopt-later (unchanged)** | still the production path if the onboarding-prior stage ever needs true N-sample ensembles; v2's daily loop no longer makes daily LLM forecasts, so the urgency dropped. |
 | **FinceptTerminal** | AGPL-3.0 | **Borrow-pattern (design only, unchanged)** | the v2 dashboard's evidence feed (domain-tagged headline list, ticker-ish density) is the borrowed *pattern*; no AGPL code read or vendored. |
+
+## Delta 2026-07-05 — Observatory v3.2 (political-lean axis)
+
+Verdicts per the same [[2026-06-28_external_repo_audit]] lens:
+
+| Item | Licence / terms | Verdict | What we take / why not |
+|---|---|---|---|
+| **Ground News** (lean ratings + per-story L/C/R bars) | proprietary; ToS prohibits "any robot, spider, or other automatic device… including monitoring or copying any of the material" AND "any manual process to monitor or copy" (read 2026-07-05) | **Skip — do not use** | Justin's pick for the lean axis, but no official API/feed exists and the ToS forecloses both structured fetch and systematic manual transcription; non-monetised use doesn't cure a contract prohibition. Its ratings are averages of AllSides + Ad Fontes + MBFC, so the axis is reachable licence-clean via AllSides. |
+| **AllSides Media Bias Ratings** (lean seed) | CC BY-NC 4.0, attribution; ratings verified per-outlet 2026-07-05 | **Adopt (curated seed — upgraded from the v0 "Reference/Scheme C option")** | 8-outlet verified table in `newsagent/sourcelean.py` (−2…+2 + unrated), footer attribution live; the Observatory is non-monetised. The radar's "written NC OK" email stays an open Justin nicety. Per-story L/C/R display = computed from OUR packet (labeled as such), never lifted from any third party. |
+
+Mechanism shipped: lean extremity → DECLARED contribution multiplier (1.0 / 0.9 / 0.75) composed with the Scheme-A reliability weight in Stage B; α refit under composed weights (2.1 → 2.7, same 355-pair sample). Full build record: [[newsagent_observatory_v32_findings]].

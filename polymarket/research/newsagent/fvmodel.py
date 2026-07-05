@@ -277,25 +277,41 @@ def _source_label(domain: str) -> str:
 
 
 def source_bias_breakdown(feats_72h: list[dict]) -> dict:
-    """Ratings explainer (v3.1): how the number formed, by source lean and bias mix.
+    """Ratings explainer (v3.1; lean axis added v3.2): how the number formed,
+    by source lean and bias mix.
 
     Over the RELEVANT articles in the 72h window (relevance >= RELEVANT_MIN),
     group directional items by stance, then by Scheme-A reliability tier
     (higher-reliability w>=0.9 / mid 0.5-0.9 / more-biased <0.5). Zero-weight
     (blocklisted) items are counted separately — they carry no weight in the
     number by construction. The sentence is the public one-line read; the tier
-    lists feed the per-market table."""
+    lists feed the per-market table.
+
+    v3.2 lean axis (sourcelean, AllSides-seeded): each stance also gets a lean
+    mix ("more-biased" = |lean|>=1, "centrist" = 0, plus unrated), and the whole
+    relevant window gets a per-story LEFT/CENTER/RIGHT coverage distribution —
+    our own packet's version of a story coverage bar (computed from what WE read,
+    clearly not any third party's per-story figure). Tier grouping stays on the
+    RELIABILITY-only weight: reliability != lean."""
+    from . import sourcelean
     yes: dict[str, dict[str, int]] = {}
     no: dict[str, dict[str, int]] = {}
+    leans_by_label: dict[str, str] = {}
+    lean_mix = {"toward_yes": {"more-biased": 0, "centrist": 0, "unrated": 0},
+                "toward_no": {"more-biased": 0, "centrist": 0, "unrated": 0}}
+    coverage = {"left": 0, "center": 0, "right": 0, "unrated": 0}
     n_yes = n_no = n_neutral = n_zero = 0
     for r in feats_72h:
         f = r.get("features")
         if not f or f["relevance"] < RELEVANT_MIN:
             continue
-        w = r.get("source_w", SOURCE_W_DEFAULT)
-        if w <= 0:
+        w_rel = r.get("source_w_rel", r.get("source_w", SOURCE_W_DEFAULT))
+        if w_rel <= 0:
             n_zero += 1
             continue
+        dom = r.get("article", {}).get("domain", "")
+        lean = r.get("source_lean", sourcelean.get_lean(dom))
+        coverage[sourcelean.lean_bucket(lean)] += 1
         if f["stance"] == "neutral":
             n_neutral += 1
             continue
@@ -304,8 +320,16 @@ def source_bias_breakdown(feats_72h: list[dict]) -> dict:
             n_yes += 1
         else:
             n_no += 1
-        tier = _reliability_tier(w)
-        label = _source_label(r.get("article", {}).get("domain", ""))
+        mix = lean_mix[f["stance"]]
+        if lean is None:
+            mix["unrated"] += 1
+        elif abs(lean) >= 1:
+            mix["more-biased"] += 1
+        else:
+            mix["centrist"] += 1
+        tier = _reliability_tier(w_rel)
+        label = _source_label(dom)
+        leans_by_label[label] = sourcelean.lean_label(lean)
         group.setdefault(tier, {})
         group[tier][label] = group[tier].get(label, 0) + 1
 
@@ -319,12 +343,19 @@ def source_bias_breakdown(feats_72h: list[dict]) -> dict:
             parts.append(f"{tier}: {srcs}")
         return "; ".join(parts)
 
+    def _lean_bit(stance: str) -> str:
+        mix = lean_mix[stance]
+        parts = [f"{n} {k}" for k, n in mix.items() if n]
+        return f" [lean mix: {', '.join(parts)}]" if parts else ""
+
     bits = []
     if n_yes:
-        bits.append(f"{n_yes} item{'s' if n_yes != 1 else ''} leaned YES ({_fmt(yes)})")
+        bits.append(f"{n_yes} item{'s' if n_yes != 1 else ''} leaned YES "
+                    f"({_fmt(yes)}){_lean_bit('toward_yes')}")
     if n_no:
-        bits.append(f"{n_no} leaned NO ({_fmt(no)})" if bits else
-                    f"{n_no} item{'s' if n_no != 1 else ''} leaned NO ({_fmt(no)})")
+        bits.append((f"{n_no} leaned NO ({_fmt(no)})" if bits else
+                     f"{n_no} item{'s' if n_no != 1 else ''} leaned NO ({_fmt(no)})")
+                    + _lean_bit("toward_no"))
     if not bits:
         bits.append("no directional evidence in the window — the number rides the "
                     "prior and decayed carry")
@@ -336,7 +367,27 @@ def source_bias_breakdown(feats_72h: list[dict]) -> dict:
     return {"n_yes": n_yes, "n_no": n_no, "n_neutral": n_neutral, "n_zero_weight": n_zero,
             "yes_tiers": {t: sorted(d.items()) for t, d in yes.items()},
             "no_tiers": {t: sorted(d.items()) for t, d in no.items()},
+            "leans": leans_by_label, "lean_mix": lean_mix, "coverage": coverage,
             "sentence": "; ".join(bits) + "."}
+
+
+# Evidence-quality badge (v3.2): declared tiers so readers can discount
+# thin-evidence markets at a glance. Reuses the divergence-flag confidence bars
+# (band half <= DIVERGENCE_HALF_MAX_PP, n_rel >= DIVERGENCE_NREL_MIN) so "strong"
+# on the badge and "confident" in the flag rule are the same statement.
+def evidence_quality(n_rel: int, half_pp: float,
+                     half_max_pp: float = 12.0, n_rel_min: int = 5) -> dict:
+    if n_rel >= n_rel_min and half_pp <= half_max_pp:
+        tier = "strong"
+        note = f"{n_rel} relevant articles/72h, band ±{half_pp:g}pp"
+    elif n_rel < max(2, n_rel_min - 3) or half_pp >= 20.0:
+        tier = "thin"
+        note = (f"only {n_rel} relevant article{'s' if n_rel != 1 else ''}/72h, "
+                f"band ±{half_pp:g}pp — discount accordingly")
+    else:
+        tier = "moderate"
+        note = f"{n_rel} relevant articles/72h, band ±{half_pp:g}pp"
+    return {"tier": tier, "n_relevant": n_rel, "half_pp": round(half_pp, 1), "note": note}
 
 
 def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list[dict],

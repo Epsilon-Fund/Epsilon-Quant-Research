@@ -144,9 +144,24 @@ def get_weight(domain: str) -> float:
 
 
 def annotate(feats: list[dict]) -> list[dict]:
-    """Attach source_w to features_for() rows (Stage-B consumers read it)."""
+    """Attach source weighting to features_for() rows (Stage-B consumers read it).
+
+    v3.2: the effective Stage-B weight composes RELIABILITY (Scheme A: RSP tiers
+    + Iffy blocklist) with the POLITICAL-LEAN extremity multiplier (sourcelean —
+    AllSides-seeded curated table; declared mults). Kept separately on the row so
+    the ratings explainer can show each axis on its own:
+      source_w_rel  — reliability-only weight (0.0–1.0; blocklist lives here)
+      source_lean   — -2..+2 or None (unrated)
+      source_w      — source_w_rel × lean_mult (what contribution/band consume)
+    """
+    from . import sourcelean
     for r in feats:
-        r["source_w"] = get_weight(r.get("article", {}).get("domain", ""))
+        dom = r.get("article", {}).get("domain", "")
+        rel = get_weight(dom)
+        lean = sourcelean.get_lean(dom)
+        r["source_w_rel"] = rel
+        r["source_lean"] = lean
+        r["source_w"] = rel * sourcelean.lean_mult(lean)
     return feats
 
 

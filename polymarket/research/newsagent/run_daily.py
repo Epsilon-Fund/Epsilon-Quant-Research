@@ -202,6 +202,8 @@ def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
             "A": round(nxt["A"], 4), "s_t": round(s_t, 3), "divergence": flag,
             "gdelt": burst, "breakdown": bd, "missing_features": missing,
             "bias": fvmodel.source_bias_breakdown(feats),
+            "evidence_quality": fvmodel.evidence_quality(
+                n_rel, half, config.DIVERGENCE_HALF_MAX_PP, config.DIVERGENCE_NREL_MIN),
             "tract": config.tract(slug),
             "tract_note": config.DATA_DRIVEN.get(slug, "")}
 
