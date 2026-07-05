@@ -499,6 +499,16 @@ The "relayer" addresses are Polymarket CTF Exchange v1 contracts. Active taker-o
 
 ---
 
+## News-Agent Fair-Value + Calibration Showcase (started 2026-07-04)
+
+> **New thread — the never-run Block J / LLM-forecaster frontier, framed as a PUBLIC SHOWCASE, not a trading strategy.** A news-agent produces one calibrated fair-value % per high-liquidity politics market vs the PM mid, with the Brier/calibration track record as the public hook (append-only superforecasting ledger `SF_BOOK=polymarket`, scored by `calibrate`). Does NOT reopen closed financial-binary pricing ([[od_same_day_crypto_pricing_gate_findings]], [[od_equities_index_pricing_scope_findings]]). Hub: [[strat_news_agent_showcase]].
+
+- [x] **v0 gate pre-registered** 2026-07-04 (metric + cheapest falsifier locked before any computation) — [[newsagent_v0_gate_preregistration]].
+- [x] **Repo/data radar** 2026-07-04 — forecasting-tools (MIT) = Adopt; Halawi et al. = reimplement (repo unlicensed); GDELT+RSS+Guardian = news stack (GDELT end-bound leaks ~24h → client-side seendate filter mandatory); source-weighting proposal = Wikipedia RSP tiers + Iffy blocklist (licence-clean) pending Justin sign-off. See [[newsagent_repo_data_radar_findings]].
+- [x] **v0 gate verdict — STOP (early-stop fired 2026-07-05).** On the falsifier trio (Iran-deal $177M / Starmer $7.9M / Cepeda $7.3M; 15 lookahead-free pairs, post-LLM-cutoff, canaries CLEAN), Brier(ours)=0.547 vs mid=0.354 (diff **+0.194** > +0.15 bar) and news-tracking **40%** (< 50% bar) → aborted remaining calls, **no dashboard built** (no-infra-before-signal held). Mechanism: status-quo-anchored single-sample forecaster under-reacts to in-packet decisive news (beat the mid 6/6 on the quiet NO-market; lost badly on both YES-transitions). Amendment 1 (GDELT persistent 429 from two IPs → Guardian+Wikipedia-Current-Events packets, stricter timestamps) documented pre-scoring. See [[newsagent_v0_gate_findings]].
+- [ ] **Justin decision — v0b redesigned gate (proposed, NOT run):** N=5 trimmed-mean ensemble, evidence-weighting prompt (blanket status-quo clause dropped), multi-source packets + Halawi relevance filter; same bars, same falsifier trio. Sign-off required before running (anti-gate-shopping). Proposal: [[newsagent_v0_gate_findings]] § Redesigned gate.
+- [ ] Justin sign-off (only if v0b runs and passes): source-weighting scheme (proposal table in [[newsagent_repo_data_radar_findings]]).
+
 ## done (recent)
 
 - [x] **Runtime efficiency skills vendored** (2026-06-11). `efficient-fable` + `stay-within-limits` adapted from BuilderIO/skills into `.agents/skills/` (symlinked from `.claude/skills/`, cost-mode convention); auto-trigger descriptions retargeted to this repo's heavy work; wired into [[SKILL_MAP]] § Runtime efficiency skills, [[CODEX]] § Anti-patterns, and [[COWORK]] § Delegation discipline.
