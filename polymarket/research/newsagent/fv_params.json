@@ -1,0 +1,23 @@
+{
+ "alpha": 1.4,
+ "lambda": {
+  "slow": 0.9,
+  "shock": 0.6
+ },
+ "floor_pp": {
+  "slow": 8.0,
+  "shock": 12.0
+ },
+ "s_min": {
+  "slow": 0.5,
+  "shock": 0.0
+ },
+ "a_clip": {
+  "slow": 1.5,
+  "shock": 6.0
+ },
+ "fitted_on": "v0_archive_2026-06",
+ "n_pairs": 53,
+ "n_markets": 9,
+ "notes": "alpha grid-fit on v0-archive resolved outcomes (one geopolitically extreme month; refit as the forward ledger settles). lambda/floors declared, not fit."
+}

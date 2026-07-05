@@ -59,20 +59,59 @@ def market_state(slug: str) -> dict:
     }
 
 
-def guardian_search(q: str, start: datetime, end: datetime, page_size: int = 20) -> list[dict]:
+def _lede_last(body: str, cap: int = 420) -> tuple[str, str]:
+    """First and last substantive sentence-run of an article body, length-capped.
+
+    Full text is used INTERNALLY for feature extraction only (Guardian licence:
+    the public page displays headline + link only)."""
+    body = (body or "").strip()
+    if not body:
+        return "", ""
+    paras = [p.strip() for p in re.split(r"\n{2,}", body) if len(p.strip()) > 60]
+    if not paras:
+        return body[:cap], (body[-cap:] if len(body) > 2 * cap else "")
+    if len(paras) == 1:  # bodyText often arrives as one flat block — head and tail
+        return paras[0][:cap], (paras[0][-cap:] if len(paras[0]) > 2 * cap else "")
+    return paras[0][:cap], paras[-1][:cap]
+
+
+def guardian_search(q: str, start: datetime, end: datetime, page_size: int = 20,
+                    full_text: bool = True) -> list[dict]:
     key = os.environ.get(GUARDIAN_KEY_ENV, "").strip() or "test"
     params = {"q": q, "from-date": start.strftime("%Y-%m-%d"), "to-date": end.strftime("%Y-%m-%d"),
               "order-by": "newest", "page-size": str(page_size), "api-key": key}
+    if full_text:
+        params["show-fields"] = "trailText,bodyText"
     url = "https://content.guardianapis.com/search?" + urllib.parse.urlencode(params)
     out = []
     for r in http_json(url).get("response", {}).get("results", []):
         pub = r.get("webPublicationDate", "")
         if not pub or pub > end.strftime("%Y-%m-%dT%H:%M:%SZ"):
             continue
+        fields = r.get("fields") or {}
+        lede, last = _lede_last(fields.get("bodyText", ""))
+        trail = re.sub(r"<[^>]+>", "", fields.get("trailText", "") or "").strip()
         out.append({"title": r.get("webTitle", "").strip(),
                     "seendate": pub.replace("-", "").replace(":", ""),
-                    "domain": "theguardian.com", "url": r.get("webUrl", "")})
+                    "domain": "theguardian.com", "url": r.get("webUrl", ""),
+                    "trail": trail[:300], "lede": lede, "last_para": last})
     return out
+
+
+def relevance_rank(items: list[dict], query: str, keys: list[str]) -> list[dict]:
+    """Cheap keyword pre-rank before the top-k cap (Halawi rank-then-summarize step).
+
+    Only ORDERS candidates; the calibrated per-article relevance comes from Stage A
+    (features.py). Stable sort keeps newest-first within ties."""
+    terms = {w for w in re.findall(r"[a-z]{3,}", query.lower())
+             if w not in {"and", "or", "not", "the"}}
+    terms |= {k.lower() for k in keys}
+
+    def score(a: dict) -> int:
+        text = " ".join([a.get("title", ""), a.get("trail", ""), a.get("lede", "")]).lower()
+        return sum(1 for t in terms if t in text)
+
+    return sorted(items, key=score, reverse=True)
 
 
 def wp_day_bullets(day: datetime) -> list[str]:
@@ -103,7 +142,10 @@ def wp_day_bullets(day: datetime) -> list[str]:
 
 
 def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: int = 12) -> dict:
-    """Same packet shape as the gate pipeline: (title, seendate, domain) x<=12."""
+    """Packet = relevance-ranked top-k Guardian items (title + trail + lede + last
+    paragraph, internal-only text) + Wikipedia Current Events bullets. Same shape as
+    the gate pipeline plus the full-text fields; `now` in the past reconstructs a
+    lookahead-free historical packet (both sources are timestamped by construction)."""
     t = now or datetime.now(timezone.utc)
     g_items = guardian_search(cfg["guardian_q"], t - timedelta(hours=72), t)
     window = "72h"
@@ -112,6 +154,7 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
         g_items = guardian_search(cfg["guardian_q"], t - timedelta(days=7), t)
         window = "7d"
     time.sleep(0.7)
+    g_items = relevance_rank(g_items, cfg["guardian_q"], cfg["wp_keys"])
     lookback = 3 if window == "72h" else 7
     wp_items = []
     for k in range(lookback, 0, -1):
@@ -132,3 +175,41 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
     return {"slug": slug, "asof": t.isoformat(), "query": cfg["guardian_q"],
             "wp_keys": cfg["wp_keys"], "window": window,
             "source": "guardian+wp_currentevents", "articles": items}
+
+
+def mid_history(slug: str, days: int = 21) -> list[dict]:
+    """Daily mid history for the display time-series (CLOB /prices-history).
+
+    Chunked <=10d per request (the API silently caps span ~15d); fidelity=60
+    (hourly) downsampled to one 12:00-UTC-nearest point per day. Display context
+    only — never a gate input."""
+    url = "https://gamma-api.polymarket.com/markets?" + urllib.parse.urlencode({"slug": slug})
+    rows = http_json(url)
+    if not rows:
+        return []
+    token = json.loads(rows[0].get("clobTokenIds") or "[]")
+    if not token:
+        return []
+    now = datetime.now(timezone.utc)
+    pts: dict[str, dict] = {}
+    start_all = now - timedelta(days=days)
+    chunk_start = start_all
+    while chunk_start < now:
+        chunk_end = min(chunk_start + timedelta(days=10), now)
+        q = urllib.parse.urlencode({"market": token[0],
+                                    "startTs": int(chunk_start.timestamp()),
+                                    "endTs": int(chunk_end.timestamp()), "fidelity": "60"})
+        try:
+            hist = http_json("https://clob.polymarket.com/prices-history?" + q).get("history", [])
+        except Exception:
+            hist = []
+        for h in hist:
+            ts = datetime.fromtimestamp(h["t"], tz=timezone.utc)
+            d = ts.strftime("%Y-%m-%d")
+            # keep the point nearest 12:00 UTC per day
+            dist = abs(ts.hour * 60 + ts.minute - 720)
+            if d not in pts or dist < pts[d]["dist"]:
+                pts[d] = {"date": d, "mid": round(float(h["p"]), 4), "dist": dist}
+        chunk_start = chunk_end
+        time.sleep(0.4)
+    return [{"date": v["date"], "mid": v["mid"]} for v in sorted(pts.values(), key=lambda x: x["date"])]

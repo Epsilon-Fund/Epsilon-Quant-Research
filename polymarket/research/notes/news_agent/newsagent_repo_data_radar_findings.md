@@ -73,3 +73,15 @@ tags:
 ## Decision
 
 Adopt the GDELT+RSS+Guardian retrieval stack and the Halawi-pattern engine (reimplemented first-party for v0/v1; forecasting-tools as the production adoption path); default to weighting Scheme B pending sign-off on Scheme A; never vendor FinceptTerminal/unlicensed/AGPL code — pattern-borrow only. Full subagent reports summarized here were produced 2026-07-04; licences marked UNCONFIRMED above should be re-verified before any public launch.
+
+## Delta 2026-07-05 — Observatory v2 rebuild additions
+
+Verdicts per the same [[2026-06-28_external_repo_audit]] lens (liftable-now, licence + integration cost, Adopt/Borrow-pattern/Reference/Skip):
+
+| Item | Licence | Verdict | What we take / cost |
+|---|---|---|---|
+| **GDELT via Google BigQuery** (`gdelt-bq.gdeltv2.gkg`) | open data (cite+link); client lib `google-cloud-bigquery` Apache-2.0 | **Adopt (scaffolded)** | bypasses the DOC-API datacenter-IP 429 block entirely; free tier 1 TB/mo covers daily-tone queries easily. Cost: one GCP service account (Justin) + one dependency. Scaffold shipped in `newsagent/gdelt_bq.py` with graceful missing-credential messaging + the residential-IP DOC fallback (client-side `seendate` filter enforced). |
+| **epsilon-webs1te local clone** | internal (colleague-owned) | **Style reference only (read-only)** | design tokens extracted (dark `#0a0a0a`, `#F0EFE9` text, single `#C8FF00` accent, Instrument Serif / IBM Plex Sans / Geist Mono, 24px-radius panels, uppercase micro-labels) and reproduced with local font stacks in the self-contained dashboard. Nothing shipped into or restructured in that repo. |
+| **Calibration libs** (scikit-learn calibration, `calibration` pkgs) | BSD/MIT | **Skip (first-party wins)** | the vendored `calibrate` skill already provides Brier + Murphy decomposition, reliability diagrams, ECE/MCE on our own ledger format; an external lib would add a dependency without capability. Isotonic/Platt recalibration stays deferred per the "don't bolt on recalibration prematurely" pattern (§ above). |
+| **forecasting-tools (MIT)** | MIT | **Adopt-later (unchanged)** | still the production path if the onboarding-prior stage ever needs true N-sample ensembles; v2's daily loop no longer makes daily LLM forecasts, so the urgency dropped. |
+| **FinceptTerminal** | AGPL-3.0 | **Borrow-pattern (design only, unchanged)** | the v2 dashboard's evidence feed (domain-tagged headline list, ticker-ish density) is the borrowed *pattern*; no AGPL code read or vendored. |

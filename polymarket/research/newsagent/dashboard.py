@@ -1,16 +1,25 @@
-"""Site-ready local dashboard generator for the Epsilon Calibration Observatory.
+"""Site-ready dashboard for the Epsilon Calibration Observatory (independent-FV v2).
 
-Produces two artifacts under data/newsagent/showcase/ (git-ignored, regenerable):
-  showcase.json — everything the page renders (a colleague can lift this straight
-                  into Epsilon-Fund/epsilon-webs1te and restyle; UX ownership is his)
-  index.html    — fully self-contained page (inline CSS/JS, no CDN, offline-renderable)
+Artifacts under data/newsagent/showcase/ (git-ignored, regenerable):
+  showcase.json — everything the page renders (the website colleague lifts this
+                  into Epsilon-Fund/epsilon-webs1te and restyles; UX ownership his)
+  index.html    — fully self-contained page (inline CSS + inline SVG, no CDN, no
+                  webfonts fetched — local font stacks with graceful fallbacks)
 
-Framing rules (IP-scrub + honesty, enforced here):
-  - masthead declares the EXPERIMENT framing; the scoreboard shows the market
-    beating the agent on the retrospective gates — that is the content, not a bug;
-  - numbers-only default; ANALYTICAL toggle reveals drivers/evidence/method;
-  - public data + our own forecasts only — no wallet data, no strategy thresholds;
-  - attribution: Guardian (headline+link), Wikipedia Current Events (CC BY-SA).
+Style: READ-ONLY borrow of the epsilon-webs1te design language (dark #0a0a0a,
+off-white #F0EFE9, single acid-lime #C8FF00 accent, serif display / sans body /
+mono numerals, 24px-radius panels, uppercase micro-labels). Nothing is shipped
+into that repo from here.
+
+Framing rules (enforced in copy):
+  - Epsilon's INDEPENDENT fair value, judged against RESOLVED OUTCOMES over time;
+    the Polymarket mid is discovery + context, never the benchmark;
+  - the retrospective gate scoreboard (market beat the agent) stays displayed —
+    that closure is permanent and part of the story;
+  - numbers-only default; ANALYTICAL toggle reveals drivers/evidence/method/breakdown;
+  - divergence flags are informational ("where our model most disagrees"), never
+    an edge claim;
+  - IP-scrub: public data + our own forecasts only; attribution for Guardian/Wikipedia.
 """
 from __future__ import annotations
 
@@ -19,7 +28,16 @@ import html
 import json
 from datetime import datetime, timezone
 
-from .config import CSV_OUT, SHOWCASE
+from .config import (CSV_OUT, SHOWCASE, DIVERGENCE_GAP_PP, DIVERGENCE_HALF_MAX_PP,
+                     DIVERGENCE_NREL_MIN)
+
+# ---- design tokens (epsilon-webs1te, read-only borrow) ------------------------
+BG = "#0a0a0a"; PANEL = "#111111"; PANEL2 = "#1c1c1c"; TX = "#F0EFE9"
+DIM = "#777777"; LINE = "rgba(255,255,255,0.07)"; ACC = "#C8FF00"
+NEG = "#d4645c"
+SERIF = "'Instrument Serif', Georgia, 'Times New Roman', serif"
+SANS = "'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif"
+MONO = "'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace"
 
 
 def _read_csv(name: str) -> list[dict]:
@@ -30,8 +48,52 @@ def _read_csv(name: str) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def build_showcase(snapshots: list[dict]) -> dict:
-    """snapshots: [{market, packet, forecast, drivers, decisive_evidence, sf_id}]"""
+# ------------------------------------------------------------------ data model --
+
+def _interim_scores(fv_series: dict) -> dict:
+    """ForecastBench-convention interim read: FV_t scored against the NEXT day's
+    mid (as a truth proxy while unresolved). Replaced by outcome scoring at
+    resolution; populated from day one thanks to the labeled backfill segment."""
+    per_market, rows = {}, []
+    for slug, ser in fv_series.items():
+        pts = [p for p in ser if p.get("mid_pct") is not None]
+        briers = []
+        for a, b in zip(pts, pts[1:]):
+            ib = ((a["fv_pct"] - b["mid_pct"]) / 100.0) ** 2
+            briers.append(ib)
+            rows.append({"slug": slug, "date": a["date"], "interim_brier": round(ib, 4),
+                         "segment": a.get("segment", "live")})
+        if briers:
+            per_market[slug] = {"n": len(briers),
+                                "mean_interim_brier": round(sum(briers) / len(briers), 4)}
+    overall = [r["interim_brier"] for r in rows]
+    return {"note": ("Interim read: each day's FV scored against the NEXT day's market "
+                     "mid (ForecastBench convention) while the market is unresolved; "
+                     "replaced by true outcome scoring at resolution. Not a gate."),
+            "overall_mean": round(sum(overall) / len(overall), 4) if overall else None,
+            "n": len(overall), "per_market": per_market}
+
+
+def _reliability_bins(nbins: int = 5) -> list[dict]:
+    """Reliability data from the Stage-B archive calibration pairs (in-sample,
+    resolved outcomes). The forward ledger takes over as markets settle."""
+    pairs = _read_csv("newsagent_stageb_pairs.csv")
+    if not pairs:
+        return []
+    bins = []
+    for i in range(nbins):
+        lo, hi = i / nbins, (i + 1) / nbins
+        rows = [p for p in pairs if lo <= float(p["fv"]) < hi or (i == nbins - 1 and float(p["fv"]) == 1.0)]
+        if not rows:
+            continue
+        bins.append({"lo": lo, "hi": hi,
+                     "mean_fv": round(sum(float(r["fv"]) for r in rows) / len(rows), 3),
+                     "outcome_rate": round(sum(int(r["y"]) for r in rows) / len(rows), 3),
+                     "n": len(rows)})
+    return bins
+
+
+def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
     backtests = []
     for variant, label in [("", "v0 (single-sample forecaster)"),
                            ("_v0b", "v0b (5-perspective ensemble)")]:
@@ -45,45 +107,196 @@ def build_showcase(snapshots: list[dict]) -> dict:
             })
     cards = []
     for s in snapshots:
-        mkt, fc = s["market"], s["forecast"]
+        mkt, fc, sb = s["market"], s["forecast"], s.get("stage_b", {})
+        div = sb.get("divergence", {})
         cards.append({
             "slug": mkt["slug"], "question": mkt["question"], "region": s.get("region", ""),
-            "deadline": mkt["end_date"][:10],
-            "agent_pct": fc["p_pct"], "band": [fc["band_lo_pct"], fc["band_hi_pct"]],
+            "mtype": sb.get("mtype", ""), "deadline": mkt["end_date"][:10],
+            "fv_pct": fc["p_pct"], "band": [fc["band_lo_pct"], fc["band_hi_pct"]],
             "market_pct": round(mkt["mid"] * 100, 1),
-            "gap_pp": round(fc["p_pct"] - mkt["mid"] * 100, 1),
+            "gap_pp": div.get("gap_pp", round(fc["p_pct"] - mkt["mid"] * 100, 1)),
+            "divergence_flag": bool(div.get("flag")),
+            "n_relevant": sb.get("n_relevant", 0),
             "volume24h": mkt["volume24h"], "liquidity": mkt["liquidity"],
             "drivers": s.get("drivers", [])[:3],
-            "decisive_evidence": bool(s.get("decisive_evidence")),
+            "breakdown": sb.get("breakdown"),
             "evidence": [{"title": a["title"], "domain": a["domain"],
                           "seendate": a.get("seendate", ""), "url": a.get("url", "")}
                          for a in s["packet"]["articles"]],
+            "series": fv_series.get(mkt["slug"], []),
             "sf_id": s.get("sf_id", ""),
         })
+    cards.sort(key=lambda c: -abs(c["gap_pp"]))
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "framing": ("Epsilon Calibration Observatory — a public forecasting experiment. "
-                    "We publish an LLM news-agent's independent probability next to the "
-                    "Polymarket mid and score both with proper scoring rules as markets "
-                    "resolve. This is NOT a claim that our number is better: in two "
-                    "pre-registered retrospective gates the market beat the agent. "
-                    "The craft on display is the measurement discipline."),
+        "framing": ("Epsilon Observatory — our independent fair value on liquid "
+                    "politics and macro questions, scored in public against what "
+                    "actually happens. Polymarket tells us which questions matter "
+                    "and provides display context; it is not the benchmark. We hold "
+                    "no inside information, so misses on shock events are expected "
+                    "— and scored anyway. In two pre-registered retrospective gates "
+                    "the market mid beat our earlier forecaster; that scoreboard "
+                    "stays up. The craft on display is measurement discipline."),
+        "method": ("Per market: a one-time onboarding prior from a five-perspective "
+                   "LLM ensemble (never shown the market price), then a transparent "
+                   "daily update — a cheap LLM extracts structured features from each "
+                   "news article (relevance, stance, event phase, strength; cached per "
+                   "article), and a fitted log-odds model turns them into the fair "
+                   "value and band. The single evidence weight is calibrated on "
+                   "resolved outcomes only. Every number decomposes into the "
+                   "article-level contributions shown in analytical mode."),
+        "divergence_rule": (f"Flag shown only when |FV − mid| ≥ {DIVERGENCE_GAP_PP:g}pp "
+                            f"AND band half-width ≤ {DIVERGENCE_HALF_MAX_PP:g}pp AND "
+                            f"≥ {DIVERGENCE_NREL_MIN} relevant articles in 72h. "
+                            "Informational: where our model most disagrees — never an "
+                            "edge claim."),
         "backtests": backtests,
+        "interim": _interim_scores(fv_series),
+        "reliability": {"bins": _reliability_bins(),
+                        "note": ("In-sample reliability of the Stage-B model on the "
+                                 "resolved June-2026 archive (the calibration set). "
+                                 "The forward ledger becomes the real track record "
+                                 "as live markets settle.")},
         "live_track_record": {"status": "collecting", "note": (
-            "Live snapshots are logged to an append-only forecast ledger; Brier scores "
-            "appear here as markets resolve. Unresolved forecasts are interim-read "
-            "against the prior-day market mid (ForecastBench convention).")},
+            "Daily snapshots go to an append-only forecast ledger (anti-post-hoc: "
+            "settled entries reject edits); Brier/reliability appear here as markets "
+            "resolve.")},
         "markets": cards,
-        "method": ("Per market: curated news headlines (Guardian Open Platform + Wikipedia "
-                   "Current Events; timestamped, market price never shown to the model) -> "
-                   "five perspective-diverse LLM estimates (base-rate, evidence-forward, "
-                   "skeptic, reference-class, adversarial) -> trimmed mean; 80% band from "
-                   "ensemble spread, floored at +/-8pp. Daily snapshots; append-only ledger; "
-                   "anti-post-hoc enforced by the ledger state machine."),
         "attribution": ("Headlines: The Guardian (Open Platform) and Wikipedia Current "
                         "events portal (CC BY-SA 4.0) — links go to the sources. Market "
                         "data: Polymarket public APIs."),
     }
+
+
+# ------------------------------------------------------------------ SVG charts --
+
+def _x(i: int, n: int, w: int, pad: int = 34) -> float:
+    return pad + (w - 2 * pad) * (i / max(1, n - 1))
+
+
+def _y(pct: float, h: int, pad: int = 16) -> float:
+    return pad + (h - 2 * pad) * (1 - pct / 100.0)
+
+
+def _svg_series(series: list[dict], w: int = 660, h: int = 190) -> str:
+    """FV + band vs mid time series. Backfill segment dashed; live solid."""
+    pts = [p for p in series if p.get("fv_pct") is not None]
+    if len(pts) < 2:
+        return f'<div class="nochart">time series appears after a few daily runs</div>'
+    n = len(pts)
+    band = " ".join(f"{_x(i, n, w):.1f},{_y(p['band_hi_pct'], h):.1f}" for i, p in enumerate(pts))
+    band += " " + " ".join(f"{_x(i, n, w):.1f},{_y(p['band_lo_pct'], h):.1f}"
+                           for i, p in reversed(list(enumerate(pts))))
+
+    def path(sel, key) -> str:
+        idx = [(i, p) for i, p in enumerate(pts) if sel(p) and p.get(key) is not None]
+        if len(idx) < 2:
+            return ""
+        return "M " + " L ".join(f"{_x(i, n, w):.1f} {_y(p[key], h):.1f}" for i, p in idx)
+
+    fv_back = path(lambda p: p.get("segment") == "backfill", "fv_pct")
+    # join live to the last backfill point so the line is continuous
+    first_live = next((i for i, p in enumerate(pts) if p.get("segment") == "live"), None)
+    live_from = max(0, (first_live or 0) - 1)
+    fv_live = "M " + " L ".join(
+        f"{_x(i, n, w):.1f} {_y(p['fv_pct'], h):.1f}"
+        for i, p in enumerate(pts) if i >= live_from) if first_live is not None else ""
+    mid = path(lambda p: True, "mid_pct")
+    gl = "".join(f'<line x1="34" x2="{w-34}" y1="{_y(v, h):.1f}" y2="{_y(v, h):.1f}" '
+                 f'stroke="{LINE}" stroke-width="1"/>'
+                 f'<text x="6" y="{_y(v, h)+4:.1f}" fill="{DIM}" font-size="9" '
+                 f'font-family="{MONO}">{v}</text>' for v in (0, 25, 50, 75, 100))
+    d0, d1 = pts[0]["date"][5:], pts[-1]["date"][5:]
+    return f"""<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" role="img">
+{gl}
+<polygon points="{band}" fill="{ACC}" opacity="0.07"/>
+{f'<path d="{fv_back}" fill="none" stroke="{ACC}" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.75"/>' if fv_back else ''}
+{f'<path d="{fv_live}" fill="none" stroke="{ACC}" stroke-width="2"/>' if fv_live else ''}
+{f'<path d="{mid}" fill="none" stroke="{DIM}" stroke-width="1.4"/>' if mid else ''}
+<text x="34" y="{h-2}" fill="{DIM}" font-size="9" font-family="{MONO}">{d0}</text>
+<text x="{w-60}" y="{h-2}" fill="{DIM}" font-size="9" font-family="{MONO}">{d1}</text>
+</svg>
+<div class="chartkey"><span style="color:{ACC}">— FV + band</span>
+<span style="color:{ACC};opacity:.7">- - reconstructed (pre-launch backfill, unscored)</span>
+<span style="color:{DIM}">— Polymarket mid (context)</span></div>"""
+
+
+def _svg_reliability(bins: list[dict], w: int = 340, h: int = 300) -> str:
+    if not bins:
+        return f'<div class="nochart">reliability chart appears once calibration pairs exist</div>'
+    pad = 38
+    def xx(v): return pad + (w - pad - 12) * v
+    def yy(v): return (h - pad) - (h - pad - 12) * v
+    pts = "".join(
+        f'<circle cx="{xx(b["mean_fv"]):.1f}" cy="{yy(b["outcome_rate"]):.1f}" '
+        f'r="{min(14, 4 + b["n"] * 0.45):.1f}" fill="{ACC}" opacity="0.75"/>'
+        f'<text x="{xx(b["mean_fv"]):.1f}" y="{yy(b["outcome_rate"]) - 12:.1f}" fill="{DIM}" '
+        f'font-size="9" text-anchor="middle" font-family="{MONO}">n={b["n"]}</text>'
+        for b in bins)
+    ticks = "".join(
+        f'<text x="{xx(v):.1f}" y="{h-pad+14}" fill="{DIM}" font-size="9" text-anchor="middle" font-family="{MONO}">{v:.0%}</text>'
+        f'<text x="{pad-8}" y="{yy(v)+3:.1f}" fill="{DIM}" font-size="9" text-anchor="end" font-family="{MONO}">{v:.0%}</text>'
+        for v in (0, 0.25, 0.5, 0.75, 1.0))
+    return f"""<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" role="img">
+<line x1="{pad}" y1="{h-pad}" x2="{w-12}" y2="{h-pad}" stroke="{LINE}"/>
+<line x1="{pad}" y1="12" x2="{pad}" y2="{h-pad}" stroke="{LINE}"/>
+<line x1="{xx(0):.1f}" y1="{yy(0):.1f}" x2="{xx(1):.1f}" y2="{yy(1):.1f}" stroke="{DIM}" stroke-dasharray="4 4" stroke-width="1"/>
+{pts}{ticks}
+<text x="{(w+pad)/2:.0f}" y="{h-4}" fill="{DIM}" font-size="10" text-anchor="middle" font-family="{SANS}">model fair value</text>
+<text x="12" y="{h/2:.0f}" fill="{DIM}" font-size="10" text-anchor="middle" font-family="{SANS}" transform="rotate(-90 12 {h/2:.0f})">observed outcome rate</text>
+</svg>"""
+
+
+def _svg_divergence(cards: list[dict], w: int = 660) -> str:
+    """Divergence layer: markets sorted by |gap|. Fixed columns so long question
+    labels never collide with bars: labels left, centered bars middle, pp right."""
+    if not cards:
+        return ""
+    rows, h_row = [], 34
+    h = len(cards) * h_row + 30
+    max_gap = max(20.0, max(abs(c["gap_pp"]) for c in cards))
+    cx = w * 0.64                       # bar column center
+    half_span = w * 0.21                # bar column half-width
+    scale = half_span / max_gap
+    val_x = cx + half_span + 14         # fixed value column
+    for i, c in enumerate(cards):
+        y = 18 + i * h_row
+        g = c["gap_pp"]
+        x0 = cx + min(0, g) * scale
+        color = ACC if c["divergence_flag"] else (DIM if abs(g) < DIVERGENCE_GAP_PP else TX)
+        label = c["question"][:40] + ("…" if len(c["question"]) > 40 else "")
+        rows.append(
+            f'<text x="8" y="{y+4}" fill="{TX}" font-size="10.5" font-family="{SANS}">{html.escape(label)}</text>'
+            f'<rect x="{x0:.1f}" y="{y-8}" width="{max(1.5, abs(g)*scale):.1f}" height="14" fill="{color}" '
+            f'opacity="{1.0 if c["divergence_flag"] else 0.55}" rx="2"/>'
+            f'<text x="{val_x:.1f}" y="{y+3}" fill="{color}" font-size="10" '
+            f'font-family="{MONO}">{g:+.1f}pp{" ⚑" if c["divergence_flag"] else ""}</text>')
+    thr = "".join(
+        f'<line x1="{cx + s*DIVERGENCE_GAP_PP*scale:.1f}" y1="8" x2="{cx + s*DIVERGENCE_GAP_PP*scale:.1f}" '
+        f'y2="{h-18}" stroke="{LINE}" stroke-dasharray="3 4"/>' for s in (-1, 1))
+    return f"""<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" role="img">
+<line x1="{cx}" y1="8" x2="{cx}" y2="{h-18}" stroke="{LINE}"/>{thr}{''.join(rows)}
+<text x="{cx}" y="{h-4}" fill="{DIM}" font-size="9" text-anchor="middle" font-family="{MONO}">FV − mid (pp); dashed = ±{DIVERGENCE_GAP_PP:g}pp flag threshold</text>
+</svg>"""
+
+
+# ------------------------------------------------------------------ HTML render --
+
+def _breakdown_html(bd: dict | None) -> str:
+    if not bd:
+        return ""
+    steps = "".join(
+        f'<tr><td class="dom">{html.escape(a["domain"])}</td>'
+        f'<td>{html.escape(a["title"])}</td>'
+        f'<td class="mono {"pos" if a["pp_effect"] > 0 else "neg"}">{a["pp_effect"]:+.2f}pp</td></tr>'
+        for a in bd["articles"][:8])
+    if not steps:
+        steps = '<tr><td colspan="3" class="dim">no new qualifying evidence today</td></tr>'
+    return f"""<div class="sub">fv construction (prior → evidence → number)</div>
+<table class="bd"><tr><td class="dim">onboarding prior</td><td></td><td class="mono">{bd["p0_pct"]:.1f}%</td></tr>
+<tr><td class="dim">decayed carry from prior days</td><td></td><td class="mono">{bd["carry_pp"]:+.2f}pp</td></tr>
+{steps}
+<tr class="tot"><td>fair value</td><td></td><td class="mono">{bd["fv_pct"]:.1f}%</td></tr></table>"""
 
 
 def render_html(sc: dict) -> str:
@@ -93,88 +306,140 @@ def render_html(sc: dict) -> str:
         ev = "".join(
             f'<li><span class="dom">{html.escape(e["domain"])}</span> '
             + (f'<a href="{html.escape(e["url"])}" target="_blank" rel="noopener">' if e.get("url") else "")
-            + html.escape(e["title"]) + ("</a>" if e.get("url") else "") + "</li>"
+            + html.escape(e["title"]) + ("</a>" if e.get("url") else "")
+            + f' <span class="ts">{html.escape(e.get("seendate", "")[:8])}</span></li>'
             for e in c["evidence"][:8])
         gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
+        flag = (f'<span class="flag">⚑ divergence — high-confidence disagreement</span>'
+                if c["divergence_flag"] else "")
         cards += f"""
     <div class="card">
+      <div class="chip">{html.escape(c["region"])} · {html.escape(c["mtype"])} · closes {c["deadline"]}</div>
       <div class="q">{html.escape(c["question"])}</div>
-      <div class="meta">{html.escape(c["region"])} · deadline {c["deadline"]} · 24h vol ${c["volume24h"]:,}</div>
+      {flag}
       <div class="nums">
-        <div class="num"><div class="lbl">agent</div><div class="val">{c["agent_pct"]}%</div>
-          <div class="band">80% band {c["band"][0]}–{c["band"][1]}%</div></div>
+        <div class="num"><div class="lbl">epsilon fv</div><div class="val acc">{c["fv_pct"]}%</div>
+          <div class="band">band {c["band"][0]}–{c["band"][1]}%</div></div>
         <div class="num"><div class="lbl">market</div><div class="val">{c["market_pct"]}%</div>
-          <div class="band">Polymarket mid</div></div>
+          <div class="band">Polymarket mid (context)</div></div>
         <div class="num"><div class="lbl">gap</div><div class="val {gap_cls}">{c["gap_pp"]:+}pp</div>
-          <div class="band">agent − market</div></div>
+          <div class="band">fv − mid</div></div>
       </div>
+      <div class="chart">{_svg_series(c["series"])}</div>
       <div class="analytical">
-        <div class="sub">why (agent's cited drivers)</div><ul>{drivers}</ul>
-        <div class="sub">evidence packet (what the agent saw)</div><ul class="ev">{ev}</ul>
-        <div class="sub">ledger id: {html.escape(c["sf_id"] or "—")}</div>
+        {_breakdown_html(c.get("breakdown"))}
+        <div class="sub">cited drivers</div><ul>{drivers or "<li class='dim'>none today</li>"}</ul>
+        <div class="sub">evidence feed (what the extractor read — headline + link only)</div><ul class="ev">{ev}</ul>
+        <div class="sub">ledger {html.escape(c["sf_id"] or "—")} · 24h vol ${c["volume24h"]:,} · {c["n_relevant"]} relevant articles/72h</div>
       </div>
     </div>"""
 
     bt_rows = "".join(
-        f'<tr><td>{html.escape(b["label"])}</td><td>{b["n_pairs"]} pairs / {b["n_markets"]} mkts</td>'
-        f'<td>{b["brier_agent"]:.3f}</td><td>{b["brier_market"]:.3f}</td>'
+        f'<tr><td>{html.escape(b["label"])}</td><td class="mono">{b["n_pairs"]} pairs / {b["n_markets"]} mkts</td>'
+        f'<td class="mono">{b["brier_agent"]:.3f}</td><td class="mono">{b["brier_market"]:.3f}</td>'
         f'<td class="verdict">{html.escape(b["verdict"])}</td></tr>'
         for b in sc["backtests"])
+
+    inter = sc["interim"]
+    inter_html = ""
+    if inter.get("overall_mean") is not None:
+        inter_html = (f'<p class="note">Interim mean Brier <span class="mono">{inter["overall_mean"]:.4f}</span> '
+                      f'over <span class="mono">{inter["n"]}</span> forecast-days. {html.escape(inter["note"])}</p>')
 
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Epsilon Calibration Observatory</title>
+<title>Epsilon Observatory</title>
 <style>
-  :root {{ --bg:#0e1117; --panel:#171c26; --line:#2a3140; --tx:#dbe2ee; --dim:#8b95a7;
-           --acc:#39c48f; --warn:#e0a437; --neg:#d4645c; }}
   * {{ box-sizing:border-box; margin:0; }}
-  body {{ background:var(--bg); color:var(--tx); font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif; padding:2rem 1rem; }}
-  .wrap {{ max-width:1080px; margin:0 auto; }}
-  h1 {{ font-size:1.5rem; letter-spacing:.02em; }}
-  .framing {{ color:var(--dim); margin:.8rem 0 1.6rem; max-width:70ch; }}
-  .panel {{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1.1rem 1.3rem; margin-bottom:1.2rem; }}
-  .panel h2 {{ font-size:.95rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin-bottom:.7rem; }}
-  table {{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }}
-  td,th {{ padding:.4rem .6rem; border-bottom:1px solid var(--line); text-align:left; }}
-  .verdict {{ color:var(--warn); }}
-  .toggle {{ float:right; background:none; border:1px solid var(--line); color:var(--dim);
-             border-radius:6px; padding:.35rem .8rem; cursor:pointer; }}
-  .toggle.on {{ color:var(--acc); border-color:var(--acc); }}
-  .cards {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:1rem; }}
-  .card {{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; }}
-  .q {{ font-weight:600; min-height:3em; }}
-  .meta {{ color:var(--dim); font-size:.8rem; margin:.3rem 0 .8rem; }}
-  .nums {{ display:flex; gap:1rem; }}
+  body {{ background:{BG}; color:{TX}; font:15px/1.65 {SANS}; padding:2.2rem 1.2rem 3rem; }}
+  .wrap {{ max-width:1120px; margin:0 auto; }}
+  h1 {{ font-family:{SERIF}; font-weight:400; font-size:clamp(2rem,4.5vw,3rem); letter-spacing:-0.02em; }}
+  .kicker {{ font-size:.72rem; text-transform:uppercase; letter-spacing:.14em; color:{DIM}; margin-bottom:.4rem; }}
+  .framing {{ color:{DIM}; margin:.9rem 0 1.8rem; max-width:74ch; }}
+  .panel {{ background:{PANEL}; border:1px solid {LINE}; border-radius:24px; padding:1.4rem 1.6rem; margin-bottom:1.3rem; }}
+  .panel h2 {{ font-size:.78rem; text-transform:uppercase; letter-spacing:.12em; color:{DIM}; margin-bottom:.9rem; font-weight:500; }}
+  table {{ width:100%; border-collapse:collapse; }}
+  td,th {{ padding:.45rem .6rem; border-bottom:1px solid {LINE}; text-align:left; font-size:.9rem; }}
+  .mono {{ font-family:{MONO}; font-variant-numeric:tabular-nums; }}
+  .verdict {{ color:{DIM}; text-transform:uppercase; font-size:.75rem; letter-spacing:.08em; }}
+  .toggle {{ float:right; background:none; border:1px solid {LINE}; color:{DIM}; border-radius:999px;
+             padding:.5rem 1.6rem; cursor:pointer; font:.72rem {SANS}; text-transform:uppercase;
+             letter-spacing:.1em; transition:all 150ms ease; }}
+  .toggle:hover, .toggle.on {{ background:{ACC}; color:{BG}; border-color:{ACC}; }}
+  .cards {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(500px,1fr)); gap:1.1rem; }}
+  @media (max-width:560px) {{ .cards {{ grid-template-columns:1fr; }} }}
+  .card {{ background:{PANEL}; border:1px solid {LINE}; border-radius:24px; padding:1.3rem 1.4rem;
+           transition:border-color 150ms ease; }}
+  .card:hover {{ border-color:rgba(200,255,0,0.35); }}
+  .chip {{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; }}
+  .q {{ font-family:{SERIF}; font-size:1.35rem; line-height:1.25; margin:.45rem 0 .8rem; min-height:2.4em; }}
+  .flag {{ display:inline-block; color:{ACC}; border:1px solid rgba(200,255,0,.4); border-radius:999px;
+           font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; padding:.2rem .7rem; margin-bottom:.7rem; }}
+  .nums {{ display:flex; gap:1.4rem; margin-bottom:.9rem; }}
   .num {{ flex:1; }}
-  .lbl {{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); }}
-  .val {{ font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; }}
-  .val.pos {{ color:var(--acc); }} .val.neg {{ color:var(--neg); }}
-  .band {{ font-size:.72rem; color:var(--dim); }}
-  .analytical {{ display:none; margin-top:.9rem; border-top:1px dashed var(--line); padding-top:.7rem; }}
+  .lbl {{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; }}
+  .val {{ font-family:{MONO}; font-size:2rem; font-weight:700; font-variant-numeric:tabular-nums; }}
+  .val.acc {{ color:{ACC}; }} .pos {{ color:{TX}; }} .neg {{ color:{DIM}; }}
+  td.pos {{ color:{ACC}; }} td.neg {{ color:{NEG}; }}
+  .band {{ font-size:.72rem; color:{DIM}; }}
+  .chart svg {{ width:100%; height:auto; display:block; }}
+  .chartkey {{ font-size:.68rem; color:{DIM}; display:flex; gap:1.1rem; margin-top:.3rem; flex-wrap:wrap; }}
+  .nochart {{ color:{DIM}; font-size:.8rem; border:1px dashed {LINE}; border-radius:8px; padding:1rem; text-align:center; }}
+  .analytical {{ display:none; margin-top:1rem; border-top:1px dashed {LINE}; padding-top:.8rem; }}
   body.analytical .analytical {{ display:block; }}
-  .sub {{ font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:.5rem 0 .2rem; }}
+  .sub {{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; margin:.7rem 0 .3rem; }}
   ul {{ padding-left:1.1rem; font-size:.85rem; }}
-  .ev li {{ color:var(--dim); }} .ev a {{ color:var(--tx); text-decoration:none; }}
-  .dom {{ color:var(--acc); font-size:.75rem; margin-right:.3rem; }}
-  footer {{ color:var(--dim); font-size:.78rem; margin-top:2rem; max-width:80ch; }}
+  .ev li {{ color:{DIM}; margin-bottom:.15rem; }} .ev a {{ color:{TX}; text-decoration:none; }}
+  .ev a:hover {{ color:{ACC}; }}
+  .dom {{ color:{ACC}; font-size:.7rem; margin-right:.3rem; font-family:{MONO}; }}
+  .ts {{ color:{DIM}; font-size:.7rem; font-family:{MONO}; }}
+  .dim {{ color:{DIM}; }}
+  .bd td {{ font-size:.83rem; }} .bd .tot td {{ border-bottom:none; font-weight:600; }}
+  .note {{ color:{DIM}; font-size:.82rem; margin-top:.6rem; max-width:80ch; }}
+  .grid2 {{ display:grid; grid-template-columns:1fr 1fr; gap:1.3rem; }}
+  @media (max-width:760px) {{ .grid2 {{ grid-template-columns:1fr; }} }}
+  footer {{ color:{DIM}; font-size:.76rem; margin-top:2.2rem; max-width:86ch; line-height:1.7; }}
 </style></head><body><div class="wrap">
-  <button class="toggle" id="tg" onclick="document.body.classList.toggle('analytical');this.classList.toggle('on');this.textContent=document.body.classList.contains('analytical')?'analytical mode':'numbers only';">numbers only</button>
-  <h1>Epsilon Calibration Observatory</h1>
+  <button class="toggle" id="tg" onclick="document.body.classList.toggle('analytical');this.classList.toggle('on');this.textContent=document.body.classList.contains('analytical')?'analytical':'numbers only';">numbers only</button>
+  <div class="kicker">Epsilon Research · public measurement loop</div>
+  <h1>Observatory — our fair value, scored in public</h1>
   <p class="framing">{html.escape(sc["framing"])}</p>
-  <div class="panel"><h2>Scoreboard — retrospective gates (Brier, lower is better)</h2>
-    <table><tr><th>experiment</th><th>sample</th><th>agent</th><th>market</th><th>verdict</th></tr>{bt_rows}</table>
-    <p class="band" style="margin-top:.5rem">{html.escape(sc["live_track_record"]["note"])}</p>
+
+  <div class="panel"><h2>Where our model most disagrees (divergence layer)</h2>
+    {_svg_divergence(sc["markets"])}
+    <p class="note">{html.escape(sc["divergence_rule"])}</p>
   </div>
+
   <div class="cards">{cards}</div>
-  <div class="panel analytical"><h2>Method</h2><p style="font-size:.88rem">{html.escape(sc["method"])}</p></div>
-  <footer>{html.escape(sc["attribution"])} · Generated {sc["generated_at"][:16]}Z · Not investment advice; not a trading signal; a public measurement experiment.</footer>
+
+  <div class="panel" style="margin-top:1.3rem"><h2>Honest scoreboard — retrospective gates (Brier, lower is better)</h2>
+    <table><tr><th>experiment</th><th>sample</th><th>agent</th><th>market</th><th>verdict</th></tr>{bt_rows}</table>
+    <p class="note">These two pre-registered gates closed the claim that our number beats the market mid — permanently.
+    What runs now is different: an independent fair value judged against resolved outcomes, with the mid as context.</p>
+    {inter_html}
+    <p class="note">{html.escape(sc["live_track_record"]["note"])}</p>
+  </div>
+
+  <div class="grid2">
+    <div class="panel"><h2>Reliability — model FV vs observed outcomes</h2>
+      {_svg_reliability(sc["reliability"]["bins"])}
+      <p class="note">{html.escape(sc["reliability"]["note"])} Dot size = number of forecast pairs in the bin; the dashed diagonal is perfect calibration.</p>
+    </div>
+    <div class="panel analytical"><h2>Method</h2>
+      <p style="font-size:.88rem">{html.escape(sc["method"])}</p>
+    </div>
+  </div>
+
+  <footer>{html.escape(sc["attribution"])} · Generated {sc["generated_at"][:16]}Z ·
+  Not investment advice; not a trading signal; a public measurement experiment. Reconstructed
+  (pre-launch) segments are marked and never enter the scored ledger.</footer>
 </div></body></html>"""
 
 
-def publish(snapshots: list[dict]) -> tuple[str, str]:
+def publish(snapshots: list[dict], fv_series: dict | None = None) -> tuple[str, str]:
     SHOWCASE.mkdir(parents=True, exist_ok=True)
-    sc = build_showcase(snapshots)
+    sc = build_showcase(snapshots, fv_series or {})
     jpath = SHOWCASE / "showcase.json"
     hpath = SHOWCASE / "index.html"
     jpath.write_text(json.dumps(sc, indent=1))

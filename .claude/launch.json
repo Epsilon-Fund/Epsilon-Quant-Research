@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "epsilon-website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-C", "/Users/justiniturregui/Desktop/github/epsilon-webs1te", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "newsagent-showcase",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8765", "-d",
+                      "polymarket/research/data/newsagent/showcase"],
+      "port": 8765
+    }
+  ]
+}

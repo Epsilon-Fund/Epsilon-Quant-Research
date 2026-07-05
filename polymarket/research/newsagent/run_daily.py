@@ -1,26 +1,35 @@
-"""Daily observatory run: markets -> packets -> prompts -> forecasts -> ledger -> dashboard.
+"""Daily observatory run — hybrid FV pipeline (Stage A extract -> Stage B model).
 
-Stages (composable; state persists under data/newsagent/live/<YYYY-MM-DD>/):
-  fetch      pull market state + news packets for the LIVE_MARKETS slate
-  prompts    render the five-perspective prompt per market (for out-of-band forecasting)
-  forecast   call the Anthropic API per market (requires ANTHROPIC_API_KEY), or ingest
-             --forecasts-file with raw {slug: {estimates_pct, drivers, decisive_evidence}}
-  publish    aggregate -> ledger snapshot (SF_BOOK=polymarket, append-only) -> dashboard
+Stages (composable; day state under data/newsagent/live/<YYYY-MM-DD>/):
+  fetch       market state + full-text news packet per LIVE_MARKETS slate
+  onboard     render five-perspective prior prompts for markets with no stored
+              prior (out-of-band or API); ingest with --priors-file
+  extract     Stage A: cache-miss article features. API path with ANTHROPIC_API_KEY
+              (cheap model, batched) or out-of-band: writes extract_pending.json,
+              ingest results with --features-file
+  publish     Stage B fair value + band + divergence flag + FV breakdown ->
+              append-only sf ledger (SF_BOOK=polymarket) -> dashboard
+  backfill-fetch    reconstruct lookahead-free daily packets for the last N days
+                    (Guardian/WP are timestamped by construction) + pending list
+  backfill-compute  evolve the FV series over the reconstructed days (display
+                    time-series; NEVER written to the ledger — the ledger is
+                    forward-only)
 
 Typical daily cron:  PYTHONPATH=. uv run python -m newsagent.run_daily --stage all
-Out-of-band flow:    --stage fetch && --stage prompts   (agents produce raw JSON)
-                     --stage publish --forecasts-file raw.json
-Pass --no-ledger to skip ledger writes (e.g. re-render the dashboard only).
+Out-of-band flow:    --stage fetch && --stage extract        (writes pending file)
+                     <agents produce features>               (cheap-LLM extraction)
+                     --stage extract --features-file done.json && --stage publish
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import config, dashboard, engine, feeds, ledger
+from . import config, dashboard, engine, features, feeds, fvmodel, ledger
 
 
 def day_dir(date: str) -> Path:
@@ -29,12 +38,20 @@ def day_dir(date: str) -> Path:
     return d
 
 
+def _load_day(d: Path, slug: str) -> tuple[dict, dict] | None:
+    mf, pf = d / f"{slug[:80]}.market.json", d / f"{slug[:80]}.packet.json"
+    if not (mf.exists() and pf.exists()):
+        return None
+    return json.loads(mf.read_text()), json.loads(pf.read_text())
+
+
 def stage_fetch(date: str) -> None:
     d = day_dir(date)
     for slug, cfg in config.LIVE_MARKETS.items():
         mkt = feeds.market_state(slug)
         if mkt["closed"]:
-            print(f"  SKIP (closed): {slug}")
+            print(f"  SKIP (closed): {slug} — settle its ledger entry (sf settle) and "
+                  "refresh the slate in config.py")
             continue
         packet = feeds.build_packet(slug, cfg)
         (d / f"{slug[:80]}.market.json").write_text(json.dumps(mkt, indent=1))
@@ -42,75 +59,268 @@ def stage_fetch(date: str) -> None:
         print(f"  {slug[:60]}  mid={mkt['mid']:.3f}  articles={len(packet['articles'])}")
 
 
-def stage_prompts(date: str) -> None:
+def stage_onboard(date: str, priors_file: str | None) -> None:
+    """Prior p0 per market: five-perspective ensemble, set ONCE at onboarding.
+    Re-anchoring later requires a documented trigger (see fvmodel docstring)."""
     d = day_dir(date)
-    for slug in config.LIVE_MARKETS:
-        mf, pf = d / f"{slug[:80]}.market.json", d / f"{slug[:80]}.packet.json"
-        if not (mf.exists() and pf.exists()):
+    if priors_file:
+        raw = json.loads(Path(priors_file).read_text())
+        for slug, rec in raw.items():
+            agg = engine.aggregate(rec["estimates_pct"])
+            fvmodel.save_prior(slug, agg["p_pct"], method="five_perspective_ensemble",
+                               rationale=" | ".join(rec.get("drivers", []))[:400],
+                               estimates_pct=rec["estimates_pct"])
+            print(f"  prior stored: {slug[:55]} p0={agg['p_pct']}%")
+        return
+    priors = fvmodel.load_priors()
+    todo = [s for s in config.LIVE_MARKETS if s not in priors]
+    if not todo:
+        print("  all live markets have priors")
+        return
+    pdir = d / "prior_prompts"
+    pdir.mkdir(exist_ok=True)
+    for slug in todo:
+        loaded = _load_day(d, slug)
+        if loaded is None:
+            print(f"  WARN no fetch for {slug} — run --stage fetch first")
             continue
-        prompt = engine.build_prompt(json.loads(mf.read_text()), json.loads(pf.read_text()))
-        (d / f"{slug[:80]}.prompt.txt").write_text(prompt)
-    print(f"  prompts rendered in {d}")
+        mkt, pkt = loaded
+        (pdir / f"{slug[:80]}.txt").write_text(engine.build_prompt(mkt, pkt))
+    print(f"  {len(todo)} prior prompts -> {pdir} (answer out-of-band, then "
+          "--stage onboard --priors-file <raw.json>)")
 
 
-def stage_forecast(date: str) -> None:
+def stage_extract(date: str, features_file: str | None) -> None:
     d = day_dir(date)
-    raw = {}
+    if features_file:
+        done = json.loads(Path(features_file).read_text())
+        n = features.ingest_features(done, source="oob:daily")
+        print(f"  ingested {n} feature records")
+        return
+    pending_all = []
     for slug in config.LIVE_MARKETS:
-        pf = d / f"{slug[:80]}.prompt.txt"
-        if not pf.exists():
+        loaded = _load_day(d, slug)
+        if loaded is None:
             continue
-        print(f"  forecasting {slug[:60]} ...")
-        raw[slug] = engine.anthropic_forecast(pf.read_text())
-    (d / "raw_forecasts.json").write_text(json.dumps(raw, indent=1))
-    print(f"  {len(raw)} forecasts -> raw_forecasts.json")
+        mkt, pkt = loaded
+        pending_all.extend(features.pending_extractions(
+            slug, mkt["question"], mkt["description"], pkt["articles"]))
+    if not pending_all:
+        print("  nothing to extract — all articles cached")
+        return
+    if os.environ.get(config.ANTHROPIC_KEY_ENV, "").strip():
+        by_slug: dict[str, list] = {}
+        for p in pending_all:
+            by_slug.setdefault(p["slug"], []).append(p)
+        n = 0
+        for slug, pend in by_slug.items():
+            n += features.extract_via_api(pend[0]["question"], pend[0]["criteria"], pend)
+        print(f"  extracted {n} article features via API ({features.EXTRACT_MODEL})")
+    else:
+        out = d / "extract_pending.json"
+        out.write_text(json.dumps(pending_all, indent=1))
+        print(f"  {len(pending_all)} extractions pending -> {out} "
+              "(no API key; process out-of-band, ingest with --features-file)")
 
 
-def stage_publish(date: str, forecasts_file: str | None, write_ledger: bool) -> None:
+def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
+                    state: dict, params: dict, p0_pct: float) -> dict:
+    """One market's Stage-B pass: S_t from NEW articles, state step, FV, band, flag."""
+    mtype = cfg.get("mtype", "shock")
+    tp = fvmodel.type_params(params, mtype)
+    feats = features.features_for(slug, pkt["articles"])
+    st = state.get(slug)
+    counted = set(st.get("counted", [])) if st else set()
+    new = [r for r in feats if r["cache_key"] not in counted]
+    prev = {"date": st["date"], "A": st["A"]} if st else None
+
+    bd = fvmodel.breakdown(p0_pct, prev, date, new, mtype, params)
+    s_t = fvmodel.daily_score(new)
+    nxt = fvmodel.step_state(prev, date, s_t, tp["lam"], tp["a_clip"], tp["s_min"])
+    state[slug] = {"date": nxt["date"], "A": nxt["A"],
+                   "counted": (list(counted) + [r["cache_key"] for r in new])[-300:]}
+
+    fv = fvmodel.fair_value(p0_pct, nxt["A"], params["alpha"])
+    half = fvmodel.band_half_pp(feats, mtype, params)
+    n_rel = fvmodel.n_relevant(feats)
+    flag = fvmodel.divergence_flag(fv, mkt["mid"] * 100, half, n_rel,
+                                   config.DIVERGENCE_GAP_PP,
+                                   config.DIVERGENCE_HALF_MAX_PP,
+                                   config.DIVERGENCE_NREL_MIN)
+    missing = sum(1 for r in feats if r["features"] is None)
+    return {"fv_pct": round(fv, 1),
+            "band_lo_pct": round(max(1.0, fv - half), 1),
+            "band_hi_pct": round(min(99.0, fv + half), 1),
+            "half_pp": half, "n_relevant": n_rel, "mtype": mtype,
+            "A": round(nxt["A"], 4), "s_t": round(s_t, 3), "divergence": flag,
+            "breakdown": bd, "missing_features": missing}
+
+
+def stage_publish(date: str, write_ledger: bool) -> None:
     d = day_dir(date)
-    raw_path = Path(forecasts_file) if forecasts_file else d / "raw_forecasts.json"
-    raw = json.loads(raw_path.read_text())
+    params = fvmodel.load_params()
+    priors = fvmodel.load_priors()
+    state = fvmodel.load_state()
+    series_path = config.DATA / "fv_series.json"
+    fv_series = json.loads(series_path.read_text()) if series_path.exists() else {}
     snapshots = []
     for slug, cfg in config.LIVE_MARKETS.items():
-        mf, pf = d / f"{slug[:80]}.market.json", d / f"{slug[:80]}.packet.json"
-        if slug not in raw or not mf.exists():
+        loaded = _load_day(d, slug)
+        if loaded is None:
             continue
-        market = json.loads(mf.read_text())
-        packet = json.loads(pf.read_text())
-        fc = engine.aggregate(raw[slug]["estimates_pct"])
-        drivers = raw[slug].get("drivers", [])
-        sf_id = ""
-        if write_ledger:
-            sf_id = ledger.log_snapshot(market, fc, drivers)
-        snapshots.append({"market": market, "packet": packet, "forecast": fc,
+        if slug not in priors:
+            print(f"  WARN no prior for {slug} — run --stage onboard first; skipped")
+            continue
+        mkt, pkt = loaded
+        rec = _compute_market(slug, cfg, mkt, pkt, date, state, params,
+                              priors[slug]["p0_pct"])
+        if rec["missing_features"]:
+            print(f"  WARN {rec['missing_features']} uncached articles for {slug[:50]} "
+                  "(run --stage extract) — they contribute 0 evidence today")
+        fc = {"p_pct": rec["fv_pct"], "band_lo_pct": rec["band_lo_pct"],
+              "band_hi_pct": rec["band_hi_pct"]}
+        drivers = [a["title"] for a in rec["breakdown"]["articles"][:3]] or \
+                  [f"no new qualifying evidence; prior {rec['breakdown']['p0_pct']}% "
+                   "with decayed carry"]
+        sf_id = ledger.log_snapshot(mkt, fc, drivers) if write_ledger else ""
+        ser = [p for p in fv_series.get(slug, []) if p["date"] != date]
+        ser.append({"date": date, "fv_pct": rec["fv_pct"],
+                    "band_lo_pct": rec["band_lo_pct"], "band_hi_pct": rec["band_hi_pct"],
+                    "mid_pct": round(mkt["mid"] * 100, 1), "segment": "live"})
+        fv_series[slug] = sorted(ser, key=lambda p: p["date"])
+        snapshots.append({"market": mkt, "packet": pkt, "forecast": fc,
                           "drivers": drivers, "region": cfg.get("region", ""),
-                          "decisive_evidence": raw[slug].get("decisive_evidence"),
-                          "sf_id": sf_id})
-        print(f"  {slug[:55]}  agent={fc['p_pct']}% [{fc['band_lo_pct']},{fc['band_hi_pct']}]"
-              f"  mid={market['mid']*100:.1f}%  ledger={sf_id or 'skipped'}")
-    jpath, hpath = dashboard.publish(snapshots)
+                          "stage_b": rec, "sf_id": sf_id})
+        print(f"  {slug[:52]}  FV={rec['fv_pct']}% [{rec['band_lo_pct']},{rec['band_hi_pct']}]"
+              f"  mid={mkt['mid']*100:.1f}%  gap={rec['divergence']['gap_pp']:+}pp"
+              f"  flag={'YES' if rec['divergence']['flag'] else 'no'}  ledger={sf_id or 'skipped'}")
+    fvmodel.save_state(state)
+    series_path.write_text(json.dumps(fv_series, indent=1))
+    jpath, hpath = dashboard.publish(snapshots, fv_series)
     print(f"  dashboard -> {hpath}\n  data      -> {jpath}")
+
+
+def stage_backfill_fetch(date: str, days: int) -> None:
+    """Reconstruct lookahead-free daily packets for the display time-series."""
+    bdir = config.DATA / "backfill"
+    bdir.mkdir(parents=True, exist_ok=True)
+    end = datetime.fromisoformat(date).replace(hour=12, tzinfo=timezone.utc)
+    pending_all = []
+    for slug, cfg in config.LIVE_MARKETS.items():
+        sdir = bdir / slug[:80]
+        sdir.mkdir(exist_ok=True)
+        try:
+            mkt = feeds.market_state(slug)
+        except Exception as e:
+            print(f"  WARN market_state failed for {slug}: {e}")
+            continue
+        for k in range(days, 0, -1):
+            t = end - timedelta(days=k)
+            pf = sdir / f"{t.strftime('%Y-%m-%d')}.packet.json"
+            if pf.exists():
+                pkt = json.loads(pf.read_text())
+            else:
+                pkt = feeds.build_packet(slug, cfg, now=t)
+                pf.write_text(json.dumps(pkt, indent=1))
+            pending_all.extend(features.pending_extractions(
+                slug, mkt["question"], mkt["description"], pkt["articles"]))
+        print(f"  {slug[:60]}: {days} daily packets reconstructed")
+        try:
+            hist = feeds.mid_history(slug, days=days + 7)
+            (sdir / "mid_history.json").write_text(json.dumps(hist, indent=1))
+        except Exception as e:
+            print(f"  WARN mid_history failed for {slug}: {e}")
+    seen, dedup = set(), []
+    for p in pending_all:
+        if p["cache_key"] not in seen:
+            seen.add(p["cache_key"])
+            dedup.append(p)
+    out = bdir / "backfill_extract_pending.json"
+    out.write_text(json.dumps(dedup, indent=1))
+    print(f"  {len(dedup)} unique extractions pending -> {out}")
+
+
+def stage_backfill_compute(date: str, days: int) -> None:
+    """Evolve the FV series across reconstructed days. Display-only ('backfill'
+    segment, drawn dashed + labeled on the page); the ledger never sees these
+    values. Leaves fv_state positioned so today's publish continues the series."""
+    bdir = config.DATA / "backfill"
+    params = fvmodel.load_params()
+    priors = fvmodel.load_priors()
+    end = datetime.fromisoformat(date)
+    state = fvmodel.load_state()
+    series_path = config.DATA / "fv_series.json"
+    fv_series = json.loads(series_path.read_text()) if series_path.exists() else {}
+    for slug, cfg in config.LIVE_MARKETS.items():
+        if slug not in priors:
+            print(f"  WARN no prior for {slug} — skipped")
+            continue
+        sdir = bdir / slug[:80]
+        mids = {}
+        mh = sdir / "mid_history.json"
+        if mh.exists():
+            mids = {p["date"]: p["mid"] for p in json.loads(mh.read_text())}
+        mtype = cfg.get("mtype", "shock")
+        tp = fvmodel.type_params(params, mtype)
+        st, counted = None, set()
+        series = []
+        for k in range(days, 0, -1):
+            t = (end - timedelta(days=k)).strftime("%Y-%m-%d")
+            pf = sdir / f"{t}.packet.json"
+            if not pf.exists():
+                continue
+            pkt = json.loads(pf.read_text())
+            feats = features.features_for(slug, pkt["articles"])
+            new = [r for r in feats if r["cache_key"] not in counted]
+            counted |= {r["cache_key"] for r in new}
+            s_t = fvmodel.daily_score(new)
+            st = fvmodel.step_state(st, t, s_t, tp["lam"], tp["a_clip"], tp["s_min"])
+            fv = fvmodel.fair_value(priors[slug]["p0_pct"], st["A"], params["alpha"])
+            half = fvmodel.band_half_pp(feats, mtype, params)
+            entry = {"date": t, "fv_pct": round(fv, 1),
+                     "band_lo_pct": round(max(1.0, fv - half), 1),
+                     "band_hi_pct": round(min(99.0, fv + half), 1),
+                     "segment": "backfill"}
+            if t in mids:
+                entry["mid_pct"] = round(mids[t] * 100, 1)
+            series.append(entry)
+        live_part = [p for p in fv_series.get(slug, []) if p.get("segment") == "live"]
+        fv_series[slug] = series + live_part
+        if st is not None:
+            state[slug] = {"date": st["date"], "A": st["A"], "counted": list(counted)[-300:]}
+        print(f"  {slug[:55]}: {len(series)} backfill points")
+    fvmodel.save_state(state)
+    series_path.write_text(json.dumps(fv_series, indent=1))
+    print(f"  series -> {series_path} (backfill segment is display-only, never ledgered)")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--stage", choices=["fetch", "prompts", "forecast", "publish", "all"],
+    ap.add_argument("--stage", choices=["fetch", "onboard", "extract", "publish", "all",
+                                        "backfill-fetch", "backfill-compute"],
                     default="all")
     ap.add_argument("--date", default=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    ap.add_argument("--forecasts-file", default=None,
-                    help="raw forecasts JSON produced out-of-band (skips the API)")
+    ap.add_argument("--features-file", default=None,
+                    help="Stage-A features JSON produced out-of-band {cache_key: features}")
+    ap.add_argument("--priors-file", default=None,
+                    help="onboarding priors JSON {slug: {estimates_pct, drivers, ...}}")
+    ap.add_argument("--days", type=int, default=14, help="backfill window length")
     ap.add_argument("--no-ledger", action="store_true",
                     help="skip sf ledger writes (dashboard re-render only)")
     args = ap.parse_args()
 
     if args.stage in ("fetch", "all"):
         stage_fetch(args.date)
-    if args.stage in ("prompts", "all"):
-        stage_prompts(args.date)
-    if args.stage in ("forecast", "all") and not args.forecasts_file:
-        stage_forecast(args.date)
+    if args.stage == "onboard" or (args.stage == "all" and args.priors_file):
+        stage_onboard(args.date, args.priors_file)
+    if args.stage in ("extract", "all"):
+        stage_extract(args.date, args.features_file)
+    if args.stage == "backfill-fetch":
+        stage_backfill_fetch(args.date, args.days)
+    if args.stage == "backfill-compute":
+        stage_backfill_compute(args.date, args.days)
     if args.stage in ("publish", "all"):
-        stage_publish(args.date, args.forecasts_file, not args.no_ledger)
+        stage_publish(args.date, not args.no_ledger)
 
 
 if __name__ == "__main__":
