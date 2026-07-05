@@ -29,7 +29,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-from newsagent import config, engine, features, fvmodel, gdelt_bq
+from newsagent import config, engine, features, fvmodel, gdelt_bq, sourceweights
 from newsagent.config import CSV_OUT, DATA, ROOT
 
 V0 = ROOT / "data" / "newsagent" / "v0"
@@ -169,7 +169,7 @@ def build_pairs(gamma: float = 0.0, gdelt_series: dict | None = None) -> list[di
             pkt = load_packet(slug, d)
             if pkt is None:
                 continue
-            feats = features.features_for(slug, pkt["articles"])
+            feats = sourceweights.annotate(features.features_for(slug, pkt["articles"]))
             new = [r for r in feats if r["cache_key"] not in counted]
             counted |= {r["cache_key"] for r in new}
             s_t = fvmodel.daily_score(new)

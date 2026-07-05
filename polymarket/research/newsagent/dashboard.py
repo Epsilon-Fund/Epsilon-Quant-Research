@@ -251,6 +251,80 @@ def _svg_reliability(bins: list[dict], w: int = 340, h: int = 300) -> str:
 </svg>"""
 
 
+def _svg_gauge(fv: float, lo: float, hi: float, mid: float,
+               w: int = 150, h: int = 92) -> str:
+    """Per-market gauge — the % as a visual: 0-100 arc, band segment, FV needle
+    (accent), mid tick (grey, context). Complements the numerals; the time series
+    below stays the trend view (no duplication of either)."""
+    import math as _m
+    cx, cy, r = w / 2, h - 10, 58
+
+    def pt(pct: float, rad: float) -> tuple[float, float]:
+        a = _m.pi * (1 - pct / 100.0)
+        return cx + rad * _m.cos(a), cy - rad * _m.sin(a)
+
+    def arc(p0: float, p1: float, rad: float) -> str:
+        x0, y0 = pt(p0, rad)
+        x1, y1 = pt(p1, rad)
+        large = 1 if abs(p1 - p0) > 50 else 0
+        return f"M {x0:.1f} {y0:.1f} A {rad} {rad} 0 {large} 1 {x1:.1f} {y1:.1f}"
+
+    nx, ny = pt(fv, r - 8)
+    mx0, my0 = pt(mid, r - 3)
+    mx1, my1 = pt(mid, r + 5)
+    return f"""<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="fair value gauge">
+<path d="{arc(0, 100, r)}" fill="none" stroke="{LINE}" stroke-width="7"/>
+<path d="{arc(max(0.5, lo), min(99.5, hi), r)}" fill="none" stroke="{ACC}" stroke-width="7" opacity="0.30"/>
+<line x1="{mx0:.1f}" y1="{my0:.1f}" x2="{mx1:.1f}" y2="{my1:.1f}" stroke="{DIM}" stroke-width="2"/>
+<line x1="{cx}" y1="{cy}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="{ACC}" stroke-width="2.4" stroke-linecap="round"/>
+<circle cx="{cx}" cy="{cy}" r="3.2" fill="{ACC}"/>
+<text x="6" y="{h-2}" fill="{DIM}" font-size="8" font-family="{MONO}">0</text>
+<text x="{w-16}" y="{h-2}" fill="{DIM}" font-size="8" font-family="{MONO}">100</text>
+</svg>"""
+
+
+def _svg_sparkline(series: list[dict], w: int = 120, h: int = 26) -> str:
+    """Grid-row FV trend preview (accent line, endpoint dot). The full FV+band-vs-mid
+    time series in the market card is the detail view — this is deliberately tiny."""
+    pts = [p for p in series if p.get("fv_pct") is not None]
+    if len(pts) < 2:
+        return f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg"><text x="4" y="{h-9}" fill="{DIM}" font-size="9" font-family="{MONO}">new</text></svg>'
+    vals = [p["fv_pct"] for p in pts]
+    vmin, vmax = min(vals), max(vals)
+    span = max(4.0, vmax - vmin)
+
+    def xy(i: int, v: float) -> str:
+        x = 3 + (w - 8) * i / (len(vals) - 1)
+        y = h - 4 - (h - 8) * (v - vmin + (span - (vmax - vmin)) / 2) / span
+        return f"{x:.1f} {y:.1f}"
+
+    path = "M " + " L ".join(xy(i, v) for i, v in enumerate(vals))
+    lx, ly = xy(len(vals) - 1, vals[-1]).split()
+    return (f'<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">'
+            f'<path d="{path}" fill="none" stroke="{ACC}" stroke-width="1.5" opacity="0.9"/>'
+            f'<circle cx="{lx}" cy="{ly}" r="2" fill="{ACC}"/></svg>')
+
+
+def _overview_grid_html(cards: list[dict]) -> str:
+    """All markets at a glance, ordered by the divergence layer (flags first, then
+    |gap|): FV + mid + gap + band + sparkline preview per row."""
+    rows = ""
+    for c in sorted(cards, key=lambda x: (not x["divergence_flag"], -abs(x["gap_pp"]))):
+        q = c["question"][:64] + ("…" if len(c["question"]) > 64 else "")
+        gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
+        flag = ' <span class="gflag">⚑</span>' if c["divergence_flag"] else ""
+        rows += f"""<tr>
+<td class="gq">{html.escape(q)}{flag}</td>
+<td class="mono acc">{c["fv_pct"]}%</td>
+<td class="mono">{c["market_pct"]}%</td>
+<td class="mono {gap_cls}">{c["gap_pp"]:+}</td>
+<td class="mono dim">{c["band"][0]}–{c["band"][1]}</td>
+<td class="spark">{_svg_sparkline(c.get("series", []))}</td></tr>"""
+    return f"""<table class="grid">
+<tr><th>market</th><th>fv</th><th>mid</th><th>gap pp</th><th>band %</th><th>trend</th></tr>
+{rows}</table>"""
+
+
 def _svg_divergence(cards: list[dict], w: int = 660) -> str:
     """Divergence layer: markets sorted by |gap|. Fixed columns so long question
     labels never collide with bars: labels left, centered bars middle, pp right."""
@@ -335,6 +409,7 @@ def render_html(sc: dict) -> str:
       <div class="q">{html.escape(c["question"])}</div>
       {flag}
       <div class="nums">
+        <div class="gauge">{_svg_gauge(c["fv_pct"], c["band"][0], c["band"][1], c["market_pct"])}</div>
         <div class="num"><div class="lbl">epsilon fv</div><div class="val acc">{c["fv_pct"]}%</div>
           <div class="band">band {c["band"][0]}–{c["band"][1]}%</div></div>
         <div class="num"><div class="lbl">market</div><div class="val">{c["market_pct"]}%</div>
@@ -394,8 +469,16 @@ def render_html(sc: dict) -> str:
   .q {{ font-family:{SERIF}; font-size:1.35rem; line-height:1.25; margin:.45rem 0 .8rem; min-height:2.4em; }}
   .flag {{ display:inline-block; color:{ACC}; border:1px solid rgba(200,255,0,.4); border-radius:999px;
            font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; padding:.2rem .7rem; margin-bottom:.7rem; }}
-  .nums {{ display:flex; gap:1.4rem; margin-bottom:.9rem; }}
+  .nums {{ display:flex; gap:1.4rem; margin-bottom:.9rem; align-items:center; }}
   .num {{ flex:1; }}
+  .gauge {{ flex:0 0 150px; }} .gauge svg {{ width:150px; height:auto; display:block; }}
+  table.grid td, table.grid th {{ padding:.32rem .55rem; font-size:.85rem; white-space:nowrap; }}
+  table.grid th {{ font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; font-weight:500; }}
+  .gq {{ white-space:normal !important; min-width:220px; }}
+  .gridwrap {{ overflow-x:auto; }}
+  .gflag {{ color:{ACC}; }}
+  td.acc {{ color:{ACC}; font-weight:600; }}
+  .spark svg {{ display:block; width:120px; height:26px; }}
   .lbl {{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; }}
   .val {{ font-family:{MONO}; font-size:2rem; font-weight:700; font-variant-numeric:tabular-nums; }}
   .val.acc {{ color:{ACC}; }} .pos {{ color:{TX}; }} .neg {{ color:{DIM}; }}
@@ -423,6 +506,13 @@ def render_html(sc: dict) -> str:
   <div class="kicker">Epsilon Research · public measurement loop</div>
   <h1>Observatory — our fair value, scored in public</h1>
   <p class="framing">{html.escape(sc["framing"])}</p>
+
+  <div class="panel"><h2>All markets at a glance</h2>
+    <div class="gridwrap">{_overview_grid_html(sc["markets"])}</div>
+    <p class="note">Ordered by disagreement (flags first, then |gap|). The trend column
+    previews our FV path; each market's card below carries the full FV + band vs mid
+    time series, the gauge, and the evidence.</p>
+  </div>
 
   <div class="panel"><h2>Where our model most disagrees (divergence layer)</h2>
     {_svg_divergence(sc["markets"])}

@@ -29,7 +29,8 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import config, dashboard, engine, features, feeds, fvmodel, gdelt_bq, ledger
+from . import (config, dashboard, email_ingest, engine, features, feeds, fvmodel,
+               gdelt_bq, ledger, sourceweights)
 
 
 def _gdelt_burst(slug: str, date: str, series_all: dict) -> dict | None:
@@ -76,13 +77,20 @@ def _load_day(d: Path, slug: str) -> tuple[dict, dict] | None:
 def stage_fetch(date: str) -> None:
     d = day_dir(date)
     _refresh_gdelt(date)
+    rss_items = feeds.fetch_rss_items(date)
+    print(f"  rss: {len(rss_items)} items across the feed set")
+    nl_ok, nl_why = email_ingest.available()
+    nl_items = email_ingest.fetch_newsletters(day=date) if nl_ok else []
+    print(f"  newsletters: {len(nl_items)} items" if nl_ok
+          else f"  newsletters: skipped ({nl_why})")
     for slug, cfg in config.LIVE_MARKETS.items():
         mkt = feeds.market_state(slug)
         if mkt["closed"]:
             print(f"  SKIP (closed): {slug} — settle its ledger entry (sf settle) and "
                   "refresh the slate in config.py")
             continue
-        packet = feeds.build_packet(slug, cfg)
+        packet = feeds.build_packet(slug, cfg, rss_items=rss_items,
+                                    newsletter_items=nl_items)
         (d / f"{slug[:80]}.market.json").write_text(json.dumps(mkt, indent=1))
         (d / f"{slug[:80]}.packet.json").write_text(json.dumps(packet, indent=1))
         print(f"  {slug[:60]}  mid={mkt['mid']:.3f}  articles={len(packet['articles'])}")
@@ -159,7 +167,7 @@ def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
     state step, FV, band, flag."""
     mtype = cfg.get("mtype", "shock")
     tp = fvmodel.type_params(params, mtype)
-    feats = features.features_for(slug, pkt["articles"])
+    feats = sourceweights.annotate(features.features_for(slug, pkt["articles"]))
     st = state.get(slug)
     counted = set(st.get("counted", [])) if st else set()
     new = [r for r in feats if r["cache_key"] not in counted]
@@ -305,7 +313,7 @@ def stage_backfill_compute(date: str, days: int) -> None:
             if not pf.exists():
                 continue
             pkt = json.loads(pf.read_text())
-            feats = features.features_for(slug, pkt["articles"])
+            feats = sourceweights.annotate(features.features_for(slug, pkt["articles"]))
             new = [r for r in feats if r["cache_key"] not in counted]
             counted |= {r["cache_key"] for r in new}
             burst = _gdelt_burst(slug, t, gdelt_series)

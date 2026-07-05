@@ -71,6 +71,13 @@ DEFAULT_PARAMS = {
     # (shock markets: a completed event SHOULD saturate the sigmoid).
     "s_min": {"slow": 0.5, "shock": 0.0},
     "shift_clip_logits": {"slow": 1.5, "shock": None},
+    # Band v3 (magnitudes DECLARED, structure per the v3 build notes):
+    #   half = floor + band_mult * (18*dispersion + 8*(1-clarity) - 1.5*min(n_rel,6))
+    # dispersion = reliability-weighted cross-source disagreement (Scheme-A weights);
+    # clarity = weighted mean of the Stage-A per-article clarity field. band_mult
+    # is the SINGLE knob band-coverage calibration rescales once outcomes settle
+    # (band_coverage() below) — no fitted magnitudes before data exists.
+    "band_mult": 1.0,
     "fitted_on": None, "n_pairs": 0, "n_markets": 0,
     "notes": "defaults — not yet fit on resolved outcomes",
 }
@@ -119,8 +126,13 @@ def effective_weights(cs: list[float]) -> list[float]:
 
 
 def daily_score(feats: list[dict]) -> float:
-    """S_t over the day's NEW articles with decisive-signal weighting."""
-    cs = [contribution(r.get("features")) for r in feats]
+    """S_t over the day's NEW articles with decisive-signal weighting.
+
+    Each row's Scheme-A source weight (annotate()d as row["source_w"], default 1.0)
+    scales its contribution BEFORE decisive-signal selection — a blocklisted source
+    can neither be the decisive signal nor corroborate."""
+    cs = [contribution(r.get("features"), r.get("source_w", SOURCE_W_DEFAULT))
+          for r in feats]
     if not cs:
         return 0.0
     ws = effective_weights(cs)
@@ -178,21 +190,37 @@ def fair_value(p0_pct: float, a_state: float, alpha: float,
 
 
 def band_half_pp(feats_72h: list[dict], mtype: str, params: dict) -> float:
-    """Band half-width in pp: type floor + evidence-dispersion term − volume shrink.
+    """Band half-width in pp (v3):
 
-    dispersion = population std of signed unit contributions (phase*strength*dir)
-    across relevant articles; <2 relevant articles = uninformed default 0.5."""
+        half = floor + band_mult * (18*dispersion + 8*(1-clarity) - 1.5*min(n_rel,6))
+
+    dispersion = RELIABILITY-WEIGHTED population std of signed unit contributions
+    (phase*strength*dir) across relevant articles, weights = Scheme-A source_w —
+    reliable sources disagreeing widens the band; reliable sources concurring
+    narrows it; zero-weight (blocklisted) sources cannot move it. clarity = the
+    same-weighted mean of the Stage-A per-article clarity field — ambiguous
+    coverage widens. <2 weighted relevant articles = uninformed defaults
+    (dispersion 0.5, clarity 0.5). Magnitudes DECLARED; band_mult is the single
+    coverage-calibration knob."""
     floor = params["floor_pp"].get(mtype, params["floor_pp"]["shock"])
-    units = [PHASE_W[f["features"]["event_phase"]] * f["features"]["strength"]
-             * DIR[f["features"]["stance"]]
-             for f in feats_72h
-             if f.get("features") and f["features"]["relevance"] >= RELEVANT_MIN]
-    if len(units) < 2:
-        disp = 0.5
+    rows = [(PHASE_W[f["features"]["event_phase"]] * f["features"]["strength"]
+             * DIR[f["features"]["stance"]],
+             f["features"].get("clarity", 0.5),
+             f.get("source_w", 1.0))
+            for f in feats_72h
+            if f.get("features") and f["features"]["relevance"] >= RELEVANT_MIN]
+    rows = [(u, c, w) for u, c, w in rows if w > 0]
+    w_sum = sum(w for _, _, w in rows)
+    if len(rows) < 2 or w_sum <= 0:
+        disp, clarity = 0.5, 0.5
+        n_rel = len(rows)
     else:
-        mean = sum(units) / len(units)
-        disp = math.sqrt(sum((u - mean) ** 2 for u in units) / len(units))
-    half = floor + 18.0 * disp - 1.5 * min(len(units), 6)
+        mean = sum(u * w for u, _, w in rows) / w_sum
+        disp = math.sqrt(sum(w * (u - mean) ** 2 for u, _, w in rows) / w_sum)
+        clarity = sum(c * w for _, c, w in rows) / w_sum
+        n_rel = len(rows)
+    mult = params.get("band_mult", 1.0)
+    half = floor + mult * (18.0 * disp + 8.0 * (1.0 - clarity) - 1.5 * min(n_rel, 6))
     return round(min(BAND_CAP_PP, max(floor, half)), 1)
 
 
@@ -236,7 +264,8 @@ def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list
                          datetime.fromisoformat(prev_state["date"])).days)
         carry_a = (lam ** d_days) * prev_state["A"]
 
-    cs = [contribution(r.get("features")) for r in day_feats]
+    cs = [contribution(r.get("features"), r.get("source_w", SOURCE_W_DEFAULT))
+          for r in day_feats]
     ws = effective_weights(cs) if cs else []
     rows = []
     for r, c, w in zip(day_feats, cs, ws):
@@ -304,6 +333,53 @@ def fit_alpha(pairs: list[dict], grid_max: float = 6.0, step: float = 0.05) -> d
 
 def save_params(params: dict) -> None:
     PARAMS_PATH.write_text(json.dumps(params, indent=1))
+
+
+# ------------------------------------------------------------ band coverage ----
+
+def band_coverage(book_dir: Path | None = None) -> dict:
+    """Forward band-coverage read (read-only over the sf ledger; never writes).
+
+    Binary outcomes cannot literally 'land inside' a probability band, so the
+    checkable statement is BUCKETED: within groups of settled forecasts, the
+    realized YES-frequency should fall inside the group's average [lo, hi] band.
+    Output feeds the single band_mult knob: once >= 20 settled forecasts exist,
+    an attended pass rescales band_mult so bucket coverage ~ nominal (80%), and
+    the change is documented in the findings note. No rescale before data exists.
+
+    This intentionally lives here rather than extending the `calibrate` engine:
+    that engine is now the public lemma-calibrate package (shims in two projects);
+    upstreaming interval coverage there is flagged as a skills-lifecycle follow-up.
+    """
+    book = book_dir or (DATA.parents[1] / "superforecast" / "forecasts")
+    active = book / "active.json"
+    if not active.exists():
+        return {"status": "no ledger", "n_settled": 0}
+    recs = json.loads(active.read_text())
+    settled = [r for r in recs.values()
+               if r.get("state") in ("SETTLED", "SCORED") and r.get("outcome") is not None
+               and r.get("probability_range")]
+    if not settled:
+        return {"status": "collecting — no settled forecasts yet",
+                "n_settled": 0, "n_active": len(recs)}
+    buckets: dict[int, list] = {}
+    for r in settled:
+        p = float(r.get("current_probability", 0.5))
+        buckets.setdefault(min(4, int(p * 5)), []).append(r)
+    rows = []
+    for b, rs in sorted(buckets.items()):
+        lo = sum(float(r["probability_range"][0]) for r in rs) / len(rs)
+        hi = sum(float(r["probability_range"][1]) for r in rs) / len(rs)
+        freq = sum(1 for r in rs if int(r["outcome"]) == 1) / len(rs)
+        rows.append({"bucket": f"{b*20}-{(b+1)*20}%", "n": len(rs),
+                     "mean_band": [round(lo, 3), round(hi, 3)],
+                     "realized_freq": round(freq, 3),
+                     "covered": lo <= freq <= hi})
+    covered = sum(1 for r in rows if r["covered"])
+    return {"status": "ok", "n_settled": len(settled), "buckets": rows,
+            "bucket_coverage": round(covered / len(rows), 3),
+            "note": ("rescale band_mult only when n_settled >= 20; document the "
+                     "change in the findings note")}
 
 
 # ---------------------------------------------------------------- state I/O ----

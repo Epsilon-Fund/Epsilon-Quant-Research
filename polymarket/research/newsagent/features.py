@@ -34,7 +34,9 @@ BATCH = 12  # articles per extraction call (batched for cost; schema stays per-a
 # old records instead of silently mixing definitions. v2: stance = probability-impact
 # on the QUESTION (v1 judged whether the subject welcomed the development, which
 # inverted e.g. "challenger rises, leader vows to stay" on leader-exit questions).
-PROMPT_VERSION = 2
+# v3: adds per-article CLARITY (how unambiguous the item's signal is on the
+# question) — feeds the band width, not the FV direction.
+PROMPT_VERSION = 3
 
 STANCES = {"toward_yes", "toward_no", "neutral"}
 PHASES = {"none", "speculative", "planned", "in_progress", "completed"}
@@ -56,6 +58,7 @@ For EACH item output one JSON object with fields:
 - "event_type": one of "diplomacy","conflict","election","personnel","economic","legal","procedural","other".
 - "entities": up to 5 key named entities (people/orgs/places).
 - "novelty": 0.0-1.0 — new development (1) vs rehash/background (0).
+- "clarity": 0.0-1.0 — how UNAMBIGUOUS the item's signal is on the question: 1.0 = the implication for the question is unmistakable (single reading); 0.3 = mixed/contested signals or heavy hedging; 0.0 = the item's bearing on the question is anyone's guess. Independent of stance direction and of strength (a weak signal can still be perfectly clear).
 
 ITEMS:
 {items}
@@ -84,6 +87,7 @@ def validate(f: dict) -> dict:
         "event_type": f.get("event_type") if f.get("event_type") in EVENT_TYPES else "other",
         "entities": [str(e)[:60] for e in (f.get("entities") or [])][:5],
         "novelty": min(1.0, max(0.0, float(f.get("novelty", 0.5)))),
+        "clarity": min(1.0, max(0.0, float(f.get("clarity", 0.5)))),
     }
     return out
 

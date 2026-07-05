@@ -15,10 +15,10 @@ from newsagent.feeds import _lede_last, relevance_rank
 
 
 def F(relevance=0.8, stance="toward_yes", phase="in_progress", strength=0.7,
-      tone=0.0, novelty=1.0):
+      tone=0.0, novelty=1.0, clarity=0.5):
     return {"relevance": relevance, "stance": stance, "event_phase": phase,
             "strength": strength, "tone": tone, "event_type": "other",
-            "entities": [], "novelty": novelty}
+            "entities": [], "novelty": novelty, "clarity": clarity}
 
 
 PARAMS = {"alpha": 1.85, "lambda": {"slow": 0.9, "shock": 0.6},
@@ -311,3 +311,180 @@ def test_gdelt_html_absent_is_empty():
     out = dashboard._gdelt_html({"n": 1200, "n_trailing_mean": 400.0, "vol_z": 2.1,
                                  "tone": -3.2, "tone_shift": -1.1})
     assert "1,200" in out and "+2.1" in out
+
+
+# ---------------------------------------------------------------- v3: sources --
+
+from newsagent import email_ingest, feeds as feeds_mod, sourceweights
+
+
+def test_title_hash_normalizes():
+    a = feeds_mod.title_hash("Trump: 'Peace deal' could be SIGNED by Sunday!")
+    b = feeds_mod.title_hash("trump peace deal could be signed by sunday")
+    assert a == b
+    assert feeds_mod.title_hash("something else") != a
+
+
+def test_keyword_filter_window_and_terms():
+    from datetime import datetime, timezone
+    items = [
+        {"title": "Putin succession rumors grow", "seendate": "20260704T120000Z", "trail": ""},
+        {"title": "Putin old story", "seendate": "20260601T120000Z", "trail": ""},
+        {"title": "Football roundup", "seendate": "20260704T120000Z", "trail": ""},
+    ]
+    start = datetime(2026, 7, 2, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 5, tzinfo=timezone.utc)
+    out = feeds_mod._keyword_filter(items, "putin AND succession", ["putin"], start, end)
+    assert [a["title"] for a in out] == ["Putin succession rumors grow"]
+
+
+def test_packet_dedupes_across_sources(monkeypatch):
+    from datetime import datetime, timezone
+    monkeypatch.setattr(feeds_mod, "guardian_search", lambda *a, **k: [
+        {"title": "Putin signals succession plan", "seendate": "20260705T090000Z",
+         "domain": "theguardian.com", "url": "https://g", "trail": "", "lede": "", "last_para": ""}])
+    monkeypatch.setattr(feeds_mod, "wp_day_bullets", lambda d: [])
+    rss = [{"title": "Putin signals succession plan!", "seendate": "20260705T100000Z",
+            "domain": "bbc.co.uk", "url": "https://b", "trail": "putin"},
+           {"title": "Kremlin reshuffle: Putin loyalists promoted", "seendate": "20260705T110000Z",
+            "domain": "news.sky.com", "url": "https://s", "trail": "putin"}]
+    pkt = feeds_mod.build_packet("m", {"guardian_q": "putin", "wp_keys": ["putin"]},
+                                 now=datetime(2026, 7, 5, 12, tzinfo=timezone.utc),
+                                 rss_items=rss)
+    titles = [a["title"] for a in pkt["articles"]]
+    assert "Putin signals succession plan" in titles          # guardian kept
+    assert "Putin signals succession plan!" not in titles     # rss duplicate dropped
+    assert any("Kremlin reshuffle" in t for t in titles)      # distinct rss kept
+    assert pkt["source"].startswith("newsletters+guardian+rss") or "rss" in pkt["source"]
+
+
+def test_newsletter_parse_and_privacy():
+    raw = (b"From: ING Economics <newsletter@ing.com>\r\n"
+           b"Subject: ING Daily: Fed holds, markets shrug\r\n"
+           b"Date: Sun, 05 Jul 2026 06:00:00 +0000\r\n"
+           b"Content-Type: text/plain; charset=utf-8\r\n\r\n"
+           + ("The Federal Reserve is widely expected to hold rates steady this month. "
+              "Our economists see the first cut no earlier than December." * 3
+              + "\n\nBottom line: policy stays restrictive through the autumn, and the "
+                "bar for a July move is very high indeed.").encode())
+    item = email_ingest.parse_message(raw)
+    assert item is not None
+    assert item["display"] is False                       # never shown publicly
+    assert item["domain"].startswith("newsletter:")
+    assert item["title"].startswith("ING Daily")
+    assert "hold rates steady" in item["lede"]
+
+
+def test_newsletter_non_matching_sender_dropped():
+    raw = (b"From: spam@example.com\r\nSubject: buy now\r\n"
+           b"Content-Type: text/plain\r\n\r\n" + b"x" * 200)
+    assert email_ingest.parse_message(raw) is None
+
+
+def test_email_unavailable_is_graceful(monkeypatch, tmp_path):
+    monkeypatch.setattr(email_ingest, "IMAP_CRED", tmp_path / "nope.json")
+    monkeypatch.setattr(email_ingest, "GMAIL_CRED", tmp_path / "nope2.json")
+    ok, why = email_ingest.available()
+    assert not ok and "Justin" in why
+    assert email_ingest.fetch_newsletters() == []
+
+
+# ---------------------------------------------------------- v3: source weights --
+
+def test_scheme_a_weight_mapping(monkeypatch):
+    monkeypatch.setattr(sourceweights, "_WEIGHTS", None)
+    monkeypatch.setattr(sourceweights, "_IFFY", set())
+    monkeypatch.setattr(sourceweights, "refresh", lambda force=False: {
+        "fetched_at": "2026-07-05T00:00:00+00:00",
+        "rsp_status_by_id": {"the guardian": "s-gr", "bbc": "s-gr", "sky news uk": "s-nc",
+                             "politico": "s-gu", "the hill": "s-d"},
+        "iffy_domains": ["badnews.example"]})
+    assert sourceweights.get_weight("theguardian.com") == 1.0
+    assert sourceweights.get_weight("news.sky.com") == 0.7
+    assert sourceweights.get_weight("politico.com") == 0.3
+    assert sourceweights.get_weight("thehill.com") == 0.0
+    assert sourceweights.get_weight("badnews.example") == 0.0
+    assert sourceweights.get_weight("newsletter:ING research") == 1.0   # uncovered->neutral
+    assert sourceweights.get_weight("en.wikipedia.org (Current events)") == 1.0
+    assert sourceweights.get_weight("unknown.example") == 1.0
+    monkeypatch.setattr(sourceweights, "_WEIGHTS", None)   # reset module cache
+
+
+# ---------------------------------------------------------------- v3: band ------
+
+def test_band_v3_reliability_weighted_dispersion():
+    params = dict(PARAMS, band_mult=1.0)
+    # two reliable sources disagreeing vs concurring
+    disagree = [{"features": F(stance="toward_yes", clarity=1.0), "source_w": 1.0},
+                {"features": F(stance="toward_no", clarity=1.0), "source_w": 1.0},
+                {"features": F(stance="toward_yes", strength=0.3, clarity=1.0), "source_w": 1.0}]
+    concur = [{"features": F(stance="toward_yes", clarity=1.0), "source_w": 1.0}
+              for _ in range(3)]
+    assert fvmodel.band_half_pp(disagree, "shock", params) > \
+        fvmodel.band_half_pp(concur, "shock", params)
+    # a zero-weight source cannot move the band
+    with_junk = concur + [{"features": F(stance="toward_no", clarity=1.0), "source_w": 0.0}]
+    assert fvmodel.band_half_pp(with_junk, "shock", params) == \
+        fvmodel.band_half_pp(concur, "shock", params)
+
+
+def test_band_v3_low_clarity_widens():
+    params = dict(PARAMS, band_mult=1.0)
+    clear = [{"features": F(clarity=1.0), "source_w": 1.0} for _ in range(4)]
+    murky = [{"features": F(clarity=0.1), "source_w": 1.0} for _ in range(4)]
+    assert fvmodel.band_half_pp(murky, "shock", params) > \
+        fvmodel.band_half_pp(clear, "shock", params)
+
+
+def test_band_mult_single_knob():
+    params = dict(PARAMS, band_mult=1.0)
+    wide = dict(PARAMS, band_mult=2.0)
+    rows = [{"features": F(stance="toward_yes", clarity=0.5), "source_w": 1.0},
+            {"features": F(stance="toward_no", clarity=0.5), "source_w": 1.0}]
+    assert fvmodel.band_half_pp(rows, "shock", wide) >= \
+        fvmodel.band_half_pp(rows, "shock", params)
+
+
+def test_source_weight_scales_contribution():
+    f = F(stance="toward_yes", phase="completed", strength=0.9)
+    full = fvmodel.daily_score([{"features": f, "source_w": 1.0}])
+    half = fvmodel.daily_score([{"features": f, "source_w": 0.5}])
+    zero = fvmodel.daily_score([{"features": f, "source_w": 0.0}])
+    assert full > half > zero == 0.0
+
+
+def test_band_coverage_collecting(tmp_path):
+    out = fvmodel.band_coverage(book_dir=tmp_path)
+    assert out["n_settled"] == 0
+
+
+def test_features_v3_clarity_validated():
+    out = features.validate({"relevance": 0.5, "stance": "toward_yes",
+                             "event_phase": "planned", "strength": 0.5, "clarity": 7})
+    assert out["clarity"] == 1.0
+    out2 = features.validate({"relevance": 0.5, "stance": "toward_yes",
+                              "event_phase": "planned", "strength": 0.5})
+    assert out2["clarity"] == 0.5
+
+
+# ---------------------------------------------------------------- v3: charts ----
+
+def test_gauge_and_sparkline_render():
+    g = dashboard._svg_gauge(40.0, 30.0, 50.0, 60.0)
+    assert "<svg" in g and "aria-label" in g
+    s = dashboard._svg_sparkline([{"fv_pct": 30.0}, {"fv_pct": 40.0}, {"fv_pct": 35.0}])
+    assert "<svg" in s and "circle" in s
+    assert "new" in dashboard._svg_sparkline([{"fv_pct": 30.0}])   # 1 point -> placeholder
+
+
+def test_overview_grid_orders_flags_first():
+    cards = [
+        {"question": "small gap", "fv_pct": 50.0, "market_pct": 48.0, "gap_pp": 2.0,
+         "band": [40, 60], "divergence_flag": False, "series": []},
+        {"question": "big gap unflagged", "fv_pct": 80.0, "market_pct": 50.0, "gap_pp": 30.0,
+         "band": [70, 90], "divergence_flag": False, "series": []},
+        {"question": "flagged", "fv_pct": 30.0, "market_pct": 50.0, "gap_pp": -20.0,
+         "band": [22, 38], "divergence_flag": True, "series": []},
+    ]
+    grid = dashboard._overview_grid_html(cards)
+    assert grid.index("flagged") < grid.index("big gap unflagged") < grid.index("small gap")

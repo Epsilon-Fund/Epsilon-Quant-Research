@@ -1,27 +1,48 @@
 """Market metadata + news-packet retrieval for the live observatory.
 
-Sources (Scheme B curated set, radar-verified licences):
+Sources (curated set, radar-verified licences; Scheme-A weights applied in Stage B):
   - Gamma API: market question/criteria/mid.
-  - Guardian Open Platform: date-bounded headline search (headline+timestamp only on
-    the public page; attribution required). Uses GUARDIAN_API_KEY or the demo key.
+  - Guardian Open Platform: date-bounded search (headline+link only on the public
+    page; attribution required). Uses GUARDIAN_API_KEY or the demo key.
+  - Free RSS set (v3): BBC + Sky + Politico + The Hill politics/world feeds —
+    fetched ONCE per run (day-cached), keyword-filtered per market; public display
+    is headline + link only. Reuters/AP have no public RSS; Google News RSS is
+    personal-use-only — both skipped (radar).
   - Wikipedia Current Events daily pages (CC BY-SA, attribution): full past days only.
+  - Newsletters (v3, via email_ingest): analysis-grade text for Stage A ONLY —
+    NEVER displayed on the public page (private/licensed content).
   - GDELT DOC client retained from the v0 scripts but NOT called by default —
-    re-enable when its API leaves the aggressive-throttle state.
+    the BigQuery path (gdelt_bq) supplies the attention series instead.
 
 All items carry timestamps; live packets have no lookahead concern (t = now) but we
-keep the per-item cutoff for symmetry with the gate pipeline.
+keep the per-item cutoff for symmetry with the gate pipeline. Cross-source dedupe is
+by normalized-title hash.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import time
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 from .config import DATA, GUARDIAN_KEY_ENV
+
+# Free feeds, live-probed 200 (2026-07-05). Display rule for every RSS source:
+# headline + link only on the public page.
+RSS_FEEDS = {
+    "bbc.co.uk": ["https://feeds.bbci.co.uk/news/politics/rss.xml",
+                  "https://feeds.bbci.co.uk/news/world/rss.xml"],
+    "news.sky.com": ["https://feeds.skynews.com/feeds/rss/politics.xml",
+                     "https://feeds.skynews.com/feeds/rss/world.xml"],
+    "politico.com": ["https://rss.politico.com/politics-news.xml",
+                     "https://rss.politico.com/congress.xml"],
+    "thehill.com": ["https://thehill.com/homenews/feed/"],
+}
 
 WIKI_MONTHS = ["January", "February", "March", "April", "May", "June", "July",
                "August", "September", "October", "November", "December"]
@@ -98,6 +119,68 @@ def guardian_search(q: str, start: datetime, end: datetime, page_size: int = 20,
     return out
 
 
+def title_hash(title: str) -> str:
+    """Cross-source dedupe key: normalized-title hash (case/space/punct-insensitive)."""
+    norm = re.sub(r"[^a-z0-9 ]", "", title.lower())
+    norm = re.sub(r"\s+", " ", norm).strip()
+    return hashlib.sha1(norm.encode()).hexdigest()[:16]
+
+
+def _rss_dt(text: str) -> str:
+    """RSS/Atom date -> compact seendate (best effort; empty on failure)."""
+    text = (text or "").strip()
+    for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z",
+                "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            dt = datetime.strptime(text, fmt)
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(timezone.utc)
+            return dt.strftime("%Y%m%dT%H%M%SZ")
+        except ValueError:
+            continue
+    return ""
+
+
+def fetch_rss_items(day: str | None = None) -> list[dict]:
+    """All RSS items across the feed set, fetched once per day (cached).
+
+    Returns article-shaped dicts (title/seendate/domain/url/trail); packets filter
+    them per market by keyword + time window. Parse tolerates RSS2 <item> and Atom
+    <entry>; a dead feed degrades to zero items, never an exception."""
+    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_dir = DATA / "rss_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache = cache_dir / f"{day}.json"
+    if cache.exists():
+        return json.loads(cache.read_text())
+    items = []
+    for domain, urls in RSS_FEEDS.items():
+        for u in urls:
+            try:
+                req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (epsilon-research)"})
+                root = ET.fromstring(urllib.request.urlopen(req, timeout=20).read())
+            except Exception:
+                continue
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            nodes = root.findall(".//item") or root.findall(".//atom:entry", ns)
+            for it in nodes:
+                title = (it.findtext("title") or it.findtext("atom:title", "", ns) or "").strip()
+                if not title:
+                    continue
+                link = (it.findtext("link") or "").strip()
+                if not link:
+                    ln = it.find("atom:link", ns)
+                    link = ln.get("href", "") if ln is not None else ""
+                desc = re.sub(r"<[^>]+>", "", it.findtext("description")
+                              or it.findtext("atom:summary", "", ns) or "").strip()
+                seen = _rss_dt(it.findtext("pubDate") or it.findtext("atom:updated", "", ns))
+                items.append({"title": title, "seendate": seen, "domain": domain,
+                              "url": link, "trail": desc[:300]})
+            time.sleep(0.3)
+    cache.write_text(json.dumps(items))
+    return items
+
+
 def relevance_rank(items: list[dict], query: str, keys: list[str]) -> list[dict]:
     """Cheap keyword pre-rank before the top-k cap (Halawi rank-then-summarize step).
 
@@ -141,11 +224,36 @@ def wp_day_bullets(day: datetime) -> list[str]:
     return bullets
 
 
-def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: int = 12) -> dict:
-    """Packet = relevance-ranked top-k Guardian items (title + trail + lede + last
-    paragraph, internal-only text) + Wikipedia Current Events bullets. Same shape as
-    the gate pipeline plus the full-text fields; `now` in the past reconstructs a
-    lookahead-free historical packet (both sources are timestamped by construction)."""
+def _keyword_filter(items: list[dict], query: str, keys: list[str],
+                    start: datetime, end: datetime) -> list[dict]:
+    """Window + keyword filter for broad-source items (RSS/newsletters)."""
+    lo, hi = start.strftime("%Y%m%dT%H%M%SZ"), end.strftime("%Y%m%dT%H%M%SZ")
+    ranked = relevance_rank(items, query, keys)
+    out = []
+    for a in ranked:
+        sd = a.get("seendate", "")
+        if sd and not (lo <= sd <= hi):
+            continue
+        text = " ".join([a.get("title", ""), a.get("trail", ""), a.get("lede", "")]).lower()
+        if not any(k.lower() in text for k in keys):
+            continue
+        out.append(a)
+    return out
+
+
+def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: int = 12,
+                 rss_items: list[dict] | None = None,
+                 newsletter_items: list[dict] | None = None) -> dict:
+    """Packet = newsletters (analysis-grade, Stage-A-only, never displayed) +
+    relevance-ranked Guardian items (title + trail + lede + last paragraph,
+    internal-only text) + keyword-matched RSS headlines + Wikipedia Current Events
+    bullets, deduped cross-source by normalized-title hash.
+
+    Per-slot caps (of max_items=12): newsletters <=2, Guardian <=6, RSS <=4,
+    WP fills the remainder. `now` in the past reconstructs a lookahead-free
+    HISTORICAL packet from Guardian+WP only — RSS/newsletters are live-only
+    sources (feeds carry current state; no timestamped archive), so they are
+    excluded from any reconstruction by construction."""
     t = now or datetime.now(timezone.utc)
     g_items = guardian_search(cfg["guardian_q"], t - timedelta(hours=72), t)
     window = "72h"
@@ -155,6 +263,13 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
         window = "7d"
     time.sleep(0.7)
     g_items = relevance_rank(g_items, cfg["guardian_q"], cfg["wp_keys"])
+    win_start = t - (timedelta(hours=72) if window == "72h" else timedelta(days=7))
+
+    rss_sel = _keyword_filter(rss_items or [], cfg["guardian_q"], cfg["wp_keys"],
+                              win_start, t)
+    nl_sel = _keyword_filter(newsletter_items or [], cfg["guardian_q"], cfg["wp_keys"],
+                             win_start, t)
+
     lookback = 3 if window == "72h" else 7
     wp_items = []
     for k in range(lookback, 0, -1):
@@ -164,9 +279,9 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
                 wp_items.append({"title": b[:200], "seendate": day.strftime("%Y%m%dT235900Z"),
                                  "domain": "en.wikipedia.org (Current events)"})
     seen, items = set(), []
-    for a in g_items[:8] + wp_items[-4:]:
-        key = a["title"].strip().lower()[:80]
-        if key in seen or not a["title"]:
+    for a in nl_sel[:2] + g_items[:6] + rss_sel[:4] + wp_items[-4:]:
+        key = title_hash(a.get("title", ""))
+        if key in seen or not a.get("title"):
             continue
         seen.add(key)
         items.append(a)
@@ -174,7 +289,9 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
             break
     return {"slug": slug, "asof": t.isoformat(), "query": cfg["guardian_q"],
             "wp_keys": cfg["wp_keys"], "window": window,
-            "source": "guardian+wp_currentevents", "articles": items}
+            "source": "newsletters+guardian+rss+wp" if (nl_sel or rss_sel)
+                      else "guardian+wp_currentevents",
+            "articles": items}
 
 
 def mid_history(slug: str, days: int = 21) -> list[dict]:
