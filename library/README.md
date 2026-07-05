@@ -18,9 +18,9 @@ the library (one-way), never the reverse. Enforced per package by a
 
 | package | what it does | status |
 |---|---|---|
-| [`changepoint/`](changepoint/) — `rigorkit-changepoint` | causal, lookahead-free structural-break detection (CUSUM / Page-Hinkley / BOCPD) + purged-CV embargo, causal regime features, trend gate; ships the `changepoint-audit` skill bundle | v0.1.0 — extracted, tests green, dogfooded |
-| `calibrate` (planned) | Brier + Murphy decomposition, reliability diagrams, recalibration, market-odds edge | Phase 2 |
-| `data-contract` (planned) | schema + append-only/lookahead invariant + drift gate | Phase 2 |
+| [`changepoint/`](changepoint/) — `rigorkit-changepoint` | causal, lookahead-free structural-break detection (CUSUM / Page-Hinkley / BOCPD) + purged-CV embargo, causal regime features, trend gate; ships the `changepoint-audit` skill bundle | v0.1.0 — extracted, tests green, dogfooded, scrub APPROVED |
+| [`calibrate/`](calibrate/) — `rigorkit-calibrate` | Brier + Murphy decomposition, reliability diagrams with Wilson bands, ECE/MCE, Spiegelhalter's Z, isotonic/Platt recalibration, market-odds edge; ships the `calibrate` skill bundle | v0.1.0 — extracted, tests green, dogfooded, **scrub PENDING** |
+| `data-contract` (planned) | schema + append-only/lookahead invariant + drift gate | Phase 2 (3.10 blocker cleared 2026-07-05; sequenced after calibrate) |
 | overfitting harness / purged CV (planned) | deflated Sharpe, PBO (CSCV), White's Reality Check; CPCV/walk-forward engines | Phase 3 |
 
 ## Publishing status

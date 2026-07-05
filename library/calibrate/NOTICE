@@ -1,0 +1,12 @@
+rigorkit-calibrate
+Copyright 2026 Epsilon Research
+
+Extracted and generalized from the Epsilon internal quantitative research
+codebase (per-project calibration scoring layer). The Murphy decomposition
+follows Murphy (1973), "A New Vector Partition of the Probability Score";
+Spiegelhalter's Z follows Spiegelhalter (1986), "Probabilistic prediction in
+patient management and clinical trials"; the Wilson score interval follows
+Wilson (1927). The in-package skills installer pattern is adapted from
+goldmansachs/gs-quant (Apache-2.0). The optional ledger reader consumes the
+event-log format of the superforecasting-skill ledger (deusyu/
+superforecasting-skill, MIT) read-only; no code from that project is included.

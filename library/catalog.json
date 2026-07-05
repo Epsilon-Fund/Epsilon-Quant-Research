@@ -1,8 +1,26 @@
 {
-  "generated_at": "2026-07-04T21:13:26Z",
+  "generated_at": "2026-07-05T15:39:26Z",
   "generator": "tools/skills_catalog.py",
   "note": "PUBLIC-CANDIDATE catalog. Only entries with scrub_status 'approved' (per-package SCRUB.md, human-authorized) may be surfaced publicly; 'published' flips when the package is actually released (PyPI/repo split).",
   "entries": [
+    {
+      "id": "rigorkit-calibrate",
+      "kind": "library-package",
+      "version": "0.1.0",
+      "summary": "Proper-score calibration diagnostics for probabilistic forecasts: Brier + Murphy decomposition, reliability diagrams with Wilson bands, ECE/MCE, Spiegelhalter's Z, isotonic/Platt recalibration, and market-odds edge.",
+      "license": "Apache-2.0",
+      "source": "library/calibrate",
+      "invocation": "pip install rigorkit-calibrate",
+      "published": false,
+      "scrub_status": "pending-human-review",
+      "bundled_skills": [
+        {
+          "id": "calibrate",
+          "summary": "Score forecast/market calibration (Brier + Murphy decomposition, log-loss, ECE/MCE, reliability diagrams with Wilson bands, Spiegelhalter's Z, calibration-in-the-large) on probability arrays or an append-only forecast ledger. Use when asked how well-calibrated a model or forecaster is, to compute a Brier/log-loss score, draw a reliability diagram, check over/under-confidence, recalibrate probabilities (isotonic / Platt), or compare model-p vs market-implied-p and track realized edge over resolved markets. Reads any ledger strictly read-only; never writes one.",
+          "install": "python -m rigorkit.calibrate.skills install"
+        }
+      ]
+    },
     {
       "id": "rigorkit-changepoint",
       "kind": "library-package",
