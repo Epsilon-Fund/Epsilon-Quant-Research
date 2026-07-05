@@ -20,6 +20,14 @@ implementation agent with recorded evidence.
 Covers: `library/changepoint/**`, `library/README.md`, `library/catalog.json`,
 and the website surface (`epsilon-webs1te` `/library` page + `data/skills-catalog.json`).
 
+## Addendum — 2026-07-05
+
+`examples/demo.py` + `tests/test_demo.py` + README demo section added after the
+scrub. Content check against the same table: synthetic seeded data only, all
+detector parameters are the package's literature-standard defaults, no internal
+paths/names beyond what the scrub already covers. No new content class — the
+APPROVED verdict stands.
+
 ## Open at publish time
 
 - Library name `rigorkit` remains provisional — rename (if desired) before any

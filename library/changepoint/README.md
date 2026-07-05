@@ -50,6 +50,22 @@ rigorkit-changepoint benchmark     # detection lag / false-positive rate
 rigorkit-changepoint kappa-demo    # Cohen's kappa vs Markov-switching transitions
 ```
 
+## Runnable demo
+
+[`examples/demo.py`](examples/demo.py) is a seeded, self-contained walkthrough —
+no data files, no extra deps, a few seconds:
+
+```bash
+python examples/demo.py
+```
+
+It builds a synthetic calm → crisis → recovery return series with two **known**
+breaks, scores all three detectors against that truth (detection lag, misses,
+false alarms — including the honest trade-off: CUSUM/PH catch the big break at
+lag 0 with zero false alarms but miss the subtle one; BOCPD catches both at the
+cost of extra flags), then exercises all three integration helpers and verifies
+that a bar-by-bar `LiveDetector` run is identical to the batch run.
+
 ## Agent skill bundle
 
 The package ships a Claude-Code-compatible skill bundle

@@ -26,7 +26,7 @@ tags:
 - This is the standing backlog where recurring pain observed across agent sessions, git history, scratch lanes, and generated reports is clustered, scored, and turned into a decision: **new skill / automation / fix / nothing**.
 - Every entry — including "nothing" — carries a reason, so a rejected idea never re-surfaces as if it were new.
 - Populated by the reflection engine's discovery passes; first pass ran 2026-07-04 (git history since 2026-06-01, scratch lanes, ~50 session transcripts since 06-29, hygiene/graph reports, SKILL_MAP future-skills, external-repo radar).
-- Current state: 3 lifecycle deliverables in flight (library packaging, the engine itself, the catalog), 3 small fixes/automations accepted for immediate build, 1 human-gated fix, the rest planned or closed with reasons.
+- Current state after the 2026-07-05 easy-wins pass: the changepoint library entry now has a runnable demo (RC-023) and the RC-009 checklist half is in [[MERGE_PROTOCOL]]; four bigger items are logged as written proposals awaiting an operator go (RC-024 calibrate package, RC-025 data-contract package — its 3.10 blocker verified cleared, RC-026 Obsidian starter-kit, RC-027 reflection/PRD-scaffold skills). Release mechanics for changepoint remain human-gated.
 
 ## Scoring rubric (the recorded rule)
 
@@ -99,7 +99,7 @@ Statuses used below: `proposed` · `accepted` · `in-build` · `built` · `regis
 | id | title | pain / cluster | evidence | rec | cost | decision | status |
 |---|---|---|---|---|---|---|---|
 | RC-008 | Kill the `PYTHONPATH=. uv run` prefix tax | The per-project run incantation is retyped constantly and mis-remembered across projects | ~968 PYTHONPATH + ~1031 `uv run` transcript mentions | HIGH | M/L | **plan** — remedy touches the run-environment law in [[CODEX]] + both pyprojects (e.g. proper editable installs or Make targets); do it as a deliberate conventions change, not a drive-by | planned |
-| RC-009 | Post-merge hygiene validator | Every main-integration merge imports link/frontmatter debt that a later janitor pass mops up | commits 7703de6, cd3bdca, fa8dd20 | MED | M | **plan** — add a `brain_hygiene.py` run to the [[MERGE_PROTOCOL]] merge checklist; candidate for a merge-wrapper script | planned |
+| RC-009 | Post-merge hygiene validator | Every main-integration merge imports link/frontmatter debt that a later janitor pass mops up | commits 7703de6, cd3bdca, fa8dd20 | MED | M | **plan** — add a `brain_hygiene.py` run to the [[MERGE_PROTOCOL]] merge checklist; candidate for a merge-wrapper script | **half-built** (2026-07-05: the S-cost checklist step is now in [[MERGE_PROTOCOL]] § 2 — post-merge hygiene check before pushing, fix only merge-attributable debt. The merge-wrapper script stays planned; build it only if the manual step proves to be skipped in practice) |
 | RC-013 | Vendor reasoning/causal skill packs (causal-inference, critical-thinking, thinking-frameworks subset) | Planned Track-1 installs from 2026-06-18 incorporation scope; never executed | scratch/cowork/2026-06-18_incorporation_scope.md | LOW (planned work, not observed pain) | M each | **plan** — needs the per-file vetting pass (chrome-vetting handoff pattern); batch into a dedicated vendoring session | planned |
 | RC-014 | Fold specification-curve + empirical-null into `overfitting_audit.py` | Track-2 method fold; adjacent to existing DSR/PBO/White arsenal | scratch/cowork/2026-06-18_whitespace_build_specs.md | LOW | M | **plan** — only when a live research question needs it (no infra before signal) | planned |
 
@@ -138,8 +138,38 @@ Radar-spawned candidates:
 | RC-021 | Vendor kepano `obsidian-markdown` (+ `defuddle`) | Brain passes encode Obsidian syntax rules ad hoc | LOW | S | **plan** — batch into the RC-013 vetting session (MIT; authoritative author) | planned |
 | RC-022 | backtester-mcp `robustness.py` cross-check vs our `overfitting_audit.py` + DuckDB run-registry pattern | Our validation stack has no independent implementation to diff against ("non-redundancy by design") | LOW | M | **plan** — pair with the Phase-3 overfitting-harness library extraction | planned |
 
+## Candidates — 2026-07-05 easy-wins pass (on-demand)
+
+> Not a full re-mining — the last discovery pass was the previous day, so no new recurrence evidence could have accumulated. This pass surveyed what's most worth packaging/developing NEXT (candidates + repo + internal skills), built the low-risk wins, and stopped at written proposals for anything bigger or public-facing (per the operator's explicit scoping).
+
+### Built this pass
+
+| id | title | pain / cluster | evidence | rec | cost | decision | status |
+|---|---|---|---|---|---|---|---|
+| RC-023 | Runnable demo for the changepoint library entry | The only scrub-approved public package had zero runnable example (bundle = SKILL.md only, README 75 lines) — an adopter landing from the site catalog had nothing to execute; a demo is the cheapest credibility upgrade to the publish end | library/changepoint inspection 2026-07-05; catalog entry live on the `/library` page since 07-04 | — (lifecycle deliverable, enters at its stage) | S | **build** — demo for an existing entry | **built** (2026-07-05: `library/changepoint/examples/demo.py` — seeded synthetic calm→crisis→recovery series with two known breaks; scores all 3 detectors vs truth incl. the honest CUSUM-vs-BOCPD trade-off; exercises all 3 integration helpers; asserts live==batch. + `tests/test_demo.py` smoke test pinning the output story; README § Runnable demo; SCRUB.md addendum — no new content class, synthetic data only. **23 tests green** (was 22)) |
+
+### Proposals — bigger / public-facing; STOP at proposal, operator go required
+
+| id | title | proposal (short) | rec | cost | decision | status |
+|---|---|---|---|---|---|---|
+| RC-024 | Phase-2: extract `calibrate` → `library/calibrate` (`rigorkit-calibrate`) | The natural next package, and the first with a live public consumer: the Calibration Observatory (shipped 2026-07-05, [[strat_news_agent_showcase]]) leans on `calibrate` for its public Brier track record — a public pip package makes that claim reproducible by outsiders. Generalization is already proven: the engine is byte-identical in two projects (`infrastructure/calibration/` · `polymarket/research/lib/calibration/`). Plan = changepoint pattern verbatim: engine (core + markets layer) into `library/calibrate/`, both projects become same-API shims, `calibrate` SKILL.md bundled in-package with the installer CLI, decoupling test, own SCRUB.md. **Exclusion:** the superforecasting ledger state machine stays OUT (vendored MIT fork, upstream `deusyu` — re-point, never re-host); the package is a read-only scorer with a documented ledger-schema adapter | MED (TODO Phase-2 line + the Observatory now demanding it) | M | **propose** — this is the "when a thread demands it" trigger firing | proposed (awaiting operator go) |
+| RC-025 | Phase-2: extract `data-contract` → library package | Blocker check done this pass: the "Python 3.10 f-string fix on line 856" precondition (skills_library_build_plan § v1 scope, scratch/cowork) is **cleared** — both engines parse under 3.10 grammar (`ast.parse feature_version=(3,10)`, verified 2026-07-05; re-verify with a real 3.10 interpreter at packaging time). Remaining real work: heavier dep surface (`pandera.polars`), and the contracts must be genericized per-instrument (the PM/crypto contract split is the epsilon-specific part; the engine + invariant vocabulary is the public part) | LOW-MED | M | **propose** — sequence AFTER RC-024 (calibrate has a public consumer now; data-contract doesn't) | proposed |
+| RC-026 | Obsidian brain starter-kit (public template repo) | Package the brain OS — VAULT_MAP/SKILL_MAP/OPERATING_RHYTHMS skeletons, `brain_hygiene.py` + `brain_graph_audit.py`, agent-lane templates, MERGE_PROTOCOL, the branch-per-person model — as a public starter kit. High outside appeal (it's the most transferable thing we run) but the scrub surface is the largest of any candidate: the law files embed strategy context throughout, so this is a rewrite-and-generalize, not an extract. Needs its own naming/positioning decision vs `rigorkit` | LOW (no observed external pull yet) | L | **propose** — do not build in an exploratory pass; scope with the operator first | proposed |
+| RC-027 | `reflection-prompt` + `prd-scaffold` skills (generalized, publishable) | (a) Generalize the reflection-engine SKILL.md into an epsilon-agnostic bundle (mine-your-own-sessions → recurrence × build-cost → decide/log) — the rubric and "nothing-with-reason" discipline are the publishable ideas; (b) codify the PRD → `/goal` co-authoring flow from fable_projects_1_2_plan (scratch/cowork; kickoff prompt → Q&A → emitted goal prompt) as a `prd-scaffold` skill. Both are prompt-ware (no engine), but public-facing → scrub + the same bundle/packaging decisions as RC-026 | LOW-MED (PRD flow used twice, 2026-07-04/05, worked both times) | M | **propose** — stop at proposal per the pass scoping | proposed |
+
+### Radar pins — 2026-07-05 (from the newsagent session's radar; full table in [[newsagent_repo_data_radar_findings]])
+
+> Not a scheduled radar sweep (monthly cadence, last full sweep 07-04). Pinning only the lifecycle-relevant verdicts the newsagent thread produced, so future forecasting work doesn't re-triage:
+
+| seed | verdict | lifecycle relevance | licence |
+|---|---|---|---|
+| Metaculus/forecasting-tools | **Adopt** (the only Adopt-grade code dep found) | production harness for any future forecasting/ensemble work (N-sample, spend caps) | MIT |
+| ForecastBench | **Borrow-pattern** | interim scoring vs prior-day price; freeze-value circularity warning (never anchor the headline number on the market) | MIT code / CC BY-SA data |
+| FinceptTerminal | **Borrow-pattern (design only — never read the code)** | news-panel/terminal layout ideas for showcase surfaces | AGPL-3.0 + commercial dual |
+
 ## Pass log
 
 | date | mode | signals used | outcome |
 |---|---|---|---|
 | 2026-07-04 | on-demand (lifecycle kickoff) | git log 06-01→07-04 · scratch/codex + scratch/cowork · ~50 session transcripts (06-29→07-04, best-effort) · hygiene/graph reports 07-03 · SKILL_MAP future-skills · 6-seed external radar | 22 candidates logged: 3 lifecycle deliverables, 3 build-now, 1 blocked-human, 7 planned, 6 closed-nothing, 2 radar-adopts folded into RC-001 |
+| 2026-07-05 | on-demand (easy-wins / what-next survey) | full backlog + library/ + internal skills state · newsagent session evidence ([[2026-07-05_newsagent_showcase_v0_stop]] + radar findings) · live verification: changepoint suite re-run (22→23 green), catalog regen (timestamp-only drift — reverted, no action), 3.10-grammar parse of both data-contract engines | 2 built (RC-023 demo; RC-009 checklist half), 4 proposals logged for operator go (RC-024→027), 3 radar pins. **No full re-mining** — last discovery pass was the previous day; deliberately skipped so the weekly Monday pass stays the recurrence-evidence cadence |

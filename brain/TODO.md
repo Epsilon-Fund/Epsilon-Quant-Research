@@ -89,6 +89,8 @@ tags:
 - [ ] **HUMAN — release mechanics:** final library name decision (`rigorkit` provisional — decide BEFORE any PyPI upload); actual release (PyPI or public repo split); live site deploy is manual (`npx vercel --prod` under Tomiwo's Vercel team — Vercel does not auto-deploy on push).
 - [ ] **Collaborators:** run `bash tools/fix_nbstripout_filter.sh` + `bash tools/git_hooks/install.sh` once per clone; after pulling, `uv pip install -e "library/changepoint[dev]" --python .venv/bin/python` (the `infrastructure/changepoint` shim needs it).
 - [ ] Phase 2 packaging (when reflection or a thread demands it): `calibrate`, then `data-contract`. Phase 3: overfitting harness + CPCV/walk-forward as pip modules. Planned vendor batch (RC-013/020/021): causal-inference, critical-thinking, thinking-frameworks subset, BuilderIO agent-watchdog + efficient-frontier, kepano obsidian-markdown — needs the per-file vetting session.
+- [x] **2026-07-05 easy-wins pass** (exploratory, low-risk only): changepoint runnable demo shipped (RC-023 — `library/changepoint/examples/demo.py`, 23 tests green) + RC-009's checklist half added to [[MERGE_PROTOCOL]] § 2. See [[2026-07-05_skills_easywins_pass]].
+- [ ] **JUSTIN — go/no-go on the 2026-07-05 proposals** (written, not built): RC-024 `rigorkit-calibrate` extraction (recommended — the Calibration Observatory is the "thread demands it" trigger), RC-025 `data-contract` (3.10 blocker verified cleared), RC-026 Obsidian starter-kit (L, biggest scrub surface), RC-027 reflection-prompt/PRD-scaffold skills. Full entries in [[candidates]] § 2026-07-05.
 
 ---
 

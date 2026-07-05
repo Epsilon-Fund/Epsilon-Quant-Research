@@ -64,6 +64,7 @@ git commit                        # completes the merge
 git push origin main
 ```
 
+- **Post-merge hygiene check (before pushing, both the clean and the conflicted path):** run `python3 tools/brain_hygiene.py` and skim `brain/generated/hygiene_report.md`. Merges are where link/frontmatter debt gets imported (a merged note can reference a hub the other branch renamed, or arrive without frontmatter); catching it here beats a mop-up Janitor pass later. Fix what's trivially attributable to the merge; anything larger becomes a normal Janitor prompt — don't hold the merge hostage to old debt the merge didn't create.
 - **After every merge to main, everyone catches up:** each collaborator runs `git checkout <handle> && git merge main` on their machine at next session start.
 
 Non-Markdown conflicts (code, configs) follow normal engineering judgment — the smart-merge prompt below is for the Markdown brain.
