@@ -383,7 +383,8 @@ def test_newsletter_non_matching_sender_dropped():
 
 def test_email_unavailable_is_graceful(monkeypatch, tmp_path):
     monkeypatch.setattr(email_ingest, "IMAP_CRED", tmp_path / "nope.json")
-    monkeypatch.setattr(email_ingest, "GMAIL_CRED", tmp_path / "nope2.json")
+    monkeypatch.setattr(email_ingest, "GMAIL_CLIENT_SECRET", tmp_path / "nope2.json")
+    monkeypatch.setattr(email_ingest, "GMAIL_TOKEN", tmp_path / "nope3.json")
     ok, why = email_ingest.available()
     assert not ok and "Justin" in why
     assert email_ingest.fetch_newsletters() == []
@@ -479,12 +480,300 @@ def test_gauge_and_sparkline_render():
 
 def test_overview_grid_orders_flags_first():
     cards = [
-        {"question": "small gap", "fv_pct": 50.0, "market_pct": 48.0, "gap_pp": 2.0,
+        {"question": "small gap", "slug": "s1", "fv_pct": 50.0, "market_pct": 48.0, "gap_pp": 2.0,
          "band": [40, 60], "divergence_flag": False, "series": []},
-        {"question": "big gap unflagged", "fv_pct": 80.0, "market_pct": 50.0, "gap_pp": 30.0,
+        {"question": "big gap unflagged", "slug": "s2", "fv_pct": 80.0, "market_pct": 50.0, "gap_pp": 30.0,
          "band": [70, 90], "divergence_flag": False, "series": []},
-        {"question": "flagged", "fv_pct": 30.0, "market_pct": 50.0, "gap_pp": -20.0,
+        {"question": "flagged", "slug": "s3", "fv_pct": 30.0, "market_pct": 50.0, "gap_pp": -20.0,
          "band": [22, 38], "divergence_flag": True, "series": []},
     ]
     grid = dashboard._overview_grid_html(cards)
     assert grid.index("flagged") < grid.index("big gap unflagged") < grid.index("small gap")
+
+
+# =============================================================== v3.1 additions ==
+
+from datetime import datetime, timezone as _tz
+
+from newsagent import config as na_config, pdf_ingest
+
+
+# ---------------------------------------------------------- email: gmail path --
+
+def test_email_available_prefers_gmail_token(monkeypatch, tmp_path):
+    tok = tmp_path / "gmail_token.json"
+    tok.write_text("{}")
+    monkeypatch.setattr(email_ingest, "GMAIL_TOKEN", tok)
+    monkeypatch.setattr(email_ingest, "IMAP_CRED", tmp_path / "imap.json")
+    ok, mode = email_ingest.available()
+    assert ok and mode == "gmail"
+
+
+def test_email_client_secret_without_token_points_at_consent(monkeypatch, tmp_path):
+    monkeypatch.setattr(email_ingest, "GMAIL_TOKEN", tmp_path / "nope.json")
+    monkeypatch.setattr(email_ingest, "IMAP_CRED", tmp_path / "nope2.json")
+    cs = tmp_path / "client_secret.json"
+    cs.write_text("{}")
+    monkeypatch.setattr(email_ingest, "GMAIL_CLIENT_SECRET", cs)
+    ok, why = email_ingest.available()
+    assert not ok and "--consent" in why
+
+
+def test_save_token_keeps_refresh_token(monkeypatch, tmp_path):
+    tok = tmp_path / "gmail_token.json"
+    monkeypatch.setattr(email_ingest, "GMAIL_TOKEN", tok)
+    email_ingest._save_token({"access_token": "a1", "refresh_token": "r1", "expires_in": 100})
+    prev = __import__("json").loads(tok.read_text())
+    email_ingest._save_token({"access_token": "a2", "expires_in": 100}, prev=prev)
+    rec = __import__("json").loads(tok.read_text())
+    assert rec["access_token"] == "a2" and rec["refresh_token"] == "r1"
+
+
+def test_newsletter_bloomberg_and_ingthink_senders():
+    raw_b = (b"From: Bloomberg <noreply@news.bloomberg.com>\r\n"
+             b"Subject: 5 Things to Start Your Day\r\n"
+             b"Content-Type: text/plain\r\n\r\n"
+             + b"Central banks in focus this week as the Fed weighs its next move. " * 5)
+    item = email_ingest.parse_message(raw_b)
+    assert item and item["domain"] == "newsletter:Bloomberg" and item["display"] is False
+    raw_i = (b"From: ING THINK <newsletter@economics.ingthink.com>\r\n"
+             b"Subject: Rates Spark: holding pattern\r\n"
+             b"Content-Type: text/plain\r\n\r\n"
+             + b"Bond markets drifted sideways as investors await the July decision. " * 5)
+    item2 = email_ingest.parse_message(raw_i)
+    assert item2 and item2["domain"] == "newsletter:ING THINK"
+
+
+# ------------------------------------------------------------- pdf ingestion ---
+
+def test_most_recent_weekday_math():
+    sun = datetime(2026, 7, 5, 12, tzinfo=_tz.utc)          # Sunday
+    assert pdf_ingest.most_recent(4, sun).strftime("%Y-%m-%d") == "2026-07-03"  # Friday
+    assert pdf_ingest.most_recent(0, sun).strftime("%Y-%m-%d") == "2026-06-29"  # Monday
+    fri = datetime(2026, 7, 3, 12, tzinfo=_tz.utc)
+    assert pdf_ingest.most_recent(4, fri) == fri            # Friday maps to itself
+
+
+def test_source_urls_templates_and_week_back():
+    t = datetime(2026, 7, 5, 12, tzinfo=_tz.utc)
+    gs = next(s for s in pdf_ingest.PDF_SOURCES if s["label"].startswith("GS"))
+    urls = pdf_ingest.source_urls(gs, t)
+    assert "2026/market_monitor_070326.pdf" in urls[0]
+    assert "market_monitor_062626.pdf" in urls[1]           # one week back retry
+    bofa = next(s for s in pdf_ingest.PDF_SOURCES if s["label"].startswith("BofA"))
+    urls = pdf_ingest.source_urls(bofa, t)
+    assert "CMO_Institutional_06-29-2026_ada.pdf" in urls[0]
+    assert "CMO_Institutional_06-22-2026_ada.pdf" in urls[1]
+    jpm = next(s for s in pdf_ingest.PDF_SOURCES if s["dated"] is None)
+    assert pdf_ingest.source_urls(jpm, t) == [jpm["url"]]   # static, no retry
+
+
+def test_strip_disclaimers_drops_boilerplate():
+    text = ("The Fed held rates steady in June as inflation cooled.\n"
+            "Past performance is not indicative of future results.\n"
+            "This is not a solicitation to buy securities.\n"
+            "© 2026 J.P. Morgan. All rights reserved.\n"
+            "Growth surprised to the upside in the second quarter.")
+    out = pdf_ingest.strip_disclaimers(text)
+    assert "Fed held rates" in out and "Growth surprised" in out
+    assert "Past performance" not in out and "solicitation" not in out
+    assert "rights reserved" not in out
+
+
+def test_fetch_pdf_reports_degrades_and_caches(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(pdf_ingest, "CACHE_DIR", tmp_path)
+    good = {"title": "JPM Weekly Market Recap — week of 2026-07-05",
+            "seendate": "20260705T120000Z", "domain": "am.jpmorgan.com",
+            "url": "https://x", "trail": "t", "lede": "l", "last_para": "",
+            "scan_text": "federal reserve outlook", "macro": True}
+    monkeypatch.setattr(pdf_ingest, "_fetch_one",
+                        lambda src, t: good if src["label"].startswith("JPM Weekly Market") else None)
+    items = pdf_ingest.fetch_pdf_reports("2026-07-05")
+    assert items == [good]
+    assert "degraded silently" in capsys.readouterr().out
+    # second call comes from the day cache (fetcher would now raise)
+    monkeypatch.setattr(pdf_ingest, "_fetch_one",
+                        lambda src, t: (_ for _ in ()).throw(RuntimeError("no fetch")))
+    assert pdf_ingest.fetch_pdf_reports("2026-07-05") == [good]
+
+
+def test_keyword_filter_matches_pdf_scan_text():
+    start = datetime(2026, 7, 1, tzinfo=_tz.utc)
+    end = datetime(2026, 7, 6, tzinfo=_tz.utc)
+    items = [{"title": "GS Weekly Market Monitor — week of 2026-07-03",
+              "seendate": "20260703T120000Z", "trail": "", "lede": "",
+              "scan_text": "page three discusses the federal reserve path"}]
+    out = feeds_mod._keyword_filter(items, "\"federal reserve\"", ["federal reserve"],
+                                    start, end)
+    assert len(out) == 1
+
+
+def test_packet_includes_pdf_slot(monkeypatch):
+    monkeypatch.setattr(feeds_mod, "guardian_search", lambda *a, **k: [
+        {"title": f"Fed story {i}", "seendate": "20260705T090000Z",
+         "domain": "theguardian.com", "url": "https://g", "trail": "federal reserve",
+         "lede": "", "last_para": ""} for i in range(6)])
+    monkeypatch.setattr(feeds_mod, "wp_day_bullets", lambda d: [])
+    pdfs = [{"title": "JPM Weekly Market Recap — week of 2026-07-05",
+             "seendate": "20260705T120000Z", "domain": "am.jpmorgan.com",
+             "url": "https://jpm", "trail": "", "lede": "",
+             "scan_text": "the federal reserve held rates", "macro": True}]
+    pkt = feeds_mod.build_packet(
+        "m", {"guardian_q": "\"federal reserve\"", "wp_keys": ["federal reserve"]},
+        now=datetime(2026, 7, 5, 12, tzinfo=_tz.utc), pdf_items=pdfs)
+    titles = [a["title"] for a in pkt["articles"]]
+    assert any(t.startswith("JPM Weekly") for t in titles)
+    assert "pdf" in pkt["source"]
+
+
+# --------------------------------------------------------- provider selection --
+
+def test_pick_provider_explicit_and_auto(monkeypatch):
+    monkeypatch.setenv(features.PROVIDER_ENV, "gemini")
+    assert features.pick_provider() == "gemini"
+    monkeypatch.setenv(features.PROVIDER_ENV, "oob")
+    assert features.pick_provider() is None
+    monkeypatch.delenv(features.PROVIDER_ENV, raising=False)
+    monkeypatch.delenv(features.ANTHROPIC_KEY_ENV, raising=False)
+    monkeypatch.delenv(features.GEMINI_KEY_ENV, raising=False)
+    assert features.pick_provider() is None
+    monkeypatch.setenv(features.GEMINI_KEY_ENV, "k")
+    assert features.pick_provider() == "gemini"
+    monkeypatch.setenv(features.ANTHROPIC_KEY_ENV, "k")
+    assert features.pick_provider() == "anthropic"   # anthropic wins in auto
+
+
+def test_match_rows_by_id_and_order():
+    chunk = [{"cache_key": "k1"}, {"cache_key": "k2"}]
+    rows = [{"id": "k2", "relevance": 1}, {"id": "k1", "relevance": 0}]
+    out = features._match_rows(chunk, rows)
+    assert out["k1"]["relevance"] == 0 and out["k2"]["relevance"] == 1
+    # order-only fallback (no ids)
+    out2 = features._match_rows(chunk, [{"relevance": 5}, {"relevance": 6}])
+    assert out2["k1"]["relevance"] == 5 and out2["k2"]["relevance"] == 6
+
+
+def test_extract_via_api_gemini_needs_key(monkeypatch):
+    monkeypatch.delenv(features.GEMINI_KEY_ENV, raising=False)
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
+        features.extract_via_api("q", "c", [{"cache_key": "k", "text": "t"}],
+                                 provider="gemini")
+
+
+# ------------------------------------------------------------- market tagging --
+
+def test_tract_tagging():
+    fed = "will-there-be-no-change-in-fed-interest-rates-after-the-july-2026-meeting"
+    assert na_config.tract(fed) == "data"
+    assert na_config.tract("putin-out-before-2027") == "news"
+    assert all(s in na_config.LIVE_MARKETS for s in na_config.DATA_DRIVEN)
+
+
+# --------------------------------------------------------- bias breakdown ------
+
+def test_source_bias_breakdown_groups_and_sentence():
+    rows = [
+        {"features": F(stance="toward_yes"), "source_w": 1.0,
+         "article": {"domain": "theguardian.com"}},
+        {"features": F(stance="toward_yes"), "source_w": 0.3,
+         "article": {"domain": "someblog.example"}},
+        {"features": F(stance="toward_no"), "source_w": 1.0,
+         "article": {"domain": "bbc.co.uk"}},
+        {"features": F(stance="neutral"), "source_w": 1.0,
+         "article": {"domain": "news.sky.com"}},
+        {"features": F(stance="toward_no"), "source_w": 0.0,
+         "article": {"domain": "badnews.example"}},
+        {"features": F(relevance=0.1), "source_w": 1.0,
+         "article": {"domain": "thehill.com"}},           # irrelevant: ignored
+    ]
+    b = fvmodel.source_bias_breakdown(rows)
+    assert b["n_yes"] == 2 and b["n_no"] == 1 and b["n_neutral"] == 1
+    assert b["n_zero_weight"] == 1
+    assert "higher-reliability" in b["yes_tiers"] and "more-biased/unreliable" in b["yes_tiers"]
+    assert "2 items leaned YES" in b["sentence"] and "1 leaned NO" in b["sentence"]
+    assert "blocklisted" in b["sentence"]
+
+
+def test_source_bias_breakdown_newsletter_generic_label():
+    rows = [{"features": F(stance="toward_yes"), "source_w": 1.0,
+             "article": {"domain": "newsletter:ING THINK"}}]
+    b = fvmodel.source_bias_breakdown(rows)
+    label = b["yes_tiers"]["higher-reliability"][0][0]
+    assert label == "ING THINK (newsletter)"
+
+
+def test_source_bias_breakdown_no_evidence():
+    b = fvmodel.source_bias_breakdown([])
+    assert b["n_yes"] == 0 and "prior" in b["sentence"]
+
+
+# --------------------------------------------------------- dashboard v3.1 UX ---
+
+def _snapshot31(slug="m1", fv=40.0, mid=0.30, flag=False, tract="news",
+                with_newsletter=False):
+    s = _snapshot(slug=slug, fv=fv, mid=mid, flag=flag)
+    s["stage_b"]["tract"] = tract
+    s["stage_b"]["tract_note"] = ("Rate decisions are priced off futures."
+                                  if tract == "data" else "")
+    s["stage_b"]["bias"] = fvmodel.source_bias_breakdown(
+        [{"features": F(stance="toward_yes"), "source_w": 1.0,
+          "article": {"domain": "theguardian.com"}}])
+    if with_newsletter:
+        s["packet"]["articles"].append(
+            {"title": "ZQX-SECRET newsletter headline", "domain": "newsletter:ING THINK",
+             "seendate": "20260705", "url": "", "display": False})
+        s["stage_b"]["breakdown"]["articles"].append(
+            {"title": "ZQX-SECRET newsletter headline", "domain": "newsletter:ING THINK",
+             "c": 0.4, "pp_effect": 4.0})
+    return s
+
+
+def test_showcase_filters_private_items():
+    sc = dashboard.build_showcase([_snapshot31(with_newsletter=True)], _series())
+    card = sc["markets"][0]
+    assert card["n_private_items"] == 1
+    assert all("ZQX-SECRET" not in e["title"] for e in card["evidence"])
+
+
+def test_html_newsletter_privacy_end_to_end():
+    sc = dashboard.build_showcase([_snapshot31(with_newsletter=True)], _series())
+    out = dashboard.render_html(sc)
+    assert "ZQX-SECRET" not in out
+    assert "newsletter:" not in out            # raw domain tag never reaches the page
+    assert "private analysis item" in out      # generic label shown instead
+
+
+def test_html_v31_ux_elements():
+    sc = dashboard.build_showcase(
+        [_snapshot31(slug=f"m{i}", flag=(i == 0)) for i in range(3)], _series())
+    out = dashboard.render_html(sc)
+    assert "cardcols" in out                   # 2-column card layout
+    assert "choose markets" in out and "DEFAULT_VISIBLE" in out
+    assert "flags only" in out and "show all" in out
+    assert 'data-flag="1"' in out
+    assert "toggleCard" in out and "revealCard" in out
+    assert "<script src" not in out            # still self-contained
+
+
+def test_html_flagged_expanded_others_collapsed():
+    sc = dashboard.build_showcase(
+        [_snapshot31(slug="mflag", flag=True), _snapshot31(slug="mquiet", flag=False)],
+        _series())
+    out = dashboard.render_html(sc)
+    quiet = out[out.index('id="card-mquiet"') - 200: out.index('id="card-mquiet"')]
+    flagged = out[out.index('id="card-mflag"') - 200: out.index('id="card-mflag"')]
+    assert "collapsed" in quiet and "collapsed" not in flagged
+
+
+def test_html_tract_note_on_data_market():
+    sc = dashboard.build_showcase([_snapshot31(tract="data")], _series())
+    out = dashboard.render_html(sc)
+    assert "not news-tractable" in out and "structurally blind" in out
+    assert "◆ data-driven" in out
+
+
+def test_html_bias_explainer_rendered():
+    sc = dashboard.build_showcase([_snapshot31()], _series())
+    out = dashboard.render_html(sc)
+    assert "how the number formed" in out
+    assert "leaned YES" in out

@@ -189,20 +189,15 @@ def fair_value(p0_pct: float, a_state: float, alpha: float,
     return min(99.0, max(1.0, fv))
 
 
-def band_half_pp(feats_72h: list[dict], mtype: str, params: dict) -> float:
-    """Band half-width in pp (v3):
+def band_components(feats_72h: list[dict]) -> dict:
+    """Reliability-weighted band inputs over the relevant 72h articles.
 
-        half = floor + band_mult * (18*dispersion + 8*(1-clarity) - 1.5*min(n_rel,6))
-
-    dispersion = RELIABILITY-WEIGHTED population std of signed unit contributions
-    (phase*strength*dir) across relevant articles, weights = Scheme-A source_w —
-    reliable sources disagreeing widens the band; reliable sources concurring
-    narrows it; zero-weight (blocklisted) sources cannot move it. clarity = the
-    same-weighted mean of the Stage-A per-article clarity field — ambiguous
-    coverage widens. <2 weighted relevant articles = uninformed defaults
-    (dispersion 0.5, clarity 0.5). Magnitudes DECLARED; band_mult is the single
-    coverage-calibration knob."""
-    floor = params["floor_pp"].get(mtype, params["floor_pp"]["shock"])
+    disp = weighted population std of signed unit contributions (phase*strength*dir),
+    weights = Scheme-A source_w; clarity = same-weighted mean of the Stage-A clarity
+    field; n_rel = count of weighted relevant articles. <2 weighted relevant
+    articles = uninformed defaults (disp 0.5, clarity 0.5). `raw` is the
+    band_mult-scalable term so callers can grid band_mult without re-deriving:
+    half = clamp(floor + band_mult * raw, floor, BAND_CAP_PP)."""
     rows = [(PHASE_W[f["features"]["event_phase"]] * f["features"]["strength"]
              * DIR[f["features"]["stance"]],
              f["features"].get("clarity", 0.5),
@@ -219,8 +214,24 @@ def band_half_pp(feats_72h: list[dict], mtype: str, params: dict) -> float:
         disp = math.sqrt(sum(w * (u - mean) ** 2 for u, _, w in rows) / w_sum)
         clarity = sum(c * w for _, c, w in rows) / w_sum
         n_rel = len(rows)
+    return {"disp": disp, "clarity": clarity, "n_rel": n_rel,
+            "raw": 18.0 * disp + 8.0 * (1.0 - clarity) - 1.5 * min(n_rel, 6)}
+
+
+def band_half_pp(feats_72h: list[dict], mtype: str, params: dict) -> float:
+    """Band half-width in pp (v3):
+
+        half = floor + band_mult * (18*dispersion + 8*(1-clarity) - 1.5*min(n_rel,6))
+
+    dispersion = RELIABILITY-WEIGHTED cross-source disagreement (Scheme-A weights)
+    — reliable sources disagreeing widens the band; reliable sources concurring
+    narrows it; zero-weight (blocklisted) sources cannot move it; low weighted
+    clarity widens. Magnitudes DECLARED; band_mult is the single
+    coverage-calibration knob (see band_components)."""
+    floor = params["floor_pp"].get(mtype, params["floor_pp"]["shock"])
+    comp = band_components(feats_72h)
     mult = params.get("band_mult", 1.0)
-    half = floor + mult * (18.0 * disp + 8.0 * (1.0 - clarity) - 1.5 * min(n_rel, 6))
+    half = floor + mult * comp["raw"]
     return round(min(BAND_CAP_PP, max(floor, half)), 1)
 
 
@@ -245,6 +256,87 @@ def divergence_flag(fv_pct: float, mid_pct: float, half_pp: float, n_rel: int,
             "flag": abs(gap) >= gap_min_pp and half_pp <= half_max_pp and n_rel >= n_rel_min,
             "rule": f"|gap|>={gap_min_pp:g}pp AND band half<={half_max_pp:g}pp "
                     f"AND >= {n_rel_min} relevant articles/72h"}
+
+
+def _reliability_tier(w: float) -> str:
+    """Scheme-A weight -> human tier label for the public bias explainer."""
+    if w >= 0.9:
+        return "higher-reliability"
+    if w >= 0.5:
+        return "mid-reliability"
+    return "more-biased/unreliable"
+
+
+def _source_label(domain: str) -> str:
+    """Public-safe source name: newsletters show their generic label only
+    (never title/text/link — the v3 privacy rule)."""
+    d = domain or "unknown"
+    if d.startswith("newsletter:"):
+        return d.split(":", 1)[1].strip() + " (newsletter)"
+    return d
+
+
+def source_bias_breakdown(feats_72h: list[dict]) -> dict:
+    """Ratings explainer (v3.1): how the number formed, by source lean and bias mix.
+
+    Over the RELEVANT articles in the 72h window (relevance >= RELEVANT_MIN),
+    group directional items by stance, then by Scheme-A reliability tier
+    (higher-reliability w>=0.9 / mid 0.5-0.9 / more-biased <0.5). Zero-weight
+    (blocklisted) items are counted separately — they carry no weight in the
+    number by construction. The sentence is the public one-line read; the tier
+    lists feed the per-market table."""
+    yes: dict[str, dict[str, int]] = {}
+    no: dict[str, dict[str, int]] = {}
+    n_yes = n_no = n_neutral = n_zero = 0
+    for r in feats_72h:
+        f = r.get("features")
+        if not f or f["relevance"] < RELEVANT_MIN:
+            continue
+        w = r.get("source_w", SOURCE_W_DEFAULT)
+        if w <= 0:
+            n_zero += 1
+            continue
+        if f["stance"] == "neutral":
+            n_neutral += 1
+            continue
+        group = yes if f["stance"] == "toward_yes" else no
+        if f["stance"] == "toward_yes":
+            n_yes += 1
+        else:
+            n_no += 1
+        tier = _reliability_tier(w)
+        label = _source_label(r.get("article", {}).get("domain", ""))
+        group.setdefault(tier, {})
+        group[tier][label] = group[tier].get(label, 0) + 1
+
+    def _fmt(group: dict[str, dict[str, int]]) -> str:
+        parts = []
+        for tier in ("higher-reliability", "mid-reliability", "more-biased/unreliable"):
+            if tier not in group:
+                continue
+            srcs = ", ".join(f"{s} ×{k}" if k > 1 else s
+                             for s, k in sorted(group[tier].items()))
+            parts.append(f"{tier}: {srcs}")
+        return "; ".join(parts)
+
+    bits = []
+    if n_yes:
+        bits.append(f"{n_yes} item{'s' if n_yes != 1 else ''} leaned YES ({_fmt(yes)})")
+    if n_no:
+        bits.append(f"{n_no} leaned NO ({_fmt(no)})" if bits else
+                    f"{n_no} item{'s' if n_no != 1 else ''} leaned NO ({_fmt(no)})")
+    if not bits:
+        bits.append("no directional evidence in the window — the number rides the "
+                    "prior and decayed carry")
+    if n_neutral:
+        bits.append(f"{n_neutral} relevant but neutral")
+    if n_zero:
+        bits.append(f"{n_zero} blocklisted-source item{'s' if n_zero != 1 else ''} "
+                    "carried zero weight")
+    return {"n_yes": n_yes, "n_no": n_no, "n_neutral": n_neutral, "n_zero_weight": n_zero,
+            "yes_tiers": {t: sorted(d.items()) for t, d in yes.items()},
+            "no_tiers": {t: sorted(d.items()) for t, d in no.items()},
+            "sentence": "; ".join(bits) + "."}
 
 
 def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list[dict],

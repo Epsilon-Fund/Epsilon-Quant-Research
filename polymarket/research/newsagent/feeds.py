@@ -226,7 +226,10 @@ def wp_day_bullets(day: datetime) -> list[str]:
 
 def _keyword_filter(items: list[dict], query: str, keys: list[str],
                     start: datetime, end: datetime) -> list[dict]:
-    """Window + keyword filter for broad-source items (RSS/newsletters)."""
+    """Window + keyword filter for broad-source items (RSS/newsletters/PDFs).
+
+    scan_text is an INTERNAL-only match surface (macro PDFs put their stripped
+    body text there so a Fed mention on page 3 still matches a rates market)."""
     lo, hi = start.strftime("%Y%m%dT%H%M%SZ"), end.strftime("%Y%m%dT%H%M%SZ")
     ranked = relevance_rank(items, query, keys)
     out = []
@@ -234,7 +237,8 @@ def _keyword_filter(items: list[dict], query: str, keys: list[str],
         sd = a.get("seendate", "")
         if sd and not (lo <= sd <= hi):
             continue
-        text = " ".join([a.get("title", ""), a.get("trail", ""), a.get("lede", "")]).lower()
+        text = " ".join([a.get("title", ""), a.get("trail", ""), a.get("lede", ""),
+                         a.get("scan_text", "")]).lower()
         if not any(k.lower() in text for k in keys):
             continue
         out.append(a)
@@ -243,17 +247,19 @@ def _keyword_filter(items: list[dict], query: str, keys: list[str],
 
 def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: int = 12,
                  rss_items: list[dict] | None = None,
-                 newsletter_items: list[dict] | None = None) -> dict:
+                 newsletter_items: list[dict] | None = None,
+                 pdf_items: list[dict] | None = None) -> dict:
     """Packet = newsletters (analysis-grade, Stage-A-only, never displayed) +
-    relevance-ranked Guardian items (title + trail + lede + last paragraph,
-    internal-only text) + keyword-matched RSS headlines + Wikipedia Current Events
-    bullets, deduped cross-source by normalized-title hash.
+    macro-research PDFs (public URLs; body internal-only, evidence feed shows
+    headline+source+link) + relevance-ranked Guardian items (title + trail +
+    lede + last paragraph, internal-only text) + keyword-matched RSS headlines +
+    Wikipedia Current Events bullets, deduped cross-source by normalized-title hash.
 
-    Per-slot caps (of max_items=12): newsletters <=2, Guardian <=6, RSS <=4,
-    WP fills the remainder. `now` in the past reconstructs a lookahead-free
-    HISTORICAL packet from Guardian+WP only — RSS/newsletters are live-only
-    sources (feeds carry current state; no timestamped archive), so they are
-    excluded from any reconstruction by construction."""
+    Per-slot caps (of max_items=12): newsletters <=2, PDFs <=2, Guardian <=6,
+    RSS <=4, WP fills the remainder. `now` in the past reconstructs a
+    lookahead-free HISTORICAL packet from Guardian+WP only — RSS/newsletters/PDFs
+    are live-only sources (feeds carry current state; no timestamped archive),
+    so they are excluded from any reconstruction by construction."""
     t = now or datetime.now(timezone.utc)
     g_items = guardian_search(cfg["guardian_q"], t - timedelta(hours=72), t)
     window = "72h"
@@ -269,6 +275,10 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
                               win_start, t)
     nl_sel = _keyword_filter(newsletter_items or [], cfg["guardian_q"], cfg["wp_keys"],
                              win_start, t)
+    # weekly reports live longer than the 72h news window: match on keywords only,
+    # windowed to 8 days so a Friday report still serves the following week
+    pdf_sel = _keyword_filter(pdf_items or [], cfg["guardian_q"], cfg["wp_keys"],
+                              t - timedelta(days=8), t)
 
     lookback = 3 if window == "72h" else 7
     wp_items = []
@@ -279,7 +289,7 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
                 wp_items.append({"title": b[:200], "seendate": day.strftime("%Y%m%dT235900Z"),
                                  "domain": "en.wikipedia.org (Current events)"})
     seen, items = set(), []
-    for a in nl_sel[:2] + g_items[:6] + rss_sel[:4] + wp_items[-4:]:
+    for a in nl_sel[:2] + pdf_sel[:2] + g_items[:6] + rss_sel[:4] + wp_items[-4:]:
         key = title_hash(a.get("title", ""))
         if key in seen or not a.get("title"):
             continue
@@ -289,7 +299,7 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
             break
     return {"slug": slug, "asof": t.isoformat(), "query": cfg["guardian_q"],
             "wp_keys": cfg["wp_keys"], "window": window,
-            "source": "newsletters+guardian+rss+wp" if (nl_sel or rss_sel)
+            "source": "newsletters+pdf+guardian+rss+wp" if (nl_sel or rss_sel or pdf_sel)
                       else "guardian+wp_currentevents",
             "articles": items}
 

@@ -9,7 +9,12 @@ extracted once per market. Daily runs therefore only pay for genuinely new artic
 Execution paths (mirrors engine.py):
   1. Anthropic API with a CHEAP model (claude-haiku-4-5) — one batched call per
      pending group of <=BATCH articles for the same market.
-  2. Out-of-band: `pending_extractions()` emits a JSON work list; an operator or
+  2. Gemini 2.5 Flash (v3.1, PROVIDER FLAG — free tier keeps the round zero-cost):
+     same prompt/validation, selected via NEWSAGENT_EXTRACT_PROVIDER=gemini or
+     --provider gemini; needs GEMINI_API_KEY. CAVEAT: alpha was fit on
+     Haiku-era extraction — spot-check Gemini features against the existing
+     cache (scripts/newsagent_provider_spotcheck.py) before leaning on it.
+  3. Out-of-band: `pending_extractions()` emits a JSON work list; an operator or
      Claude Code subagents produce {cache_key: features} and `ingest_features()`
      validates + writes the cache. No API key needed.
 
@@ -29,6 +34,9 @@ from .config import DATA, ANTHROPIC_KEY_ENV
 
 CACHE_DIR = DATA / "feature_cache"
 EXTRACT_MODEL = "claude-haiku-4-5"
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_KEY_ENV = "GEMINI_API_KEY"
+PROVIDER_ENV = "NEWSAGENT_EXTRACT_PROVIDER"   # anthropic | gemini | oob (unset = auto)
 BATCH = 12  # articles per extraction call (batched for cost; schema stays per-article)
 # Prompt semantics version — part of the cache key, so a semantics change invalidates
 # old records instead of silently mixing definitions. v2: stance = probability-impact
@@ -151,35 +159,95 @@ def _parse_array(text: str) -> list[dict]:
     return json.loads(m.group(0))
 
 
-def extract_via_api(question: str, criteria: str, pending: list[dict],
-                    model: str = EXTRACT_MODEL) -> int:
-    """API path: batched Haiku extraction for one market's pending articles."""
+def _match_rows(chunk: list[dict], rows: list[dict]) -> dict[str, dict]:
+    """Model reply rows -> {cache_key: raw features}; tolerates order-only replies."""
+    by_id = {r.get("id"): r for r in rows if isinstance(r, dict)}
+    out = {}
+    for idx, p in enumerate(chunk):
+        r = by_id.get(p["cache_key"])
+        if r is None and idx < len(rows):
+            r = rows[idx]
+        if r is not None:
+            out[p["cache_key"]] = r
+    return out
+
+
+def _anthropic_rows(question: str, criteria: str, chunk: list[dict],
+                    model: str) -> dict[str, dict]:
     key = os.environ.get(ANTHROPIC_KEY_ENV, "").strip()
-    if not key:
-        raise RuntimeError(
-            f"{ANTHROPIC_KEY_ENV} not set — use the out-of-band path: --stage extract "
-            "writes extract_pending.json; ingest results with --features-file.")
+    prompt = build_extraction_prompt(question, criteria, chunk)
+    body = json.dumps({"model": model, "max_tokens": 4096,
+                       "messages": [{"role": "user", "content": prompt}]}).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages", data=body, method="POST",
+        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                 "content-type": "application/json"})
+    resp = json.loads(urllib.request.urlopen(req, timeout=120).read())
+    rows = _parse_array("".join(b.get("text", "") for b in resp.get("content", [])))
+    return _match_rows(chunk, rows)
+
+
+def _gemini_rows(question: str, criteria: str, chunk: list[dict],
+                 model: str) -> dict[str, dict]:
+    """Same prompt/output contract as the Anthropic path, via the Generative
+    Language REST API (stdlib only)."""
+    key = os.environ.get(GEMINI_KEY_ENV, "").strip()
+    prompt = build_extraction_prompt(question, criteria, chunk)
+    body = json.dumps({"contents": [{"parts": [{"text": prompt}]}],
+                       "generationConfig": {"temperature": 0.0,
+                                            "maxOutputTokens": 8192}}).encode()
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=body, method="POST",
+        headers={"x-goog-api-key": key, "content-type": "application/json"})
+    resp = json.loads(urllib.request.urlopen(req, timeout=120).read())
+    text = "".join(p.get("text", "")
+                   for c in resp.get("candidates", [])[:1]
+                   for p in (c.get("content") or {}).get("parts", []) or [])
+    rows = _parse_array(text)
+    return _match_rows(chunk, rows)
+
+
+def pick_provider() -> str | None:
+    """Extraction provider: explicit NEWSAGENT_EXTRACT_PROVIDER wins; otherwise
+    auto — anthropic if its key is set, then gemini, else None (out-of-band)."""
+    explicit = os.environ.get(PROVIDER_ENV, "").strip().lower()
+    if explicit == "oob":
+        return None
+    if explicit in ("anthropic", "gemini"):
+        return explicit
+    if os.environ.get(ANTHROPIC_KEY_ENV, "").strip():
+        return "anthropic"
+    if os.environ.get(GEMINI_KEY_ENV, "").strip():
+        return "gemini"
+    return None
+
+
+def extract_via_api(question: str, criteria: str, pending: list[dict],
+                    model: str | None = None, provider: str = "anthropic") -> int:
+    """API path: batched cheap-model extraction for one market's pending articles.
+
+    provider "anthropic" (Haiku, the alpha-fit era default) or "gemini"
+    (2.5 Flash, v3.1 flag — spot-check against the Haiku cache before trusting)."""
+    if provider == "gemini":
+        if not os.environ.get(GEMINI_KEY_ENV, "").strip():
+            raise RuntimeError(f"{GEMINI_KEY_ENV} not set — Justin: export the free-tier "
+                               "Gemini key, or use the out-of-band path.")
+        model = model or GEMINI_MODEL
+        rows_fn = _gemini_rows
+    else:
+        if not os.environ.get(ANTHROPIC_KEY_ENV, "").strip():
+            raise RuntimeError(
+                f"{ANTHROPIC_KEY_ENV} not set — use the out-of-band path: --stage extract "
+                "writes extract_pending.json; ingest results with --features-file.")
+        model = model or EXTRACT_MODEL
+        rows_fn = _anthropic_rows
     n = 0
     for i in range(0, len(pending), BATCH):
         chunk = pending[i:i + BATCH]
-        prompt = build_extraction_prompt(question, criteria, chunk)
-        body = json.dumps({"model": model, "max_tokens": 4096,
-                           "messages": [{"role": "user", "content": prompt}]}).encode()
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages", data=body, method="POST",
-            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"})
-        resp = json.loads(urllib.request.urlopen(req, timeout=120).read())
-        rows = _parse_array("".join(b.get("text", "") for b in resp.get("content", [])))
-        by_id = {r.get("id"): r for r in rows if isinstance(r, dict)}
-        for p in chunk:
-            r = by_id.get(p["cache_key"])
-            if r is None:  # tolerate order-only replies
-                idx = chunk.index(p)
-                r = rows[idx] if idx < len(rows) else None
-            if r is not None:
-                write_cache(p["cache_key"], r, meta={"source": f"api:{model}"})
-                n += 1
+        for key2, raw in rows_fn(question, criteria, chunk, model).items():
+            write_cache(key2, raw, meta={"source": f"api:{model}"})
+            n += 1
     return n
 
 

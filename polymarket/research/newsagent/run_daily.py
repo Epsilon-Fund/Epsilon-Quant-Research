@@ -24,13 +24,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import (config, dashboard, email_ingest, engine, features, feeds, fvmodel,
-               gdelt_bq, ledger, sourceweights)
+               gdelt_bq, ledger, pdf_ingest, sourceweights)
 
 
 def _gdelt_burst(slug: str, date: str, series_all: dict) -> dict | None:
@@ -81,8 +80,10 @@ def stage_fetch(date: str) -> None:
     print(f"  rss: {len(rss_items)} items across the feed set")
     nl_ok, nl_why = email_ingest.available()
     nl_items = email_ingest.fetch_newsletters(day=date) if nl_ok else []
-    print(f"  newsletters: {len(nl_items)} items" if nl_ok
+    print(f"  newsletters: {len(nl_items)} items ({nl_why})" if nl_ok
           else f"  newsletters: skipped ({nl_why})")
+    pdf_items = pdf_ingest.fetch_pdf_reports(date)
+    print(f"  macro pdfs: {len(pdf_items)}/{len(pdf_ingest.PDF_SOURCES)} reports")
     for slug, cfg in config.LIVE_MARKETS.items():
         mkt = feeds.market_state(slug)
         if mkt["closed"]:
@@ -90,7 +91,7 @@ def stage_fetch(date: str) -> None:
                   "refresh the slate in config.py")
             continue
         packet = feeds.build_packet(slug, cfg, rss_items=rss_items,
-                                    newsletter_items=nl_items)
+                                    newsletter_items=nl_items, pdf_items=pdf_items)
         (d / f"{slug[:80]}.market.json").write_text(json.dumps(mkt, indent=1))
         (d / f"{slug[:80]}.packet.json").write_text(json.dumps(packet, indent=1))
         print(f"  {slug[:60]}  mid={mkt['mid']:.3f}  articles={len(packet['articles'])}")
@@ -127,7 +128,8 @@ def stage_onboard(date: str, priors_file: str | None) -> None:
           "--stage onboard --priors-file <raw.json>)")
 
 
-def stage_extract(date: str, features_file: str | None) -> None:
+def stage_extract(date: str, features_file: str | None,
+                  provider: str | None = None) -> None:
     d = day_dir(date)
     if features_file:
         done = json.loads(Path(features_file).read_text())
@@ -145,14 +147,18 @@ def stage_extract(date: str, features_file: str | None) -> None:
     if not pending_all:
         print("  nothing to extract — all articles cached")
         return
-    if os.environ.get(config.ANTHROPIC_KEY_ENV, "").strip():
+    prov = provider if provider not in (None, "auto") else features.pick_provider()
+    prov = None if prov == "oob" else prov
+    if prov:
         by_slug: dict[str, list] = {}
         for p in pending_all:
             by_slug.setdefault(p["slug"], []).append(p)
         n = 0
         for slug, pend in by_slug.items():
-            n += features.extract_via_api(pend[0]["question"], pend[0]["criteria"], pend)
-        print(f"  extracted {n} article features via API ({features.EXTRACT_MODEL})")
+            n += features.extract_via_api(pend[0]["question"], pend[0]["criteria"],
+                                          pend, provider=prov)
+        model = features.GEMINI_MODEL if prov == "gemini" else features.EXTRACT_MODEL
+        print(f"  extracted {n} article features via API ({model})")
     else:
         out = d / "extract_pending.json"
         out.write_text(json.dumps(pending_all, indent=1))
@@ -194,7 +200,10 @@ def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
             "band_hi_pct": round(min(99.0, fv + half), 1),
             "half_pp": half, "n_relevant": n_rel, "mtype": mtype,
             "A": round(nxt["A"], 4), "s_t": round(s_t, 3), "divergence": flag,
-            "gdelt": burst, "breakdown": bd, "missing_features": missing}
+            "gdelt": burst, "breakdown": bd, "missing_features": missing,
+            "bias": fvmodel.source_bias_breakdown(feats),
+            "tract": config.tract(slug),
+            "tract_note": config.DATA_DRIVEN.get(slug, "")}
 
 
 def stage_publish(date: str, write_ledger: bool) -> None:
@@ -221,7 +230,11 @@ def stage_publish(date: str, write_ledger: bool) -> None:
                   "(run --stage extract) — they contribute 0 evidence today")
         fc = {"p_pct": rec["fv_pct"], "band_lo_pct": rec["band_lo_pct"],
               "band_hi_pct": rec["band_hi_pct"]}
-        drivers = [a["title"] for a in rec["breakdown"]["articles"][:3]] or \
+        # drivers are public copy: newsletter items appear as their generic source
+        # label only (title/text/link never leave the internal packet)
+        drivers = [(fvmodel._source_label(a["domain"]) + " — private analysis item")
+                   if a.get("domain", "").startswith("newsletter:") else a["title"]
+                   for a in rec["breakdown"]["articles"][:3]] or \
                   [f"no new qualifying evidence; prior {rec['breakdown']['p0_pct']}% "
                    "with decayed carry"]
         sf_id = ledger.log_snapshot(mkt, fc, drivers) if write_ledger else ""
@@ -349,6 +362,10 @@ def main() -> None:
     ap.add_argument("--date", default=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     ap.add_argument("--features-file", default=None,
                     help="Stage-A features JSON produced out-of-band {cache_key: features}")
+    ap.add_argument("--provider", default="auto",
+                    choices=["auto", "anthropic", "gemini", "oob"],
+                    help="Stage-A extraction provider (auto = env keys decide; "
+                         "gemini = 2.5 Flash free tier; oob = write pending file)")
     ap.add_argument("--priors-file", default=None,
                     help="onboarding priors JSON {slug: {estimates_pct, drivers, ...}}")
     ap.add_argument("--days", type=int, default=14, help="backfill window length")
@@ -361,7 +378,7 @@ def main() -> None:
     if args.stage == "onboard" or (args.stage == "all" and args.priors_file):
         stage_onboard(args.date, args.priors_file)
     if args.stage in ("extract", "all"):
-        stage_extract(args.date, args.features_file)
+        stage_extract(args.date, args.features_file, args.provider)
     if args.stage == "backfill-fetch":
         stage_backfill_fetch(args.date, args.days)
     if args.stage == "backfill-compute":

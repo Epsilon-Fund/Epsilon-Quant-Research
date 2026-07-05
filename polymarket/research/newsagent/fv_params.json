@@ -1,5 +1,5 @@
 {
- "alpha": 1.8,
+ "alpha": 2.1,
  "lambda": {
   "slow": 0.9,
   "shock": 0.6
@@ -12,13 +12,14 @@
   "slow": 0.5,
   "shock": 0.0
  },
- "fitted_on": "v0_archive_2026-06",
- "n_pairs": 53,
- "n_markets": 9,
- "notes": "alpha+gamma grid-fit on v0-archive resolved outcomes (one geopolitically extreme month; refit as the forward ledger settles). lambda/floors declared, not fit; gamma=GDELT burst amplification (0 when series absent).",
+ "fitted_on": "v0_archive + hist_backfill (resolved >= 2026-02-15)",
+ "n_pairs": 355,
+ "n_markets": 49,
+ "notes": "alpha grid-fit on v0-archive + v3.1 historical-backfill resolved outcomes; band_mult set by the pre-registered bucket-coverage rescale on the backfill pairs. lambda/floors/gamma declared, not fit.",
  "gamma": 1.0,
  "shift_clip_logits": {
   "slow": 1.5,
   "shock": null
- }
+ },
+ "band_mult": 0.5
 }

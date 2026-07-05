@@ -27,16 +27,21 @@ the scheduler:
 
 ## Preconditions (in order)
 
-1. **Paid `ANTHROPIC_API_KEY`** — Stage-A extraction (cheap model, batched,
-   cached; steady-state ≈ tens of calls/day = pennies) + onboarding priors for
-   new markets. The API code paths exist (`features.extract_via_api`,
-   `engine.anthropic_forecast`) but have never been exercised against the live
-   API — verify once attended before trusting them unattended.
+1. **Extraction key** — Stage-A extraction (cheap model, batched, cached;
+   steady-state ≈ tens of calls/day). Two provider paths behind the v3.1 flag
+   (`--provider` / `NEWSAGENT_EXTRACT_PROVIDER`): paid `ANTHROPIC_API_KEY`
+   (Haiku — the alpha-fit-era default) or free-tier `GEMINI_API_KEY`
+   (2.5 Flash — run `scripts/newsagent_provider_spotcheck.py` against the Haiku
+   cache before trusting it; alpha rides on the Haiku-era feature distribution).
+   Both API code paths exist but have never been exercised against a live key —
+   verify once attended before trusting them unattended.
 2. `GUARDIAN_API_KEY` registered dev key (demo key in use).
 3. `GOOGLE_APPLICATION_CREDENTIALS` exported in the runner env (key already in
    `secrets/`, gitignored).
-4. Optional email credential for newsletter ingestion (`secrets/email_imap.json`,
-   read-only app password) — the pipeline degrades gracefully without it.
+4. Email credential for newsletter ingestion — **done since v3.1**: Gmail-API
+   OAuth read-only (`secrets/gmail_client_secret.json` + `gmail_token.json`,
+   consent minted 2026-07-05; refresh is automatic). The pipeline still degrades
+   gracefully if the token is revoked.
 5. IP-scrub re-check of the public artifacts once sources/markets change
    (`tests/test_newsagent_fv.py` carries the automated assertions).
 6. Website ingestion agreed with the site colleague (he owns UX; we hand him

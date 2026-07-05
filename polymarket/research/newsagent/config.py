@@ -34,6 +34,35 @@ DIVERGENCE_GAP_PP = 15.0
 DIVERGENCE_HALF_MAX_PP = 12.0
 DIVERGENCE_NREL_MIN = 5
 
+# v3.1 tractability tagging (Justin's call: keep ALL 24 markets, do NOT drop).
+# A market is DATA-DRIVEN when its dominant information channel is not news text:
+# rate decisions price off Fed-funds futures/options-implied odds; primary races
+# ride private/campaign polling. Our news-FV is structurally blind there — the
+# public page says so on those cards ("not news-tractable") and they stay scored
+# in public anyway (the honest-measurement point). Everything else = news-driven.
+# BACKLOG (revisit): restrict the news-FV universe to news-driven markets + add a
+# rates-via-options/futures econ track as a separate, labeled method.
+DATA_DRIVEN: dict[str, str] = {
+    "will-there-be-no-change-in-fed-interest-rates-after-the-july-2026-meeting":
+        "Rate decisions are priced off Fed-funds futures/options-implied odds; "
+        "news text adds little beyond what those markets already carry.",
+    "will-there-be-no-change-in-fed-interest-rates-after-the-september-2026-meeting-615":
+        "Rate decisions are priced off Fed-funds futures/options-implied odds; "
+        "news text adds little beyond what those markets already carry.",
+    "will-xavier-becerra-win-the-california-governor-election-in-2026":
+        "State-primary races move on private/campaign polling that never reaches "
+        "the news packet; the market carries polling information we cannot see.",
+    "billionaire-one-time-wealth-tax-passes-in-california-election-2026":
+        "Ballot-measure odds ride issue polling, not news coverage; our packet "
+        "sees the campaign noise, not the poll numbers.",
+}
+
+
+def tract(slug: str) -> str:
+    """news | data — v3.1 tractability tag (see DATA_DRIVEN above)."""
+    return "data" if slug in DATA_DRIVEN else "news"
+
+
 # slug -> retrieval config (guardian_q Guardian search syntax; wp_keys any-of filter;
 # gdelt_keys AND-substring match on GKG AllNames; mtype slow/shock; region display tag)
 # v3 slate (2026-07-05, discovery via scripts/newsagent_v3_universe.py): 24 markets,

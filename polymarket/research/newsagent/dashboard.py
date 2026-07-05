@@ -109,9 +109,14 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
     for s in snapshots:
         mkt, fc, sb = s["market"], s["forecast"], s.get("stage_b", {})
         div = sb.get("divergence", {})
+        # public evidence feed: display=False items (private newsletters) NEVER
+        # appear — only their count does. Everything shown is headline+source+link.
+        shown = [a for a in s["packet"]["articles"] if a.get("display", True)]
+        n_private = len(s["packet"]["articles"]) - len(shown)
         cards.append({
             "slug": mkt["slug"], "question": mkt["question"], "region": s.get("region", ""),
             "mtype": sb.get("mtype", ""), "deadline": mkt["end_date"][:10],
+            "tract": sb.get("tract", "news"), "tract_note": sb.get("tract_note", ""),
             "fv_pct": fc["p_pct"], "band": [fc["band_lo_pct"], fc["band_hi_pct"]],
             "market_pct": round(mkt["mid"] * 100, 1),
             "gap_pp": div.get("gap_pp", round(fc["p_pct"] - mkt["mid"] * 100, 1)),
@@ -121,13 +126,15 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
             "drivers": s.get("drivers", [])[:3],
             "gdelt": sb.get("gdelt"),
             "breakdown": sb.get("breakdown"),
+            "bias": sb.get("bias"),
             "evidence": [{"title": a["title"], "domain": a["domain"],
                           "seendate": a.get("seendate", ""), "url": a.get("url", "")}
-                         for a in s["packet"]["articles"]],
+                         for a in shown],
+            "n_private_items": n_private,
             "series": fv_series.get(mkt["slug"], []),
             "sf_id": s.get("sf_id", ""),
         })
-    cards.sort(key=lambda c: -abs(c["gap_pp"]))
+    cards.sort(key=lambda c: (not c["divergence_flag"], -abs(c["gap_pp"])))
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "framing": ("Epsilon Observatory — our independent fair value on liquid "
@@ -307,14 +314,19 @@ def _svg_sparkline(series: list[dict], w: int = 120, h: int = 26) -> str:
 
 def _overview_grid_html(cards: list[dict]) -> str:
     """All markets at a glance, ordered by the divergence layer (flags first, then
-    |gap|): FV + mid + gap + band + sparkline preview per row."""
+    |gap|): FV + mid + gap + band + sparkline preview per row. The question links
+    to the market card (revealing it if hidden); ◆ marks data-driven markets
+    (news-FV structurally blind — see the card note)."""
     rows = ""
     for c in sorted(cards, key=lambda x: (not x["divergence_flag"], -abs(x["gap_pp"]))):
         q = c["question"][:64] + ("…" if len(c["question"]) > 64 else "")
         gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
         flag = ' <span class="gflag">⚑</span>' if c["divergence_flag"] else ""
+        dmark = ' <span class="dmark" title="data-driven — not news-tractable">◆</span>' \
+            if c.get("tract") == "data" else ""
         rows += f"""<tr>
-<td class="gq">{html.escape(q)}{flag}</td>
+<td class="gq"><a class="qlink" href="#card-{html.escape(c["slug"])}"
+ onclick="revealCard('{html.escape(c["slug"])}')">{html.escape(q)}</a>{flag}{dmark}</td>
 <td class="mono acc">{c["fv_pct"]}%</td>
 <td class="mono">{c["market_pct"]}%</td>
 <td class="mono {gap_cls}">{c["gap_pp"]:+}</td>
@@ -360,14 +372,26 @@ def _svg_divergence(cards: list[dict], w: int = 660) -> str:
 
 # ------------------------------------------------------------------ HTML render --
 
+def _bd_row_public(a: dict) -> tuple[str, str]:
+    """Breakdown row -> (public domain label, public title). Private newsletter
+    items show their generic source label only — never title/text/link."""
+    dom = a.get("domain", "")
+    if dom.startswith("newsletter:"):
+        label = dom.split(":", 1)[1].strip()
+        return f"{label} (newsletter)", "private analysis item — not displayed"
+    return dom, a.get("title", "")
+
+
 def _breakdown_html(bd: dict | None) -> str:
     if not bd:
         return ""
-    steps = "".join(
-        f'<tr><td class="dom">{html.escape(a["domain"])}</td>'
-        f'<td>{html.escape(a["title"])}</td>'
-        f'<td class="mono {"pos" if a["pp_effect"] > 0 else "neg"}">{a["pp_effect"]:+.2f}pp</td></tr>'
-        for a in bd["articles"][:8])
+    steps = ""
+    for a in bd["articles"][:8]:
+        dom, title = _bd_row_public(a)
+        steps += (f'<tr><td class="dom">{html.escape(dom)}</td>'
+                  f'<td>{html.escape(title)}</td>'
+                  f'<td class="mono {"pos" if a["pp_effect"] > 0 else "neg"}">'
+                  f'{a["pp_effect"]:+.2f}pp</td></tr>')
     if not steps:
         steps = '<tr><td colspan="3" class="dim">no new qualifying evidence today</td></tr>'
     return f"""<div class="sub">fv construction (prior → evidence → number)</div>
@@ -390,42 +414,111 @@ def _gdelt_html(g: dict | None) -> str:
             f'transparency and is not wired into the number.</p>')
 
 
-def render_html(sc: dict) -> str:
-    cards = ""
-    for c in sc["markets"]:
-        drivers = "".join(f"<li>{html.escape(d)}</li>" for d in c["drivers"])
-        ev = "".join(
-            f'<li><span class="dom">{html.escape(e["domain"])}</span> '
-            + (f'<a href="{html.escape(e["url"])}" target="_blank" rel="noopener">' if e.get("url") else "")
-            + html.escape(e["title"]) + ("</a>" if e.get("url") else "")
-            + f' <span class="ts">{html.escape(e.get("seendate", "")[:8])}</span></li>'
-            for e in c["evidence"][:8])
-        gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
-        flag = (f'<span class="flag">⚑ divergence — high-confidence disagreement</span>'
-                if c["divergence_flag"] else "")
-        cards += f"""
-    <div class="card">
-      <div class="chip">{html.escape(c["region"])} · {html.escape(c["mtype"])} · closes {c["deadline"]}</div>
-      <div class="q">{html.escape(c["question"])}</div>
-      {flag}
-      <div class="nums">
-        <div class="gauge">{_svg_gauge(c["fv_pct"], c["band"][0], c["band"][1], c["market_pct"])}</div>
-        <div class="num"><div class="lbl">epsilon fv</div><div class="val acc">{c["fv_pct"]}%</div>
-          <div class="band">band {c["band"][0]}–{c["band"][1]}%</div></div>
-        <div class="num"><div class="lbl">market</div><div class="val">{c["market_pct"]}%</div>
-          <div class="band">Polymarket mid (context)</div></div>
-        <div class="num"><div class="lbl">gap</div><div class="val {gap_cls}">{c["gap_pp"]:+}pp</div>
-          <div class="band">fv − mid</div></div>
+def _bias_html(bias: dict | None) -> str:
+    """Ratings explainer: how the number formed from sources of differing bias."""
+    if not bias:
+        return ""
+    tier_rows = ""
+    for lean, tiers in (("YES", bias.get("yes_tiers", {})), ("NO", bias.get("no_tiers", {}))):
+        for tier, srcs in tiers.items():
+            names = ", ".join(f"{html.escape(s)} ×{k}" if k > 1 else html.escape(s)
+                              for s, k in srcs)
+            tier_rows += (f'<tr><td class="mono">{lean}</td>'
+                          f'<td class="dim">{html.escape(tier)}</td><td>{names}</td></tr>')
+    table = (f'<table class="bd"><tr><th>lean</th><th>reliability tier</th><th>sources</th></tr>'
+             f'{tier_rows}</table>') if tier_rows else ""
+    return (f'<div class="sub">how the number formed (source lean × reliability)</div>'
+            f'<p class="note" style="margin-top:.1rem">{html.escape(bias["sentence"])} '
+            f'Weights per the published Scheme-A table (Wikipedia RSP tiers + Iffy '
+            f'blocklist).</p>{table}')
+
+
+def _tract_html(c: dict) -> str:
+    if c.get("tract") != "data":
+        return ""
+    return (f'<div class="tractnote">◆ not news-tractable — our news-FV is structurally '
+            f'blind here. {html.escape(c.get("tract_note", ""))} Scored in public anyway; '
+            f'expect the market to carry information our packet cannot see.</div>')
+
+
+def _card_html(c: dict, expanded: bool) -> str:
+    drivers = "".join(f"<li>{html.escape(d)}</li>" for d in c["drivers"])
+    ev = "".join(
+        f'<li><span class="dom">{html.escape(e["domain"])}</span> '
+        + (f'<a href="{html.escape(e["url"])}" target="_blank" rel="noopener">' if e.get("url") else "")
+        + html.escape(e["title"]) + ("</a>" if e.get("url") else "")
+        + f' <span class="ts">{html.escape(e.get("seendate", "")[:8])}</span></li>'
+        for e in c["evidence"][:8])
+    if c.get("n_private_items"):
+        ev += (f'<li class="dim">+ {c["n_private_items"]} private analysis item'
+               f'{"s" if c["n_private_items"] != 1 else ""} (newsletters — used '
+               'internally, never displayed)</li>')
+    gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
+    flag = ('<span class="flag">⚑ divergence — high-confidence disagreement</span>'
+            if c["divergence_flag"] else "")
+    dchip = ' · <span class="dmark">◆ data-driven</span>' if c.get("tract") == "data" else ""
+    return f"""
+    <div class="card{'' if expanded else ' collapsed'}" id="card-{html.escape(c["slug"])}"
+         data-slug="{html.escape(c["slug"])}" data-flag="{1 if c["divergence_flag"] else 0}">
+      <div class="cardhead" onclick="toggleCard(this.parentElement)">
+        <div class="headleft">
+          <div class="chip">{html.escape(c["region"])} · {html.escape(c["mtype"])} · closes {c["deadline"]}{dchip}</div>
+          <div class="q">{html.escape(c["question"])}</div>
+        </div>
+        <div class="headnums mono">fv <span class="acc">{c["fv_pct"]}%</span>
+          <span class="dim">mid {c["market_pct"]}%</span>
+          <span class="{gap_cls}">{c["gap_pp"]:+}pp</span>
+          {'<span class="gflag">⚑</span>' if c["divergence_flag"] else ''}
+          <span class="caret">▾</span></div>
       </div>
-      <div class="chart">{_svg_series(c["series"])}</div>
-      <div class="analytical">
-        {_breakdown_html(c.get("breakdown"))}
-        {_gdelt_html(c.get("gdelt"))}
-        <div class="sub">cited drivers</div><ul>{drivers or "<li class='dim'>none today</li>"}</ul>
-        <div class="sub">evidence feed (what the extractor read — headline + link only)</div><ul class="ev">{ev}</ul>
-        <div class="sub">ledger {html.escape(c["sf_id"] or "—")} · 24h vol ${c["volume24h"]:,} · {c["n_relevant"]} relevant articles/72h</div>
+      <div class="cardbody">
+        {flag}
+        {_tract_html(c)}
+        <div class="cardcols">
+          <div class="colcharts">
+            <div class="nums">
+              <div class="gauge">{_svg_gauge(c["fv_pct"], c["band"][0], c["band"][1], c["market_pct"])}</div>
+              <div class="num"><div class="lbl">epsilon fv</div><div class="val acc">{c["fv_pct"]}%</div>
+                <div class="band">band {c["band"][0]}–{c["band"][1]}%</div></div>
+              <div class="num"><div class="lbl">market</div><div class="val">{c["market_pct"]}%</div>
+                <div class="band">mid (context)</div></div>
+              <div class="num"><div class="lbl">gap</div><div class="val {gap_cls}">{c["gap_pp"]:+}pp</div>
+                <div class="band">fv − mid</div></div>
+            </div>
+            <div class="chart">{_svg_series(c["series"], w=560)}</div>
+          </div>
+          <div class="colnews">
+            {_bias_html(c.get("bias"))}
+            <div class="sub">cited drivers</div><ul>{drivers or "<li class='dim'>none today</li>"}</ul>
+            <div class="sub">evidence feed (what the extractor read — headline + link only)</div><ul class="ev">{ev}</ul>
+          </div>
+        </div>
+        <div class="analytical">
+          {_breakdown_html(c.get("breakdown"))}
+          {_gdelt_html(c.get("gdelt"))}
+          <div class="sub">ledger {html.escape(c["sf_id"] or "—")} · 24h vol ${c["volume24h"]:,} · {c["n_relevant"]} relevant articles/72h</div>
+        </div>
       </div>
     </div>"""
+
+
+def render_html(sc: dict) -> str:
+    # default-visible subset: every flagged market + the top gaps, capped at 8 —
+    # the rest stay hidden behind "show all" / the picker (kills the long scroll)
+    ordered = sc["markets"]
+    default_visible = [c["slug"] for c in ordered if c["divergence_flag"]]
+    for c in ordered:
+        if len(default_visible) >= 8:
+            break
+        if c["slug"] not in default_visible:
+            default_visible.append(c["slug"])
+    cards = ""
+    for c in ordered:
+        cards += _card_html(c, expanded=bool(c["divergence_flag"]))
+    picker = "".join(
+        f'<label><input type="checkbox" data-slug="{html.escape(c["slug"])}" '
+        f'onchange="pickChanged()"> {html.escape(c["question"][:70])}</label>'
+        for c in ordered)
 
     bt_rows = "".join(
         f'<tr><td>{html.escape(b["label"])}</td><td class="mono">{b["n_pairs"]} pairs / {b["n_markets"]} mkts</td>'
@@ -460,18 +553,47 @@ def render_html(sc: dict) -> str:
              padding:.5rem 1.6rem; cursor:pointer; font:.72rem {SANS}; text-transform:uppercase;
              letter-spacing:.1em; transition:all 150ms ease; }}
   .toggle:hover, .toggle.on {{ background:{ACC}; color:{BG}; border-color:{ACC}; }}
-  .cards {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(500px,1fr)); gap:1.1rem; }}
-  @media (max-width:560px) {{ .cards {{ grid-template-columns:1fr; }} }}
-  .card {{ background:{PANEL}; border:1px solid {LINE}; border-radius:24px; padding:1.3rem 1.4rem;
+  .cards {{ display:grid; grid-template-columns:1fr; gap:1.1rem; }}
+  .card {{ background:{PANEL}; border:1px solid {LINE}; border-radius:24px; padding:1.1rem 1.4rem;
            transition:border-color 150ms ease; }}
   .card:hover {{ border-color:rgba(200,255,0,0.35); }}
+  .card.hiddencard {{ display:none; }}
+  .cardhead {{ display:flex; justify-content:space-between; gap:1rem; align-items:center;
+               cursor:pointer; }}
+  .headnums {{ white-space:nowrap; font-size:.95rem; display:flex; gap:.8rem; align-items:baseline; }}
+  .headnums .acc {{ color:{ACC}; font-weight:700; }}
+  .caret {{ color:{DIM}; transition:transform 150ms ease; display:inline-block; }}
+  .card.collapsed .caret {{ transform:rotate(-90deg); }}
+  .card.collapsed .cardbody {{ display:none; }}
+  .cardbody {{ margin-top:.9rem; }}
+  .cardcols {{ display:grid; grid-template-columns:1.05fr 0.95fr; gap:1.5rem; align-items:start; }}
+  @media (max-width:820px) {{ .cardcols {{ grid-template-columns:1fr; }}
+    .headnums {{ display:none; }} }}
+  .controls {{ display:flex; gap:.7rem; align-items:center; flex-wrap:wrap; margin:0 0 1rem; }}
+  .controls button {{ background:none; border:1px solid {LINE}; color:{DIM}; border-radius:999px;
+             padding:.35rem 1rem; cursor:pointer; font:.7rem {SANS}; text-transform:uppercase;
+             letter-spacing:.09em; transition:all 150ms ease; }}
+  .controls button:hover, .controls button.on {{ background:{ACC}; color:{BG}; border-color:{ACC}; }}
+  .picker summary {{ cursor:pointer; color:{DIM}; font-size:.7rem; text-transform:uppercase;
+                     letter-spacing:.09em; border:1px solid {LINE}; border-radius:999px;
+                     padding:.35rem 1rem; list-style:none; }}
+  .picker[open] summary {{ background:{PANEL2}; }}
+  .picklist {{ position:absolute; z-index:5; background:{PANEL2}; border:1px solid {LINE};
+               border-radius:14px; padding: .8rem 1rem; margin-top:.4rem; max-height:340px;
+               overflow-y:auto; display:flex; flex-direction:column; gap:.25rem; }}
+  .picklist label {{ font-size:.8rem; color:{TX}; cursor:pointer; }}
+  .picker {{ position:relative; }}
+  .tractnote {{ border:1px dashed {LINE}; border-radius:12px; color:{DIM}; font-size:.82rem;
+                padding:.6rem .9rem; margin-bottom:.8rem; }}
+  .dmark {{ color:{DIM}; }}
+  .qlink {{ color:{TX}; text-decoration:none; }} .qlink:hover {{ color:{ACC}; }}
   .chip {{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; }}
-  .q {{ font-family:{SERIF}; font-size:1.35rem; line-height:1.25; margin:.45rem 0 .8rem; min-height:2.4em; }}
+  .q {{ font-family:{SERIF}; font-size:1.3rem; line-height:1.25; margin:.35rem 0 .1rem; }}
   .flag {{ display:inline-block; color:{ACC}; border:1px solid rgba(200,255,0,.4); border-radius:999px;
            font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; padding:.2rem .7rem; margin-bottom:.7rem; }}
-  .nums {{ display:flex; gap:1.4rem; margin-bottom:.9rem; align-items:center; }}
-  .num {{ flex:1; }}
-  .gauge {{ flex:0 0 150px; }} .gauge svg {{ width:150px; height:auto; display:block; }}
+  .nums {{ display:flex; gap:1.1rem; margin-bottom:.9rem; align-items:center; flex-wrap:wrap; }}
+  .num {{ flex:1; min-width:88px; }}
+  .gauge {{ flex:0 0 130px; }} .gauge svg {{ width:130px; height:auto; display:block; }}
   table.grid td, table.grid th {{ padding:.32rem .55rem; font-size:.85rem; white-space:nowrap; }}
   table.grid th {{ font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; color:{DIM}; font-weight:500; }}
   .gq {{ white-space:normal !important; min-width:220px; }}
@@ -519,7 +641,68 @@ def render_html(sc: dict) -> str:
     <p class="note">{html.escape(sc["divergence_rule"])}</p>
   </div>
 
-  <div class="cards">{cards}</div>
+  <div class="controls">
+    <span class="mono dim" id="viscount"></span>
+    <button id="btn-default" onclick="showDefault()">default view</button>
+    <button id="btn-all" onclick="showAll()">show all</button>
+    <button id="btn-flags" onclick="showFlags()">flags only</button>
+    <details class="picker"><summary>choose markets</summary>
+      <div class="picklist">{picker}</div>
+    </details>
+    <span class="note" style="margin:0">cards ordered flags-first, then |gap|; click a
+    card header to expand/collapse; ◆ = data-driven (not news-tractable)</span>
+  </div>
+  <div class="cards" id="cards">{cards}</div>
+  <script>
+    var DEFAULT_VISIBLE = {json.dumps(default_visible)};
+    var ALL = Array.from(document.querySelectorAll('.card')).map(function(c) {{
+      return c.getAttribute('data-slug'); }});
+    function currentVisible() {{
+      try {{
+        var s = localStorage.getItem('obs_visible');
+        if (s) return JSON.parse(s);
+      }} catch (e) {{}}
+      return DEFAULT_VISIBLE;
+    }}
+    function apply(vis, persist) {{
+      document.querySelectorAll('.card').forEach(function(c) {{
+        c.classList.toggle('hiddencard', vis.indexOf(c.getAttribute('data-slug')) < 0);
+      }});
+      document.querySelectorAll('.picklist input').forEach(function(i) {{
+        i.checked = vis.indexOf(i.getAttribute('data-slug')) >= 0;
+      }});
+      document.getElementById('viscount').textContent =
+        'showing ' + vis.length + ' of ' + ALL.length;
+      if (persist) {{
+        try {{ localStorage.setItem('obs_visible', JSON.stringify(vis)); }} catch (e) {{}}
+      }}
+    }}
+    function showDefault() {{
+      try {{ localStorage.removeItem('obs_visible'); }} catch (e) {{}}
+      apply(DEFAULT_VISIBLE, false);
+    }}
+    function showAll() {{ apply(ALL, true); }}
+    function showFlags() {{
+      var f = Array.from(document.querySelectorAll('.card[data-flag="1"]')).map(function(c) {{
+        return c.getAttribute('data-slug'); }});
+      apply(f.length ? f : DEFAULT_VISIBLE, true);
+    }}
+    function pickChanged() {{
+      var vis = Array.from(document.querySelectorAll('.picklist input'))
+        .filter(function(i) {{ return i.checked; }})
+        .map(function(i) {{ return i.getAttribute('data-slug'); }});
+      apply(vis, true);
+    }}
+    function toggleCard(el) {{ el.classList.toggle('collapsed'); }}
+    function revealCard(slug) {{
+      var vis = currentVisible();
+      if (vis.indexOf(slug) < 0) {{ vis = vis.concat([slug]); }}
+      apply(vis, true);
+      var el = document.getElementById('card-' + slug);
+      if (el) {{ el.classList.remove('collapsed'); }}
+    }}
+    apply(currentVisible(), false);
+  </script>
 
   <div class="panel" style="margin-top:1.3rem"><h2>Honest scoreboard — retrospective gates (Brier, lower is better)</h2>
     <table><tr><th>experiment</th><th>sample</th><th>agent</th><th>market</th><th>verdict</th></tr>{bt_rows}</table>
