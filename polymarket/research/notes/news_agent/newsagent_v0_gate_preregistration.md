@@ -95,6 +95,22 @@ All computed on identical (market, snapshot) pairs; family-clustered bootstrap (
 
 **Lookahead note:** both replacement sources are time-stamped by construction (Guardian `webPublicationDate`; Wikipedia page-per-day), which is *stricter* than GDELT's sloppy end-bound (~24h leak, per the radar's live probes). Coverage caveat logged in the assumption ledger: Guardian is a single outlet (UK-slanted) and the WP portal is curated/coarse; v0 packets are therefore thinner than the intended v1 multi-source stream — a conservative bias for the gate (a pass on thin packets understates the shipped pipeline).
 
+## Amendment 2 — v0b redesigned forecaster (2026-07-05, locked BEFORE any v0b forecast was produced)
+
+**Standing-mandate note:** v0 STOPPED per the early-stop rule (see [[newsagent_v0_gate_findings]]); its failure stays on record everywhere. v0b is run under the thread's standing autonomous mandate. Anti-gate-shopping protections: this amendment is locked before any v0b call; the **metrics, bars, early-stop rule, falsifier trio, universe, snapshot dates, and news packets are ALL unchanged** — only the forecaster design changes, along exactly the two failure mechanisms diagnosed in v0. If v0b also fails the bars, the fair-value framing of the showcase is closed (no v0c).
+
+**Forecaster changes (the only changes):**
+
+1. **Prompt:** the blanket status-quo clause ("the world changes slowly; weight the status quo") is removed. Replaced by an evidence-weighting instruction: start from the outside-view base rate, then — if credible reporting indicates an imminent, in-progress, or completed qualifying event — the probability MUST move materially toward it, citing the driving headline; absent any signal, stay near the base rate.
+2. **Ensemble:** each (market, snapshot) call produces **5 perspective-diverse estimates** (base-rate anchor / evidence-forward / skeptic / reference-class / adversarial "why would the market disagree with me") listed in the output JSON. The published fair value is the **trimmed mean computed by the orchestrator** (drop min and max, average the middle 3 — never trusting agent arithmetic); the **80% band = [min, max] of the middle 3, widened to at least ±8pp** around the aggregate, clipped to [1, 99]. (True independent-sample ensembles à la Halawi are the v1-live upgrade; perspective diversity substitutes at gate cost.)
+3. **Contamination canaries rerun** (3, empty packets, new prompt) — pass condition unchanged: base-rate-ish output, wide band, no outcome knowledge.
+
+Isolation protocol unchanged: one Sonnet call per pair, single Read of its own prompt file, no other tools, no mid, no outcome, nothing after t.
+
+**Fairness note (declared before running):** v0b reuses the exact v0 packets, so any packet-level thinness penalty carries over unchanged — a pass cannot be attributed to easier evidence.
+
+Results: appended to [[newsagent_v0_gate_findings]] § v0b.
+
 ## Decision rule restated
 
 - PASS → v1: news-agent pipeline + append-only ledger (SF_BOOK=polymarket) + `calibrate` scoring + site-ready local dashboard.

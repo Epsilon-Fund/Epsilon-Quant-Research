@@ -116,6 +116,31 @@ One more cheap offline gate, changing exactly the diagnosed failure points, re-u
 4. **Same M1/M2 bars, same early-stop, same falsifier trio.** If v0b also fails M1/M2 → close the showcase-as-fair-value framing entirely and (optionally) pivot the public page to something our results *do* support (e.g. "market-implied odds explained, with news context" — display journalism, no fair-value claim).
 5. **Cost:** ~300 Sonnet samples ≈ small; zero new infra.
 
+## v0b — redesigned gate result (2026-07-05): early-stop fired AGAIN → fair-value framing CLOSED
+
+Amendment 2 in [[newsagent_v0_gate_preregistration]] locked the redesign before any v0b call: same universe, same packets, same bars, same falsifier trio; only the forecaster changed (status-quo clause → evidence-weighting instruction; 5 perspective-diverse estimates per call — base-rate / evidence-forward / skeptic / reference-class / adversarial — trimmed-mean aggregated by the orchestrator; band = mid-3 spread floored at ±8pp). Canaries rerun: **CLEAN** (empty packets → 3–6% base-rate estimates, `decisive_evidence: false`).
+
+| Metric (falsifier trio, 15 pairs) | v0 | **v0b** | bar |
+|---|---|---|---|
+| Brier ours | 0.5472 | **0.5246** | — |
+| Brier mid | 0.3535 | 0.3535 | — |
+| diff | +0.1936 | **+0.1711** | early-stop > +0.15 → **fired** |
+| tracking on ≥8pp mid moves | 40% | **40%** (2/5) | early-stop < 50% → **fired** |
+| median band width | 9pp | 11.7pp | descriptive |
+
+**Read:** the redesign moved the needle the right way but nowhere near enough. The evidence-forward perspective did react (it reached 35% on the Iran deal at 06-14, 22% on Starmer at 06-20 when the packet showed cabinet ministers urging a resignation timetable) — but the honest trimmed mean of five perspectives pulls the aggregate back to 6–11% while the market walks to 55–100c. The one tracking miss that decides M2c is structural: on Cepeda's final snapshot our aggregate ticked *up* 1pp (a noisy base-rate estimate entering the middle-3) while the mid collapsed to zero. Two designs, one point-forecast and one perspective-ensemble, now fail the same pre-registered bars in the same direction. **Per the Amendment-2 commitment: the fair-value framing is closed — no v0c.** Outputs: `newsagent_v0_v0b_*.csv/png` alongside the v0 set.
+
+Deeper structural read (for the record): a *calibrated* forecaster fed only thin headline packets **should** sit well below a liquid market's mid during rumor-driven repricings — the market aggregates information (order flow, insider expectations, full-text reporting) that headlines don't carry. The gate didn't just falsify two prompts; it quantified that titles-only + LLM reasoning recovers materially less information than the mid on shock transitions. That is a finding about the *display claim*, not an artifact.
+
+## What ships instead — the honest re-scope (2026-07-05)
+
+The goal's deliverable is a public showcase whose hook is our calibration/Brier track record. The gate results close one framing and validate another:
+
+- **CLOSED: "Epsilon's fair value" framing** — any presentation implying our % is a better estimate than the mid. Both gates say it is not (diff +0.17 to +0.19 vs mid on shock months).
+- **SHIPS: the public calibration measurement loop ("Epsilon Calibration Observatory")** — we publish the news-agent's number *as an experiment, scored in public*: per market our % + band vs the PM mid + gap; daily snapshots logged to the append-only superforecasting ledger; Brier scored by `calibrate` as markets resolve; and the scoreboard leads with the truth, including the retrospective gate results where **the market is winning**. The v0 data support this framing directly: it is credible (fully transparent scoring), well-calibrated *methodologically* (proper scoring rules, anti-post-hoc ledger), and legible (gap + band + drivers per market). No alpha claim, no trading edge, nothing proprietary — the craft on display is the measurement discipline itself.
+
+This re-scope changes no gate, no bar, and no closed verdict; it changes what the public page *claims*. The dashboard carries the experimental framing in its masthead and shows the market-vs-us score prominently.
+
 ## STRETCH / BACKLOG (recorded for the concept, all gated behind a passing gate)
 
 - v2 historical news→PM-move calibration via GDELT GKG/BigQuery V2Tone (token-cheap subagents; "this language historically moved politics mids X pp").

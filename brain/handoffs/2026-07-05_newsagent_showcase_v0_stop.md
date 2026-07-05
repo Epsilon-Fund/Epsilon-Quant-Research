@@ -1,14 +1,29 @@
 ---
-title: "Handoff — News-Agent Fair-Value Showcase: v0 gate STOP, v0b redesign awaiting sign-off"
-tags: [handoff, news-agent, showcase, block-j, gate-result, pre-registration]
+title: "Handoff — News-Agent Showcase: v0+v0b gates failed honestly; Calibration Observatory shipped"
+tags: [handoff, news-agent, showcase, block-j, gate-result, pre-registration, observatory]
 created: 2026-07-05
-status: thread gated — v0 STOP; two decisions waiting on Justin
+status: shipped — fair-value framing closed by two gates; live measurement loop running; three items on Justin
 purpose: >
   Chronicler snapshot of the 2026-07-04/05 implementation session that opened the
   News-Agent Fair-Value + Calibration Showcase thread (the never-run Block-J /
   LLM-forecaster frontier framed as a PUBLIC showcase, not a trading strategy),
-  ran its pre-registered v0 gate, and stopped it honestly when the early-stop fired.
+  ran BOTH pre-registered gates (v0 point-forecast; v0b 5-perspective ensemble),
+  closed the fair-value framing when both fired the same early-stop, and shipped
+  the honest re-scope: the Epsilon Calibration Observatory measurement loop.
 ---
+
+> **SUPERSEDED SECTIONS BELOW (kept for the record):** the original version of this
+> handoff ended at "v0 STOP; v0b awaiting sign-off." The session continued under the
+> standing goal mandate: v0b was pre-registered (Amendment 2) and run — **early-stop
+> fired again** (Brier +0.171 vs mid, tracking 40%) → fair-value framing CLOSED (no
+> v0c). The showcase then shipped as the **Calibration Observatory**: agent % + band
+> vs PM mid on 5 live politics markets, daily append-only ledger snapshots
+> (sf-2026-001…005 live), `calibrate` scoring on settlement, retrospective gate
+> scoreboard displayed with the market winning. Package `polymarket/research/newsagent/`;
+> dashboard regenerates to `data/newsagent/showcase/` (self-contained HTML+JSON,
+> IP-scrub verified). Remaining Justin items moved to [[TODO]] § News-Agent Showcase:
+> Scheme-A weighting sign-off, GUARDIAN/ANTHROPIC keys for unattended runs, website
+> handoff of the showcase artifacts. Current state: [[strat_news_agent_showcase]].
 
 # Handoff — News-Agent Showcase v0: STOP
 

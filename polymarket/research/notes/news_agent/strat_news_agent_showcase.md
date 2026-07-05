@@ -1,7 +1,7 @@
 ---
 title: "News-Agent Fair-Value + Calibration Showcase — thread hub"
 created: 2026-07-04
-status: gated — v0 STOP (early-stop fired 2026-07-05); v0b redesign proposed, awaiting sign-off
+status: shipped as Calibration Observatory — fair-value framing closed by v0+v0b; live measurement loop running since 2026-07-05
 owner: justin
 project: polymarket
 para: project
@@ -25,7 +25,9 @@ tags:
 
 ## Current state (2026-07-05)
 
-**v0 gate: STOP — the pre-registered early-stop fired.** On the falsifier trio the news-agent's Brier was 0.547 vs the mid's 0.354 (diff +0.194 > +0.15 bar) with 40% news-tracking (< 50% bar): the status-quo-anchored single-sample forecaster under-reacts to probability-shifting news even when it is in-packet. **No dashboard was built** (no-infra-before-signal held). The pipeline, isolation protocol, and canaries all worked; a redesigned v0b gate (ensemble + evidence-weighting prompt + multi-source packets) is proposed in the findings note and **awaits Justin's sign-off** — it was deliberately not run to avoid gate-shopping.
+**Both pre-registered gates failed; the honest showcase shipped anyway — with the failure as its content.** v0 (single-sample forecaster) and v0b (5-perspective ensemble, Amendment 2) both fired the same early-stop on the falsifier trio (Brier diff +0.19 / +0.17 vs the mid, tracking 40%): headline-packet LLM forecasting recovers materially less information than a liquid politics mid on shock transitions. **The fair-value framing is therefore CLOSED** (no v0c). What shipped instead is the **Epsilon Calibration Observatory** — a public measurement loop where the news-agent's % + band is displayed next to the PM mid *as a scored experiment*: daily snapshots to the append-only superforecasting ledger (`SF_BOOK=polymarket`, entries sf-2026-001…005 live since 2026-07-05), Brier-scored by `calibrate` on settlement, retrospective gate scoreboard shown prominently (market currently winning — that is the content, not a bug). Package: `polymarket/research/newsagent/` (`run_daily.py` stages: fetch → prompts → forecast → publish); dashboard artifacts regenerate to `data/newsagent/showcase/` (self-contained HTML + JSON, numbers-only default + analytical toggle, IP-scrubbed, Guardian/Wikipedia attribution).
+
+**Open items for Justin:** (1) source-weighting Scheme A sign-off (Wikipedia RSP tiers + Iffy blocklist — radar note); (2) a registered Guardian dev key (`GUARDIAN_API_KEY`; demo key in use) and `ANTHROPIC_API_KEY` for the cron-run forecast stage (today's forecasts were produced out-of-band via the documented `--forecasts-file` path); (3) hand the showcase JSON/HTML to the website colleague when ready.
 
 ## Notes in this cluster
 

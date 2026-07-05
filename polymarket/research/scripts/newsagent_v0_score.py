@@ -20,11 +20,15 @@ from __future__ import annotations
 import csv
 import json
 import random
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "newsagent" / "v0"
-FC = RAW / "forecasts"
+# optional variant arg (e.g. "v0b") switches the forecasts dir and output suffix
+VARIANT = sys.argv[1] if len(sys.argv) > 1 else ""
+FC = RAW / (f"forecasts_{VARIANT}" if VARIANT else "forecasts")
+SUFFIX = f"_{VARIANT}" if VARIANT else ""
 CSV_OUT = ROOT / "data" / "analysis" / "csv_outputs" / "news_agent"
 PLOTS = ROOT / "data" / "analysis" / "plots" / "news_agent"
 
@@ -129,11 +133,11 @@ def main() -> None:
                                 and metrics["M2b_pass"]
                                 and (metrics["M2c_pass_ge_65pct"] is True or moves == 0))
 
-    with open(CSV_OUT / "newsagent_v0_pairs.csv", "w", newline="") as f:
+    with open(CSV_OUT / f"newsagent_v0{SUFFIX}_pairs.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(pairs[0].keys()))
         w.writeheader()
         w.writerows(pairs)
-    with open(CSV_OUT / "newsagent_v0_metrics.csv", "w", newline="") as f:
+    with open(CSV_OUT / f"newsagent_v0{SUFFIX}_metrics.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(metrics.keys()))
         w.writeheader()
         w.writerow(metrics)
@@ -148,7 +152,7 @@ def main() -> None:
             "brier_mid": round(sum(r["brier_mid"] for r in sub) / len(sub), 4),
             "median_abs_gap": round(sorted(abs(r["gap"]) for r in sub)[len(sub) // 2], 4),
         })
-    with open(CSV_OUT / "newsagent_v0_family_table.csv", "w", newline="") as f:
+    with open(CSV_OUT / f"newsagent_v0{SUFFIX}_family_table.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(fam_rows[0].keys()))
         w.writeheader()
         w.writerows(fam_rows)
@@ -177,7 +181,7 @@ def main() -> None:
         axes.flat[0].legend(fontsize=7)
         fig.suptitle("News-agent v0: our fair value (band) vs PM mid vs outcome", fontsize=11)
         fig.tight_layout()
-        fig.savefig(PLOTS / "newsagent_v0_timeseries.png", dpi=110)
+        fig.savefig(PLOTS / f"newsagent_v0{SUFFIX}_timeseries.png", dpi=110)
 
         fig2, ax2 = plt.subplots(figsize=(7, 4))
         ax2.hist([r["gap"] * 100 for r in pairs], bins=25, color="#0b6", alpha=0.8)
@@ -185,7 +189,7 @@ def main() -> None:
         ax2.set_ylabel("pairs")
         ax2.set_title("v0 gap distribution")
         fig2.tight_layout()
-        fig2.savefig(PLOTS / "newsagent_v0_gap_hist.png", dpi=110)
+        fig2.savefig(PLOTS / f"newsagent_v0{SUFFIX}_gap_hist.png", dpi=110)
         print("plots written")
     except ImportError:
         print("matplotlib unavailable — plots skipped")
