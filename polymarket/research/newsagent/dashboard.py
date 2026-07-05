@@ -440,8 +440,27 @@ def _quality_chip(q: dict | None) -> str:
     if not q:
         return ""
     tier = q.get("tier", "moderate")
+    bq = q.get("band_mult_q")
+    qtag = f' · band ×{bq:.2f}' if bq is not None and abs(bq - 1.0) >= 0.02 else ""
     return (f'<span class="qual qual-{tier}" title="{html.escape(q.get("note", ""))}">'
-            f'evidence: {tier} · {q.get("n_relevant", 0)} arts · ±{q.get("half_pp", 0):g}pp</span>')
+            f'evidence: {tier} · {q.get("n_relevant", 0)} arts · ±{q.get("half_pp", 0):g}pp{qtag}</span>')
+
+
+def _band_quality_html(q: dict | None) -> str:
+    """Visible band-quality note on the card: why the band was widened/narrowed
+    (source reliability level + political spectrum balance; coverage is in the
+    article count). Declared multiplier — calibration is a later pass."""
+    if not q:
+        return ""
+    reasons = q.get("band_reasons") or []
+    bq = q.get("band_mult_q")
+    if not reasons or bq is None:
+        return ""
+    verb = "widened" if bq > 1 else "narrowed"
+    return (f'<p class="note bandq" style="margin-top:.35rem">band {verb} '
+            f'<span class="mono">×{bq:.2f}</span> — {html.escape("; ".join(reasons))}. '
+            f'<span class="dim">(evidence-quality multiplier; magnitudes declared, '
+            f'calibration pending)</span></p>')
 
 
 def _overview_grid_html(cards: list[dict]) -> str:
@@ -684,6 +703,7 @@ def _card_html(c: dict, expanded: bool) -> str:
           </div>
           <div class="colnews">
             {_quality_chip(c.get("evidence_quality"))}
+            {_band_quality_html(c.get("evidence_quality"))}
             {_bias_html(c.get("bias"))}
             <div class="sub">cited drivers</div><ul>{drivers or "<li class='dim'>none today</li>"}</ul>
             <div class="sub">evidence</div><p class="note" style="margin-top:.1rem">{ev_note}</p>

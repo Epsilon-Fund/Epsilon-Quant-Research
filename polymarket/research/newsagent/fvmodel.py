@@ -72,11 +72,19 @@ DEFAULT_PARAMS = {
     "s_min": {"slow": 0.5, "shock": 0.0},
     "shift_clip_logits": {"slow": 1.5, "shock": None},
     # Band v3 (magnitudes DECLARED, structure per the v3 build notes):
-    #   half = floor + band_mult * (18*dispersion + 8*(1-clarity) - 1.5*min(n_rel,6))
+    #   half = clamp[floor, cap]( (floor + band_mult*(18*disp + 8*(1-clarity)
+    #                              - 1.5*min(n_rel,6))) * Q )
     # dispersion = reliability-weighted cross-source disagreement (Scheme-A weights);
-    # clarity = weighted mean of the Stage-A per-article clarity field. band_mult
-    # is the SINGLE knob band-coverage calibration rescales once outcomes settle
-    # (band_coverage() below) — no fitted magnitudes before data exists.
+    # clarity = weighted mean of the Stage-A per-article clarity field; the n_rel
+    # term is the COVERAGE lever (more relevant articles narrow). band_mult is the
+    # SINGLE knob band-coverage calibration rescales once outcomes settle
+    # (band_coverage() below).
+    #   Q = evidence-quality multiplier (v3.2, Justin's ask; band_quality() below):
+    #   widens when evidence is from LESS-RELIABLE sources or POLITICALLY ONE-SIDED
+    #   (no cross-spectrum corroboration), narrows in the opposite cases. Coverage
+    #   already lives in the n_rel term, so Q carries only the two dimensions the
+    #   band was missing. Magnitudes DECLARED, NOT fitted — calibrate the constants
+    #   against resolved outcomes later (band_mult stays the coverage knob).
     "band_mult": 1.0,
     "fitted_on": None, "n_pairs": 0, "n_markets": 0,
     "notes": "defaults — not yet fit on resolved outcomes",
@@ -218,20 +226,85 @@ def band_components(feats_72h: list[dict]) -> dict:
             "raw": 18.0 * disp + 8.0 * (1.0 - clarity) - 1.5 * min(n_rel, 6)}
 
 
-def band_half_pp(feats_72h: list[dict], mtype: str, params: dict) -> float:
-    """Band half-width in pp (v3):
+# Evidence-quality band multiplier (v3.2 — Justin's ask). DECLARED constants, NOT
+# fitted: the band should widen when we're relying on less-reliable sources or on a
+# politically one-sided set (only one side of the spectrum, no cross-spectrum
+# corroboration), and narrow when reliable and cross-confirmed. Coverage already
+# widens the band via the n_rel term, so Q carries only these two dimensions. The
+# exact magnitudes are a calibration task for when outcomes accrue — for now gentle,
+# centered near 1.0, and clamped so Q can neither collapse nor explode a band.
+BAND_Q = {
+    "rel_ref": 0.9,  "rel_k": 0.7,    # reliability level: weighted-mean w_rel < 0.9 widens
+    "spec_ref": 0.25, "spec_k": 0.9,  # spectrum balance: one-sided (0) widens, even L/R (0.5) narrows
+    "q_min": 0.7, "q_max": 1.7,
+}
 
-        half = floor + band_mult * (18*dispersion + 8*(1-clarity) - 1.5*min(n_rel,6))
+
+def band_quality(feats_72h: list[dict]) -> dict:
+    """Evidence-quality band multiplier Q and its reasons (v3.2).
+
+    Over the RELEVANT, non-blocklisted 72h articles:
+      r_fac — weighted-mean SOURCE RELIABILITY (the reliability-only axis, w_rel):
+              below the generally-reliable reference widens, at/above narrows.
+      s_fac — POLITICAL SPECTRUM BALANCE: of the lean-rated items, how evenly the
+              two sides are represented. One-sided (all left OR all right) widens;
+              both sides present and agreeing = cross-spectrum corroboration, narrows.
+              Only judged with >= 2 lean-rated items spanning left/right; otherwise
+              neutral (center-only or unrated evidence carries no spectrum signal).
+    Q = clamp(r_fac * s_fac, q_min, q_max). Coverage is NOT here — it stays in the
+    band's n_rel term. Magnitudes declared; calibrate later."""
+    from . import sourcelean
+    rel = [(f.get("source_w_rel", f.get("source_w", SOURCE_W_DEFAULT)), f.get("source_lean"))
+           for f in feats_72h
+           if f.get("features") and f["features"]["relevance"] >= RELEVANT_MIN
+           and f.get("source_w_rel", f.get("source_w", SOURCE_W_DEFAULT)) > 0]
+    n = len(rel)
+    mean_rel = (sum(w for w, _ in rel) / n) if rel else BAND_Q["rel_ref"]
+    r_fac = 1.0 + BAND_Q["rel_k"] * (BAND_Q["rel_ref"] - mean_rel)
+
+    n_left = sum(1 for _, ln in rel if sourcelean.lean_bucket(ln) == "left")
+    n_right = sum(1 for _, ln in rel if sourcelean.lean_bucket(ln) == "right")
+    if n_left + n_right >= 2:
+        balance = min(n_left, n_right) / (n_left + n_right)   # 0 one-sided .. 0.5 even
+        s_fac = 1.0 + BAND_Q["spec_k"] * (BAND_Q["spec_ref"] - balance)
+    else:
+        balance, s_fac = None, 1.0
+
+    q = max(BAND_Q["q_min"], min(BAND_Q["q_max"], r_fac * s_fac))
+    reasons = []
+    if r_fac > 1.03:
+        reasons.append(f"leaning on lower-reliability sources (mean {mean_rel:.2f})")
+    elif r_fac < 0.97:
+        reasons.append("high-reliability sources")
+    if s_fac > 1.03:
+        side = "left" if n_left >= n_right else "right"
+        reasons.append(f"one-sided coverage (only {side}-leaning sources)")
+    elif s_fac < 0.97:
+        reasons.append("cross-spectrum corroboration (left and right agree)")
+    return {"q": round(q, 3), "r_fac": round(r_fac, 3), "s_fac": round(s_fac, 3),
+            "mean_rel": round(mean_rel, 3), "balance": balance,
+            "n_left": n_left, "n_right": n_right, "n_rel": n, "reasons": reasons}
+
+
+def band_half_pp(feats_72h: list[dict], mtype: str, params: dict) -> float:
+    """Band half-width in pp (v3 + v3.2 quality multiplier):
+
+        half = clamp[floor, cap]( (floor + band_mult*(18*disp + 8*(1-clarity)
+                                    - 1.5*min(n_rel,6))) * Q )
 
     dispersion = RELIABILITY-WEIGHTED cross-source disagreement (Scheme-A weights)
-    — reliable sources disagreeing widens the band; reliable sources concurring
-    narrows it; zero-weight (blocklisted) sources cannot move it; low weighted
-    clarity widens. Magnitudes DECLARED; band_mult is the single
-    coverage-calibration knob (see band_components)."""
+    — reliable sources disagreeing widens; reliable sources concurring narrows;
+    zero-weight (blocklisted) sources cannot move it; low weighted clarity widens;
+    the n_rel term is the coverage lever. Q (band_quality) then widens for
+    low-reliability or politically one-sided evidence and narrows for reliable,
+    cross-spectrum evidence. Q scales the whole half-width but the floor stays a
+    hard minimum, so good evidence tightens toward — never below — the floor.
+    Magnitudes DECLARED; band_mult is the single coverage-calibration knob."""
     floor = params["floor_pp"].get(mtype, params["floor_pp"]["shock"])
     comp = band_components(feats_72h)
     mult = params.get("band_mult", 1.0)
-    half = floor + mult * comp["raw"]
+    q = band_quality(feats_72h)["q"]
+    half = (floor + mult * comp["raw"]) * q
     return round(min(BAND_CAP_PP, max(floor, half)), 1)
 
 
@@ -376,7 +449,8 @@ def source_bias_breakdown(feats_72h: list[dict]) -> dict:
 # (band half <= DIVERGENCE_HALF_MAX_PP, n_rel >= DIVERGENCE_NREL_MIN) so "strong"
 # on the badge and "confident" in the flag rule are the same statement.
 def evidence_quality(n_rel: int, half_pp: float,
-                     half_max_pp: float = 12.0, n_rel_min: int = 5) -> dict:
+                     half_max_pp: float = 12.0, n_rel_min: int = 5,
+                     band_q: dict | None = None) -> dict:
     if n_rel >= n_rel_min and half_pp <= half_max_pp:
         tier = "strong"
         note = f"{n_rel} relevant articles/72h, band ±{half_pp:g}pp"
@@ -387,7 +461,15 @@ def evidence_quality(n_rel: int, half_pp: float,
     else:
         tier = "moderate"
         note = f"{n_rel} relevant articles/72h, band ±{half_pp:g}pp"
-    return {"tier": tier, "n_relevant": n_rel, "half_pp": round(half_pp, 1), "note": note}
+    out = {"tier": tier, "n_relevant": n_rel, "half_pp": round(half_pp, 1), "note": note}
+    if band_q:
+        out["band_mult_q"] = band_q.get("q")
+        out["band_reasons"] = band_q.get("reasons", [])
+        if band_q.get("reasons"):
+            verb = "widened" if band_q["q"] > 1 else "narrowed"
+            out["note"] += (f"; band {verb} ×{band_q['q']:.2f} — "
+                            + "; ".join(band_q["reasons"]))
+    return out
 
 
 def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list[dict],

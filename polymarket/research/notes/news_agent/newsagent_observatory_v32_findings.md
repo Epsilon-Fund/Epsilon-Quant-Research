@@ -72,6 +72,24 @@ The v3.1 audit (build notes) found the earlier "2-column" ask had landed at the 
 
 Verified in headless Chrome: 2-pane layout with sticky feed; 24/24 donuts visible without expanding; sections 03–06 all render in the new language. Mobile honesty note: the first 420px capture *looked* like horizontal overflow — investigation (a scrollWidth probe injected into the page) showed it was a **capture artifact, not a page bug**: current Chrome headless enforces a ~500px minimum window width and crops the PNG to the requested 420px, slicing the right donut column. At the real 500px viewport `scrollWidth == innerWidth` (no page overflow, two clean grid tracks). Defensive CSS was applied anyway (global `svg{max-width:100%}`, `minmax(0,1fr)` mobile column, a scroll container for the wide divergence SVG, donut-cell minimum 172→150px) and the grid arithmetically fits real phone widths (at 420px: two 159px tracks ≥ the 150px minimum); a true <500px device check is listed as a residual item below.
 
+## Band evidence-quality multiplier (Justin's call, 2026-07-06)
+
+Justin's redirect on the band question: don't fixate on the band_mult coverage-knob granularity (that's calibration, deferred) — make the **band construction respond to evidence quality**. Specifically: less-reliable sources, politically one-sided evidence, and thin coverage should widen the band; reliable + cross-spectrum + well-covered should narrow it. Implemented as a **declared multiplier** on top of the existing band:
+
+```
+half = clamp[floor, cap]( (floor + band_mult·(18·disp + 8·(1−clarity) − 1.5·min(n_rel,6))) · Q )
+Q = clamp( r_fac · s_fac , 0.7, 1.7 )
+```
+
+- **r_fac (reliability level)** = `1 + 0.7·(0.9 − mean_w_rel)` over the relevant, non-blocklisted evidence, using the **reliability-only** axis: mostly generally-reliable (w_rel≈1) → ~0.93 (narrow); leaning on marginal/unreliable sources → >1 (widen). This is the dimension the band was **missing** — reliability previously entered only by *weighting the disagreement*, never by penalising reliance on weak sources.
+- **s_fac (spectrum balance)** = `1 + 0.9·(0.25 − balance)`, where `balance = min(n_left,n_right)/(n_left+n_right)` over lean-rated items: all one side → widen (~1.22); left AND right both present and agreeing = **cross-spectrum corroboration** → narrow (~0.78). Only judged with ≥2 lean-rated items spanning the sides; center-only or unrated evidence carries no spectrum signal (s_fac 1.0). **This dimension was entirely absent before.**
+- **Coverage** stays where it already works — the `−1.5·min(n_rel,6)` term in `raw` — so Q does **not** double-count it. The evidence-quality badge shows all three (article count + the Q multiplier) as one story.
+- **The floor stays a hard minimum:** Q scales the whole half-width, but a narrowing Q can only tighten *toward* the floor, never below it — reliable cross-spectrum evidence doesn't buy sub-floor precision on a shock market.
+
+**Magnitudes are DECLARED, not fitted** — per Justin, structure now, calibrate the constants against resolved outcomes later (band_mult stays the coverage knob). `band_quality()` returns the components + human `reasons`; the card renders "band widened ×1.14 — one-sided coverage (only left-leaning sources)".
+
+**Impact on today's 24 bands** (re-published, ledger unchanged this round — `--no-ledger`): gentle and one-directional-dominated. Max widen +4.4pp (Hormuz-Jul, one-sided), max narrow −2.0pp (the Dec Hormuz variant, cross-spectrum-ish + reliable); 12 markets unchanged (at floor or Q≈1). **A real signal fell out: almost every market with directional evidence trips "one-sided (only left-leaning sources)"** — because the wired feed is Guardian+Politico (left) + BBC+The Hill (center) + Sky (unrated), with no right-leaning outlet. That's honest (our evidence *is* left-skewed today) and it's the direct motivation for broadening the source set — adding right-leaning RSS would let cross-spectrum corroboration actually narrow bands instead of everything reading one-sided. Ties into the Ground-News-seeded lean-table expansion (below).
+
 ## α refit + the band_mult granularity call (flag for Justin)
 
 Refit via the existing pre-registered path (`scripts/newsagent_hist_backfill.py --fit`, which re-annotates cached Stage-A features — so the composed weights flow through automatically):
@@ -93,10 +111,16 @@ Re-publish sequence mirrored v3: `backfill-compute` re-evolved the 5 legacy mark
 
 **Power honesty:** the α refit is the same 355 pairs / 49 markets as v3.1 — the lean change re-weights within it, adds no new information; the pooled Brier delta (−0.0002) is noise, not evidence the lean axis "works". What it buys today is transparency (the explainer) and robustness for when sources broaden beyond the current reliable-tier set — same argument as Scheme A in v3.
 
+## Decisions logged (2026-07-06)
+
+- **Call 1 — lean weighting: KEEP LIVE** (Justin: "keep lean on, i think its good"). No change; α stays 2.7. Isolated effect measured: lean moves 6/24 markets, max 5.4pp (Hormuz-Jul, 3 directional articles); 18 unchanged; headlines identical.
+- **Call 2 — bands: build the evidence-quality multiplier** (Justin: less-reliable / one-sided / low-coverage → wider, and vice versa; "we can work on calibration after"). Shipped as declared Q above; band_mult granularity question is now moot/deferred (calibration comes later with the multiplier folded in).
+
 ## What Justin needs to do
 
-1. **Lean sign-off (new):** the table + declared multipliers above (center/unrated 1.0 · |1| 0.9 · |2| 0.75). Running live (α-refit-covered) — veto reverts to lean_mult ≡ 1.0 with a one-line change + refit.
-2. **band_mult selector call (new):** bless the "narrowest knob ≥ nominal" reading (keeps 0.5) or revert to closest-to-nominal (0.25, undercovering on 3-bucket granularity).
+1. **Lean sign-off (still open):** the table + declared multipliers (center/unrated 1.0 · |1| 0.9 · |2| 0.75). Running live per the Call-1 decision; sign-off just makes it official.
+2. **Ground-News-seeded lean-table expansion (new, Justin offered to run it in Claude-in-Chrome):** a one-time human lookup of political-lean ratings for our fixed source set (+ a forward-looking expansion set), recorded into `sourcelean.py` as a blended-rater-informed curated table — the CODEX-clean way to get the lean axis Justin wanted from Ground News without automated/bulk access. Prompt handed over; fold the returned table in + note the rater provenance. This directly relieves the "everything reads one-sided" band signal above (adds right-leaning + more center sources).
+3. **Band-Q magnitudes (deferred by Justin):** the r_fac/s_fac constants are declared, not fitted — calibrate against resolved outcomes in a later pass (alongside the forward band_mult rescale at ≥20 settled).
 3. **AllSides "written NC OK" (radar nicety, now live-relevant):** a short permission email for the NC-licensed ratings use, per the radar's Scheme-C note. Non-blocking (non-monetised + attributed meanwhile).
 4. **Unchanged from v3/v3.1:** Scheme-A uncovered-source weight sign-off (ING 0.9 / WP-CE 0.8 / unknown 0.5 / Bloomberg 0.9 / bank desks 0.9 — all still neutral 1.0); `GUARDIAN_API_KEY` export; `GEMINI_API_KEY` for the provider spot-check; July settlements → `sf settle` + slate refresh + `--fit`.
 5. **Website:** still parked. The page is built local and site-ready (the colleague lifts `showcase.json`, or the HTML as-is — it now matches the deployed design).
@@ -114,6 +138,7 @@ Re-publish sequence mirrored v3: `backfill-compute` re-evolved the 5 legacy mark
 - Package: `newsagent/sourcelean.py` (new — verdict, table, mults, labels), `sourceweights.py` (annotate composes rel × lean; per-axis fields), `fvmodel.py` (`source_bias_breakdown` lean mix/coverage/leans; `evidence_quality`), `run_daily.py` (badge wiring), `dashboard.py` (rewritten: 2-pane shell, feed pane builder, donut grid, movers, badges, deployed-site tokens).
 - Script: `scripts/newsagent_hist_backfill.py` — band_mult selector = narrowest-at-nominal (6-line change, commented).
 - Params: `fv_params.json` — **α 2.7** (refit, composed weights, 355 pairs/49 markets), band_mult 0.5, γ 1.0 + λ/floors/clips declared, unchanged.
-- Tests: `tests/test_newsagent_fv.py` — **76 green** (v3.2 adds 11: lean table/mults/labels, annotate composition incl. blocklist-precedence, explainer lean mix + coverage, badge tiers, movers live-only + day-one note, feed dedupe/private-count, 2-pane + donut-grid render, token swap, evidence-moved-out-of-cards, scrub-with-lean end-to-end).
+- Band multiplier (2026-07-06): `fvmodel.BAND_Q` + `band_quality()`, `band_half_pp` applies Q, `evidence_quality` carries the multiplier + reasons; `run_daily` wires `band_q`; `dashboard._band_quality_html` renders the visible "band widened/narrowed ×N — reasons" note + a `band ×N` chip.
+- Tests: `tests/test_newsagent_fv.py` — **82 green** (v3.2 adds 17: lean table/mults/labels, annotate composition incl. blocklist-precedence, explainer lean mix + coverage, badge tiers, movers live-only + day-one note, feed dedupe/private-count, 2-pane + donut-grid render, token swap, evidence-moved-out-of-cards, scrub-with-lean end-to-end; **+6 band-quality: low-reliability widens, one-sided widens / cross-spectrum narrows, neutral without signal, clamp + hard floor, badge carries multiplier, card renders reason**).
 - Artifacts (git-ignored, regenerated): `data/newsagent/showcase/{index.html,showcase.json}` (~250KB self-contained page; JSON now carries `feed`, `movers`, `evidence_quality`, per-item `lean`); fit CSVs + plot refreshed under `data/analysis/{csv_outputs,plots}/news_agent/`; `fv_state.pre-v32.json` backup.
 - Ledger: sf-2026-001…024 updated (append-only, same-day pre-settlement via the sf CLI).

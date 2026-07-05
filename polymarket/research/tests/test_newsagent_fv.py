@@ -949,3 +949,71 @@ def test_html_v32_still_scrubbed_with_lean():
     assert "private analysis item" in out
     assert "/Users/" not in out and "<script src" not in out
     assert "beat the mid" not in out.lower()
+
+
+# ------------------------------------------------ v3.2: band quality multiplier --
+
+def _rel_row(w_rel, lean, stance="toward_yes", clarity=0.6):
+    return {"features": F(stance=stance, clarity=clarity), "source_w_rel": w_rel,
+            "source_w": w_rel, "source_lean": lean, "article": {"domain": "d"}}
+
+
+def test_band_quality_low_reliability_widens():
+    reliable = [_rel_row(1.0, 0), _rel_row(1.0, 0), _rel_row(1.0, 0)]
+    weak = [_rel_row(0.3, 0), _rel_row(0.3, 0), _rel_row(0.3, 0)]
+    qr = fvmodel.band_quality(reliable)["q"]
+    qw = fvmodel.band_quality(weak)["q"]
+    assert qw > 1.0 > qr                     # weak widens, reliable narrows
+    # and it flows through to the band half-width
+    assert fvmodel.band_half_pp(weak, "shock", PARAMS) > \
+        fvmodel.band_half_pp(reliable, "shock", PARAMS)
+
+
+def test_band_quality_one_sided_widens_cross_spectrum_narrows():
+    # all left-leaning sources agreeing -> one-sided -> widen
+    onesided = [_rel_row(1.0, -2), _rel_row(1.0, -1), _rel_row(1.0, -2)]
+    # left AND right sources both present -> cross-spectrum -> narrow
+    crossspec = [_rel_row(1.0, -2), _rel_row(1.0, 2), _rel_row(1.0, -1), _rel_row(1.0, 1)]
+    q_one = fvmodel.band_quality(onesided)
+    q_cross = fvmodel.band_quality(crossspec)
+    assert q_one["s_fac"] > 1.0 and q_cross["s_fac"] < 1.0
+    assert q_one["q"] > q_cross["q"]
+    assert "one-sided" in " ".join(q_one["reasons"])
+    assert "cross-spectrum" in " ".join(q_cross["reasons"])
+
+
+def test_band_quality_neutral_without_lean_or_reliability_signal():
+    # center-only + fully reliable -> no spectrum signal, reliability at ref-ish
+    rows = [_rel_row(1.0, 0), _rel_row(1.0, 0)]
+    q = fvmodel.band_quality(rows)
+    assert q["s_fac"] == 1.0                  # center-only -> no spectrum judgement
+    # unrated leans also give no spectrum signal
+    rows2 = [_rel_row(1.0, None), _rel_row(1.0, None)]
+    assert fvmodel.band_quality(rows2)["s_fac"] == 1.0
+
+
+def test_band_quality_clamped_and_floor_is_hard_minimum():
+    worst = [_rel_row(0.3, -2), _rel_row(0.3, -2), _rel_row(0.3, -1)]   # weak + one-sided
+    q = fvmodel.band_quality(worst)["q"]
+    assert q <= fvmodel.BAND_Q["q_max"]
+    # even a narrowing Q cannot push the half-width below the market-type floor
+    best = [_rel_row(1.0, -2), _rel_row(1.0, 2)]     # reliable + cross-spectrum, concur
+    half = fvmodel.band_half_pp(best, "slow", PARAMS)
+    assert half >= PARAMS["floor_pp"]["slow"]
+
+
+def test_evidence_quality_badge_carries_band_multiplier():
+    bq = fvmodel.band_quality([_rel_row(0.3, -2), _rel_row(0.3, -2), _rel_row(0.3, -1)])
+    eq = fvmodel.evidence_quality(3, 22.0, band_q=bq)
+    assert eq["band_mult_q"] == bq["q"] and eq["band_reasons"]
+    assert "band widened" in eq["note"]
+
+
+def test_band_quality_shown_on_card():
+    s = _snapshot31()
+    s["stage_b"]["evidence_quality"] = fvmodel.evidence_quality(
+        3, 22.0, band_q=fvmodel.band_quality(
+            [_rel_row(0.3, -2), _rel_row(0.3, -2), _rel_row(0.3, -1)]))
+    out = dashboard.render_html(dashboard.build_showcase([s], _series()))
+    assert "evidence-quality multiplier" in out
+    assert "one-sided coverage" in out
