@@ -51,6 +51,16 @@ subagent edit files. Standard four:
 3. **session transcripts (best-effort)** — `~/.claude/projects/<this repo>/`:
    grep-sample friction markers (errors, retries, repeated commands,
    corrections). Sampling only; never full reads; state confidence honestly.
+   Two gotchas (learned the 2026-07-06 pass — RC-029), both mandatory for an
+   accurate scan:
+   - **Exclude the current session's own transcript.** The live pass writes
+     this SKILL's text and the gathering prompt's pattern list into its own
+     `.jsonl`, so grepping it back inflates every friction count with the
+     pass's own vocabulary. Drop the newest/self file (by name or mtime) first.
+   - **Grep per file, not multi-file.** A combined `grep -c pattern $(find …)`
+     over these very-long single-line JSONL transcripts intermittently returns
+     false-zero counts here; a `while read f; do grep … "$f"; done` loop (one
+     grep invocation per file) is the reliable pattern.
 4. **maps + reports** — [[SKILL_MAP]] § Future skills, `brain/generated/`
    hygiene/graph/daily-brief reports, `brain/TODO.md` blockers.
 
