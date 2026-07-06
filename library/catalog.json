@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-05T16:08:38Z",
+  "generated_at": "2026-07-06T12:08:35Z",
   "generator": "tools/skills_catalog.py",
   "note": "PUBLIC-CANDIDATE catalog. Only entries with scrub_status 'approved' (per-package SCRUB.md, human-authorized) may be surfaced publicly; 'published' flips when the library repo is actually split public (no package registry \u2014 the repo is the distribution).",
   "entries": [
@@ -48,7 +48,7 @@
       "source": "library/skills/prd-scaffold",
       "invocation": "cp -r skills/prd-scaffold  .claude/skills/",
       "published": false,
-      "scrub_status": "pending-human-review",
+      "scrub_status": "approved",
       "bundled_skills": []
     },
     {
@@ -60,7 +60,7 @@
       "source": "library/skills/reflection-prompt",
       "invocation": "cp -r skills/reflection-prompt  .claude/skills/",
       "published": false,
-      "scrub_status": "pending-human-review",
+      "scrub_status": "approved",
       "bundled_skills": []
     }
   ]
