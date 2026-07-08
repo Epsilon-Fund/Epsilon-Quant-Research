@@ -234,6 +234,12 @@ def run_engine(
     quote_count = 0
     event_count = 0
     last_ts = 0
+    # fill_share_this_market = our fills / total market trades on the tape. Count every
+    # `last_trade` event per token as one market trade (the denominator), and our own fills
+    # per token (the numerator). The live bridge computes the identical ratio off its own
+    # last_trade tape, so the backtest and live fills streams carry a comparable fill_share.
+    market_trades: dict[str, int] = {}
+    our_fills_by_token: dict[str, int] = {}
 
     def unrealized_total() -> float:
         out = 0.0
@@ -263,6 +269,11 @@ def run_engine(
         if m is not None:
             last_mid[ev.token_id] = m
 
+        # count the market-trade tape (denominator for fill_share_this_market), including in
+        # LIVE_SHADOW where no fill routes — the tape count is a pure market observation.
+        if ev.type == "last_trade":
+            market_trades[ev.token_id] = market_trades.get(ev.token_id, 0) + 1
+
         # 1. fills first: a real trade hits orders resting from earlier events
         if route_fills and ev.type == "last_trade":
             for rf in fsim.simulate(ev, book, om.active_orders()):
@@ -276,6 +287,9 @@ def run_engine(
                 rebates_earned += rebate
                 fill_count += 1
                 filled_qty += rf.qty
+                our_fills_by_token[o.token_id] = our_fills_by_token.get(o.token_id, 0) + 1
+                total_mkt = market_trades.get(o.token_id, 0)
+                fill_share = (our_fills_by_token[o.token_id] / total_mkt) if total_mkt > 0 else None
                 sched = fees.schedule_for(o.token_id)
                 tele.fills.emit({
                     "ts_exchange": ev.ts_exchange,
@@ -299,6 +313,7 @@ def run_engine(
                     "trade_ts": ev.ts_exchange,
                     "trade_price": float(ev.payload.get("price")),
                     "trade_size": float(ev.payload.get("size")),
+                    "fill_share_this_market": fill_share,
                 })
             for ao in om.drop_filled():
                 queue_model.forget(ao.order)   # filled-out order relinquishes its queue slot

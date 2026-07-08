@@ -297,6 +297,28 @@ See CLAUDE.md "Kernel vendoring status" for context.
     `MakerQuoteSkipped reason="tick_size_not_allowed"` including the
     observed tick in `detail`.
 
+31a. **Join-2 live-execution machinery is DRY-RUN-proven, operator-driven.**
+    `maker/mm_latency_harness.py` (`--mode mm_latency`) measures our own
+    submit→ack round-trip with unexecutable probes (BUY@0.001 /
+    SELL@0.999, 1 contract, cancel-on-ack; refuses near-resolved books;
+    probes gated EXACTLY like quotes — same `VenueOrderRouter` +
+    `RealOrderGate`, budget + per-order confirm). The fitted trimmed
+    mean lands in the bridge via `POLYMARKET_MM_BRIDGE_LATENCY_MS`.
+    The bridge gained a HARD inventory cap in contracts
+    (`POLYMARKET_MM_BRIDGE_MAX_INVENTORY`; reduce-only at the cap,
+    `MakerQuoteSkipped reason="inventory_cap"`) because USD risk caps
+    don't bound contracts and account cash is invisible to the bridge.
+    `maker/mm_calibration.py` (`--mode mm_calibrate`) fits `ProbQueue.f`
+    (external grid — the frozen `calibrate()` is a stub) + the latency
+    constant and emits the bracket-collapse report. Market selection =
+    the pre-registered 5-screen filter
+    (`research/scripts/mm_join2_market_screen.py`). Funding pre-flight =
+    the authed read-only `tests/probes/mm_join2_balance_probe.py`
+    (public reads show $0 for custodied cash — v0 gate finding).
+    Operator procedure: `maker/MM_JOIN2_RUNBOOK.md`. No real order can
+    flow without (real venue) ∧ (MAX_REAL_ORDERS budget) ∧ (operator
+    confirm) — proven in `tests/maker/test_mm_join2_no_real_order_proof.py`.
+
 31. **Auth-only verification is a read path, not a quote path.**
     `python -m polymarket.execution --mode maker --check-auth` builds
     the real venue adapter, calls the kernel open-order reconciliation

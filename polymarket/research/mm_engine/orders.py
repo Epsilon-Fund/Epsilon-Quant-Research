@@ -139,3 +139,26 @@ class OrderManager:
                 dropped.append(ao)
                 del self._active[key]
         return dropped
+
+    def drop_order(self, client_id: str) -> ActiveOrder | None:
+        """Remove the active order with ``client_id`` from the intended resting set.
+
+        Additive primitive for the live bridge, unused by the backtest ``run_engine`` (which
+        never rejects a place, so it never needs to roll one back). Two live uses:
+
+        * **roll back a rejected/skipped place** — ``reconcile`` optimistically records a
+          desired order in the active set *before* the venue confirms; if the venue rejects
+          it (safety gate, cap, or a venue NACK), dropping it here means the next
+          ``reconcile`` re-proposes the intent instead of treating the phantom as an
+          idempotent no-op;
+        * **venue-state reconcile** — drop an order the venue's open-order read no longer
+          shows (external cancel / missed ack / filled-away), keeping the engine's resting
+          set equal to the venue's.
+
+        Returns the removed :class:`ActiveOrder`, or ``None`` if no active order had that id.
+        """
+        for key, ao in list(self._active.items()):
+            if ao.client_id == client_id:
+                del self._active[key]
+                return ao
+        return None
