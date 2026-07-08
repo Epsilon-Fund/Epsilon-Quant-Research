@@ -9,12 +9,14 @@
 # Object-Read&Write token is not asked to CreateBucket). It does NOT configure rclone.
 # Linux / GNU coreutils assumed (stat -c, du -sb, find -mindepth, df --output).
 #
-# What it does:
+# What it does (ORDER MATTERS — raw is pruned BEFORE it is re-uploaded):
 #   1. parquet -> R2 with `rclone copy`  (backup; copy NEVER deletes on the remote)
-#   2. raw     -> R2 with `rclone copy`  (backup; same)
-#   3. prune LOCAL raw     *.jsonl.gz older than RAW_RETENTION_DAYS     (3 -> ~4d kept)
-#   4. prune LOCAL parquet *.parquet     older than PARQUET_RETENTION_DAYS (7 -> ~8d kept)
-#   5. alarm (nonzero exit) if the disk is still above DISK_ALERT_PCT afterward
+#   2. prune LOCAL raw whose PARQUET is confirmed in R2 (any age) — stops re-upload churn
+#   3. raw (only the remaining UNPARSED shards) -> R2 with `rclone copy`
+#   4. BACKSTOP: prune LOCAL raw older than RAW_RETENTION_DAYS that is verified in R2
+#      (bounds disk against parquet-less unknown_*/failed-parse shards)
+#   5. prune LOCAL parquet *.parquet older than PARQUET_RETENTION_DAYS (7 -> ~8d kept)
+#   6. alarm (nonzero exit) if the disk is still above DISK_ALERT_PCT afterward
 #
 # WHY BOTH USE `copy`, NEVER `sync`:
 #   `rclone sync` makes the destination mirror the source — so once we delete a
@@ -22,6 +24,17 @@
 #   `copy` only ever adds/updates on the remote, never deletes. Parquet USED to
 #   use `sync`; it was switched to `copy` when local parquet pruning was added
 #   (2026-06-23), otherwise the new pruning would wipe the R2 parquet archive.
+#
+# WHY RAW IS PRUNED BEFORE IT IS UPLOADED (re-upload churn fix, 2026-06-24):
+#   Raw's only job in R2 is a safety net for shards not yet parsed. expire_r2_raw.sh
+#   deletes an R2 raw shard once its parquet is confirmed; previously the next sync
+#   RE-UPLOADED that same raw from the local copy (kept ~3 days via the old age-based
+#   prune), so R2 raw never actually shrank on parse — it churned for ~3-4 days until
+#   the local copy aged out. Fix: as soon as a shard's non-empty parquet is confirmed
+#   in R2, delete the LOCAL raw (prune_raw_if_parsed) and do it BEFORE the raw upload,
+#   so parsed raw is never sent again. Net: both local and R2 raw hold only unparsed
+#   shards; parsed raw is gone within one cycle. expire_r2_raw.sh stays as the R2-side
+#   backstop for raw uploaded in a prior run before its parquet existed.
 #
 # PRUNE SAFETY MODEL — PER-FILE VERIFIED (changed 2026-06-23):
 #   Pruning is NOT gated on a global "did the whole upload succeed" flag. A local
@@ -45,18 +58,23 @@
 #   changes (in-place parquet rewrites / recompaction), switch this check to a
 #   content hash (rclone lsf --format ph --hash md5) before trusting it.
 #
-# DISK MATH / CADENCE: `find -mtime +N` keeps files up to ~N+1 days old, so the
-# real retention is ~4d raw + ~8d parquet ≈ 20.8 + 9.2 = ~30 GB on the ~40 GB
-# disk (~75%, ~10 GB headroom). The DISK_ALERT_PCT guard below is the backstop:
-# if a persistent R2 outage (the only path where pruning legitimately can't run,
-# because we keep everything we cannot verify) lets the disk creep back up, the
-# run exits nonzero so the systemd unit / log monitoring surfaces it.
+# DISK MATH / CADENCE: raw is now pruned on parse-confirm (not by age), so local raw
+# holds only the unparsed window plus a <=RAW_RETENTION_DAYS verified backstop of
+# parquet-less unknown_*/failed shards — typically ~1-2 GB. Parquet keeps ~8 days
+# (~9 GB). With the OS that lands the disk around ~50% (it was ~77% under the old
+# age-based raw retention). The DISK_ALERT_PCT guard below is the backstop: if a
+# persistent R2 outage (the only path where pruning legitimately can't run, because
+# we keep everything we cannot verify) lets the disk creep back up, the run exits
+# nonzero so the systemd unit / log monitoring surfaces it.
 
 set -euo pipefail
 
 # --- config ---------------------------------------------------------------
 REMOTE="r2"
 BUCKET="epsilon-polymarket-data"
+# RAW_RETENTION_DAYS is now ONLY a backstop for UNPARSED raw (unknown_*/failed parses)
+# that is already safe in R2 — parsed raw is deleted immediately on parse-confirm,
+# regardless of age (see prune_raw_if_parsed).
 RAW_RETENTION_DAYS=3
 PARQUET_RETENTION_DAYS=7
 DISK_ALERT_PCT=90
@@ -155,29 +173,86 @@ prune_verified() {
     rm -f "$manifest"
 }
 
+# prune_raw_if_parsed
+#   Delete a LOCAL raw *.jsonl.gz the moment a NON-EMPTY parquet for that shard is
+#   confirmed in R2 — no age requirement. This is the local mirror of the
+#   expire_r2_raw.sh gate, and running it BEFORE the raw upload is what stops the
+#   re-upload churn (parsed raw is gone locally, so `rclone copy` cannot re-send it).
+#   Kept: any shard with no non-empty parquet in R2 — the live current-hour shard,
+#   genuinely failed parses, and the parquet-less `unknown_*` universe (the latter two
+#   are then bounded locally by the age-based backstop). Fails safe: if R2 parquet
+#   cannot be listed, keep ALL local raw this run.
+prune_raw_if_parsed() {
+    if [ ! -d "$RAW_DIR" ]; then
+        log "  raw(parse) prune skip: $RAW_DIR does not exist"
+        return 0
+    fi
+    local pq_list; pq_list="$(mktemp)"
+    if ! rclone lsf -R --files-only --format "ps" --separator $'\t' \
+            "$REMOTE:$BUCKET/parquet" > "$pq_list" 2>>"$LOG_FILE"; then
+        log "  raw(parse) prune ABORT: could not list R2 parquet — keeping ALL local raw this run"
+        rm -f "$pq_list"
+        return 0
+    fi
+
+    local pruned=0 kept=0 rel date base stem pqmatch
+    while IFS= read -r -d '' f; do
+        rel="${f#"$RAW_DIR"/}"                        # e.g. 2026-06-23/esports_08.jsonl.gz
+        date="${rel%%/*}"
+        case "$date" in
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+            *) kept=$((kept + 1)); continue ;;        # non-date-partitioned -> leave alone
+        esac
+        base="${rel##*/}"; stem="${base%.jsonl.gz}"   # e.g. esports_08
+        # a NON-EMPTY parquet for this shard: parquet/{date}/.../*_{stem}.parquet
+        pqmatch="$(awk -F'\t' -v d="$date" -v s="$stem" \
+            '$1 ~ ("^" d "/.*_" s "\\.parquet$") && ($2 + 0) > 0 { print $1; exit }' "$pq_list")"
+        if [ -n "$pqmatch" ]; then
+            if rm -f "$f"; then pruned=$((pruned + 1)); else log "  WARN: failed to rm raw/$rel"; fi
+        else
+            kept=$((kept + 1))
+        fi
+    done < <(find "$RAW_DIR" -name '*.jsonl.gz' -type f -print0)
+
+    find "$RAW_DIR" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+    log "  raw(parse): pruned $pruned parsed file(s), kept $kept unparsed/unknown"
+    PRUNED_TOTAL=$((PRUNED_TOTAL + pruned))
+    rm -f "$pq_list"
+}
+
 # --- 1. parquet (working set) -> copy (never deletes remote) --------------
+#   Upload parquet FIRST so step 2 can safely delete any local raw it now covers.
 log "backing up parquet $PARQUET_DIR -> $REMOTE:$BUCKET/parquet  (copy, no remote deletes)"
 if ! run_rclone copy "$PARQUET_DIR" "$REMOTE:$BUCKET/parquet"; then
-    log "WARN: parquet upload had errors — prune keeps any file not yet verified in R2"
+    log "WARN: parquet upload had errors — raw prune keeps any shard whose parquet is not yet in R2"
     UPLOAD_ERRORS=$((UPLOAD_ERRORS + 1))
 fi
 
-# --- 2. raw (backup) -> copy (never deletes remote) -----------------------
-log "backing up raw   $RAW_DIR -> $REMOTE:$BUCKET/raw  (copy, no remote deletes)"
+# --- 2. prune LOCAL raw whose parquet is confirmed in R2 (any age) --------
+#   MUST run before the raw upload so parsed raw is never (re-)uploaded — this is the
+#   fix for the expire<->sync re-upload churn (2026-06-24).
+log "pruning local raw whose parquet is confirmed in R2 (any age)"
+prune_raw_if_parsed
+
+# --- 3. raw (only the remaining UNPARSED shards) -> copy ------------------
+log "backing up remaining unparsed raw $RAW_DIR -> $REMOTE:$BUCKET/raw  (copy, no remote deletes)"
 if ! run_rclone copy "$RAW_DIR" "$REMOTE:$BUCKET/raw"; then
-    log "WARN: raw upload had errors (expected: the live current-hour shard) — per-file prune stays safe"
+    log "WARN: raw upload had errors (expected: the live current-hour shard) — safe to retry next run"
     UPLOAD_ERRORS=$((UPLOAD_ERRORS + 1))
 fi
 
-# --- 3. prune local raw older than RAW_RETENTION_DAYS (per-file verified) -
-log "pruning local raw *.jsonl.gz older than ${RAW_RETENTION_DAYS}d (only files verified in R2)"
+# --- 4. BACKSTOP: prune local UNPARSED raw older than RAW_RETENTION_DAYS ---
+#   Bounds local disk against unknown_*/failed-parse raw that will never get a parquet.
+#   Per-file verified: only deletes raw already same-path/same-size in R2, so a failed
+#   parse is preserved in R2 even after its local copy ages out.
+log "backstop: pruning local raw older than ${RAW_RETENTION_DAYS}d that is verified in R2"
 prune_verified "$RAW_DIR" "raw" '*.jsonl.gz' "$RAW_RETENTION_DAYS"
 
-# --- 4. prune local parquet older than PARQUET_RETENTION_DAYS (verified) --
+# --- 5. prune local parquet older than PARQUET_RETENTION_DAYS (verified) --
 log "pruning local parquet *.parquet older than ${PARQUET_RETENTION_DAYS}d (only files verified in R2)"
 prune_verified "$PARQUET_DIR" "parquet" '*.parquet' "$PARQUET_RETENTION_DAYS"
 
-# --- 5. summary -----------------------------------------------------------
+# --- 6. summary -----------------------------------------------------------
 DUR=$((SECONDS - START))
 PARQUET_BYTES=$( [ -d "$PARQUET_DIR" ] && du -sb "$PARQUET_DIR" 2>/dev/null | cut -f1 || echo 0 )
 RAW_BYTES=$( [ -d "$RAW_DIR" ] && du -sb "$RAW_DIR" 2>/dev/null | cut -f1 || echo 0 )
@@ -190,7 +265,7 @@ log "  local raw    : ${RAW_FILES} files, ${RAW_BYTES} bytes"
 log "  pruned this run: ${PRUNED_TOTAL} local file(s); upload-error groups: ${UPLOAD_ERRORS}"
 log "=== sync_cloud done in ${DUR}s ==="
 
-# --- 6. disk high-water-mark guard (monitoring backstop) ------------------
+# --- 7. disk high-water-mark guard (monitoring backstop) ------------------
 DISK_PCT="$(df --output=pcent "$DATA_DIR" 2>/dev/null | tail -1 | tr -dc '0-9')"
 if [ -n "$DISK_PCT" ] && [ "$DISK_PCT" -ge "$DISK_ALERT_PCT" ]; then
     log "CRITICAL: disk at ${DISK_PCT}% (>= ${DISK_ALERT_PCT}%) after sync+prune — backup/prune may be failing. Check R2 reachability and this log; do NOT delete data/raw or data/parquet by hand."

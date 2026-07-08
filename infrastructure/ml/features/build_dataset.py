@@ -266,6 +266,21 @@ if __name__ == '__main__':
     parser.add_argument('--symbol', default=None)
     args = parser.parse_args()
 
+    # ── data-contract gate (fail-closed) ─────────────────────────────────────
+    # Validate the daily OHLCV parquet this script is about to read BEFORE
+    # building features. Aborts on any contract violation (schema / monotone
+    # bars / cadence / finite / OHLC sanity / future-dated bars). Bypass in an
+    # emergency with EPSILON_DATA_CONTRACT=warn|off. Only symbols whose cache
+    # exists are gated; absent optional symbols stay this script's concern.
+    import sys as _sys
+    if str(_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(_ROOT))
+    from infrastructure.data.schemas import guard_dataset
+    _want = [args.symbol] if args.symbol else UNIVERSE
+    _present = [s for s in _want if (_OHLCV_DIR / f'{s}_daily.parquet').exists()]
+    if _present:
+        guard_dataset('crypto_ohlcv_daily', symbols=_present)
+
     _FEATURES_DIR.mkdir(parents=True, exist_ok=True)
 
     if args.symbol:

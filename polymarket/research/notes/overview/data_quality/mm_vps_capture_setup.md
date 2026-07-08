@@ -65,9 +65,37 @@ All backups go to one Cloudflare R2 bucket, **`epsilon-polymarket-data`**, on Ju
 There are **two** on-disk representations of the same events; do not confuse them:
 
 - **Envelope JSONL** (`raw/` and `research-live-clob/`): one JSON record per WS message, shape `{received_at, received_monotonic_ns, event_type, asset_ids, assets, message}` where `message` is the raw PM payload. The four `event_type`s are `book`, `price_change`, `last_trade_price`, `best_bid_ask`. **This is what the MM engine's replay adapter consumes** (`mm_engine/feeds/replay.py` reads `*.jsonl` and `*.jsonl.gz`, so the gzipped shards work directly), via the shared `envelope_to_events()` parser. Capture gaps come from the sibling `capture_gaps.jsonl`.
-- **Typed Parquet** (`parquet/`): the columnar tables above, for fast spread/depth/toxicity scans and the reconstruction audit. The Phase-0 replay adapter does **not** read Parquet yet — a Parquet→`MarketEvent` adapter is future work; for now, replay off the envelope JSONL.
+- **Typed Parquet** (`parquet/`): the columnar tables above, for fast spread/depth/toxicity scans and the reconstruction audit. **The engine now replays this too** (`mm_engine/feeds/replay_parquet.py`) — see § 3.1; it emits the same `MarketEvent`s as the JSONL adapter, so the source is interchangeable.
 
 Why both: JSONL is the faithful, replayable record (every field, exact ordering); Parquet is the compact analytical surface (~4× smaller, columnar). The producer is **write-once-per-path** — raw shards are append-only then closed; each Parquet is written exactly once to a unique `{table}_{shard}.parquet` — which is the invariant that makes the size-based prune (§ 5) safe.
+
+---
+
+## 3.1 Replay reads Parquet too (+ converting the fixture)
+
+The engine has a **Parquet replay adapter** alongside the JSONL one, so a backtest can run off the compact typed tables (or off a converted fixture) with zero behavioral change:
+
+```python
+from mm_engine.feeds.replay_parquet import replay_parquet
+# one {date}/{universe} dir, or a list of them; gaps load from the dir's capture_gaps.parquet
+feed = replay_parquet("data/l2_parquet_fixture/2026-05-29/block_a0c_smoke")
+```
+
+Both adapters build events through the **same** canonical builders in `mm_engine/events.py` and order + interleave gap markers through the **same** `mm_engine/feeds/_merge.py`, so the JSONL and Parquet paths are **byte-identical** on the same data — proven by `tests/test_mm_engine_parquet.py` (identical `MarketEvent` streams incl. `GapMarker`s; source-invariant engine fills/positions/equity) and verified on a real `research-live-clob` shard (1,675 events — 36 book / 1,530 price_change / 108 bba / 1 trade — identical from both sources). One consequence: the engine's payload is **canonicalized to the Parquet-schema fields** (`price/size/side/bids/asks/best_bid/best_ask` + `asset_id`/`market`); raw-only fields (`hash`/`tick_size`/`spread`) are dropped so a JSONL event and the Parquet row it compresses to produce the same event.
+
+**Converting the gappy JSONL fixture to Parquet** (`scripts/mm_jsonl_to_parquet_fixture.py`, replicating the § 2 schema exactly, incl. a `capture_gaps.parquet` sidecar derived from `capture_gaps.jsonl[.gz]` so gaps replay identically):
+
+```bash
+cd polymarket/research
+# pull research-live-clob from R2, convert each shard, (optionally) push back under a fixture prefix
+PYTHONPATH=. uv run python scripts/mm_jsonl_to_parquet_fixture.py \
+    --r2-prefix research-live-clob --out-dir data/l2_parquet_fixture --limit 5
+# or convert already-local shards without touching the network:
+PYTHONPATH=. uv run python scripts/mm_jsonl_to_parquet_fixture.py --no-pull \
+    --local-dir data/live_clob/fixture --out-dir data/l2_parquet_fixture
+```
+
+Output layout mirrors the cloud: `{out_dir}/{date}/{universe}/{table}_{shard}.parquet` + `capture_gaps.parquet`. Note the gaps log in real captures is gzipped (`capture_gaps.jsonl.gz`) — both the converter and the JSONL adapter handle either form.
 
 ---
 
@@ -170,6 +198,6 @@ A `book` event anchors the book and clears staleness; events after a recorded ga
 **State:** continuous VPS→R2 L2 capture is live and verified; the backup/prune/expire loop is per-file safe and disk-bounded. The MM engine's replay adapter consumes the envelope JSONL (raw + research-live-clob) directly, gzip and gaps included.
 
 **Next:**
-1. A **Parquet→`MarketEvent` replay adapter** so the engine can also replay the compact typed tables (not just JSONL) once weeks of data accumulate.
+1. ~~A Parquet→`MarketEvent` replay adapter~~ — **done** (`mm_engine/feeds/replay_parquet.py` + the fixture converter; § 3.1). The engine replays JSONL and Parquet interchangeably.
 2. The **reconstruction audit** (Alvaro) over the rolling capture — clean-vs-ambiguous interval % per market/category — per [[mm_clob_capture_semantics]] § Required Reconstruction Audit; it reads the same R2 data documented here.
 3. Keep this note in sync if the bucket layout, retention, or `rclone` config changes. The raw expiry recently dropped its age gate (delete as soon as Parquet is confirmed) — re-check the deployed `expire_r2_raw.sh` before relying on any age assumption.

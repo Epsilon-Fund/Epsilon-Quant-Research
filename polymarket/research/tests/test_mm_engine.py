@@ -13,8 +13,10 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from mm_engine.book import BookTracker
-from mm_engine.events import GapMarker, envelope_to_events
+from mm_engine.events import envelope_to_events
 from mm_engine.feeds.live_shadow import FrameTransport, live_shadow_feed
 from mm_engine.feeds.replay import replay_feed
 from mm_engine.interfaces import (
@@ -25,7 +27,7 @@ from mm_engine.interfaces import (
     QueueModel,
     Strategy,
 )
-from mm_engine.latency_models import ConstantLatency
+from mm_engine.latency_models import DEFAULT_ROUND_TRIP_MS, ConstantLatency, SampledLatency
 from mm_engine.queue_models import OptimisticQueue
 from mm_engine.runner import run_strategy
 from mm_engine.strategies import SymmetricQuoter
@@ -338,7 +340,7 @@ def test_best_bid_ask_does_not_mutate_book():
 
 def test_symmetric_quoter_basic():
     q = SymmetricQuoter()
-    fresh = BookState(YES, bids=[(0.47, 500)], asks=[(0.49, 400)], ts_exchange=1, stale=False)
+    fresh = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=False)
     orders = q.quote(fresh, inventory=0.0, params={"half_spread": 0.01, "size": 50.0})
     by_side = {o.side: o for o in orders}
     assert by_side["BUY"].price == 0.47 and by_side["SELL"].price == 0.49
@@ -348,29 +350,40 @@ def test_symmetric_quoter_basic():
     assert q.quote(fresh, inventory=999.0, params={"half_spread": 0.01, "size": 50.0}) == orders
 
     # stale or one-sided book -> no quotes
-    stale = BookState(YES, bids=[(0.47, 500)], asks=[(0.49, 400)], ts_exchange=1, stale=True)
+    stale = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=True)
     assert q.quote(stale, 0.0, {}) == []
-    one_sided = BookState(YES, bids=[(0.47, 500)], asks=[], ts_exchange=1, stale=False)
+    one_sided = BookState(YES, bids=((0.47, 500),), asks=(), ts_exchange=1, stale=False)
     assert q.quote(one_sided, 0.0, {}) == []
 
 
 def test_optimistic_queue_trade_through():
     qm = OptimisticQueue()
-    book = BookState(YES, bids=[(0.47, 500)], asks=[(0.49, 400)], ts_exchange=1, stale=False)
+    book = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=False)
     order = Order(YES, "BUY", 0.47, 100.0)
     base = 1_781_000_000_000
 
-    # First a SELL of 200 at 0.47: consumes queue-ahead (500), no fill yet.
+    # First a SELL of 200 at 0.47: seeds queue-ahead from the book (500), consumes 200 -> 300, no fill.
     t1 = MarketEvent("last_trade", YES, base, "", 0, _trade_msg(YES, base, "SELL", 0.47, 200))
-    assert qm.fill(order, book, t1) == 0.0
+    r1 = qm.fill(order, book, t1)
+    assert r1.qty == 0.0 and r1.queue_ahead == 300.0
 
     # Next a SELL of 400: 300 left ahead is cleared, 100 overflow fills our order.
     t2 = MarketEvent("last_trade", YES, base + 1, "", 0, _trade_msg(YES, base + 1, "SELL", 0.47, 400))
-    assert qm.fill(order, book, t2) == 100.0
+    r2 = qm.fill(order, book, t2)
+    assert r2.qty == 100.0 and r2.queue_ahead == 0.0
 
     # A BUY (wrong aggressor side for a resting bid) never fills it.
     t3 = MarketEvent("last_trade", YES, base + 2, "", 0, _trade_msg(YES, base + 2, "BUY", 0.47, 999))
-    assert qm.fill(order, book, t3) == 0.0
+    assert qm.fill(order, book, t3).qty == 0.0
+
+
+def test_optimistic_queue_get_queue_ahead_seeds_from_cached_book():
+    qm = OptimisticQueue()
+    book = BookState(YES, bids=((0.47, 500),), asks=((0.49, 400),), ts_exchange=1, stale=False)
+    order = Order(YES, "BUY", 0.47, 100.0)
+    # on_event caches the book per token so get_queue_ahead can seed without a book arg.
+    qm.on_event(MarketEvent("book", YES, 1, "", 0, {}), book)
+    assert qm.get_queue_ahead(order) == 500.0
 
 
 def test_constant_latency():
@@ -378,7 +391,74 @@ def test_constant_latency():
     assert lat.round_trip_ms(ts_exchange=1_781_000_000_000) == 12.5
 
 
+def test_constant_latency_default_is_realistic():
+    # default is the realistic ~200ms round-trip, not 0ms (instant fills)
+    assert DEFAULT_ROUND_TRIP_MS == 200.0
+    assert ConstantLatency().round_trip_ms(ts_exchange=1_781_000_000_000) == 200.0
+
+
+def test_sampled_latency_constant_when_std_zero():
+    lat = SampledLatency(mean=180.0, std=0.0)
+    assert lat.round_trip_ms(1) == 180.0 and lat.round_trip_ms(2) == 180.0   # degenerate -> mean
+
+
+def test_sampled_latency_is_seeded_and_reproducible():
+    a = SampledLatency(mean=200.0, std=30.0, seed=7)
+    b = SampledLatency(mean=200.0, std=30.0, seed=7)
+    seq_a = [a.round_trip_ms(t) for t in range(50)]
+    seq_b = [b.round_trip_ms(t) for t in range(50)]
+    assert seq_a == seq_b                                   # same seed -> identical draws (deterministic replay)
+    assert any(abs(x - 200.0) > 1e-9 for x in seq_a)        # actually dispersed, not constant
+    c = SampledLatency(mean=200.0, std=30.0, seed=8)
+    assert [c.round_trip_ms(t) for t in range(50)] != seq_a  # different seed -> different draws
+
+
+def test_sampled_latency_same_ts_is_pure_and_repeatable():
+    # round_trip_ms must be a PURE function of ts_exchange: fills.py probes a resting order
+    # once per trade-check with the SAME placement_ts, and the order's submit->live latency
+    # must be fixed once, not re-rolled on every probe.
+    lat = SampledLatency(mean=200.0, std=40.0, seed=2)
+    v = lat.round_trip_ms(1_781_000_000_777)
+    assert all(lat.round_trip_ms(1_781_000_000_777) == v for _ in range(25))   # repeat -> identical
+    assert lat.round_trip_ms(1_781_000_000_777.0) == v                          # keyed on int(ts)
+    # call ORDER / history does not perturb a given ts's value (the old sequential-RNG bug)
+    other = SampledLatency(mean=200.0, std=40.0, seed=2)
+    _ = [other.round_trip_ms(t) for t in (5, 9, 1, 12345)]                      # probe other ts first
+    assert other.round_trip_ms(1_781_000_000_777) == v
+
+
+def test_sampled_latency_disperses_across_ts():
+    lat = SampledLatency(mean=200.0, std=40.0, seed=2)
+    vals = [lat.round_trip_ms(t) for t in range(1000, 1200)]   # 200 distinct submit times
+    assert len(set(vals)) > 150                                # different ts -> different draws
+    assert max(vals) - min(vals) > 40.0                        # genuinely spread, not constant
+
+
+def test_sampled_latency_floor_clamps_nonnegative():
+    # tiny mean, wide std, floor 0 -> never returns a negative round-trip
+    lat = SampledLatency(mean=1.0, std=100.0, floor_ms=0.0, seed=3)
+    assert all(lat.round_trip_ms(t) >= 0.0 for t in range(500))
+
+
+def test_sampled_latency_from_samples_fits_mean_std():
+    lat = SampledLatency.from_samples([100.0, 200.0, 300.0], seed=0)
+    assert lat.mean == pytest.approx(200.0)
+    assert lat.std == pytest.approx((20000.0 / 3.0) ** 0.5)   # population std of {100,200,300} ≈ 81.65
+    # empty samples -> safe default, no crash
+    assert SampledLatency.from_samples([]).mean == DEFAULT_ROUND_TRIP_MS
+
+
+def test_sampled_latency_calibrate_refits_in_place():
+    lat = SampledLatency(mean=200.0, std=0.0, seed=1)
+    lat.calibrate([50.0, 50.0, 50.0, 50.0])
+    assert lat.mean == pytest.approx(50.0) and lat.std == pytest.approx(0.0)
+    assert lat.round_trip_ms(1) == pytest.approx(50.0)
+    lat.calibrate([])                                       # no samples -> unchanged
+    assert lat.mean == pytest.approx(50.0)
+
+
 def test_stub_protocol_conformance():
     assert isinstance(SymmetricQuoter(), Strategy)
     assert isinstance(OptimisticQueue(), QueueModel)
     assert isinstance(ConstantLatency(), LatencyModel)
+    assert isinstance(SampledLatency(), LatencyModel)
