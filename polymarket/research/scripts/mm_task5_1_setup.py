@@ -17,7 +17,7 @@ strategy runs:
 Outputs (committed-path caches; regenerable):
     data/markets/mm_task5_1_market_meta.json      Gamma metadata per condition id
     data/markets/mm_task5_1_selection.json        selected tokens + spans per universe
-    data/analysis/csv_outputs/market_making/mm_task5_1_groups.csv   features+cohorts+folds
+    data/analysis/csv_outputs/market_making/mm_task5_1_groups.parquet   features+cohorts+folds
 
 Usage (from polymarket/research/):
     PYTHONPATH=. uv run python scripts/mm_task5_1_setup.py [--top-k 20] [--n-folds 6] [--force-meta]
@@ -190,10 +190,10 @@ def main() -> None:
                      "vol_c", "avg_price", "cohort_aggr", "cohort_liq", "fold"]]
               .to_string(index=False, float_format=lambda x: f"{x:.3f}"))
     groups_df = pd.concat(frames, ignore_index=True)
-    groups_df.to_csv(CSV_OUT / "mm_task5_1_groups.csv", index=False)
+    groups_df.to_parquet(CSV_OUT / "mm_task5_1_groups.parquet", index=False)
 
     SELECTION_JSON.write_text(json.dumps(selection, indent=2))
-    print(f"\nwrote {SELECTION_JSON}\nwrote {CSV_OUT / 'mm_task5_1_groups.csv'}")
+    print(f"\nwrote {SELECTION_JSON}\nwrote {CSV_OUT / 'mm_task5_1_groups.parquet'}")
     con.close()
 
 

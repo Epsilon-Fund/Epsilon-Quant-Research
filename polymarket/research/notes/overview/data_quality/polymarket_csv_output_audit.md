@@ -53,6 +53,7 @@ The two `paper_journal` CSVs are kept because they are real historical artifacts
 - New human-readable report/result CSVs go under `polymarket/research/data/analysis/csv_outputs/<cluster>/`.
 - Use one of the existing cluster folders when possible: `copytrade`, `dali`, `market_making`, or `options_delta`.
 - Markdown findings must link or name the exact CSV path they interpret, and any non-obvious table columns must be explained in the note before or after the table.
+- **Format split (from the Task-5.1 pass, 2026-07-08):** row-heavy *machine* outputs (per-cell / per-path / per-group / per-token intermediates) are written as **Parquet**, not CSV — DuckDB-native, dtype-preserving (CLOB `token_id`/`group_id` kept as strings), and smaller for the row-heavy ones. Only small **human-read summary tables** stay CSV (e.g. the Task-5.1 `ladder_table` and `v0_surface`). The `csv_count` column above counts committed CSVs from the 2026-06-05 snapshot only; Task-5.x outputs are gitignored/regenerable and are catalogued as a data family in [[polymarket_data_manifest]], not shard-by-shard here.
 - Large canonical panels, ledgers, and append-only datasets should remain parquet unless there is a specific reason to emit a small CSV summary.
 - Avoid new flat files directly under `polymarket/research/data/analysis/`.
 
