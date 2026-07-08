@@ -90,11 +90,11 @@ def chart_split_diagnosis(groups: pd.DataFrame) -> None:
 # ── 2. cohort × τ-regime heatmap (kept rung) ───────────────────────────────────
 
 def chart_surface() -> None:
-    f = CSV_OUT / "mm_task5_1_surface.parquet"
+    f = CSV_OUT / "mm_task5_1_surface.csv"
     if not f.exists():
-        print("surface.parquet missing — run the ladder first; skipping chart 2")
+        print("surface.csv missing — run the ladder first; skipping chart 2")
         return
-    s = pd.read_parquet(f)
+    s = pd.read_csv(f)
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.4))
     for ax, u in zip(axes, UNIVERSES):
         sub = s[(s.universe == u) & (s.regime != "full")]
@@ -133,13 +133,13 @@ def chart_surface() -> None:
 
 def chart_inner_outer() -> None:
     f = SCRATCH / "mm_task5_1_all_rows.json"
-    g = CSV_OUT / "mm_task5_1_groups.parquet"
-    sp = CSV_OUT / "mm_task5_1_splits.parquet"
+    g = CSV_OUT / "mm_task5_1_groups.csv"
+    sp = CSV_OUT / "mm_task5_1_splits.csv"
     if not (f.exists() and sp.exists()):
         print("ladder outputs missing — skipping chart 3")
         return
     df = pd.read_json(f)
-    groups = pd.read_parquet(g)
+    groups = pd.read_csv(g)
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5))
     for ax, u in zip(axes, UNIVERSES):
         gsub = groups[groups.universe == u].sort_values(["fold", "order_idx"])
@@ -335,7 +335,7 @@ def main() -> None:
     which = set(args.charts.split(","))
     PLOT_OUT.mkdir(parents=True, exist_ok=True)
     sel = json.loads(SELECTION_JSON.read_text())
-    groups = pd.read_parquet(CSV_OUT / "mm_task5_1_groups.parquet")
+    groups = pd.read_csv(CSV_OUT / "mm_task5_1_groups.csv")
     if "1" in which:
         chart_split_diagnosis(groups)
         print("chart 1 done")

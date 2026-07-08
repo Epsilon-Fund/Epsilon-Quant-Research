@@ -54,7 +54,7 @@ RESEARCH = Path(__file__).resolve().parents[1]
 CSV_OUT = RESEARCH / "data/analysis/csv_outputs/market_making"
 PLOT_OUT = RESEARCH / "data/analysis/plots/market_making"
 SELECTION_JSON = RESEARCH / "data/markets/mm_task5_1_selection.json"
-GROUPS_PARQUET = CSV_OUT / "mm_task5_1_groups.parquet"
+GROUPS_CSV = CSV_OUT / "mm_task5_1_groups.csv"
 WIRING_JSON = CSV_OUT / "mm_task5_1_v0_wiring.json"
 SCRATCH = Path("/private/tmp/claude-501/-Users-justiniturregui-Desktop-github-epsilon-quant-research/"
                "b6ea1a3f-cca4-465b-b11c-5ab18e4a749c/scratchpad")
@@ -499,7 +499,7 @@ def main() -> None:
     RUNS.mkdir(parents=True, exist_ok=True)
 
     sel = json.loads(SELECTION_JSON.read_text())
-    groups_df = pd.read_parquet(GROUPS_PARQUET)
+    groups_df = pd.read_csv(GROUPS_CSV)
     wiring = json.loads(WIRING_JSON.read_text()) if WIRING_JSON.exists() else None
     if wiring is None:
         if not args.prewarm:
@@ -653,8 +653,8 @@ def main() -> None:
             **{f"dsr_{k}": v for k, v in dsr.items()},
             **{f"rc_{k}": v for k, v in rc.items()},
         })
-        res["overlap_diag"].to_parquet(CSV_OUT / f"mm_task5_1_overlap_{u}.parquet", index=False)
-    pd.DataFrame(audit_rows).to_parquet(CSV_OUT / "mm_task5_1_audit.parquet", index=False)
+        res["overlap_diag"].to_csv(CSV_OUT / f"mm_task5_1_overlap_{u}.csv", index=False)
+    pd.DataFrame(audit_rows).to_csv(CSV_OUT / "mm_task5_1_audit.csv", index=False)
 
     # per-split selection records + per-group honest estimates + paths (all rungs)
     sel_rows, grp_rows, path_rows = [], [], []
@@ -670,9 +670,9 @@ def main() -> None:
             p = rr["paths"].copy()
             p["universe"], p["rung"] = u, rname
             path_rows.append(p)
-    pd.concat(sel_rows, ignore_index=True).to_parquet(CSV_OUT / "mm_task5_1_splits.parquet", index=False)
-    pd.concat(grp_rows, ignore_index=True).to_parquet(CSV_OUT / "mm_task5_1_groups_honest.parquet", index=False)
-    pd.concat(path_rows, ignore_index=True).to_parquet(CSV_OUT / "mm_task5_1_paths.parquet", index=False)
+    pd.concat(sel_rows, ignore_index=True).to_csv(CSV_OUT / "mm_task5_1_splits.csv", index=False)
+    pd.concat(grp_rows, ignore_index=True).to_csv(CSV_OUT / "mm_task5_1_groups_honest.csv", index=False)
+    pd.concat(path_rows, ignore_index=True).to_csv(CSV_OUT / "mm_task5_1_paths.csv", index=False)
 
     # (cohort × τ-regime) surface for the kept rung
     srows = []
@@ -680,7 +680,7 @@ def main() -> None:
         kept = results[u]["kept_nested"]
         if kept is not None:
             srows += surface_rows(u, df, kept, groups_df, rungs_by_u[u])
-    pd.DataFrame(srows).to_parquet(CSV_OUT / "mm_task5_1_surface.parquet", index=False)
+    pd.DataFrame(srows).to_csv(CSV_OUT / "mm_task5_1_surface.csv", index=False)
 
     print("\n================ LADDER (nested-CPCV honest OOS) ================")
     show = [c for c in ("universe", "rung", "gated", "modal_config", "honest_pooled_c",

@@ -59,7 +59,7 @@ RESEARCH = Path(__file__).resolve().parents[1]
 CSV_OUT = RESEARCH / "data/analysis/csv_outputs/market_making"
 PLOT_OUT = RESEARCH / "data/analysis/plots/market_making"
 SELECTION_JSON = RESEARCH / "data/markets/mm_task5_1_selection.json"
-GROUPS_PARQUET = CSV_OUT / "mm_task5_1_groups.parquet"
+GROUPS_CSV = CSV_OUT / "mm_task5_1_groups.csv"
 SCRATCH = Path("/private/tmp/claude-501/-Users-justiniturregui-Desktop-github-epsilon-quant-research/"
                "b6ea1a3f-cca4-465b-b11c-5ab18e4a749c/scratchpad")
 CACHE = SCRATCH / "mm_task5_1_cache"
@@ -365,7 +365,7 @@ def main() -> None:
     PLOT_OUT.mkdir(parents=True, exist_ok=True)
 
     sel = json.loads(SELECTION_JSON.read_text())
-    groups = pd.read_parquet(GROUPS_PARQUET)
+    groups = pd.read_csv(GROUPS_CSV)
     tok2group = {t["token_id"]: t["group_id"]
                  for u in UNIVERSES for t in sel["universes"][u]["tokens"]}
 
@@ -380,7 +380,7 @@ def main() -> None:
     (CSV_OUT / "mm_task5_1_v0_wiring.json").write_text(json.dumps(rule, indent=2))
 
     resc = rescue(per_fill)
-    resc.to_parquet(CSV_OUT / "mm_task5_1_v0_rescue.parquet", index=False)
+    resc.to_csv(CSV_OUT / "mm_task5_1_v0_rescue.csv", index=False)
     agg = (resc.groupby(["universe", "signal"])
            .agg(mean_rescue_c=("rescue_delta_c", "mean"),
                 median_rescue_c=("rescue_delta_c", "median"),
