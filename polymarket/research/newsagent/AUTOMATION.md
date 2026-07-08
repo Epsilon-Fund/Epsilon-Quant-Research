@@ -1,3 +1,17 @@
+---
+title: "Observatory — future web-launch automation (SCAFFOLD ONLY, not wired)"
+created: 2026-07-05
+status: scaffold
+owner: justin
+project: polymarket-newsagent
+para: project
+hubs:
+  - strat_news_agent_showcase
+tags:
+  - news_agent
+  - automation
+  - scaffold
+---
 # Observatory — future web-launch automation (SCAFFOLD ONLY, not wired)
 
 > Status: **documented future switch, deliberately NOT live** (v3 mandate:

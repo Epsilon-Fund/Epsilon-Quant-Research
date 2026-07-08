@@ -361,6 +361,29 @@ Unlike the prompt-invoked brain passes above, these are **description-triggered 
 | `stay-within-limits` | Before/within: CPCV parameter sweeps, per-asset notebook waves, bulk Polymarket reprocessing, any run expected > 30 min or > 2 parallel subagents | Checks 5-hour/weekly usage between waves (`npx -y ccusage@latest blocks --active --json`), pauses new work at 95% of either limit, resumes via self-contained wake prompts; wave throttle 3 | Never interrupt in-flight subagents to save budget; a budget-pause handoff mid-branch follows the Chronicler convention (what ran, what's pending, where results landed) |
 | `data-contract` (Codex / Claude Code: first-party, auto-triggered) | About to run a backtest / walk-forward / CPCV / replay / analysis over a known dataset (PM fills/L2 or crypto OHLCV parquet), OR the data looks wrong (NaN/Inf, duplicate/missing bars, non-lowercase 0x addresses, a mutated shard, future-dated rows, a drifted distribution) | Validates schema + invariants (finite, lowercase-0x, monotone-where-real, cadence, lookahead-free, append-only) via `pandera.polars` and computes PSI+KS drift vs a stored reference; a fail-closed `guard_dataset()` aborts the run on violation; writes a plain-English markdown failure report; drift + missing-bar gaps are warnings | Per-project, NEVER cross-import (`infrastructure/data/schemas/` crypto · `polymarket/research/data_infra/schemas/` PM); only imposes invariants the instrument actually has (PM fills carry no monotone clause; the OHLCV refetch cache carries no append-only clause); drift never blocks; coverage caps on huge files are logged; emergency bypass `EPSILON_DATA_CONTRACT=warn\|off` (never for a real run) |
 
+### Worker right-sizing (compute-heavy runs) — RAM-bound, not core-bound
+
+Before fanning out a large worker pool (CPCV/WF sweeps, event-heavy parquet replays, any `ProcessPoolExecutor`/thread fan-out), size it to **memory, not CPU count**, and health-check for **memory-compression / swap thrash**. Do NOT default `workers = cores`.
+
+**Pre-launch sizing.** Estimate peak RAM per worker from the *heaviest* work unit (an event-heavy token can parse to ~3.5–7 GB of in-memory order-book events). Set `workers ≈ min(cores, floor(available_RAM × 0.7 / peak_RAM_per_worker))`. Seven ~5 GB workers do not fit in 32 GB — per-batch recycling does not save you.
+
+**Live health check** (sample every few minutes, e.g. a 5-min throughput probe):
+
+- worker CPU% ≈ 95–100% on CPU-bound work = healthy; **20–30% = thrash**.
+- kernel/sys CPU < ~15% healthy; **> ~40–50% = the box is burning cycles compressing/paging memory** (the "compression tax").
+- compressed/swap memory climbing into GBs = the pool is over-subscribed.
+- rolling throughput (units/hour) falling on the sample confirms it.
+- macOS: `memory_pressure`, `vm_stat`, `ps -o rss`, `sysctl hw.memsize`. Linux: `free -m`, `vmstat` (watch `si/so`), `/proc/<pid>/status`.
+
+**Counterintuitive rule:** fewer fully-utilized workers beat more thrashing — 4 workers at 98% doing real work beat 7 at 25% while the OS compresses their RAM.
+
+**Adaptive — the max is NOT a fixed number.** Two ceilings: the **CPU-core ceiling** (≈ physical cores, fixed by hardware) and the **RAM ceiling** (`available_RAM / peak_RAM_per_worker`, which *moves* as workers churn through denser vs lighter units). Effective max = `min(the two)`, and the RAM ceiling is usually the binding, moving constraint. Causality matters: it is not CPU that compresses memory — *memory pressure* (breaching the RAM ceiling) makes the OS compress/page, and that work burns CPU as sys/kernel time. So the "compression tax" is the **symptom** of the RAM ceiling being crossed, which is why a pool healthy early on light units tips into thrash once only heavy units remain. Right-size **throughout the process**, not once at launch, via two levers with an important asymmetry:
+
+- **Proactive (preferred): segment the queue by unit weight** — heavy leg with fewer workers, light leg with more, each segment sized to *its own* peak unit. Deterministic; never has to react to thrash. (Worked example: Task-5 ladder — event-heavy politics tokens at **4 workers**, ~10× lighter esports at **7**, 32 GB box, 2026-07-07.)
+- **Reactive (safety net): only ever scale DOWN on thrash.** Cutting workers out of a compression spiral is safe and immediate. **Do not speculatively scale UP** while light units happen to be running — a heavy batch landing into the enlarged pool is exactly what tips it over. To grow, do it at a segment boundary sized to the next segment's peak, never mid-batch.
+
+This is a health-check convention (not an auto-triggered skill) — apply it at the start of any run that fans out heavy workers, and keep re-checking as the queue's remaining units get denser.
+
 ## Future skills (deferred)
 
 From [[OBSIDIAN_INFRA_ROADMAP]] — build only when the basics earn their keep:

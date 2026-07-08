@@ -171,9 +171,53 @@ A controlled gappy shard (one disconnect, all timestamps within 700 ms so the 5s
 
 *Caveat on Checks A and C:* their exact illustrative tables (e.g. Optimistic 195 / Prob 144.60 / RiskAverse 95 filled-qty; the per-token Check-C PnL) were emitted by scratch scripts that were not committed, so those specific values were not bit-reproduced. Their underlying **properties** are independently verified: the 0%-gap record→replay reconciliation is pinned by `test_record_replay_reconciliation`, and the `Optimistic ≥ Prob ≥ RiskAverse` fill bracket + `queue_ahead ≤ depth` invariant hold on the busy esports token here (and in `test_mm_queue_models`, 39 tests).
 
+---
+
+## Check A′ — Live WS ingestion + real-frame record→replay (upgrades Check A to real data)
+
+**What this adds.** Check A proved adapter-parity + model determinism on *synthetic* frames. This section repeats it on **real Polymarket frames**: connect `feeds/live_shadow` to the **public** market websocket (`wss://ws-subscriptions-clob.polymarket.com/ws/market`) — **read-only, no auth, no orders** — run the `SymmetricQuoter` in LIVE_SHADOW mode, `record_to` the session, and `reconcile_against_recording`. Currently-active markets were discovered via the Gamma API (politics-NegRisk by 24h volume; esports via `Valorant`/`League of Legends`/`CS2` search). All runs on 2026-06-30.
+
+### 1. Parse robustness on real frames — 0 errors, schema-drift tolerant
+
+Every raw WS frame was tee'd to disk and re-run through `envelope()` + `envelope_to_events()` with a try/except, plus a mutation test that drops/nulls/junk-types every field.
+
+| run | tokens | frames | events | **parse errors** | schema-drift mutations | **drift crashes** |
+|---|---|---|---|---|---|---|
+| pilot (universe) | 32 | 547 | 978 | **0** | — | — |
+| single (politics) | 1 | 107 | 155 | **0** | — | — |
+| placement (politics) | 1 | 109 | 187 | **0** | 1,038 | **0** |
+| **30-min universe** | **32** | **11,278** | **21,038** | **0** | **2,024** | **0** |
+
+**Read.** Zero parse failures across every real frame seen, and zero crashes across thousands of field-mutations — the live path has the same schema-drift tolerance the Parquet adapter got. It also **gracefully ignores unexpected frame types**: the channel emits `new_market` announcement frames (a different shape, no `asset_id`), which `envelope_to_events` correctly maps to **zero events with no error** (63 such frames in one run). Any frame that failed to parse would be reported here; **none did**.
+
+### 2. Engine consumes the real stream end-to-end (books build, quotes + orders log)
+
+Best shown on the busiest politics-NegRisk token (a liquid ~0.002 longshot, so a price-appropriate 0.1¢ half-spread was used so the quoter emits a valid two-sided quote — at a 1¢ half-spread the bid clamps below 0 and the quoter correctly emits nothing):
+
+- **187 `MarketEvent`s** consumed; **books built** (full `book` snapshots anchored, `price_change` deltas applied); **187 quote evaluations logged**; **188 order placements + 374 order-ops logged** (place/replace/cancel) — the order/placement telemetry path fully exercised on real frames, **with no orders ever sent (LIVE_SHADOW logs only)**.
+- Caveat: order placement is **market-state-gated** — on near-0/near-1 longshots (bid clamps <0) or quiet/one-sided books the quoter correctly emits nothing (`placed=0`), which is the right behavior, not a failure.
+
+### 3. Record→replay reconcile on real frames — 0% gap
+
+The placement run (188 placements) recorded, then replayed via `replay_feed` and reconciled:
+
+| metric | live (A) | replay (B) | gap |
+|---|---|---|---|
+| placed | 188 | 188 | **0.0000** |
+| quotes | 187 | 187 | **0.0000** |
+| fills / position / PnL / rebates | 0 | 0 | **0.0000** |
+| **equity_path_match** | — | — | **True** |
+| replay-vs-replay determinism (sha256) | — | — | **identical** |
+
+**Verdict PASS — all 11 reconcile metrics at exactly 0% gap on real frames, equity_path matches, and the recording replays deterministically.** This is Check A upgraded from synthetic to real-data: the live JSON parse→book→quote path produces byte-identical decisions to replaying its own recording.
+
+**One honest real-data wrinkle (the live analog of Check B).** The live feed processes events in **WS-arrival order**; `replay_feed` re-sorts by exchange `ts_exchange`. When a frame arrives carrying an *earlier* exchange timestamp than the previous one (a sub-/single-millisecond inversion — 1 in a 32-event single-token run, **164 across 21,038 events in the 30-min universe run**), the live and replay **equity_path sequences differ in order** while remaining **identical as a multiset** (verified: `sorted(live.equity_path) == sorted(replay.equity_path)`; all 11 economic metrics still reconcile at 0% gap, and replay-vs-replay is byte-identical). It is the same WS-arrival-vs-exchange-timestamp ordering effect diagnosed in Check B, and it is benign: content-identical, order-only, and economically order-invariant. The placement run happened to have **0 inversions**, so its `equity_path_match` is cleanly `True`.
+
+**Disposition.** The live JSON ingestion path is validated on real frames: parse-clean + schema-drift-tolerant, consumed end-to-end with full quote/order telemetry, and record→replay 0%-gap + deterministic. Still **read-only / no fills** — real-fill realism remains Join 2. Nothing here placed an order, calibrated, or made a profitability claim.
+
 ## Decision and next step
 
-**JOIN 1 PASSES.** Same-code-path is exact (0% gap per model), the book reconstruction is faithful (~99% once the intra-ms ordering artifact is accounted for), the model bracket and `queue_ahead ≤ depth` invariant hold on real data, and runs are deterministic and source-invariant. The engine is trustworthy **as a consistency/determinism machine**; it is **not yet** validated for real-fill realism (that is Join 2).
+**JOIN 1 PASSES.** Same-code-path is exact (0% gap per model), the book reconstruction is faithful (~99% once the intra-ms ordering artifact is accounted for), the model bracket and `queue_ahead ≤ depth` invariant hold on real data, and runs are deterministic and source-invariant. The **live WS JSON ingestion path is now also validated on real frames** (Check A′): 0 parse errors over 11k+ real frames / 21k events, schema-drift-tolerant, consumed end-to-end with full quote/order telemetry, and record→replay 0%-gap + deterministic — so Check A is upgraded from synthetic to real-data. The engine is trustworthy **as a consistency/determinism machine**; it is **not yet** validated for real-fill realism (that is Join 2).
 
 **Concrete next steps (not done here, by instruction):**
 1. **Join-2 live calibration** — 1-contract real quoting on one politics-NegRisk market to measure our true passive fill rate, collapsing the optimistic/pessimistic queue bracket toward the live-measured rate (and fitting `ProbQueue.f` / the latency constant).

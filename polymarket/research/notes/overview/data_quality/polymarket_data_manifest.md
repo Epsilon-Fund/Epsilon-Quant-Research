@@ -58,42 +58,42 @@ Current storage state as of 2026-06-05: stale DuckDB spill and Git temp-pack gar
 
 ## JSONL Support Files
 
-These JSONL files support capture-status, live-loop, or execution findings. Raw hourly capture shards are documented by family above; the files below are the specific support/checkpoint artifacts worth graph-linking.
+These JSONL files support capture-status, live-loop, or execution findings. Raw hourly capture shards are documented by family above. The `live_clob` capture-gap logs are **R2-only** (not in the local git tree), so they are recorded below as paths rather than graph-linked; the checkpoint/cache files at the end are local and linked.
 
-- [[polymarket/research/data/live_clob/block_a0/block_a0_20260528_morning/capture_gaps.jsonl|block_a0_20260528_morning capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0/block_a0_smoke_20260527/capture_gaps.jsonl|block_a0_smoke_20260527 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0b/block_a0b_fg_debug/capture_gaps.jsonl|block_a0b_fg_debug capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0b/block_a0b_nohup_debug/capture_gaps.jsonl|block_a0b_nohup_debug capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0b/block_a0b_replacements_20260527/capture_gaps.jsonl|block_a0b_replacements_20260527 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0b/block_a0b_replacements_v2_20260527/capture_gaps.jsonl|block_a0b_replacements_v2_20260527 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0b/block_a0b_smoke_check/capture_gaps.jsonl|block_a0b_smoke_check capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c/block_a0c_smoke_20260529/capture_gaps.jsonl|block_a0c_smoke_20260529 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c/block_a0c_targeted_20260529_morning/capture_gaps.jsonl|block_a0c_targeted_20260529_morning capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_000_20260529T090916Z/capture_gaps.jsonl|a0c crypto roll chunk 000 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_001_20260529T100921Z/capture_gaps.jsonl|a0c crypto roll chunk 001 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_002_20260529T110930Z/capture_gaps.jsonl|a0c crypto roll chunk 002 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_003_20260529T120937Z/capture_gaps.jsonl|a0c crypto roll chunk 003 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_004_20260529T130943Z/capture_gaps.jsonl|a0c crypto roll chunk 004 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_005_20260529T140948Z/capture_gaps.jsonl|a0c crypto roll chunk 005 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_006_20260529T150953Z/capture_gaps.jsonl|a0c crypto roll chunk 006 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_007_20260529T160959Z/capture_gaps.jsonl|a0c crypto roll chunk 007 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_008_20260529T171005Z/capture_gaps.jsonl|a0c crypto roll chunk 008 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_009_20260529T181012Z/capture_gaps.jsonl|a0c crypto roll chunk 009 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_010_20260529T191025Z/capture_gaps.jsonl|a0c crypto roll chunk 010 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_011_20260529T201035Z/capture_gaps.jsonl|a0c crypto roll chunk 011 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_012_20260529T211044Z/capture_gaps.jsonl|a0c crypto roll chunk 012 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_013_20260529T221053Z/capture_gaps.jsonl|a0c crypto roll chunk 013 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_014_20260529T231102Z/capture_gaps.jsonl|a0c crypto roll chunk 014 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_015_20260530T001108Z/capture_gaps.jsonl|a0c crypto roll chunk 015 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_016_20260530T011117Z/capture_gaps.jsonl|a0c crypto roll chunk 016 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_017_20260530T021122Z/capture_gaps.jsonl|a0c crypto roll chunk 017 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_018_20260530T031128Z/capture_gaps.jsonl|a0c crypto roll chunk 018 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_019_20260530T041133Z/capture_gaps.jsonl|a0c crypto roll chunk 019 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_020_20260530T051137Z/capture_gaps.jsonl|a0c crypto roll chunk 020 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_021_20260530T061143Z/capture_gaps.jsonl|a0c crypto roll chunk 021 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_022_20260530T071149Z/capture_gaps.jsonl|a0c crypto roll chunk 022 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_023_20260530T081154Z/capture_gaps.jsonl|a0c crypto roll chunk 023 capture gaps]]
-- [[polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_smoke_20260529/block_a0c_crypto_roll_smoke_20260529_chunk_000_20260529T090841Z/capture_gaps.jsonl|a0c crypto roll smoke capture gaps]]
+- `polymarket/research/data/live_clob/block_a0/block_a0_20260528_morning/capture_gaps.jsonl` — block_a0_20260528_morning capture gaps
+- `polymarket/research/data/live_clob/block_a0/block_a0_smoke_20260527/capture_gaps.jsonl` — block_a0_smoke_20260527 capture gaps
+- `polymarket/research/data/live_clob/block_a0b/block_a0b_fg_debug/capture_gaps.jsonl` — block_a0b_fg_debug capture gaps
+- `polymarket/research/data/live_clob/block_a0b/block_a0b_nohup_debug/capture_gaps.jsonl` — block_a0b_nohup_debug capture gaps
+- `polymarket/research/data/live_clob/block_a0b/block_a0b_replacements_20260527/capture_gaps.jsonl` — block_a0b_replacements_20260527 capture gaps
+- `polymarket/research/data/live_clob/block_a0b/block_a0b_replacements_v2_20260527/capture_gaps.jsonl` — block_a0b_replacements_v2_20260527 capture gaps
+- `polymarket/research/data/live_clob/block_a0b/block_a0b_smoke_check/capture_gaps.jsonl` — block_a0b_smoke_check capture gaps
+- `polymarket/research/data/live_clob/block_a0c/block_a0c_smoke_20260529/capture_gaps.jsonl` — block_a0c_smoke_20260529 capture gaps
+- `polymarket/research/data/live_clob/block_a0c/block_a0c_targeted_20260529_morning/capture_gaps.jsonl` — block_a0c_targeted_20260529_morning capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_000_20260529T090916Z/capture_gaps.jsonl` — a0c crypto roll chunk 000 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_001_20260529T100921Z/capture_gaps.jsonl` — a0c crypto roll chunk 001 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_002_20260529T110930Z/capture_gaps.jsonl` — a0c crypto roll chunk 002 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_003_20260529T120937Z/capture_gaps.jsonl` — a0c crypto roll chunk 003 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_004_20260529T130943Z/capture_gaps.jsonl` — a0c crypto roll chunk 004 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_005_20260529T140948Z/capture_gaps.jsonl` — a0c crypto roll chunk 005 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_006_20260529T150953Z/capture_gaps.jsonl` — a0c crypto roll chunk 006 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_007_20260529T160959Z/capture_gaps.jsonl` — a0c crypto roll chunk 007 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_008_20260529T171005Z/capture_gaps.jsonl` — a0c crypto roll chunk 008 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_009_20260529T181012Z/capture_gaps.jsonl` — a0c crypto roll chunk 009 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_010_20260529T191025Z/capture_gaps.jsonl` — a0c crypto roll chunk 010 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_011_20260529T201035Z/capture_gaps.jsonl` — a0c crypto roll chunk 011 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_012_20260529T211044Z/capture_gaps.jsonl` — a0c crypto roll chunk 012 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_013_20260529T221053Z/capture_gaps.jsonl` — a0c crypto roll chunk 013 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_014_20260529T231102Z/capture_gaps.jsonl` — a0c crypto roll chunk 014 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_015_20260530T001108Z/capture_gaps.jsonl` — a0c crypto roll chunk 015 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_016_20260530T011117Z/capture_gaps.jsonl` — a0c crypto roll chunk 016 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_017_20260530T021122Z/capture_gaps.jsonl` — a0c crypto roll chunk 017 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_018_20260530T031128Z/capture_gaps.jsonl` — a0c crypto roll chunk 018 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_019_20260530T041133Z/capture_gaps.jsonl` — a0c crypto roll chunk 019 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_020_20260530T051137Z/capture_gaps.jsonl` — a0c crypto roll chunk 020 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_021_20260530T061143Z/capture_gaps.jsonl` — a0c crypto roll chunk 021 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_022_20260530T071149Z/capture_gaps.jsonl` — a0c crypto roll chunk 022 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_20260529_morning/block_a0c_crypto_roll_20260529_morning_chunk_023_20260530T081154Z/capture_gaps.jsonl` — a0c crypto roll chunk 023 capture gaps
+- `polymarket/research/data/live_clob/block_a0c_crypto_roll/block_a0c_crypto_roll_smoke_20260529/block_a0c_crypto_roll_smoke_20260529_chunk_000_20260529T090841Z/capture_gaps.jsonl` — a0c crypto roll smoke capture gaps
 - [[polymarket/research/data/analysis/mm_politics_negrisk_activity_checkpoint.jsonl|MM politics NegRisk activity checkpoint]]
 - [[polymarket/research/data/analysis/mm_politics_negrisk_receipt_checkpoint.jsonl|MM politics NegRisk receipt checkpoint]]
 - [[polymarket/research/data/markets/gamma_token_lookup_cache.jsonl|Gamma token lookup cache]]

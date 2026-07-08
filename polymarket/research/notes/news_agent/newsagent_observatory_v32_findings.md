@@ -19,7 +19,7 @@ tags:
 # Observatory v3.2 — the dashboard becomes a two-pane page, and bias gets a lean axis
 
 > Hub: [[strat_news_agent_showcase]] · [[POLYMARKET_BRAIN]] · [[COWORK]] · Table terms: [[polymarket_table_dictionary]]
-> Builds ADDITIVELY on [[newsagent_observatory_v31_findings]] (commit `fb63de8`). The closed "our % beats the mid" gates ([[newsagent_v0_gate_findings]]) stay closed and displayed; the thesis is unchanged — our independent fair value judged against resolved outcomes; the Polymarket mid is discovery + display context only.
+> Session handoff: [[2026-07-05_newsagent_v32_dashboard_lean]]. Builds ADDITIVELY on [[newsagent_observatory_v31_findings]] (commit `fb63de8`). The closed "our % beats the mid" gates ([[newsagent_v0_gate_findings]]) stay closed and displayed; the thesis is unchanged — our independent fair value judged against resolved outcomes; the Polymarket mid is discovery + display context only.
 
 ## Plain-English Summary
 
@@ -130,7 +130,7 @@ Re-publish sequence mirrored v3: `backfill-compute` re-evolved the 5 legacy mark
 - **News-driven-only universe restriction** + **rates-via-options/futures econ track** (carried from v3.1 — the tractability tags make both natural).
 - **Lean-diversity band term** (one-sided-spectrum evidence widens the band): deliberately NOT added now — band coverage was just recalibrated; bundle with the forward-ledger rescale.
 - **Cross-spectrum corroboration display** ("confirmed across the spectrum" chip when L and R sources agree directionally) — display-only, cheap.
-- **Tone → direction calibration**, **event-driven cadence**, **web-launch automation** (`newsagent/AUTOMATION.md`), **UK re-entry**, **interval coverage into lemma-calibrate** — all carried, unchanged.
+- **Tone → direction calibration**, **event-driven cadence**, **web-launch automation** ([[AUTOMATION|newsagent/AUTOMATION.md]]), **UK re-entry**, **interval coverage into lemma-calibrate** — all carried, unchanged.
 - **Movers alerting** (flag |Δ| ≥ threshold in the strip) once a real published history accrues.
 
 ## Outputs

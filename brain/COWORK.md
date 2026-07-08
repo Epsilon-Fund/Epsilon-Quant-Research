@@ -115,6 +115,8 @@ For data artifacts, use the relevant data/artifact manifests; do not relink raw 
 
 Prompt files should not be committed to the repo; prompts live in chat and outputs live as linked findings/results notes.
 
+**Claude Code `/goal` cap (4000 chars).** A `/goal` prompt handed to Claude Code is hard-capped at **4000 characters**. When the load-bearing context exceeds that, do NOT truncate the design out of the prompt — instead commit a **reference doc** (the full PRD/context, unlimited length) to `brain/handoffs/<date>_<topic>_prd_reference.md` and emit a ≤4000-char `/goal` that lists it as read-first item 2 (after the Bootstrap) and points to it for all detail. The `/goal` itself still lives in chat (not committed); the reference doc is committed like any findings/context note. Char-count the `/goal` before handing it over (`wc -m`). The `prd-scaffold` skill (`library/skills/prd-scaffold/`) is the tool for co-authoring the PRD and emitting the `/goal`. Worked instance: [[2026-07-07_mm_task5_prd_reference]] + its emitted `/goal`.
+
 ## Repo conventions (don't violate)
 
 - `polymarket/` and the crypto-momentum work (`topics/`, root) are **independent projects**. Separate `pyproject.toml`, separate venv. Never cross-import.

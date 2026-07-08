@@ -46,6 +46,16 @@ infrastructure/data/config.yaml
 *.pem
 .env
 secrets/
+# GCP service-account keys (e.g. GDELT BigQuery) — never commit; keep outside the repo
+newsfeed-epsilon-*.json
+*-service-account*.json
+gcp-*.json
+service_account*.json
+# OAuth client secrets + tokens (e.g. Gmail read-only) — never commit
+client_secret*.json
+gmail_client_secret.json
+gmail_token.json
+token.json
 
 # IDE Settings
 .vscode/
