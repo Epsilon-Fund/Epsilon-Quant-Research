@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from mm_engine.interfaces import BookState, Order
 
 _LN2 = math.log(2.0)
+CENTS_PER_PRICE = 100.0   # 1 price unit = 100 cents (chase-rate knob is quoted in ¢/s)
 
 
 def best_bid(book: BookState) -> float | None:
@@ -421,6 +422,376 @@ class ASQuoter:
             Order(book.token_id, "BUY", bid, size, tag=self.name),
             Order(book.token_id, "SELL", ask, size, tag=self.name),
         ]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Task 5.1 — NeutralSpikeQuoter (LOTECH-grounded neutral spike avoidance)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Declared (non-knob) constants of the NeutralSpikeQuoter. The TUNED knobs are only
+# ``skew_k``, ``inv_cap``, ``nsq_vpin_window`` and ``nsq_damp_coeff`` (+ the component
+# toggles, which are ladder RUNGS, not tuned values). Everything below is a declared
+# statistical/structural constant per the Task-5.1 PRD §5 knob discipline — the AS
+# z-threshold (−2) in particular is standard, not fitted.
+NSQ_DEFAULTS = {
+    # Lens 1 — VPIN volume clock + LOTECH sweep weighting
+    "nsq_vpin_window": 20,        # TUNED: buckets averaged into the VPIN reading
+    "nsq_bucket_trades": 25.0,    # bucket volume = EWMA typical trade size × this
+    "nsq_size_ewma_alpha": 0.02,  # EWMA for the typical trade size (session-relative clock)
+    "nsq_sweep_lambda": 0.5,      # sweep weight = exp(min(dist_ticks, cap) · λ)
+    "nsq_sweep_cap_ticks": 6.0,   # bounded LOTECH exp(dist/tick) — weight ≤ e^3 ≈ 20×
+    "nsq_vpin_q": 0.90,           # session-relative elevated band: VPIN ≥ its own q-quantile
+    "nsq_vpin_floor": 0.30,       # absolute floor under the literature 0.4 "elevated" band
+    "nsq_vpin_min_buckets": 30,   # session warm-up before Lens 1 may fire
+    "nsq_vpin_hist_max": 500,     # session history window for the quantile band
+    # Lens 2 — adverse-selection z-score (post-fill drift vs calm baseline)
+    "nsq_as_horizon_s": 30.0,     # post-fill drift horizon (matches the eval's primary markout)
+    "nsq_as_baseline_n": 50,      # rolling calm-baseline window (# matured drifts)
+    "nsq_as_min_fills": 10,       # baseline warm-up before Lens 2 may fire
+    "nsq_as_z_thresh": -2.0,      # STATISTICAL constant (LOTECH Lens 2), never tuned
+    "nsq_as_flag_decay_s": 120.0, # as_flag persists this long past the last bad drift
+    # graduated response + unwind
+    "nsq_as_size_factor": 0.5,    # adverse-only: reduce opening size to this fraction
+    "nsq_widen_mult": 2.0,        # both-lenses: reduce-only rests at r ± widen·half_spread
+    # asymmetric repricing (slow to chase, fast to withdraw)
+    "nsq_chase_rate_c_s": 0.5,    # max chase speed, cents per second
+    # OFI size-dampening
+    "nsq_damp_coeff": 0.0,        # TUNED when the rung is on (0 = off)
+    "nsq_ofi_halflife_s": 60.0,   # EWMA half-life for the OFI state variable
+    "nsq_size_floor": 0.2,        # dampened size never below this fraction of the clip
+}
+
+
+def _parse_nsq_cfg(params: dict) -> dict:
+    cfg = {**DEFAULT_PARAMS, **NSQ_DEFAULTS, **(params or {})}
+    cfg["half_spread"] = float(cfg["half_spread"])
+    cfg["size"] = float(cfg["size"])
+    cfg["tick"] = float(cfg["tick"])
+    cfg["skew_k"] = float(cfg.get("skew_k", 0.0))
+    cfg["inv_cap"] = float(cfg.get("inv_cap", float("inf")))
+    cfg["nsq_lens1"] = bool(cfg.get("nsq_lens1", False))
+    cfg["nsq_lens2"] = bool(cfg.get("nsq_lens2", False))
+    cfg["nsq_asym"] = bool(cfg.get("nsq_asym", False))
+    cfg["nsq_vpin_window"] = int(cfg["nsq_vpin_window"])
+    cfg["nsq_damp_coeff"] = float(cfg["nsq_damp_coeff"])
+    return cfg
+
+
+@dataclass
+class _VPINState:
+    """Lens 1 — volume-clock VPIN with LOTECH sweep-distance weighting (causal, session-relative).
+
+    Trades are read from the injected :class:`~mm_eval.tape.TradeTape` (the public prints a
+    live strategy sees). Each trade's (weighted) volume fills the current volume bucket;
+    when the bucket closes, its buy/sell imbalance ``|B−S|/(B+S)`` joins the rolling VPIN
+    window. The elevated band is the session's own quantile — no fixed cross-market
+    threshold (retires Task-5's fixed-threshold caveat).
+    """
+
+    cursor: int = 0                 # tape rows consumed
+    typ_size: float = 0.0           # EWMA typical trade size (the volume clock's unit)
+    _n_size: int = 0
+    buy_vol: float = 0.0            # weighted volume in the OPEN bucket
+    sell_vol: float = 0.0
+    buckets: deque = field(default_factory=deque)      # closed-bucket imbalances (window)
+    bucket_net: deque = field(default_factory=deque)   # closed-bucket signed net (direction)
+    vpin_hist: deque = field(default_factory=deque)    # session VPIN readings (quantile band)
+    last_touch: tuple[float, float] | None = None      # (best_bid, best_ask) BEFORE this event
+    # cached per bucket-close (the quantile sort must not run on every event)
+    _flag_cache: tuple[bool, str | None] = (False, None)
+    _net_cache: float = 0.0
+
+    def ingest(self, tape, book: BookState, cfg: dict) -> None:
+        rows = getattr(tape, "rows", None)
+        if rows is None:
+            return
+        win = cfg["nsq_vpin_window"]
+        for i in range(self.cursor, len(rows)):
+            ts, price, size, side = rows[i]
+            if size <= 0:
+                continue
+            # typical-size EWMA (session-relative volume clock)
+            if self._n_size == 0:
+                self.typ_size = size
+            else:
+                self.typ_size += cfg["nsq_size_ewma_alpha"] * (size - self.typ_size)
+            self._n_size += 1
+            # aggressor side: captured taker side, else tick rule vs pre-event touch
+            s = side
+            if s not in ("BUY", "SELL") and self.last_touch is not None:
+                m = (self.last_touch[0] + self.last_touch[1]) / 2.0
+                s = "BUY" if price >= m else "SELL"
+            if s not in ("BUY", "SELL"):
+                self.cursor = i + 1
+                continue
+            # LOTECH sweep weighting: how far through the book the trade executed
+            w = 1.0
+            if self.last_touch is not None:
+                bb, ba = self.last_touch
+                dist = max(0.0, price - ba) if s == "BUY" else max(0.0, bb - price)
+                ticks = min(dist / max(cfg["tick"], 1e-9), cfg["nsq_sweep_cap_ticks"])
+                w = math.exp(ticks * cfg["nsq_sweep_lambda"])
+            if s == "BUY":
+                self.buy_vol += w * size
+            else:
+                self.sell_vol += w * size
+            # close the bucket when the volume clock ticks
+            v_bucket = max(self.typ_size * cfg["nsq_bucket_trades"], 1e-9)
+            tot = self.buy_vol + self.sell_vol
+            if tot >= v_bucket:
+                self.buckets.append(abs(self.buy_vol - self.sell_vol) / tot)
+                self.bucket_net.append(self.buy_vol - self.sell_vol)
+                while len(self.buckets) > win:
+                    self.buckets.popleft()
+                    self.bucket_net.popleft()
+                if len(self.buckets) >= max(win // 2, 2):
+                    self.vpin_hist.append(sum(self.buckets) / len(self.buckets))
+                    while len(self.vpin_hist) > cfg["nsq_vpin_hist_max"]:
+                        self.vpin_hist.popleft()
+                self.buy_vol = 0.0
+                self.sell_vol = 0.0
+                self._recompute_flag(cfg)   # quantile sort only at bucket close
+            self.cursor = i + 1
+        # touch AFTER processing this event's trades: next trades compare to this book
+        if book.bids and book.asks:
+            self.last_touch = (book.bids[0][0], book.asks[0][0])
+
+    def reading(self) -> float:
+        return self.vpin_hist[-1] if self.vpin_hist else 0.0
+
+    def _recompute_flag(self, cfg: dict) -> None:
+        """Refresh the cached (flag, exposed-side) — called only when a bucket closes."""
+        self._net_cache = sum(self.bucket_net)
+        if len(self.vpin_hist) < cfg["nsq_vpin_min_buckets"]:
+            self._flag_cache = (False, None)
+            return
+        v = self.vpin_hist[-1]
+        hist = sorted(self.vpin_hist)
+        qi = min(int(cfg["nsq_vpin_q"] * (len(hist) - 1)), len(hist) - 1)
+        if v >= max(hist[qi], cfg["nsq_vpin_floor"]):
+            # net buy flow lifts our asks (we stack short) → the SELL side is exposed
+            self._flag_cache = (True, "SELL" if self._net_cache > 0 else "BUY")
+        else:
+            self._flag_cache = (False, None)
+
+    def flag_and_side(self, cfg: dict) -> tuple[bool, str | None]:
+        """(directional_flag, exposed side) — cached; recomputed at each bucket close."""
+        return self._flag_cache
+
+
+@dataclass
+class _ASZState:
+    """Lens 2 — adverse-selection z-score of post-fill mid drift vs a calm session baseline.
+
+    Own fills are detected from the inventory delta between successive ``quote`` calls
+    (the frozen interface passes inventory; a live strategy gets fill notifications).
+    ``signed_drift = side · (mid_{t+T} − mid_at_fill)`` — negative = adverse. The rolling
+    baseline only updates while NO regime flag is active (LOTECH: calm-period baseline),
+    so a spike cannot normalize itself into the reference distribution.
+    """
+
+    last_inv: float = 0.0
+    pending: deque = field(default_factory=deque)      # (fill_ts, mid_at_fill, side_sign)
+    drifts: deque = field(default_factory=deque)       # matured signed drifts (baseline)
+    last_z: float = float("nan")
+    last_bad_ts: float = -1e18
+
+    def on_quote(self, book: BookState, inventory: float, m: float | None,
+                 regime_active: bool, cfg: dict) -> None:
+        ts = book.ts_exchange
+        dq = inventory - self.last_inv
+        if abs(dq) > 1e-12 and m is not None:
+            self.pending.append((ts, m, 1.0 if dq > 0 else -1.0))
+            self.last_inv = inventory
+        elif abs(dq) > 1e-12:
+            self.last_inv = inventory
+        # mature pending fills whose horizon has elapsed
+        horizon_ms = cfg["nsq_as_horizon_s"] * 1000.0
+        n_base = int(cfg["nsq_as_baseline_n"])
+        while self.pending and ts - self.pending[0][0] >= horizon_ms:
+            f_ts, m_fill, sign = self.pending.popleft()
+            if m is None:
+                continue
+            signed = sign * (m - m_fill)
+            if len(self.drifts) >= int(cfg["nsq_as_min_fills"]):
+                mu = sum(self.drifts) / len(self.drifts)
+                var = sum((d - mu) ** 2 for d in self.drifts) / max(len(self.drifts) - 1, 1)
+                sd = max(math.sqrt(var), 1e-4)
+                self.last_z = (signed - mu) / sd
+                if self.last_z < cfg["nsq_as_z_thresh"]:
+                    self.last_bad_ts = ts
+            # calm-only baseline update (frozen during any flagged regime)
+            if not regime_active:
+                self.drifts.append(signed)
+                while len(self.drifts) > n_base:
+                    self.drifts.popleft()
+
+    def flag(self, ts: int, cfg: dict) -> bool:
+        return (ts - self.last_bad_ts) <= cfg["nsq_as_flag_decay_s"] * 1000.0
+
+
+@dataclass
+class _OFIState:
+    """Order-flow imbalance (Cont et al.) EWMA — the continuous size-dampening input."""
+
+    prev: tuple[float, float, float, float] | None = None   # (bid_px, bid_sz, ask_px, ask_sz)
+    prev_ts: int | None = None
+    ofi: float = 0.0
+    scale: float = 0.0
+
+    def update(self, book: BookState, cfg: dict) -> None:
+        if not book.bids or not book.asks:
+            return
+        bp, bs = book.bids[0]
+        ap, asz = book.asks[0]
+        ts = book.ts_exchange
+        if self.prev is not None:
+            pbp, pbs, pap, pas = self.prev
+            e = ((bs if bp >= pbp else 0.0) - (pbs if bp <= pbp else 0.0)
+                 - (asz if ap <= pap else 0.0) + (pas if ap >= pap else 0.0))
+            dt_s = max((ts - (self.prev_ts or ts)) / 1000.0, 0.0)
+            alpha = 1.0 - math.exp(-_LN2 * dt_s / cfg["nsq_ofi_halflife_s"]) if dt_s > 0 else 0.0
+            self.ofi += alpha * (e - self.ofi) if alpha > 0 else 0.0
+            self.scale += alpha * (abs(e) - self.scale) if alpha > 0 else 0.0
+        self.prev = (bp, bs, ap, asz)
+        self.prev_ts = ts
+
+    def norm(self) -> float:
+        """Signed pressure in (−1, 1): >0 = net buy pressure."""
+        if self.scale <= 1e-12:
+            return 0.0
+        return math.tanh(self.ofi / (3.0 * self.scale))
+
+
+@dataclass
+class NeutralSpikeQuoter:
+    """Task-5.1 controller: microprice skew + two-lens toxicity gate, NO calendar flatten.
+
+    Replaces the Task-5 ``pull_hours`` flatten with graduated **spike avoidance** (the
+    LOTECH course of action): carry balanced/small inventory to resolution, but refuse to
+    stack a one-sided book into informed flow. Components (each toggleable via ``params``
+    so the ladder can ablate them):
+
+    * **Core** (always on): reservation ``r = microprice − skew_k·q`` + tight ``inv_cap``
+      with passive reduce-only quoting at cap. τ is deliberately ignored — this quoter has
+      no calendar behavior at all.
+    * **Two-lens gate** (``nsq_lens1``/``nsq_lens2``): Lens 1 = volume-clock VPIN with
+      sweep-distance weighting over the injected public-trade tape (``params["trade_tape"]``,
+      see :mod:`mm_eval.tape`), session-relative elevated band; Lens 2 = post-fill drift
+      z-score vs a calm rolling baseline (z < −2, statistical). Graduated response:
+      Lens 1 only → suspend NEW quotes on the exposed side; Lens 2 only → reduce opening
+      size; both → pull opening quotes, rest a reduce-only quote at a widened offset
+      (passive unwind — never dump at the touch, never cross).
+    * **Asymmetric repricing** (``nsq_asym``): opening quotes chase a moving market at a
+      capped rate (slow to follow price away) but withdraw instantly (fast to back off) —
+      the LOTECH idea-1 asymmetry.
+    * **OFI size-dampening** (``nsq_damp_coeff`` > 0): opening size on the pressured side
+      shrinks continuously with the Cont-style OFI state variable — exposure fades during
+      one-sided flow without a hard threshold.
+
+    Single-token state (the eval replays one token per run, like the other Task-5 quoters).
+    """
+
+    name: str = "neutral_spike"
+    _vpin: _VPINState = field(default_factory=_VPINState)
+    _asz: _ASZState = field(default_factory=_ASZState)
+    _ofi: _OFIState = field(default_factory=_OFIState)
+    _regime_active: bool = False
+    _last_bid: tuple[int, float] | None = None    # (ts, px) — asymmetric repricing memory
+    _last_ask: tuple[int, float] | None = None
+    _cfg_key: int | None = None
+    _cfg: dict | None = None
+
+    def quote(self, book: BookState, inventory: float, params: dict) -> list[Order]:
+        if self._cfg_key != id(params):
+            self._cfg = _parse_nsq_cfg(params)
+            self._cfg_key = id(params)
+        cfg = self._cfg
+        if book.stale:
+            return []
+        micro = microprice(book)
+        m = mid(book)
+        if micro is None:
+            return []
+        tick = cfg["tick"]
+        half_spread = cfg["half_spread"]
+        cap = cfg["inv_cap"]
+
+        # ── signal state updates (always causal: past events only) ──
+        tape = cfg.get("trade_tape") or (params or {}).get("trade_tape")
+        if cfg["nsq_lens1"] and tape is not None:
+            self._vpin.ingest(tape, book, cfg)
+        if cfg["nsq_damp_coeff"] > 0:
+            self._ofi.update(book, cfg)
+        if cfg["nsq_lens2"]:
+            self._asz.on_quote(book, inventory, m, self._regime_active, cfg)
+        else:
+            self._asz.last_inv = inventory   # keep the fill detector coherent if toggled
+
+        directional, exposed = (self._vpin.flag_and_side(cfg)
+                                if cfg["nsq_lens1"] else (False, None))
+        adverse = self._asz.flag(book.ts_exchange, cfg) if cfg["nsq_lens2"] else False
+        self._regime_active = directional or adverse
+
+        r = micro - cfg["skew_k"] * inventory
+
+        # ── graduated response ──
+        if (directional and adverse) or abs(inventory) >= cap:
+            # full adverse regime (or at cap): passive reduce-only, widened when toxic
+            widen = cfg["nsq_widen_mult"] if (directional and adverse) else 1.0
+            self._last_bid = self._last_ask = None
+            return _reduce_only(book, inventory, cfg["size"], tick, self.name,
+                                at_touch=False, reservation=r,
+                                half_spread=widen * half_spread)
+
+        size_bid = size_ask = cfg["size"]
+        if adverse:                      # Lens 2 only: reduce opening size both sides
+            size_bid *= cfg["nsq_as_size_factor"]
+            size_ask *= cfg["nsq_as_size_factor"]
+        if cfg["nsq_damp_coeff"] > 0:    # continuous OFI dampening on the pressured side
+            n = self._ofi.norm()
+            floor = cfg["nsq_size_floor"]
+            if n > 0:                    # buy pressure → ask side exposed
+                size_ask *= max(1.0 - cfg["nsq_damp_coeff"] * n, floor)
+            elif n < 0:
+                size_bid *= max(1.0 - cfg["nsq_damp_coeff"] * (-n), floor)
+
+        bid = _round_clamp(r - half_spread, tick)
+        ask = _round_clamp(r + half_spread, tick)
+        if bid is None or ask is None or bid >= ask:
+            self._last_bid = self._last_ask = None
+            return []
+
+        # ── asymmetric repricing: slow to chase, instant to withdraw ──
+        ts = book.ts_exchange
+        if cfg["nsq_asym"]:
+            rate = cfg["nsq_chase_rate_c_s"] / CENTS_PER_PRICE   # price units per second
+            if self._last_bid is not None and bid > self._last_bid[1]:
+                dt_s = max((ts - self._last_bid[0]) / 1000.0, 0.0)
+                bid = min(bid, self._last_bid[1] + rate * dt_s)
+                bid = _round_clamp(bid, tick)
+            if self._last_ask is not None and ask < self._last_ask[1]:
+                dt_s = max((ts - self._last_ask[0]) / 1000.0, 0.0)
+                ask = max(ask, self._last_ask[1] - rate * dt_s)
+                ask = _round_clamp(ask, tick)
+            if bid is None or ask is None or bid >= ask:
+                self._last_bid = self._last_ask = None
+                return []
+
+        orders: list[Order] = []
+        # Lens 1 only: suspend ADDING on the exposed side (stop one-sided stacking);
+        # the other side keeps quoting (and passively reduces any exposed inventory).
+        if not (directional and exposed == "BUY"):
+            orders.append(Order(book.token_id, "BUY", bid, size_bid, tag=self.name))
+            self._last_bid = (ts, bid)
+        else:
+            self._last_bid = None
+        if not (directional and exposed == "SELL"):
+            orders.append(Order(book.token_id, "SELL", ask, size_ask, tag=self.name))
+            self._last_ask = (ts, ask)
+        else:
+            self._last_ask = None
+        return orders
 
 
 # Basket staleness: legs whose last-seen book is older than this are not re-quoted

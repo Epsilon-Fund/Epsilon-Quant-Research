@@ -43,7 +43,7 @@ from mm_engine.reconcile import (
 )
 from mm_engine.runner import Decision, run_strategy
 from mm_engine.strategies import (ASQuoter, BasketCarryQuoter, InventoryAwareQuoter,
-                                  SymmetricQuoter, microprice)
+                                  NeutralSpikeQuoter, SymmetricQuoter, microprice)
 from mm_engine.telemetry import Telemetry
 
 __all__ = [
@@ -64,6 +64,7 @@ __all__ = [
     "InventoryAwareQuoter",
     "LatencyModel",
     "MarketEvent",
+    "NeutralSpikeQuoter",
     "microprice",
     "OptimisticQueue",
     "Order",
