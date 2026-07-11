@@ -7,9 +7,9 @@ description: >
   use / how do I do X here". Runs tools/sherpa.py over this repo's skill catalog
   and returns the top-N skills with a one-line "use when" so the right skill
   loads without anyone naming it. Local + deterministic (keyword scoring, plus
-  local-embedding semantics when Ollama is up). Complements Claude Code's native
-  description-triggering — it catches skills the agent would not have triggered
-  on and ranks when several match.
+  in-process semantic embeddings — fastembed, no daemon). Complements Claude
+  Code's native description-triggering — it catches skills the agent would not
+  have triggered on and ranks when several match.
 ---
 
 <!--
@@ -77,13 +77,15 @@ $ python3 tools/sherpa.py --top 3 "how well calibrated is my forecast model?"
 - **Keyword/description scoring** — always on, offline, deterministic. Weighted
   overlap of the task's terms with each skill's trigger keywords, name, and
   description.
-- **Semantic** — an optional booster. If a local embedder is running (Ollama
-  `nomic-embed-text` on `localhost:11434`, the same model gbrain uses), Sherpa
-  blends cosine similarity of the task against each skill description. Nothing
-  leaves the machine. If Ollama is down, Sherpa is keyword-only and says so.
+- **Semantic** — an optional booster, **in-process, no daemon**. Backends are
+  tried in order, first available wins: `fastembed` (in-process ONNX sentence
+  embeddings — true synonym matching; downloads its small model once, then fully
+  offline) → `tfidf` (scikit-learn) → `bm25` (rank-bm25). Each is a guarded
+  optional import; if none are present Sherpa is keyword-only and prints which
+  backend is active. Nothing leaves the machine (Ollama is no longer used).
 - The index is rebuilt from SKILL.md frontmatter on every run, so it is always
-  current when skills change. Embeddings are cached by description hash and
-  re-embedded only when a description changes.
+  current when skills change. `fastembed` vectors are cached by description hash
+  and re-embedded only when a description changes.
 
 ## Scope tags
 

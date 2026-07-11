@@ -9,20 +9,24 @@ bootstrap step in the brain law files runs this at session start / when the
 task shifts, so the right skills load without anyone naming them.
 
 Matcher = keyword/description scoring (always on, deterministic, offline) blended
-with LOCAL semantic similarity (optional booster). The semantic layer reuses the
-same local embedding model gbrain uses — Ollama `nomic-embed-text` on
-localhost:11434 — so nothing ever leaves the machine. If Ollama is not running,
-Sherpa degrades cleanly to keyword-only; the ranking stays sane and deterministic.
+with LOCAL semantic similarity (optional booster). The semantic layer runs
+IN-PROCESS with no daemon: it prefers `fastembed` (in-process ONNX sentence
+embeddings — true synonym matching), and if that isn't importable it falls back
+to TF-IDF cosine (`scikit-learn`) and then BM25 (`rank-bm25`), both pure-Python
+and model-free. Nothing ever leaves the machine (fastembed downloads its small
+model once, then runs fully offline). If no semantic backend is available, Sherpa
+degrades cleanly to keyword-only; the ranking stays sane and deterministic.
 
-Self-contained: stdlib only (+ urllib for the optional Ollama call). No numpy,
-no cloud, no dependency on skills_catalog.py — it scans SKILL.md frontmatter
-directly, so the same file drops into any repo that has a skills directory.
+Self-contained: stdlib only at the core; the semantic backends are OPTIONAL,
+guarded imports (missing ones are skipped, never a hard failure). No cloud, no
+dependency on skills_catalog.py — it scans SKILL.md frontmatter directly, so the
+same file drops into any repo that has a skills directory.
 
 Usage:
   python3 tools/sherpa.py "run a CPCV sweep over the momentum assets"
   python3 tools/sherpa.py --top 3 --json "how well calibrated is my model?"
   python3 tools/sherpa.py --scope shareable "help me spec this feature"
-  python3 tools/sherpa.py --reindex-embeddings "..."   # force re-embed
+  python3 tools/sherpa.py --reindex-embeddings "..."   # force re-embed (fastembed)
   python3 tools/sherpa.py --list                        # dump the index
 
 Exit code is always 0 on a successful run (even with zero matches).
@@ -36,7 +40,6 @@ import math
 import os
 import re
 import sys
-import urllib.request
 from pathlib import Path
 
 # ── repo / config discovery ──────────────────────────────────────────────────
@@ -260,27 +263,23 @@ def keyword_score(task_tokens: list[str], skill: dict) -> float:
     return min(hit / denom, 1.0)
 
 
-# ── optional local semantic layer (Ollama nomic-embed-text) ──────────────────
-_OLLAMA_URL = os.environ.get("SHERPA_OLLAMA_URL", "http://localhost:11434")
-_EMBED_MODEL = os.environ.get("SHERPA_EMBED_MODEL", "nomic-embed-text")
+# ── semantic layer (in-process, no daemon) ───────────────────────────────────
+# Backends tried in order; the first importable one that yields scores wins:
+#   1. fastembed — in-process ONNX sentence embeddings (true synonym matching);
+#      downloads its small model once, then fully offline. No server.
+#   2. tfidf     — scikit-learn TF-IDF cosine (lexical, deterministic, no model).
+#   3. bm25      — rank-bm25 Okapi (lexical, deterministic, no model).
+# Each is a guarded import: a missing/erroring backend is skipped, never fatal.
+# If none are available, semantic is skipped and Sherpa is keyword-only. The
+# keyword layer is never affected by any of this.
+_FASTEMBED_MODEL = os.environ.get("SHERPA_FASTEMBED_MODEL", "BAAI/bge-small-en-v1.5")
+_BACKEND_ORDER = [b.strip() for b in
+                  os.environ.get("SHERPA_SEMANTIC_BACKENDS", "fastembed,tfidf,bm25").split(",")
+                  if b.strip()]
 
 
-def _embed(text: str, timeout: float = 4.0) -> list[float] | None:
-    """One embedding via local Ollama. Returns None if unreachable (fallback)."""
-    payload = json.dumps({"model": _EMBED_MODEL, "prompt": text}).encode()
-    req = urllib.request.Request(
-        f"{_OLLAMA_URL}/api/embeddings", data=payload,
-        headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            vec = json.loads(resp.read()).get("embedding")
-            return vec if isinstance(vec, list) and vec else None
-    except Exception:
-        return None
-
-
-def _cosine(a: list[float], b: list[float]) -> float:
-    if not a or not b or len(a) != len(b):
+def _cosine(a, b) -> float:
+    if a is None or b is None or len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
     na = math.sqrt(sum(x * x for x in a))
@@ -288,39 +287,102 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
-def semantic_scores(task: str, index: list[dict], cache_path: Path,
-                    reindex: bool = False) -> dict[str, float]:
-    """Cosine(task, skill.description) for each skill, using local embeddings.
-    Cached by sha256(description). Returns {} (→ keyword-only) if Ollama is down."""
-    q = _embed(task)
-    if q is None:
-        return {}                                   # embedder unavailable → skip
-    cache: dict = {}
-    if cache_path.is_file() and not reindex:
+def _desc_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _load_cache(cache_path) -> dict:
+    if cache_path and Path(cache_path).is_file():
         try:
-            cache = json.loads(cache_path.read_text(encoding="utf-8"))
+            return json.loads(Path(cache_path).read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            cache = {}
-    out: dict[str, float] = {}
-    dirty = False
-    for s in index:
-        h = hashlib.sha256(s["description"].encode("utf-8")).hexdigest()
-        key = f"{s['name']}:{h}"
-        vec = cache.get(key)
-        if vec is None:
-            vec = _embed(s["description"])
-            if vec is None:
-                continue
-            cache[key] = vec
-            dirty = True
-        out[s["name"]] = max(0.0, _cosine(q, vec))
-    if dirty:
+            return {}
+    return {}
+
+
+def _save_cache(cache_path, cache: dict) -> None:
+    if not cache_path:
+        return
+    try:
+        Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(cache_path).write_text(json.dumps(cache), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _semantic_fastembed(task, index, cache_path=None, reindex=False) -> dict:
+    """In-process ONNX embeddings. Description vectors are cached to disk keyed
+    by (model, sha256(description)) — only re-embedded when a description changes;
+    the query is embedded fresh each call. Raises ImportError if fastembed absent."""
+    from fastembed import TextEmbedding      # optional dep — guarded by caller
+
+    ns = f"fastembed:{_FASTEMBED_MODEL}:"
+    cache = {} if reindex else _load_cache(cache_path)
+    missing = [s for s in index if (ns + _desc_hash(s["description"])) not in cache]
+    # One model instance embeds the query + any uncached descriptions together.
+    model = TextEmbedding(model_name=_FASTEMBED_MODEL)
+    to_embed = [task] + [s["description"] for s in missing]
+    vecs = [list(map(float, v)) for v in model.embed(to_embed)]
+    qv, dvecs = vecs[0], vecs[1:]
+    for s, v in zip(missing, dvecs):
+        cache[ns + _desc_hash(s["description"])] = v
+    if missing:
+        _save_cache(cache_path, cache)
+    return {s["name"]: max(0.0, _cosine(qv, cache[ns + _desc_hash(s["description"])]))
+            for s in index}
+
+
+def _semantic_tfidf(task, index, cache_path=None, reindex=False) -> dict:
+    """TF-IDF cosine over descriptions. Deterministic, no model download."""
+    from sklearn.feature_extraction.text import TfidfVectorizer   # optional dep
+    from sklearn.metrics.pairwise import cosine_similarity
+
+    docs = [s["description"] for s in index]
+    vec = TfidfVectorizer(stop_words="english")
+    matrix = vec.fit_transform(docs + [task])
+    sims = cosine_similarity(matrix[-1], matrix[:-1])[0]
+    return {s["name"]: float(max(0.0, sims[i])) for i, s in enumerate(index)}
+
+
+def _semantic_bm25(task, index, cache_path=None, reindex=False) -> dict:
+    """BM25 Okapi over descriptions, normalized to [0,1]. Deterministic, no model."""
+    from rank_bm25 import BM25Okapi          # optional dep
+
+    corpus = [tokenize(s["description"]) for s in index]
+    bm = BM25Okapi(corpus)
+    raw = list(bm.get_scores(tokenize(task)))
+    top = max(raw) if raw else 0.0
+    if top <= 0:
+        return {s["name"]: 0.0 for s in index}
+    return {s["name"]: float(max(0.0, raw[i]) / top) for i, s in enumerate(index)}
+
+
+_SEMANTIC_BACKENDS = {
+    "fastembed": _semantic_fastembed,
+    "tfidf": _semantic_tfidf,
+    "bm25": _semantic_bm25,
+}
+
+
+def semantic_scores(task: str, index: list[dict], cache_path=None,
+                    reindex: bool = False, backends: list[str] | None = None
+                    ) -> tuple[dict[str, float], str]:
+    """Return (scores_by_skill, backend_name). Tries backends in order; the first
+    that imports and returns scores wins. ({}, 'none') if none are available —
+    the caller then routes on keyword score alone. Never raises."""
+    if not index:
+        return {}, "none"
+    for name in (backends or _BACKEND_ORDER):
+        fn = _SEMANTIC_BACKENDS.get(name)
+        if fn is None:
+            continue
         try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            cache_path.write_text(json.dumps(cache), encoding="utf-8")
-        except OSError:
-            pass
-    return out
+            scores = fn(task, index, cache_path=cache_path, reindex=reindex)
+        except Exception:
+            continue                                # missing dep / runtime error → next
+        if scores:
+            return scores, name
+    return {}, "none"
 
 
 # ── index build ──────────────────────────────────────────────────────────────
@@ -377,16 +439,20 @@ def one_line_use_when(description: str) -> str:
 # ── ranking ──────────────────────────────────────────────────────────────────
 def rank(task: str, index: list[dict], top_n: int = 5,
          scope: str | None = None, use_semantic: bool = True,
-         cache_path: Path | None = None, reindex: bool = False) -> tuple[list[dict], bool]:
-    """Return (ranked_top_n, semantic_used). Deterministic: ties break on name."""
+         cache_path: Path | None = None, reindex: bool = False,
+         backends: list[str] | None = None) -> tuple[list[dict], str]:
+    """Return (ranked_top_n, semantic_backend). backend is 'none' when semantic
+    is off/unavailable (⇒ keyword-only). Deterministic: ties break on name."""
     pool = [s for s in index if scope is None or s["scope"] == scope]
     task_tokens = tokenize(task)
     kw = {s["name"]: keyword_score(task_tokens, s) for s in pool}
 
     sem: dict[str, float] = {}
-    if use_semantic and cache_path is not None:
-        sem = semantic_scores(task, pool, cache_path, reindex=reindex)
-    semantic_used = bool(sem)
+    backend = "none"
+    if use_semantic:
+        sem, backend = semantic_scores(task, pool, cache_path,
+                                       reindex=reindex, backends=backends)
+    semantic_used = backend != "none"
 
     scored = []
     for s in pool:
@@ -401,7 +467,7 @@ def rank(task: str, index: list[dict], top_n: int = 5,
                        "use_when": one_line_use_when(s["description"])})
     scored.sort(key=lambda e: (-e["score"], e["name"]))
     top = [e for e in scored if e["score"] > 0][:top_n]
-    return top, semantic_used
+    return top, backend
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -422,9 +488,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     ap.add_argument("--list", action="store_true", help="dump the full index and exit")
     ap.add_argument("--no-semantic", action="store_true",
-                    help="keyword-only (skip the local embedder)")
+                    help="keyword-only (skip the semantic backend)")
+    ap.add_argument("--backends", help="comma-separated semantic backend order "
+                    "(default: fastembed,tfidf,bm25)")
     ap.add_argument("--reindex-embeddings", action="store_true",
-                    help="force re-embed of skill descriptions")
+                    help="force re-embed of skill descriptions (fastembed cache)")
     ap.add_argument("--include-global", action="store_true",
                     help="also index machine-global skills (~/.claude, ~/.codex); "
                          "off by default so one repo never surfaces another's skills")
@@ -448,22 +516,26 @@ def main(argv: list[str] | None = None) -> int:
     if not task:
         ap.error("provide a task string, or use --list")
 
-    top, semantic_used = rank(
+    backends = [b.strip() for b in args.backends.split(",")] if args.backends else None
+    top, backend = rank(
         task, index, top_n=args.top, scope=args.scope,
         use_semantic=not args.no_semantic, cache_path=_default_cache(root),
-        reindex=args.reindex_embeddings)
+        reindex=args.reindex_embeddings, backends=backends)
+    semantic_used = backend != "none"
 
     if args.json:
         print(json.dumps({
             "repo": root.name, "task": task, "semantic_used": semantic_used,
-            "matcher": "keyword+semantic" if semantic_used else "keyword-only",
+            "semantic_backend": backend,
+            "matcher": f"keyword+semantic ({backend})" if semantic_used else "keyword-only",
             "results": [{k: e[k] for k in ("name", "scope", "score", "keyword_score",
                                            "semantic_score", "use_when", "source")}
                         for e in top],
         }, indent=2))
         return 0
 
-    matcher = "keyword+semantic (local)" if semantic_used else "keyword-only (embedder offline)"
+    matcher = (f"keyword+semantic ({backend})" if semantic_used
+               else "keyword-only (no semantic backend available)")
     print(f"Sherpa · {root.name} · {matcher}")
     print(f"task: {task}\n")
     if not top:
