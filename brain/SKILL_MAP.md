@@ -30,7 +30,7 @@ A "skill" here is a named, repeatable pass — not a heavyweight system. Each ro
 There are two different things called "skills":
 
 1. **Brain workflow skills** — the operating passes in this file: Janitor, Rock Tumbler, Chronicler, Cartographer, Librarian, Daily Brief. These are repo-specific habits for keeping the Markdown brain useful.
-2. **Agent runtime skills** — Codex/Claude capabilities such as `query`, `read-memories`, `systematic-debugging`, `github`, `browser`, `openai-docs`, `spreadsheets`, `documents`, `presentations`, `imagegen`, `cost-mode`, `efficient-fable`, and `stay-within-limits`. These help an agent do a task, but they do not run unless a prompt or scheduled task calls them — except the two runtime efficiency skills (`efficient-fable`, `stay-within-limits`), which are description-triggered automatically in Claude Code; see § Runtime efficiency skills.
+2. **Agent runtime skills** — Codex/Claude capabilities such as `query`, `read-memories`, `systematic-debugging`, `github`, `browser`, `openai-docs`, `spreadsheets`, `documents`, `presentations`, `imagegen`, `cost-mode`, `efficient-fable`, and `stay-within-limits`. These help an agent do a task. Any runtime skill with a trigger-tuned `description` (opening "Use when …") is **description-triggered automatically in Claude Code** when the task matches — the runtime efficiency skills (`efficient-fable`, `stay-within-limits`, `data-contract`) always were, and the Layer-1 hygiene pass (§ Sherpa) extends this to the rest. On top of native triggering, **Sherpa** (`tools/sherpa.py` / `find-skills`) proactively surfaces the top skills for the task at session start and when the task shifts — see § Sherpa. The brain workflow passes below still run only when a prompt or scheduled task calls them.
 
 Rule of thumb: brain workflow skills define **what pass should happen**; runtime skills define **which tool the agent should use while doing it**.
 
@@ -341,12 +341,16 @@ These are not brain workflows by themselves. They are tools an agent can call wh
 | `changepoint-audit` | Causal, lookahead-free structural-break detection (CUSUM / Page-Hinkley / BOCPD) on a timestamped series | You need a **live** regime-shift signal (the regime-classifier is batch-only), a causal `change_prob` feature for regime Stage 2, a fresh-break gate on trend entries, or break timestamps to embargo in `cpcv_engine`. First-party, prompt-invoked; complements (≠ replaces) `topics/regime-classifier/`. **Engine extracted 2026-07-04 to `library/changepoint/` (`lemma-changepoint`, Apache-2.0; renamed from rigorkit 2026-07-05)** — `infrastructure/changepoint/` is a same-API shim; all invocation lines unchanged; install per shim docstring |
 | `reflection-engine` | Discovery front of the skills lifecycle: mines git history / scratch / transcripts / generated reports for recurring pain via read-only subagents, clusters, scores recurrence × build-cost, decides skill/automation/fix/nothing, executes accepted candidates, runs the external-repo radar | Weekly scheduled pass (`reflection-weekly`, Mondays) or on-demand: "run a reflection pass" / "what should we build next". Backlog = `brain/reflection/candidates.md` (authoritative, incl. logged "nothing" reasons); this map + `library/` stay canonical for built/published skills. First-party, `.agents/skills/reflection-engine/` |
 | `calibrate` | Scoring how good probabilistic forecasts/prices are: Brier + Murphy decomposition, log-loss, ECE/MCE, reliability diagram (Wilson bands), Spiegelhalter's Z, isotonic/Platt recalibration, model-vs-market edge | You ask how well-calibrated a model/forecaster is, want a Brier/reliability read or an over/under-confidence check, to recalibrate probabilities, or to compare model-p vs market-implied-p. Read-only consumer of the forked superforecasting ledger; per-project byte-identical engine (`infrastructure/calibration/` crypto · `polymarket/research/lib/calibration/` PM); set `--book` / `SF_BOOK` |
+| `audio-transcribe-summarize` | Turning a local audio file (voice notes, calls, meetings — e.g. WhatsApp `.opus`) into a diarized transcript + structured `summary.md` | The user shares an audio file path and asks to transcribe/summarize it, or hands you a recording and says "go through this" — even without the word "transcribe". Requires `ffmpeg` + `whisperx` + an accepted `HF_TOKEN` (pyannote diarization) on PATH locally; check once, stop and ask if missing rather than installing system-wide deps unprompted |
+| `find-skills` | The Sherpa skill router — surfacing the top-N installed skills for the current task, each with a one-line "use when" | Session start, whenever the task shifts, or the user asks "is there a skill for X / what should I use here". Runs `tools/sherpa.py` over the local catalog (keyword + local-semantic, offline). This is the wrapper around the Sherpa bootstrap step — see § Sherpa. First-party, `.agents/skills/find-skills/` |
 
 Runtime skills should be mentioned in prompts only when they matter. Example: "Run a Janitor pass; use `systematic-debugging` if the hygiene scanner output looks inconsistent" is better than asking every skill to load every time.
 
 `superforecasting` is **vendored** (MIT, [`deusyu/superforecasting-skill`](https://github.com/deusyu/superforecasting-skill)) into `.agents/skills/superforecasting/` with symlinks in `.claude/skills/` + `~/.codex/skills/` and a `skills-lock.json` entry (upstream commit `8913b08`). Local fork: the forecast ledger is **repo-controlled and one-per-book** — `SF_BOOK=polymarket` → `polymarket/research/data/superforecast/`, `SF_BOOK=crypto` → `live_trading/data/superforecast/` (git-ignored append-only runtime data, like `trades.json`; the two books share no state). **Guardrail — anti-post-hoc:** the `sf.py` state machine rejects any edit to a forecast once it is settled/scored, so a probability can never be rewritten with hindsight (the engine's `TRANSITIONS` table is the enforcement point). Provenance + the two ledger paths: [[2026-06-29_superforecasting_skill_vendored]].
 
 `calibrate` is **first-party** (built in-repo, NOT vendored) and sits on top of that ledger as a **read-only consumer** — it scores forecasts but never writes the ledger or re-implements its state machine. Packaging mirrors `data-contract`: `.agents/skills/calibrate/` with symlinks in `.claude/skills/` + `~/.codex/skills/` and the source commit at the top of its SKILL.md. **Engine extracted 2026-07-05 to `library/calibrate/` (`lemma-calibrate`, Apache-2.0, scrub APPROVED same day; renamed from rigorkit 2026-07-05)** — the two project modules (`infrastructure/calibration/` crypto · `polymarket/research/lib/calibration/` PM) are now same-API **shims** (still byte-identical to each other, still never cross-imported; they add back only the epsilon book→ledger-path mapping, which the public package deliberately does not carry). All invocation lines unchanged; install per shim docstring. It reuses the crypto stack's conventions rather than duplicating them: `infrastructure/backtester/ml_metrics.py:calibration_table` (reproduced byte-for-byte, gate-checked for no regression) and `infrastructure/ml/walk_forward.py`'s `IsotonicRegression(out_of_bounds='clip')` recalibration pattern (pure-numpy fallback where sklearn is absent). Design + gate results + embedded reliability diagram: [[calibration_scoring_layer_findings]].
+
+`audio-transcribe-summarize` is **provenance: unspecified** — user-supplied (Justin, 2026-07-10), no tracked upstream repo/commit to point at (unlike `superforecasting`, vendored MIT). Justin flagged that a copy may already exist locally under a different macOS user account; if found later, diff it against `.agents/skills/audio-transcribe-summarize/SKILL.md` before treating either as canonical. Packaged like `cost-mode`: `.agents/skills/audio-transcribe-summarize/` with a symlink in `.claude/skills/`. The `~/.codex/skills/` symlink still needs to be made **on Justin's actual machine** — it was not created from this session because Cowork's sandboxed HOME is not his real home directory. This skill also cannot actually run inside a Cowork sandbox (no `whisperx`/`ffmpeg`/`HF_TOKEN`, and installing them there wasn't authorized) — it's meant for a local Claude Code / Codex CLI session.
 
 `reflection-engine` is **first-party** and is the standing discovery front of the skills lifecycle (discover → decide → build → validate → package → publish). It maintains [[candidates]] (`brain/reflection/candidates.md`) — the authoritative backlog with the recurrence × build-cost rubric and every logged decision including "nothing"-with-reason — and it must never re-propose items already at a later lifecycle stage, SKILL_MAP-deferred items, or closed-nothing entries absent new evidence. The publish end of the same lifecycle is the top-level `library/` (public-candidate packages: SKILL.md bundles shipped *inside* pip modules with a `python -m <pkg>.skills install` CLI; Apache-2.0; **never imports epsilon internals** — epsilon consumes the library one-way, proven by the `infrastructure/changepoint` shim). Machine-readable catalog: `tools/skills_catalog.py` → `library/catalog.json` (public candidates, scrub-flagged) + `brain/generated/skills_catalog.json` + `skills_dashboard.html`. Kickoff run + radar evidence: [[2026-07-04_skills_lifecycle_phase1]].
 
@@ -384,10 +388,52 @@ Before fanning out a large worker pool (CPCV/WF sweeps, event-heavy parquet repl
 
 This is a health-check convention (not an auto-triggered skill) — apply it at the start of any run that fans out heavy workers, and keep re-checking as the queue's remaining units get denser.
 
+## Sherpa — auto-surfacing skills on task context
+
+> Built 2026-07-11. Goal: skills get invoked from task context, no manual calling, in **both** this repo and the separate `is this the bottom` repo. Design/scope doc: `scratch/cowork/sherpa_scope.md` (local-only scratch, not wikilinked). Graduated out of § Future skills.
+
+The problem Sherpa solves: a well-described skill auto-triggers in Claude Code, but that only fires the skills the model happens to pattern-match, only on the Claude Code surface, and only over one repo. Sherpa closes those gaps with two layers.
+
+### Layer 1 — trigger-description convention (does most of the work)
+
+Claude Code natively auto-invokes a skill when its frontmatter `description` matches the task. So the biggest lever is hygiene: **every skill's `description` opens with a crisp "Use when …" that names the concrete triggers** (the situations, phrasings, and artifacts that should fire it). A skill written this way surfaces itself with no router at all. When you add or edit a skill, write the description this way and install it in all three places so it's actually loadable:
+
+- `.agents/skills/<name>/` (canonical), symlinked into `.claude/skills/` (Claude Code, project) **and** `~/.codex/skills/` (Codex CLI). Library bundles that should auto-trigger are installed by symlinking `.agents/skills/<name>` → `../../library/skills/<name>` (this is how `prd-scaffold` is wired).
+
+### Layer 2 — the router (`tools/sherpa.py`, wrapper skill `find-skills`)
+
+Given a task, `tools/sherpa.py` scores every installed skill and returns the top-N, each with a one-line "use when". It catches skills the model wouldn't have triggered on, ranks when several match, and spans the cross-repo catalog. Run it directly or via the `find-skills` skill:
+
+```bash
+python3 tools/sherpa.py "<the task in a sentence>"     # human-readable
+python3 tools/sherpa.py --json --top 3 "<task>"         # machine-readable
+python3 tools/sherpa.py --list                          # dump the indexed catalog + scope tags
+python3 tools/sherpa.py --scope shareable "<task>"      # restrict to a scope
+```
+
+- **Matcher:** keyword/description scoring (always on, deterministic, offline) blended with **local** semantic similarity — Ollama `nomic-embed-text` on `localhost:11434`, the same model gbrain uses (see [[gbrain_retrieval_layer]]). Nothing leaves the machine; if Ollama is down, Sherpa is keyword-only and says so. Combined score = `0.6·keyword + 0.4·semantic` when the embedder is up, else keyword alone. Ties break on skill name (deterministic).
+- **Index:** rebuilt from `SKILL.md` frontmatter on every run, so it is always current when skills change; embeddings are cached by description hash. `tools/skills_catalog.py` also emits `brain/generated/sherpa_index.json` (a committed cache + review surface) and prints the scope-tag summary.
+- **`find-skills`** is the skill wrapper (`.agents/skills/find-skills/`). It shadows the generic global `find-skills` within these repos on purpose — here it means "route over the local catalog."
+
+### Wiring (how it fires for every agent)
+
+- **PRIMARY (reliable, agent-agnostic):** a Sherpa bootstrap step in [[VAULT_MAP]] § Agent Bootstrap (step 6), [[CODEX]] § On startup checklist, and [[COWORK]] § Agent Bootstrap — "at session start / when the task shifts, run `tools/sherpa.py` on the task and load the surfaced skills." This is the mechanism that covers Cowork (the main surface), Codex, and Claude Code alike.
+- **OPTIONAL (Claude Code bonus):** a `UserPromptSubmit` hook (`tools/sherpa_hook.py`, wired in `.claude/settings.json`) runs Sherpa on each prompt and injects the top skills as context. Fail-safe (any error/weak match ⇒ silent, exit 0), keyword-only for latency. Nothing depends on it — hooks are CC-only and not guaranteed to fire. The hook shells `python3`; a collaborator whose environment lacks `python3` on PATH (e.g. Windows where it's `python`) can adjust the command or drop the `hooks` block from their local settings — the bootstrap step (primary) still works without it.
+
+### The `scope` field (internal vs shareable)
+
+Every skill carries a Sherpa `scope`, derived from its SCRUB status / source:
+
+- **`shareable`** — scrubbed or generic, no epsilon internals, safe to vendor into another repo (the `library/` bundles + generic reasoning like `cost-mode`, `prd-scaffold`, `reflection-prompt`).
+- **`internal`** — epsilon-wired, must never leave the repo (`data-contract` with epsilon parquet paths, `superforecast` on the epsilon ledger, the `brain-*` passes, `efficient-fable`, and the epsilon-wired `.agents` installs of `calibrate`/`changepoint-audit` — whose scrubbed *library* bundle forms are separately `shareable`).
+- **`unknown`** — needs a human tag (surfaced in the catalog's scope summary for review).
+
+Tags come from `tools/sherpa.py` (`_DEFAULT_SCOPE` + a body heuristic), overridable per-repo via `tools/sherpa_scope.json`. **Cross-repo rule:** only `shareable` skills are copied into `is this the bottom` (vendored there, re-copied when they change); **no epsilon-internal skill ever leaves.** That repo runs its own `find-skills`/`sherpa.py` over its own local skills — no machine-global `~/.claude` install.
+
 ## Future skills (deferred)
 
 From [[OBSIDIAN_INFRA_ROADMAP]] — build only when the basics earn their keep:
 
-- **Sherpa** — route a human/agent to the right context pack for a task.
+- **Sherpa** — **BUILT** (2026-07-11). Skill router that auto-surfaces the right skills on task context. See § Sherpa below. Graduated out of this deferred list.
 - **Graph audit** — implemented as `tools/brain_graph_audit.py`; future work is turning recurring graph findings into an automatic Cartographer/Janitor prompt.
 - **Indeaverse** — idea-graph + branch registry navigable by concept, not folder (Phase 5).

@@ -2,7 +2,7 @@
 name: changepoint-audit
 description: >
   Detect structural breaks / regime shifts in a timestamped series,
-  lookahead-free, for gating or CPCV embargo. Prompt-invoke when you need a
+  lookahead-free, for gating or CPCV embargo. Use when you need a
   causal, real-time regime-shift signal (CUSUM / Page-Hinkley / BOCPD) on
   returns or any series — to feed the regime-classifier, gate trend entries on a
   fresh break, or hand break timestamps to the CPCV engine as embargo windows.
@@ -11,8 +11,11 @@ description: >
 
 <!--
 Source: epsilon-quant-research @ commit 6f6eca0d5e1d46ec388401b304670ae1e6527a9e
-(branch justin). First-party skill (NOT vendored). Prompt-invoked (soft) — it is
-NOT an auto-trigger safety gate. ENGINE EXTRACTED 2026-07-04 to the decoupled
+(branch justin). First-party skill (NOT vendored). Auto-triggers on a genuine
+structural-break/regime-shift task via the trigger-tuned description (Sherpa
+Layer 1), but it is NOT a fail-closed safety gate like data-contract — it
+surfaces a signal for the agent to use, it does not block a run. ENGINE
+EXTRACTED 2026-07-04 to the decoupled
 skills library: library/changepoint/ (package `lemma-changepoint`, Apache-2.0; renamed from rigorkit 2026-07-05);
 infrastructure/changepoint/ is now a same-API shim over it (install:
 `uv pip install -e "library/changepoint[dev]" --python .venv/bin/python`).

@@ -236,6 +236,7 @@ Worked anchor: the 2026-06-02 same-day OD Arm T survivor passed OOS+BH (fair) bu
 3. Read `brain/POLYMARKET_BRAIN.md` for Polymarket work, then the relevant hub (MM, OD, copytrade, dali, or STRATEGY_REFERENCE as appropriate)
 4. When hunting for prior work or related notes, use the **gbrain MCP tools** (semantic `search` + `traverse_graph`/`get_backlinks`) before grep/folder scans — it indexes this vault and resolves `[[basename]]` links as graph edges. Retrieval only; synthesis stays in-agent. Setup/teardown: `docs/tooling/gbrain_retrieval_layer.md`.
 5. For data-heavy work, read the relevant data/artifact manifest before scanning raw folders
-6. Only then begin implementation
+6. **Surface skills for the task (Sherpa).** Run `python3 tools/sherpa.py "<the task in a sentence>"` and load whatever skills it surfaces — at session start and again whenever the task shifts. It ranks the installed skills by keyword + local-semantic match (offline; keyword-only if the local embedder is down) and returns each with a one-line "use when". This is the reliable auto-surfacing mechanism; it complements Claude Code's native description-triggering. Wrapper skill: `find-skills`. See [[VAULT_MAP]] § Agent Bootstrap step 6 and [[SKILL_MAP]] § Sherpa.
+7. Only then begin implementation
 
 When you produce output (findings, scripts, results), save to the right location and add wikilinks back to the hub.

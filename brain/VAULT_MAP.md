@@ -39,6 +39,11 @@ A two-project quantitative research monorepo. The projects **share no code** —
 3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
 4. You operate on a personal branch named after the operator's GitHub handle. Commit/push only to that branch — never main. Merge main into your branch at session start; all merges follow [[MERGE_PROTOCOL]].
 5. **Daily canon check (start of day).** Establish the most-updated canon before working: after any `alvaro`/`justin` merge, `origin/main` is usually ahead, so `git fetch && git checkout <handle> && git merge main` (conflicts → [[MERGE_PROTOCOL]]). Then `git add --renormalize .` to confirm LF — this repo keeps LF in the index across Mac (`justin`) and Windows (`alvaro`); EOL safeguard in [[MERGE_PROTOCOL]] § 6. Only once the branch is current and LF-clean do you begin work.
+6. **Surface skills for the task (Sherpa).** Before starting — and again whenever the task shifts to a new kind of work — run the skill router on a one-line description of what you're about to do and load whatever it surfaces, without waiting to be told:
+   ```bash
+   python3 tools/sherpa.py "<the task in a sentence>"
+   ```
+   It returns the top-N installed skills with a one-line "use when", ranked by keyword + local-semantic match (fully offline; keyword-only if the local embedder is down). This is the reliable, agent-agnostic auto-surfacing mechanism — it works in Cowork, Codex, and Claude Code, and complements Claude Code's native description-triggering by catching skills the agent wouldn't have triggered on. The wrapper skill is `find-skills`; see [[SKILL_MAP]] § Sherpa.
 
 Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
 

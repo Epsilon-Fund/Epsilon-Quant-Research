@@ -34,6 +34,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED = ROOT / "brain" / "generated"
 
+# Reuse Sherpa's scope-tagging + keyword derivation so the catalog and the
+# router agree on scope/keywords (single source of truth: tools/sherpa.py).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sherpa  # noqa: E402
+
+_SCOPE_OVERRIDES = sherpa.load_scope_overrides(ROOT)
+
+
+def _sherpa_fields(skill_id: str, source: str, body: str, description: str) -> dict:
+    """scope + trigger_keywords + repo — the Sherpa index fields for one skill."""
+    return {
+        "scope": sherpa.derive_scope(skill_id, source, body, _SCOPE_OVERRIDES),
+        "trigger_keywords": sherpa.derive_keywords(skill_id, description, []),
+        "repo": ROOT.name,
+    }
+
 
 # ── SKILL.md frontmatter ─────────────────────────────────────────────────────
 def parse_skill_md(path: Path) -> dict:
@@ -70,13 +86,17 @@ def agent_skills() -> list[dict]:
         body = skill_md.read_text(encoding="utf-8")
         first_party = bool(re.search(r"first-party", body, re.IGNORECASE))
         vendored = bool(re.search(r"vendor", body, re.IGNORECASE)) and not first_party
+        source = str(skill_md.relative_to(ROOT))
+        description = meta.get("description", "")
         entries.append({
             "id": meta["name"],
             "kind": "agent-skill",
-            "summary": meta.get("description", ""),
+            "summary": description,
+            "description": description,
             "provenance": "first-party" if first_party else ("vendored" if vendored else "unspecified"),
-            "source": str(skill_md.relative_to(ROOT)),
+            "source": source,
             "invocation": f"Skill: {meta['name']} (auto/prompt-invoked per description)",
+            **_sherpa_fields(meta["name"], source, body, description),
         })
     return entries
 
@@ -175,10 +195,14 @@ def library_entries() -> list[dict]:
         }
         for skill_md in sorted(pyproject.parent.glob("src/**/skills/*/SKILL.md")):
             meta = parse_skill_md(skill_md)
+            b_source = str(skill_md.relative_to(ROOT))
+            b_desc = meta.get("description", "")
             pkg["bundled_skills"].append({
                 "id": meta["name"],
-                "summary": meta.get("description", ""),
+                "summary": b_desc,
+                "description": b_desc,
                 "install": f"python -m {'.'.join(skill_md.relative_to(pyproject.parent / 'src').parts[:-2])} install",
+                **_sherpa_fields(meta["name"], b_source, skill_md.read_text(encoding="utf-8"), b_desc),
             })
         entries.append(pkg)
     return entries
@@ -195,17 +219,21 @@ def library_bundle_entries() -> list[dict]:
         if scrub.is_file() and re.search(r"^\*\*VERDICT: APPROVED\*\*",
                                          scrub.read_text(encoding="utf-8"), re.MULTILINE):
             scrub_status = "approved"
+        source = str(skill_md.parent.relative_to(ROOT))
+        description = meta.get("description", "")
         entries.append({
             "id": meta["name"],
             "kind": "library-bundle",
             "version": None,
-            "summary": meta.get("description", ""),
+            "summary": description,
+            "description": description,
             "license": meta.get("license") or "Apache-2.0",
-            "source": str(skill_md.parent.relative_to(ROOT)),
+            "source": source,
             "invocation": f"cp -r skills/{skill_md.parent.name}  .claude/skills/",
             "published": False,
             "scrub_status": scrub_status,
             "bundled_skills": [],
+            **_sherpa_fields(meta["name"], source, skill_md.read_text(encoding="utf-8"), description),
         })
     return entries
 
@@ -290,6 +318,15 @@ def main() -> int:
     }
     (ROOT / "library" / "catalog.json").write_text(json.dumps(public, indent=2) + "\n", encoding="utf-8")
 
+    # Sherpa index — the flat, matchable skill list the router consumes. Built
+    # by tools/sherpa.py so scope/keywords stay consistent with routing. sherpa.py
+    # rebuilds this on the fly too; this committed copy is a cache + review surface.
+    sherpa_index = sherpa.build_index(ROOT)
+    (GENERATED / "sherpa_index.json").write_text(
+        json.dumps({"generated_at": catalog["generated_at"], "repo": ROOT.name,
+                    "count": len(sherpa_index), "skills": sherpa_index}, indent=2) + "\n",
+        encoding="utf-8")
+
     print(f"entries: {len(entries)}  "
           f"(library {sum(1 for e in entries if e['kind'] == 'library-package')}, "
           f"bundles {sum(1 for e in entries if e['kind'] == 'library-bundle')}, "
@@ -298,6 +335,17 @@ def main() -> int:
     print(f"wrote: {GENERATED / 'skills_catalog.json'}")
     print(f"wrote: {GENERATED / 'skills_dashboard.html'}")
     print(f"wrote: {ROOT / 'library' / 'catalog.json'}")
+    print(f"wrote: {GENERATED / 'sherpa_index.json'}  ({len(sherpa_index)} routable skills)")
+
+    # Reviewable scope-tag list — surface 'unknown' tags a human should resolve.
+    by_scope: dict[str, list[str]] = {}
+    for s in sherpa_index:
+        by_scope.setdefault(s["scope"], []).append(s["name"])
+    print("scope tags:")
+    for sc in ("shareable", "internal", "unknown"):
+        names = sorted(by_scope.get(sc, []))
+        if names:
+            print(f"  {sc:9} ({len(names)}): {', '.join(names)}")
     return 0
 
 

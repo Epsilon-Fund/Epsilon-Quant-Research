@@ -13,6 +13,14 @@ This file is the shared Cowork law: repo invariants, prompt discipline, and wher
 
 Run the Agent Bootstrap — canonical copy in [[VAULT_MAP]] § Agent Bootstrap.
 
+**Surface skills for the task (Sherpa).** As part of the bootstrap — and again whenever the task shifts — run the skill router on a one-line description of the work and load whatever it surfaces:
+
+```bash
+python3 tools/sherpa.py "<the task in a sentence>"
+```
+
+It returns the top-N installed skills, each with a one-line "use when", ranked by keyword + local-semantic match (offline; keyword-only if the local embedder is down). Cowork is the main surface for this — it's the reliable, agent-agnostic auto-surfacing mechanism and complements Claude Code's native description-triggering. Wrapper skill: `find-skills`. See [[VAULT_MAP]] § Agent Bootstrap step 6 and [[SKILL_MAP]] § Sherpa. (Surfacing a skill is orchestration support, not code-like research — it stays within § Cowork vs Codex split.)
+
 ## Active threads
 
 Thread status is authoritative in [[TODO]] and [[VAULT_MAP]] § Active research branches; this file carries no dated status. **NOTE:** the former single "Block K" thread is **split into two strats** so prompts can target one without disambiguating — **MM** (market-making) and **OD** (options-delta). "Block K" remains the historical name for their joint research arc.
