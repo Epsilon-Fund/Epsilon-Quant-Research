@@ -51,12 +51,25 @@ subagent edit files. Standard four:
 3. **session transcripts (best-effort)** — `~/.claude/projects/<this repo>/`:
    grep-sample friction markers (errors, retries, repeated commands,
    corrections). Sampling only; never full reads; state confidence honestly.
-   Two gotchas (learned the 2026-07-06 pass — RC-029), both mandatory for an
-   accurate scan:
-   - **Exclude the current session's own transcript.** The live pass writes
-     this SKILL's text and the gathering prompt's pattern list into its own
-     `.jsonl`, so grepping it back inflates every friction count with the
-     pass's own vocabulary. Drop the newest/self file (by name or mtime) first.
+   Two gotchas (learned the 2026-07-06 pass — RC-029; gotcha #1 broadened the
+   2026-07-17 pass — RC-030), both mandatory for an accurate scan:
+   - **Exclude EVERY reflection-pass transcript, not just the current one.** A
+     reflection pass writes this SKILL's text, the gathering prompt's pattern
+     list, and past candidates-table incident counts into its own `.jsonl`, so
+     grepping any of them back inflates friction counts with the engine's own
+     vocabulary. Dropping only the current-session file (the original RC-029
+     fix) is insufficient — prior weekly-pass transcripts accumulate and each
+     one re-contaminates every future scan. Before counting, drop **(a)** the
+     newest/self file (by name or mtime) AND **(b)** any transcript that is
+     itself a reflection output. Detect (b) with a per-file sentinel grep and
+     exclude the matches: a reflection transcript contains the backlog path
+     `brain/reflection/candidates.md`, OR the pattern-vocabulary fingerprint
+     (several friction markers co-occurring — e.g. a file that matches all of
+     `gtimeout`, `nbstripout`, and `index.lock`, a trio a normal dev session
+     rarely names together). Report which files you dropped and why. (Evidence
+     RC-030: on the 2026-07-17 pass this contamination made `gtimeout` and
+     "still failing" 100% artifacts and inflated ModuleNotFoundError 13→39,
+     index.lock 34→60, nbstripout 125→207 across just two prior-pass files.)
    - **Grep per file, not multi-file.** A combined `grep -c pattern $(find …)`
      over these very-long single-line JSONL transcripts intermittently returns
      false-zero counts here; a `while read f; do grep … "$f"; done` loop (one
