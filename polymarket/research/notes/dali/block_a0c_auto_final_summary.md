@@ -1,7 +1,7 @@
 ---
 title: "Block A0c Auto Final Summary"
 created: 2026-06-05
-status: generated
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — auto-generated rollup pointing at the two A0c final notes; no independent analysis. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A0c Auto Final Summary
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

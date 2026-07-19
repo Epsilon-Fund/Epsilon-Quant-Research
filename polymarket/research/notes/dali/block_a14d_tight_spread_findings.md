@@ -1,6 +1,13 @@
 ---
+title: "Block A1.4d Tight-Spread Entry Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a14d, executable-cost, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 6/198 cells in one market with CI through zero, correctly not claimed; spread filtering does not rescue the signal. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

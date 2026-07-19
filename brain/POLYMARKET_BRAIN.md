@@ -72,6 +72,7 @@ Folder index: [[INDEX]].
 
 ## Falsification And Redesign Anchors
 
+- **Pre-Alvaro canon audit (2026-07-19): [[pm_prealvaro_canon_audit_findings]]** — verdict ledger for all 62 dali/copytrade/foundations notes (16 CANON, 17 CLOSED-ROBUST, 29 HISTORICAL, 0 DEMOTED); every audited note now carries a status banner. Read this before citing any pre-MM-era number.
 - dali is not globally closed; its original direct local microstructure continuation branch was falsified/redesigned via [[block_p3prime_oos_findings]], [[block_a0c_holdout_retest_findings]], [[block_a14h_maker_non_overlap_findings]], and [[block_a17_lightgbm_findings]].
 - Single-venue Polymarket market-making is closed; surviving maker value is in [[block_k5_findings]], [[block_k5b_findings]], and the copy/learn route.
 - Continuous/banded options-delta gamma scalp is closed; static-hedge Strategy A moved through [[block_k6_strategy_a_static_hedge_findings]] into [[od_strategy_a_v2_lifecycle_findings]], where the primary OOS lifecycle gate failed and the hedge overlay stayed gated.

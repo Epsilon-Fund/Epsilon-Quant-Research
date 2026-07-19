@@ -2,7 +2,7 @@
 title: "Polymarket — Factor Construction, Models, and Trade-the-Price Architecture"
 tags: [polymarket, factors, ml, strategy, trade-the-price]
 created: 2026-05-19
-status: active
+status: archived
 owner: justin
 project: polymarket
 para: resource
@@ -11,6 +11,8 @@ hubs:
 parent: dali
 related: [[dali_literature_synthesis]], [[external_ofi_tob_l2_midfreq_strategy_research]], [[2026-06-05_novelty_deep_research]]
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — pre-data brainstorm whose strategy set was bypassed by the actual research lineage; its §6 'Honest Assessment' Sharpe ranges are invented (no data, no sample, no CI) and must never be quoted as results. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Polymarket — Factor Construction & Model Architecture
 
@@ -416,3 +418,7 @@ Each stage only happens after the previous one shows positive results.
 | Whale tracking | Direct port — large trades in CLOB |
 | Vol breakout (Bollinger, ATR) | Same — realized vol vs typical |
 | Cross-asset confirmation | BTC/ETH/SPY/Polymarket as joint signal set |
+
+## External context: eightdelta
+
+The whale-activity factor rows cataloged here were never tested. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

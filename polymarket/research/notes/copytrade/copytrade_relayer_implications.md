@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): CANON** — twice-falsified 'invisible taker wallet' hypothesis (0/2,051 sampled senders join traders; aggressor already in maker, 99.7% join); prevented an expensive wrong rebuild. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Copytrade Relayer Implications
 
 > Hub: [[COWORK]]

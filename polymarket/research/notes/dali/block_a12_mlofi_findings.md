@@ -1,6 +1,13 @@
 ---
+title: "Block A1.2 MLOFI Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a12, mlofi, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — multi-level OFI as continuation signal correctly falsified vs L1 on identical rows with exact L1 reconciliation; stays closed. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

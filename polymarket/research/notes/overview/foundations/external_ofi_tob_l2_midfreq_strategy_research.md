@@ -3,16 +3,20 @@ title: "External Research Note — OFI/TOB/L2 Mid-Frequency Strategy Library"
 tags: [dali, external-research, strategy-library, archive]
 created: 2026-05-29
 source: user-conducted external research (web-chat / external LLM session), uploaded into Cowork
-status: ARCHIVED REFERENCE — see block_a1x_external_note_reconciliation.md (v2) for the tested-vs-open triage
+status: archived
 caveat: |
   This note was written from a pre-A1.4 snapshot. A1.4–A1.7 since ran the *directional-continuation* use
-  of the local OFI/TOB signal (taker + maker-at-mid) and closed that framing. BUT the signal itself is real
-  (73.7% hit at 5s, A1.3) — what A1.x falsified is one way of using it, not the signal. Several ideas here
+  of the local OFI/TOB signal (taker + maker-at-mid) and closed that framing. BUT the 73.7% hit (A1.3) was in-sample only — it replicated at 36.0% OOS ([[block_a0c_holdout_retest_findings]]); only the never-run reversion/rolling-rank framings stayed open (since run and closed as Block A18/P1). Several ideas here
   are genuinely-untested *framings*: continuous rolling-rank sizing (#1), explicit mean-reversion-to-
   microprice (#4 + fade side of #9/#16/#17), true-L2 features (#5/#6/#7/#15), and off-book cross-market
   lead-lag (#21). Read the reconciliation note's v2 bucket table before treating anything here as either
   dead or promising.
+hubs:
+  - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — correctly self-archived external strategy library; directional-continuation entries (#2, #3, #10) are dead per the A14 family; the never-run execution-quality ideas resurfaced independently in the MM thread. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 
@@ -1504,3 +1508,7 @@ with executable ask/bid or passive-entry route passing costs
 ```
 
 Do not treat the current L2 proxy work as proof that deeper L2 adds alpha yet. Treat it as evidence that A2 should test true MLOFI carefully against the current L1 OFI baseline.
+
+## External context: eightdelta
+
+Strategy #17 (large-trade impact/reversal) was never tested here. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

@@ -1,7 +1,7 @@
 ---
 title: "Block E Audit: Existing Wallet / Competition Analysis Coverage"
 created: 2026-06-05
-status: generated
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - copytrade
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — coverage inventory, no live conclusion; the operator-taxonomy recommendation was overtaken by the exchange-internal-leg discovery days later. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block E Audit: Existing Wallet / Competition Analysis Coverage
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

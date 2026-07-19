@@ -14,6 +14,8 @@ tags:
   - capture
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — archived procedural runbook for the completed A0 capture; no numeric claim of its own. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A0 Runbook
 
 > Hub: [[COWORK]]

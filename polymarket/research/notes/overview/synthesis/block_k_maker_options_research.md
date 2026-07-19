@@ -15,6 +15,8 @@ relationship: Feeds brain/handoffs/2026-05-30_maker_options_delta_pivot.md. Buil
 confidence_legend: "[H] high / primary source; [M] medium; [L] low or practitioner-only; [contested]/[unverified] flagged inline"
 ---
 
+> **Canon status (2026-07-19 audit): CANON** — the theory framing and decision-spine equation (net = rebate + spread − adverse selection − inventory risk) still govern the MM/OD threads; its four recommended validation tests are all executed (K1–K4; the '$40M arb worth scoping' is resolved-negative by K4), and the rebate-cushion sections predate the current fee=0/rebate=0 modeling on target categories. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block K — Market Making & Binary-Option/Delta Strategies (Deep Research)
 
 > Hubs: [[COWORK]] | [[strat_market_making]] | [[strat_options_delta]]

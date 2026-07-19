@@ -1,6 +1,12 @@
 ---
+title: "Block A18 Passive Reversion-To-Microprice Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, a18, reversion, passive-maker, microprice, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — the strongest closure in the cluster: pre-registered pooled market-cluster CI gate across 4 captures (75 markets), conditional and unconditional EV both negative; stays closed. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block A18 Passive Reversion-To-Microprice Findings
 

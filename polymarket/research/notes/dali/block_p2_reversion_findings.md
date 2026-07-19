@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — fragile tail-cell positive, hedged in-note and falsified OOS by [[block_p3prime_oos_findings]]/[[block_a0c_holdout_retest_findings]]; if ever re-cited: its 'bootstrap' CI is actually a Gaussian interval on n≈11 with no multiplicity control. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # P2 Reversion-To-Microprice Findings
 
 > Hub: [[COWORK]]

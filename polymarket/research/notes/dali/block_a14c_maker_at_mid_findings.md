@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — its positive cell (+554.9 bps) was a queue-blind, fill-double-counting artifact — killed in [[block_a14h_maker_non_overlap_findings]] (fill rate 9.0%→0.2%); never cite the positive standalone. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A1.4c Maker-at-Mid Findings
 
 > Hub: [[COWORK]]

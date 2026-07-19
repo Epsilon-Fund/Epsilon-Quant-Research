@@ -365,6 +365,9 @@ Open OD tasks:
 ---
 
 ## dali
+
+> **Canon audit 2026-07-19:** every dali/copytrade/foundations note now carries a verdict banner; ledger = [[pm_prealvaro_canon_audit_findings]] (16 CANON / 17 CLOSED-ROBUST / 29 HISTORICAL / 0 DEMOTED — all closures robust, in-sample positives context-locked to their kills).
+
 - Block I Binance-return lead-lag feasibility gate: CONFIRM-CLOSE; train-selected OOS `L=60s H=5s latency=1s threshold=20bp` = -21.580c CI [-31.731c, -10.857c]; best OOS 1s diagnostic `L=2s H=1s latency=1s threshold=0bp` = -9.478c CI [-12.571c, -7.232c]. Timestamp alignment is clean for 1s+ but not sub-second; saved artifacts lack Binance/OKX OFI, and OKX klines alone would not supply it. See [[block_i_leadlag_feasibility_findings]].
 - A18 passive reversion-to-microprice gate: 0 pooled market-cluster CI-positive rows; best `rolling_rank_sizing`/`passive_maker` W=5 H=30 = -1.232c CI [-1.631c, -0.924c], exec fill 0.09%. Verdict in [[block_a18_passive_reversion_findings]].
 

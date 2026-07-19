@@ -1,7 +1,7 @@
 ---
 title: Dali Phase 1 Diagnostics Results
 created: 2026-05-23
-status: closed
+status: archived
 owner: justin
 project: polymarket
 para: archive
@@ -14,6 +14,8 @@ tags:
   - phase-1
   - research
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — closed execution log of Dali Phase-1 Tasks 1–5 + Block B; every open item since resolved; scrupulously avoids CI-free positives. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Dali Phase 1 Diagnostics Results
 

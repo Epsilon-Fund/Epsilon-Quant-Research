@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — the diagnostic that showed the TOB move is mean-reversion to microprice inside the spread, not continuation alpha; seeded [[block_a18_passive_reversion_findings]]. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A1.5b Decoupled Micro-Price Target Findings
 
 > Hub: [[COWORK]]

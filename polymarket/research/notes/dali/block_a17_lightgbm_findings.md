@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — no ML edge despite two leakage channels that would bias TOWARD finding one; note the 'walk-forward' label overstates a single chronological split. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A1.7 LightGBM Findings
 
 > Hub: [[COWORK]]

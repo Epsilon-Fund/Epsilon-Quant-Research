@@ -2,7 +2,7 @@
 title: "Copytrade attribution repartition — exchange-internal active legs, style-ratio reclassification, and the Block B TFI emit-path re-run"
 tags: [copytrade, dali, block-b, attribution, active-order-leg, results]
 created: 2026-06-10
-status: complete
+status: active
 owner: justin
 project: polymarket
 para: resource
@@ -10,6 +10,8 @@ hubs:
   - COWORK
   - POLYMARKET_BRAIN
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — the house-standard note: exact reconciliation anchors, Wilson + bootstrap CIs, paired composition control, explicit realism ledger; the definitive close of the Block-B operator saga. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Copytrade attribution repartition — who was actually the aggressor on each fill, and what that changes (style labels yes, PnL no)
 
@@ -263,3 +265,7 @@ The lift could in principle be **market composition**: maybe the bars that survi
 | Sign check | `data/analysis/csv_outputs/copytrade/copytrade_tfi_match_orders_sign_check.csv` |
 | Per-market paired control | `data/analysis/csv_outputs/copytrade/copytrade_tfi_emit_path_paired_by_market.csv` |
 | Column docs | `polymarket/research/docs/METRICS_REFERENCE.md` §B.3/§B.4/§2.5 |
+
+## External context: eightdelta
+
+This note's reusable block-flow result — correctly-signed `_matchOrders` sweep flow *reverts* (CIs below 50% in 3 of 4 families) — is directly relevant to block-trade impact work. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

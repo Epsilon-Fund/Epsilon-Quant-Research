@@ -1,6 +1,13 @@
 ---
+title: "Block A1 Visualization Pass"
+status: archived
+hubs:
+  - COWORK
 tags: [dali, block-a1, viz, results]
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — rendering pass over audited A1 CSVs; no new numbers. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

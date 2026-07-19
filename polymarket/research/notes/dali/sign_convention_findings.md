@@ -1,7 +1,7 @@
 ---
 title: "Dali Sign Convention Findings"
 created: 2026-06-05
-status: active
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — superseded by [[sign_convention_findings_a1]], which carries the established convention; this note retains a stale 'not established' section beneath the update that establishes it — read the _a1 note instead. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Dali Sign Convention Findings
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

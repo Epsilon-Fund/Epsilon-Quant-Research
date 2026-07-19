@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — anchor closure of the whole local-signal lineage: TOB 73.7% replicated at 36.0% OOS (CI [32.8, 39.2]) with audited discovery/holdout separation; reopening anything upstream of this is motivated reasoning. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # A0c Holdout Retest Findings
 
 > Hub: [[COWORK]]

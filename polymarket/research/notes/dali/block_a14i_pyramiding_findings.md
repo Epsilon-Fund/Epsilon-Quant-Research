@@ -1,6 +1,13 @@
 ---
+title: "Block A1.4i Pyramiding K-Cap Sweep"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a14i, pyramiding, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — K-cap sweep explains the artifact mechanism: positive only at K=∞ (≈153 concurrent positions in one episode). Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

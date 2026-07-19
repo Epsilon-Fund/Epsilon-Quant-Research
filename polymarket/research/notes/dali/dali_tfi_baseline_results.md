@@ -1,7 +1,7 @@
 ---
 title: "Dali TFI Baseline Results"
 created: 2026-06-05
-status: closed
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — pre-A1 exploratory harness: CI-free point estimates on heavily overlapping observations with an unvalidated sign proxy (self-flagged in-note); the +7.74c table must never be cited as a result. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Dali TFI Baseline Results
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

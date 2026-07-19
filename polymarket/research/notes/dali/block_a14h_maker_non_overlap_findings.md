@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — non-overlap math correctly killed the A14c overlap artifact (+554.9 → −451.3 bps); textbook application of the house non-overlap invariant. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A1.4h Maker Non-Overlap Findings
 
 > Hub: [[COWORK]]

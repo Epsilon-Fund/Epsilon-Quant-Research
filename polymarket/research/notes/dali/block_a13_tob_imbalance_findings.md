@@ -2,13 +2,15 @@
 tags: [dali, block-a13, tob-imbalance, results]
 title: Block A1.3 TOB Imbalance Level Deep-Dive
 created: 2026-05-28
-status: archived
+status: active
 owner: justin
 project: polymarket
 para: resource
 hubs:
   - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — the cluster's real descriptive signal, but with mandatory context: the 73.7% hit rate is in-sample only (replicated at 36.0% OOS in [[block_a0c_holdout_retest_findings]]), n≈300k is inflated by state-variable overlap, and the predicted move sits inside the spread ([[block_a15b_decoupled_findings]]); cite only together with those kills. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block A1.3 TOB Imbalance Level Deep-Dive
 

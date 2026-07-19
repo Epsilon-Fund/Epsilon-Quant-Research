@@ -1,7 +1,7 @@
 ---
 title: "Dali Live L2 Capture Plan"
 created: 2026-06-05
-status: watching
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — plan executed by the A0/A0b/A0c captures; one caveat stays live: public PM CLOB L2 is anonymous aggregate data (no wallet/order-owner identity), which constrains any attribution work. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Dali Live L2 Capture Plan
 > Hub: [[COWORK]]
 

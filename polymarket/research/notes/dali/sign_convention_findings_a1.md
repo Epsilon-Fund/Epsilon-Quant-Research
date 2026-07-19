@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — the one durable live output of the dali cluster: live trade side = token-side aggressor (99.9%/1.7% conditionals, n=847 classified); underwrites every downstream OFI/TFI sign and the MM thread's aggressor labeling. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Dali Sign Convention Findings
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

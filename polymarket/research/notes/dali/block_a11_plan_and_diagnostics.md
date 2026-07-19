@@ -1,6 +1,13 @@
 ---
+title: "Block A1.1 Segment And L2 Proxy Diagnostics"
+status: archived
+hubs:
+  - COWORK
 tags: [dali, block-a1, a1-1, diagnostics]
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — diagnostic/planning sidecar (no CIs) superseded by [[block_a13_tob_imbalance_findings]] and the A2 plan. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

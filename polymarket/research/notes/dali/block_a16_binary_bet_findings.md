@@ -1,6 +1,13 @@
 ---
+title: "Block A1.6 Binary-Bet Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a16, binary-bet, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/225 cells robust under non-overlap + fees; wide-CI positives correctly refused. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

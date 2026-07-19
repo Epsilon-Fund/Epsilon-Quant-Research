@@ -1,7 +1,7 @@
 ---
 title: "Block A0 Capture Status"
 created: 2026-06-05
-status: generated
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — byte-identical duplicate of [[block_a0b_capture_status_final]]; no independent gate — read the status note instead. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A0 Capture Status
 > Hub: [[COWORK]]
 
