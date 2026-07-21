@@ -180,7 +180,7 @@ This audit was commissioned on the suspicion that pre-Alvaro conclusions were be
 - ~11 capture-status snapshots + 2 duplicate "audit" notes are pure HISTORICAL clutter → collapse candidates (Phase 3 rollup per capture).
 - Frontmatter is inconsistent across dali (full YAML vs tags-only vs bare `> Hub:`) — normalized to include `status:` where notes were touched in this pass.
 - [[sign_convention_findings]] and [[sign_convention_findings_a1]] share an H1 title (navigation hazard).
-- `topics/prediction-markets/` (surveyed separately): vendor-API (Falcon) pipeline, zero import coupling repo-wide, no data on disk, cannot run (no key), every capability superseded by on-chain successors in `polymarket/research/` — **archive** in Phase 2, nothing worth porting.
+- `topics/prediction-markets/` (surveyed separately): vendor-API (Falcon) pipeline, zero import coupling repo-wide, no data on disk, cannot run (no key), every capability superseded by on-chain successors in `polymarket/research/` — **archive** in Phase 2, nothing worth porting (executed 2026-07-21: now at `polymarket/archive/prediction_markets_falcon_pipeline/`).
 - The copytrade structural-carriers replay script was never committed — if that branch is ever revisited, the replay must be reconstructed from `domah_copy_audit.py`.
 
 ## External context: eightdelta

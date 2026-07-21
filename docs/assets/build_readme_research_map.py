@@ -122,8 +122,6 @@ def crypto_note_counts():
         if path.name == "CLAUDE.md":
             continue
         path_rel = rel(path)
-        if path_rel.startswith("topics/prediction-markets/"):
-            continue
         if path_rel.startswith("topics/statistical-arbitrage/"):
             counts["Statistical arbitrage"] += 1
         elif path_rel.startswith(("topics/regime-classifier/", "topics/ml-prediction/")):

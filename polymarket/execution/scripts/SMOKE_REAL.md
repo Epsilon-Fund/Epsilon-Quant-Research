@@ -31,7 +31,7 @@ anything; every step matters.
    - `POLYMARKET_FUNDER` — the proxy wallet address (where the USDC.e
      lives). Lowercase, 0x-prefixed, 40 chars.
    - `POLYMARKET_API_KEY`, `POLYMARKET_API_SECRET`, `POLYMARKET_PASSPHRASE` —
-     created via Polymarket UI or via `midas/scripts/derive_api_keys.py`.
+     created via Polymarket UI or via `polymarket/midas/scripts/derive_api_keys.py`.
 
    **The bot refuses to start in real mode if any credential looks like
    a placeholder** (empty, `dummy`, all-zeros, `placeholder`, etc.).

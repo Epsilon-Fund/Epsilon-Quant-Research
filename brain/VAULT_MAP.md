@@ -64,14 +64,15 @@ After bootstrap:
 | `brain/` | Git-tracked context hub: maps, hubs, task list, agent lanes, handoffs (this folder) |
 | `local_agents/` | Local-only per-person agent instruction overlays; git-ignored, never on any branch |
 | `polymarket/research/` | Polymarket research code, notes, data manifests |
-| `polymarket/execution/` (+ `midas/`) | Polymarket execution bot |
+| `polymarket/execution/` (+ `polymarket/midas/`) | Polymarket execution bot |
 | `live_trading/` | Unified Streamlit live-trading app + dashboards |
 | `topics/` | Crypto strategy research (momentum, stat-arb, BB-breakout, CPCV) |
 | `infrastructure/` | Walk-forward + CPCV engines for crypto |
 | `docs/` | Crypto strategy + data references |
 | `tools/` | Repo-level tooling (e.g. `brain_hygiene.py`) |
 | `Attachments/` | Obsidian attachment default (images/PDFs) |
-| `archive/` | Closed / historical material |
+| `archive/` | Closed / historical repo-level material (retired tooling) |
+| `polymarket/archive/` | Archived Polymarket material: Falcon prediction-markets pipeline, sports-arb stray, Midas audit snapshot |
 
 ## Core hubs
 
@@ -126,7 +127,7 @@ Concurrent-edit safety comes from the branch model: each collaborator edits on t
 | copytrade | `polymarket/research/notes/copytrade/` | active — first real-money smoke pending | [[COWORK]] § copytrade |
 | MM — market-making | `polymarket/research/notes/market_making/` | active live-measurement track; old single-venue K2/K-PEG path closed | [[strat_market_making]] |
 | OD — options-delta | `polymarket/research/notes/options_delta/` | standalone pricing closed; selected sizing/execution diagnostics feed MM | [[strat_options_delta]] |
-| dali / research lineage | `polymarket/research/notes/dali/` | not globally closed; individual branches falsified | [[COWORK]] § dali |
+| dali / research lineage | `polymarket/research/notes/dali/` | not globally closed; individual branches falsified — every note carries a canon-audit banner ([[pm_prealvaro_canon_audit_findings]]) | [[COWORK]] § dali |
 | crypto momentum (live) | `live_trading/dashboards/momentum/` | live (6-asset universe) | `docs/STRATEGY_REFERENCE.md` |
 
 > Closed/falsified branch anchors live in [[POLYMARKET_BRAIN]] § Falsification And Redesign Anchors. The single high-level map of the whole arc is [[2026-06-04_state_of_the_arc_and_novelty_frontier]].

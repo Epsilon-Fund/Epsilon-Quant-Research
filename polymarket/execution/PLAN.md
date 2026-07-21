@@ -32,7 +32,7 @@ client is **not** used (broken wire encoding — see decision 15);
 `mirror/clob_http_client.py` is the substitute.
 
 The `_kernel/` folder is vendored from midas/executor/ on 2026-05-06
-and is treated as frozen. Do not edit it. Do not import from midas/.
+and is treated as frozen. Do not edit it. Do not import from polymarket/midas/.
 See CLAUDE.md "Kernel vendoring status" for context.
 
 ## Key decisions made
@@ -578,7 +578,7 @@ See CLAUDE.md "Kernel vendoring status" for context.
     kernel signer entirely for NegRisk reasons).
 13. Polymarket account credentials into `.env` (private key
     from wallet; API key/secret/passphrase via
-    `midas/scripts/derive_api_keys.py` or Polymarket UI;
+    `polymarket/midas/scripts/derive_api_keys.py` or Polymarket UI;
     `POLYMARKET_FUNDER` from the Account page).
 14. Auth-only verification path implemented:
     `python -m polymarket.execution --mode maker --check-auth` hits
@@ -701,7 +701,7 @@ after the first real-money smoke succeeds.
 
 - Leader-proportional sizing (waits for research-side parquet).
 - API-key derivation at startup (currently manual paste in .env).
-  Reference: midas/scripts/derive_api_keys.py and the QuickNode
+  Reference: polymarket/midas/scripts/derive_api_keys.py and the QuickNode
   pattern (deriveApiKey() then createApiKey() fallback).
 - ~~Repo-wide reorganisation merging polymarket-copy/ and
   polymarket/execution/ under a shared parent.~~ Done — research
@@ -711,7 +711,7 @@ after the first real-money smoke succeeds.
 
 ## Open questions to resolve before real money
 
-- The +100 LOC growth in midas/executor/polymarket_sdk_signer.py
+- The +100 LOC growth in polymarket/midas/executor/polymarket_sdk_signer.py
   since vendoring: bug fix, feature, or refactor? **RESOLVED:
   bypassed entirely.** `mirror/clob_signer.py` replaces the
   kernel signer in the real-venue path (the kernel signer

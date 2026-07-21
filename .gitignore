@@ -106,7 +106,8 @@ polymarket/research/data/superforecast/
 live_trading/data/superforecast/
 
 # polymarket/research (was polymarket-copy/.gitignore — consolidated on restructure)
-polymarket/research/data/
+polymarket/research/data/*
+!polymarket/research/data/README.md
 polymarket/research/.env
 polymarket/research/.venv/
 polymarket/research/.tmp/
