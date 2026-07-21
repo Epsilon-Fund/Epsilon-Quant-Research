@@ -42,7 +42,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-FLUSH_ROWS = 5_000_000
+FLUSH_ROWS = 1_500_000   # keep the in-worker row buffer ~0.5 GB; RAM-sized, not core-sized
 
 
 class L1StateRecorder:
@@ -123,7 +123,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", type=Path, default=ROOT / "data" / "l2_parquet_full")
     ap.add_argument("--out-dir", type=Path, default=ROOT / "data" / "analysis" / "real_l2")
-    ap.add_argument("--workers", type=int, default=5)
+    ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--dates", nargs="*", default=None, help="subset of dates (default: all)")
     ap.add_argument("--universes", nargs="*", default=None)
     ap.add_argument("--force", action="store_true")

@@ -272,7 +272,9 @@ def iter_slice_events(
     if gaps is None:
         gaps = load_parquet_gaps(directories)
     remaining = sorted(set(gaps))
-    con = duckdb.connect()
+    # cap DuckDB's thread pool: this iterator runs inside worker processes, and each
+    # worker grabbing every core oversubscribes the box (worker right-sizing rule)
+    con = duckdb.connect(config={"threads": 2})
     try:
         for d in directories:
             for hour in _shard_hours(d):
