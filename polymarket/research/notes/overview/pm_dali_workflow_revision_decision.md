@@ -22,20 +22,26 @@ tags:
 ## Plain-English Summary
 
 - The canon + pipeline audits (2026-07-21) flagged a lot: a metric-mismatch headline, a never-propagated sign fix, a condemned position pipeline, an A17 regime confound, and a stack of hypothesis-grade "kills strengthen" claims. This note answers the natural follow-up — **"so should the whole dali workflow be revised?"** — by separating the *strategy program* (stays closed) from the *workflow/machinery* (revise) and from *one scoped empirical question* worth re-running on data we didn't have then.
-- **Decision in one line:** do **not** reopen any dali strategy branch; **do** fix five recurring workflow defects; and re-measure the dali-descended microstructure features **once, on real captured L2, as candidate MM-gate inputs — never as a standalone edge**.
+- **Decision in one line:** fix five recurring workflow defects; then re-measure on real captured L2 with **liberty to reopen any closure that rested on an assumption rather than institutionally-backed evidence** — reopening is warranted, not motivated reasoning, when the closure's grounds were estimated/assumed (unvalidated fill model, estimated spread, class-A-provisional check) OR when the new data tests markets the closure never saw.
+- **Correction to an earlier draft of this note (operator, 2026-07-21):** a blanket "no dali branch reopens" was wrong. The reopen filter ([[CODEX]] § Realism 5) protects branches that died on **robust** grounds — but the pipeline audit's own evidence-class ledger shows several dali closures died on **assumption** grounds. Those are reopen-eligible. Nothing here is treated as fact unless it has institutionally-backed methodology **on real data** — not assumed, not estimated.
+- **Load-bearing factual correction (operator):** the new VPS L2 capture is on **different markets** (politics NegRisk, esports, culture, crypto-as-control) than the dali captures (A0/A0b/A0c crypto/geopolitics mix). So this is **not a replication** — it is fresh out-of-sample evidence, and any dali closure proven only on dali's markets is *untested* on these.
 - **The load-bearing new fact (operator, 2026-07-21):** we now have **real, continuously-captured L2**. Spread, depth, and book state at any timestamp should be **read from the captured book, not estimated**. Estimating spread (the copytrade SPREAD-1/1b/2 surface; any reconstructed-mid proxy) is bad practice with unreliable results and is retired as a costing method wherever the real book covers the timestamp.
 - Ordering: the copytrade-side **regeneration** (separately chipped — bundle-aware dedup) is where conclusions could actually flip, so it outranks this. The workflow fixes are mostly merge-and-codify off the `alvaro` branch. The re-measurement is a Cowork-scoped roadmap decision because it competes with Join-2, and **Join-2's fill-model calibration is upstream of trusting any passive number this would produce.**
 
-## Tier 1 — stays CLOSED (do not re-run; reopening is motivated reasoning)
+## Tier 1 — sort each closure by the EVIDENCE CLASS it rests on (not "all stay closed")
 
-Per [[CODEX]] § Realism rule 5. These died on grounds more data cannot change:
+The reopen filter only protects closures that died on robust, institutionally-backed grounds. Split the dali closures by what actually killed them:
 
-- **Taker-continuation family** (A14/A14b/A14d/A14f/A14g, A16): killed by a **spread cost floor that exists at any fee level** in the fee-free markets (fee audit was documentary/class-C ground truth). Exit engineering, spread-filtering, stacking, and the ML pass (A17) all died against the same floor.
-- **A17 ML**: the *deployment* kill survives on the cost floor even though its split is a confirmed regime confound; its calibration table is condemned as evidence, not the closure.
-- **A18 / P2 / P3′ passive-reversion execution**: negative under a fill model that is, if anything, **optimistic** (a hypothesis-grade argument, but the direction is monotone) across four captures with a market-cluster CI gate.
-- **Block I spot-return lead-lag**: structural spread/fee headwind, every partition CI far below zero.
+**A — Robust / documentary → stays closed absent contradicting new-market evidence:**
+- **Taker-continuation family** (A14/A14b/A14d/A14f/A14g, A16): killed by a **spread cost floor** with margins (−500 to −2,150 bps) an order of magnitude above any reconstruction error, on top of *documentary* (class-C) fee ground truth. Do not re-run to "check if taking works" — a cost floor is a cost floor. **BUT** the floor was measured on dali's markets; whether politics-NegRisk/esports books have the same floor is a *new-market* question Tier 3 legitimately measures (not a reopen of the taker thesis, a fresh measurement of a different book).
+- **Block I spot-return lead-lag**: structural spread/fee headwind, every partition CI far below zero; documentary fee input.
 
-**What is explicitly NOT re-closed by this:** the *descriptive* TOB/OFI/microprice-reversion signal is real (corrected: ~63% conditional OOS, class-A provisional) — it was never the thing that got killed; the *executable framings* of it were. That distinction is what Tier 3 acts on.
+**B — Assumption-dependent → REOPEN-ELIGIBLE if Tier 3 warrants:**
+- **A14c / A14h / A18 / P2 passive & maker framings**: these are negative **under an unvalidated fill model** that the pipeline audit could only *argue* (class B) is optimistic. "Negative under an assumed fill model" is not a robust closure. A **validated** fill model on real L2 (Join-2's first-order job) can legitimately flip these — reopening is warranted, not motivated reasoning.
+- **A17's calibration/feature-signal claim**: condemned as evidence (regime confound); the "features carry no conditional signal" reading is reopen-eligible under a clean split. (The *executable-taker* deployment kill stays in class A above.)
+- **The descriptive signal's monetizability**: proven un-monetizable *for a taker paying the spread*; **never tested for a maker earning it**. Not a closure at all for the maker mechanism — open by default.
+
+**Rule:** a Tier-3 result may move a branch from B to "reopened" with evidence, or confirm a B closure on real data (upgrading it to robust). It may not reopen an A branch without new-market evidence that directly contradicts the documentary floor.
 
 ## Tier 2 — REVISE the workflow (the audit exposed five recurring process defects)
 
@@ -54,9 +60,13 @@ Two things changed since dali ran, and both are the *specific* conditions the re
 - **The binding constraint is gone.** Dali had ~3 days of capture and (correctly) declared it powerless for OOS. The VPS now captures **24/7 to R2** ([[mm_vps_capture_setup]]) — months of independent, less-concurrent data support the whole-market CPCV splits the MM era uses.
 - **Real L2, so no estimated costs.** Spread/depth read from the captured book at fill time (Tier-2 rule 3), not the retired surface.
 
-**Scope (tight):** re-measure the dali-descended features — TOB imbalance, OFI, microprice-reversion — **as candidate inputs to the NSQ toxicity/skew gate stack** (the Task-5.1 controller), using the institutional harness (one metric definition, capture-quality gate, whole-market nested CPCV, book-measured spread). The output is "does feature X improve the MM gate's OOS toxicity/skew decision," **not** "is there a dali alpha." Any positive is an MM-thread input subject to the same DSR/PBO/CI bars, and every passive/fill number it produces inherits the standing **unvalidated-fill-model** caveat until Join-2's live calibration runs.
+**Scope:** re-measure the dali-descended features — TOB imbalance, OFI, microprice-reversion — on the real L2, using the institutional harness (one metric definition, capture-quality gate, whole-market nested CPCV, **book-measured** spread/depth). Two legitimate outcomes, both valuable:
+1. **MM-gate input** — the feature improves the NSQ toxicity/skew gate's OOS decision (subject to DSR/PBO/CI), or it doesn't. Null is a real result.
+2. **Reopen** — the measurement contradicts a **class-B** closure (e.g., a maker framing that was only ever negative under an assumed fill model turns positive under book-measured costs on real markets, at the full institutional bar). Reopening the relevant section is then *correct*, and the finding note must say so plainly and re-open the branch in the ledger.
 
-**This is a Cowork-scoped roadmap decision, not an automatic run:** it competes with Join-2 for attention, and Join-2's fill calibration is upstream. Consult the revision note with Cowork before scheduling.
+**Guardrail (not a cap):** an *edge claim* — "this makes money" — requires the full institutional bar on real data: whole-market CPCV, DSR/PBO/CI, book-measured costs, and a **validated** fill model (Join-2). Until the fill model is validated, a positive is "reopen-warranting candidate," not "edge." That is a standard-of-evidence bar, not a prohibition on reopening.
+
+**Cowork-scoped roadmap decision, not an automatic run:** it competes with Join-2 for attention, and Join-2's fill calibration is upstream of trusting any passive number. Consult this note with Cowork before scheduling.
 
 ## Practical example (why Tier 3 ≠ reopening)
 
@@ -69,7 +79,7 @@ Dali asked "can I *take* on the TOB signal?" → no (cost floor, Tier 1, closed)
 
 ## Decision and next step
 
-- **Closures:** unchanged. No dali strategy branch reopens.
+- **Closures:** re-sorted by evidence class, not frozen. Class-A/documentary closures (taker cost floor, Block I) stay closed absent contradicting new-market data; class-B/assumption closures (passive & maker framings, A17 feature-signal reading, maker monetizability) are **reopen-eligible** and Tier 3 is allowed to reopen them with institutional evidence on real data.
 - **Workflow:** adopt Tier 2 (1–5). Items 1–3 are the implementation prompt paired with this note; item 4 is now house rule; item 5 is the reproduction chip.
-- **Re-measurement:** Tier 3 is **proposed, not scheduled** — Cowork decides against the Join-2 roadmap. Do not run it before the copytrade regeneration and the reproduction-script chip land.
+- **Re-measurement:** Tier 3 is **proposed, not scheduled** — Cowork decides against the Join-2 roadmap. Do not run it before the copytrade regeneration and the reproduction-script chip land. Reopening a class-B branch is an accepted, expected outcome, not a failure.
 - **Superseding trigger:** if the reproduction script contradicts the class-A numbers this note leans on, revise here first.
