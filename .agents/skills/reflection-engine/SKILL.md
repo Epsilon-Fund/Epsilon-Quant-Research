@@ -52,7 +52,8 @@ subagent edit files. Standard four:
    grep-sample friction markers (errors, retries, repeated commands,
    corrections). Sampling only; never full reads; state confidence honestly.
    Two gotchas (learned the 2026-07-06 pass — RC-029; gotcha #1 broadened the
-   2026-07-17 pass — RC-030), both mandatory for an accurate scan:
+   2026-07-17 pass — RC-030; gotcha #1's *detection method* corrected the
+   2026-07-21 pass — RC-033), both mandatory for an accurate scan:
    - **Exclude EVERY reflection-pass transcript, not just the current one.** A
      reflection pass writes this SKILL's text, the gathering prompt's pattern
      list, and past candidates-table incident counts into its own `.jsonl`, so
@@ -61,15 +62,39 @@ subagent edit files. Standard four:
      fix) is insufficient — prior weekly-pass transcripts accumulate and each
      one re-contaminates every future scan. Before counting, drop **(a)** the
      newest/self file (by name or mtime) AND **(b)** any transcript that is
-     itself a reflection output. Detect (b) with a per-file sentinel grep and
-     exclude the matches: a reflection transcript contains the backlog path
-     `brain/reflection/candidates.md`, OR the pattern-vocabulary fingerprint
-     (several friction markers co-occurring — e.g. a file that matches all of
-     `gtimeout`, `nbstripout`, and `index.lock`, a trio a normal dev session
-     rarely names together). Report which files you dropped and why. (Evidence
-     RC-030: on the 2026-07-17 pass this contamination made `gtimeout` and
-     "still failing" 100% artifacts and inflated ModuleNotFoundError 13→39,
-     index.lock 34→60, nbstripout 125→207 across just two prior-pass files.)
+     itself a reflection output.
+
+     **Detecting (b) — use the RELIABLE discriminators, NOT a bare path match.**
+     Do **not** drop a file just because it matches the backlog path
+     `brain/reflection/candidates.md`. That path is embedded verbatim in this
+     skill's own catalog `description:`, which Claude Code loads into the system
+     context of **every** session in this repo — so a `grep` for it fires ~1×
+     as boilerplate on *genuine work* sessions too (verified RC-033: 1 hit on a
+     real audit session vs 49 on the reflection pass). A `≥1` path threshold
+     therefore wrongly DROPS real work sessions — an under-count, the opposite
+     failure mode from RC-030's over-count. Instead, per file, drop it as a
+     reflection output if **either**:
+     - **(b1) Opening-prompt signal** — the transcript's first records contain
+       the reflection scheduled-task header. `head -c 4000 "$f" | grep -qE
+       'reflection-weekly|scheduled-task name=.reflection|WEEKLY pass'`. This is
+       the strongest, cleanest signal (RC-033: fired on the pass file, silent on
+       both work files). Or:
+     - **(b2) Trio co-occurrence fingerprint** — the file matches **all three**
+       of `gtimeout` AND `nbstripout` AND `index.lock` (a trio a normal dev
+       session rarely names together). RC-033: reflection pass = 45/112/62;
+       genuine work = 8 nbstripout but **0** gtimeout and **0** index.lock, so
+       the AND correctly did not fire. Require all three, not any one.
+     - (Optional b3) a HIGH-VOLUME path threshold (e.g. `candidates.md` ≥5) can
+       corroborate, but never as the sole criterion — the boilerplate hit makes
+       `≥1` unsafe.
+
+     Report which files you dropped and by which signal. (Evidence RC-030: on
+     the 2026-07-17 pass, contamination made `gtimeout` and "still failing" 100%
+     artifacts and inflated ModuleNotFoundError 13→39, index.lock 34→60,
+     nbstripout 125→207 across just two prior-pass files. Evidence RC-033: on
+     2026-07-21 the bare path-sentinel fired on 4/4 in-scope files including both
+     genuine work sessions; b1+b2 separated the 2 real from the 2 reflection
+     files cleanly.)
    - **Grep per file, not multi-file.** A combined `grep -c pattern $(find …)`
      over these very-long single-line JSONL transcripts intermittently returns
      false-zero counts here; a `while read f; do grep … "$f"; done` loop (one
