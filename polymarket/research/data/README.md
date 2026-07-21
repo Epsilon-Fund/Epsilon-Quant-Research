@@ -1,5 +1,7 @@
 # polymarket/research/data — artifact tree (gitignored)
 
+> ⚠️ **DO NOT TRUST (2026-07-21, pending regeneration):** `closed_positions.parquet`, `traders.parquet`, `directionality_classification/`, `copyability_candidates/`, `cohorts/`, and `analysis/esports_latency_traders/`. The aggressor of every `_matchOrders` bundle is double-counted (sibling `taker` rows + internal-leg `maker` row) and cross-token bundles fabricate phantom offsetting positions — so PnL/volume **levels** for taker-heavy wallets and all `primary_style`/composition labels are unreliable. Regeneration requires bundle-aware dedup in `scripts/build_closed_positions.py` (a ~multi-hour rebuild over 43 GB of trades — do not run casually; see the spawned task). Evidence: `notes/overview/pm_prealvaro_pipeline_trust_audit_findings.md` Finding 2. Win-rate/bps-style *ratios* are less affected than levels, but verify before use.
+
 Everything under this directory except this README is **gitignored, regenerable or externally-backed data** (Parquet shards, DuckDB files, CSV outputs, cached tapes). Do not look for authoritative documentation here.
 
 **The manifests live in the notes tree** (`polymarket/research/notes/overview/data_quality/`):
