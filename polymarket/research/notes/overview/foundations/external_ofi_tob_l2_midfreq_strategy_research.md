@@ -6,7 +6,7 @@ source: user-conducted external research (web-chat / external LLM session), uplo
 status: archived
 caveat: |
   This note was written from a pre-A1.4 snapshot. A1.4–A1.7 since ran the *directional-continuation* use
-  of the local OFI/TOB signal (taker + maker-at-mid) and closed that framing. BUT the 73.7% hit (A1.3) was in-sample only — it replicated at 36.0% OOS ([[block_a0c_holdout_retest_findings]]); only the never-run reversion/rolling-rank framings stayed open (since run and closed as Block A18/P1). Several ideas here
+  of the local OFI/TOB signal (taker + maker-at-mid) and closed that framing. BUT the 73.7% hit (A1.3) was a conditional, overlap-inflated in-sample construction (corrected: ~70–75% conditional IS → ~63% conditional OOS; the oft-quoted "36.0% OOS" is a different metric — see [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1); either way the executable framings are dead and only the never-run reversion/rolling-rank framings stayed open (since run and closed as Block A18/P1). Several ideas here
   are genuinely-untested *framings*: continuous rolling-rank sizing (#1), explicit mean-reversion-to-
   microprice (#4 + fade side of #9/#16/#17), true-L2 features (#5/#6/#7/#15), and off-book cross-market
   lead-lag (#21). Read the reconciliation note's v2 bucket table before treating anything here as either

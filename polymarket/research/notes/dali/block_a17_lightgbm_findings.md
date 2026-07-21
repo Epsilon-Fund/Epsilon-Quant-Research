@@ -10,7 +10,7 @@ hubs:
   - COWORK
 ---
 
-> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — no ML edge despite two leakage channels that would bias TOWARD finding one; note the 'walk-forward' label overstates a single chronological split. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+> **Canon status (2026-07-21 pipeline audit): CLOSED-ROBUST, scope narrowed.** The per-market chronological split is a **confirmed regime confound** (same shape Task 5.1 caught in the MM era): for the dominant btc-4h markets the test slices end 3–27 minutes before expiry, and one market's train window overlaps another's test on the same underlying. The *deployment* kill survives on the cost floor (the ML beat both rule baselines by +1,805–6,922 bps and still landed −418 to −1,397 bps vs a touch+fee floor). Two consequences: (1) cite this note only as "no *executable* ML edge near the cost floor," never as "the features carry no conditional signal"; (2) **the calibration table is condemned as evidence** — its high-confidence-bin breakdown is regime-shift-shaped, not proof of feature emptiness. 'Walk-forward' = a single chronological split. Details: [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 3. Ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block A1.7 LightGBM Findings
 

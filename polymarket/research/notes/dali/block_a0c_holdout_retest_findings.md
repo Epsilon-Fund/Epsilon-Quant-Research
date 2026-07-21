@@ -10,7 +10,7 @@ hubs:
   - COWORK
 ---
 
-> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — anchor closure of the whole local-signal lineage: TOB 73.7% replicated at 36.0% OOS (CI [32.8, 39.2]) with audited discovery/holdout separation; reopening anything upstream of this is motivated reasoning. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+> **Canon status (2026-07-21 pipeline audit): CLOSED-ROBUST, with the stated reason CORRECTED.** The closure stands — carried by Retest A (taker −2,341 bps pooled), Retest B, and [[block_a18_passive_reversion_findings]] — but the headline "73.7% replicated at 36.0% — artifact_confirmed" is a **false comparison between two different metrics** (A13 excluded zero-moves over overlapping rows; Retest C counted zero-as-miss on non-overlapping events — in Retest C's own units, discovery scores 20–27%, so the holdout *beat* in-sample). Under a consistent conditional metric the descriptive signal replicated at ~63% vs ~70–75% IS, and this note's own surface CSV shows pooled directional return +58.1 bps OOS vs +72.9 IS — unreported at the time. The *executable* claims failed OOS; the descriptive hit rate never collapsed. Capture-noise ruled out (retest ran on a0c_roll with ≤5s staleness gates; 0.23% of events near gaps). Details: [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1. Ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # A0c Holdout Retest Findings
 

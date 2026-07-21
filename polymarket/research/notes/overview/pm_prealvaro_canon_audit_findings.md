@@ -20,6 +20,8 @@ tags:
 
 > Hub: [[POLYMARKET_BRAIN]] · [[COWORK]] · Law applied: [[CODEX]] § Realism calibration + § Anti-patterns · Table terms: [[polymarket_table_dictionary]]
 
+> **SUPERSEDED IN PART (2026-07-21): read [[pm_prealvaro_pipeline_trust_audit_findings]] alongside this ledger.** Phase 1b (the adversarial pipeline/snowball audit) corrected several claims this ledger repeats: the "73.7% → 36.0% OOS" comparison is a metric-mismatch artifact (descriptive signal actually replicated ~63% conditional OOS); the sign-fix was never propagated into the derived tables and a larger position-pipeline defect (aggressor double-count + phantom complementary-token legs) was proven; A17's split is a confirmed regime confound (deployment kill survives on the cost floor, calibration table condemned). All closures still stand — mostly a fortiori.
+
 ## Plain-English Summary
 
 - This note is the **verdict ledger** for a full audit (2026-07-19) of every Polymarket research note written *before* the current MM Join-2 era: 44 dali notes, 12 copytrade notes, and 6 foundation/synthesis notes (62 total), plus the stray `topics/prediction-markets/` pipeline. Each note's conclusions were checked against the house realism-calibration law, and for headline claims the backing script was code-read (no re-runs).
@@ -94,7 +96,7 @@ Data = one ~24h capture (A0) + one ~12h replacement (A0b), replayed lookahead-fr
 | [[block_a1x_external_note_reconciliation]] | CANON | the strategic triage that installed "falsified the continuation *framing*, not the signal" and spawned A18/Block I |
 | [[block_a11_plan_and_diagnostics]] | HISTORICAL | diagnostic sidecar superseded by A13 + the A2 plan |
 | [[block_a12_mlofi_findings]] | CLOSED-ROBUST | multi-level OFI loses to L1 symmetrically on identical rows; exact L1 reconciliation QA |
-| [[block_a13_tob_imbalance_findings]] | CANON (caveat) | the cluster's real descriptive signal — but **73.7% is IS-only (replicated at 36.0% OOS, [[block_a0c_holdout_retest_findings]]), n≈300k is state-variable-inflated, and the move sits inside the spread ([[block_a15b_decoupled_findings]]); cite only together with the kills** |
+| [[block_a13_tob_imbalance_findings]] | CANON (corrected 07-21) | the cluster's real descriptive signal — **73.7% headline condemned** (zero-move denominator exclusion + overlap; corrected: ~70–75% conditional IS → ~63% conditional OOS, ≈5–6k real episodes; "36.0% OOS" was a different metric — see [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1); still non-monetizable after costs |
 | [[block_a14_executable_taker_findings]] | CLOSED-ROBUST | 0/12 cells positive under assumptions *generous* to the strategy |
 | [[block_a14b_refined_exit_findings]] | CLOSED-ROBUST | 0/36; exit engineering cannot beat spread cost |
 | [[block_a14c_maker_at_mid_findings]] | HISTORICAL | its positive cell was a queue-blind, fill-double-counting artifact — the clue that triggered A14h, where it died |
@@ -119,7 +121,7 @@ Data = one ~24h capture (A0) + one ~12h replacement (A0b), replayed lookahead-fr
 | [[block_p1_rollingrank_findings]] | CLOSED-ROBUST | 0/200 executable cells; the relative-sizing insight survives as a design input |
 | [[block_p2_reversion_findings]] | HISTORICAL | fragile tail positive, correctly hedged in-note, falsified OOS by P3′/A0c; **if ever re-cited: its "bootstrap" CI is actually a Gaussian interval on n≈11 with no multiplicity control** |
 | [[block_p3prime_oos_findings]] | CLOSED-ROBUST | pre-registered OOS bar on a genuine later holdout capture, discovery thresholds frozen |
-| [[block_a0c_holdout_retest_findings]] | CLOSED-ROBUST | **anchor closure of the whole local-signal lineage**: 73.7% → 36.0% OOS (CI [32.8, 39.2]); discovery/holdout separation audited |
+| [[block_a0c_holdout_retest_findings]] | CLOSED-ROBUST (reason corrected 07-21) | anchor closure stands via Retests A/B + A18, but its "73.7% → 36.0%" framing was a **metric-mismatched false comparison** (in the retest's own units discovery scores 20–27%); see [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1 |
 | [[dali_market_universe_screen]] | HISTORICAL | planning snapshot, superseded by the captures and then the MM thread |
 | [[dali_tfi_baseline_results]] | HISTORICAL (hard caveat) | pre-A1 exploratory harness: CI-free, overlapping, unvalidated sign proxy — self-flagged in-note; **its +7.74c table must never be cited as a result** |
 | [[sign_convention_findings]] | HISTORICAL (superseded) | superseded by [[sign_convention_findings_a1]]; carries a stale "not established" section beneath the update that establishes it — read the _a1 note instead |
@@ -167,7 +169,7 @@ This audit was commissioned on the suspicion that pre-Alvaro conclusions were be
 - Every headline positive was either disclaimed in its own note ("characterization, not tradeability"), retracted in-note (weather), or discharged by a proper downstream kill (A14c → A14h; P2 → P3′; 73.7% → A0c holdout).
 - Therefore no note *rests* an unreliable conclusion on a gap → 0 DEMOTED. What the corpus needed instead was **context-locking**: banners that staple each in-sample positive to its kill, so numbers like 73.7%, 64.1%, +7.74c, +554.9 bps, and Domah's +$4.0M cannot be quoted naked. That is what this pass installed.
 
-**Practical example of the risk this fixes:** a future prompt asks "did we ever find a TOB signal on Polymarket?" A cold gbrain search hits [[block_a13_tob_imbalance_findings]] and returns "73.7% hit rate, CI [67.6, 77.7], n≈300k" — three CI-passing-looking facts that are all IS-only, overlap-inflated, and inside-spread. The banner now forces the 36.0% OOS replication into the same field of view.
+**Practical example of the risk this fixes:** a future prompt asks "did we ever find a TOB signal on Polymarket?" A cold gbrain search hits [[block_a13_tob_imbalance_findings]] and returns "73.7% hit rate, CI [67.6, 77.7], n≈300k" — CI-passing-looking facts that are conditionally constructed (zero-move windows excluded from the denominator), overlap-inflated (~5–6k real episodes), and inside-spread. The banner now forces the corrected claim into the same field of view. (2026-07-21 addendum: this ledger originally "fixed" the risk by pairing 73.7% with "36.0% OOS" — itself a metric-mismatched comparison, corrected in [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1. An instructive failure: the classification pass repeated the record's error instead of checking the units.)
 
 ## Overrides (main-agent verdicts that differ from auditor drafts)
 
