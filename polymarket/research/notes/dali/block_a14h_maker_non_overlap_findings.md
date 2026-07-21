@@ -11,6 +11,8 @@ hubs:
 ---
 
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — non-overlap math correctly killed the A14c overlap artifact (+554.9 → −451.3 bps); textbook application of the house non-overlap invariant. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+>
+> **Confirmed-closed-on-real-data (2026-07-21):** re-run on real politics-NegRisk/esports L2 through the coded MM fill engine under the full queue bracket — negative, CI below zero, all three queue models. The queue/latency "autopsy" this note deferred has now been performed and changes nothing. See [[dali_features_real_l2_remeasure_findings]] § B3.
 
 # Block A1.4h Maker Non-Overlap Findings
 

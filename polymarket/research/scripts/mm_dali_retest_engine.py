@@ -279,7 +279,12 @@ def process_slice(raw_root: str, real_l2_root: str, date: str, universe: str) ->
 
     from mm_engine.book import BookTracker
     from mm_engine.orders import OrderManager
-    from mm_engine.telemetry import Telemetry
+    from mm_engine.telemetry import JsonlSink, Telemetry
+
+    def _fills_only_telemetry() -> Telemetry:
+        # keep fills; DISCARD orders/quotes — the engine emits a quotes record per
+        # event per config, which at 9 configs x millions of events is a memory bomb
+        return Telemetry(fills=JsonlSink(), orders=JsonlSink(keep=False), quotes=JsonlSink(keep=False))
 
     models = {
         "optimistic": OptimisticQueue,
@@ -303,7 +308,7 @@ def process_slice(raw_root: str, real_l2_root: str, date: str, universe: str) ->
                 "queue_model": model_factory(),
                 "tracker": BookTracker(),
                 "om": OrderManager(),
-                "tele": Telemetry.in_memory(),
+                "tele": _fills_only_telemetry(),
                 "latency": ConstantLatency(ROUND_TRIP_MS),
             }
     fee_model = FeeModel.fee_free_model()
@@ -333,6 +338,7 @@ def process_slice(raw_root: str, real_l2_root: str, date: str, universe: str) ->
             ep = episodes.setdefault(key, {
                 "t_fill": f["ts_exchange"], "side": f["side"], "price": f["price"],
                 "qty": 0.0, "token_id": f["token_id"],
+                "queue_ahead_at_fill": f.get("queue_ahead"),   # bracket-bite diagnostic
             })
             ep["qty"] += f["qty"]
         dropped_exits = 0
@@ -353,6 +359,7 @@ def process_slice(raw_root: str, real_l2_root: str, date: str, universe: str) ->
                     "t_fill_ms": ep["t_fill"], "side": ep["side"],
                     "entry_px": ep["price"], "exit_px": exit_px,
                     "qty": ep["qty"], "pnl_cents_per_contract": pnl_c,
+                    "queue_ahead_at_fill": ep["queue_ahead_at_fill"],
                 })
         run_stats.append({
             "framing": framing, "model": model_name,

@@ -11,6 +11,8 @@ hubs:
 ---
 
 > **Canon status (2026-07-19 audit): HISTORICAL** — fragile tail-cell positive, hedged in-note and falsified OOS by [[block_p3prime_oos_findings]]/[[block_a0c_holdout_retest_findings]]; if ever re-cited: its 'bootstrap' CI is actually a Gaussian interval on n≈11 with no multiplicity control. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+>
+> **Confirmed-closed-on-real-data (2026-07-21):** an OFI-triggered passive touch-join flavor of this framing was re-run on real politics-NegRisk/esports L2 through the coded MM fill engine under the full queue bracket — market-cluster CI below zero on BOTH universes (politics −0.11c [−0.56, −0.04] n=217; esports −2.2c [−3.2, −1.2]); no tail cell reappeared. Additionally, L1 OFI itself carries no conditional signal on politics under a clean split (real on esports). See [[dali_features_real_l2_remeasure_findings]] § B3–B4.
 
 # P2 Reversion-To-Microprice Findings
 

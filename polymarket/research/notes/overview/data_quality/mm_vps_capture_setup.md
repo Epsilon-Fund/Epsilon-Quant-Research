@@ -31,6 +31,8 @@ tags:
 
 ---
 
+> **CORRECTIONS (2026-07-21, verified against the live bucket — [[dali_features_real_l2_remeasure_findings]] § B0b):** (1) only **politics_negrisk + esports** exist under `parquet/` (all 33 days, 2026-06-19→07-21) — the culture and crypto-as-control universes described below were never captured to Parquet; check the VPS discovery config. (2) **No `metadata/` prefix and no `capture_gaps` sidecars exist in R2**, and since raw JSONL is expired once Parquet is confirmed, gap ground truth is being permanently deleted — sync `capture_gaps.jsonl` into the Parquet layout before raw expiry. Until fixed, gap handling in analyses is heartbeat-inference (labelled) via `mm_eval/capture_gate.py`.
+
 ## 1. The pipeline (what runs where)
 
 Three decoupled components on the VPS, each restartable, mirroring the design in [[polymarket_l2_ingestion]]:
