@@ -99,6 +99,38 @@ subagent edit files. Standard four:
      over these very-long single-line JSONL transcripts intermittently returns
      false-zero counts here; a `while read f; do grep … "$f"; done` loop (one
      grep invocation per file) is the reliable pattern.
+   - **Call `/usr/bin/grep` by absolute path, and corroborate with two engines.**
+     (Root cause found the 2026-07-27 pass — RC-037.) Bare `grep` in this
+     environment is **not** GNU/BSD grep: it is a Claude Code shell *function*
+     (verified: `type grep` → "shell function from …/shell-snapshots/…") that
+     dispatches to a bundled engine carrying `-I` (skip files it deems binary)
+     and `--ignore-files`. Huge single-line JSONL transcripts can trip the
+     binary heuristic — that is the real mechanism behind the false zeros the
+     per-file loop was working around. Run each count through `/usr/bin/grep`
+     and, for any pattern you are about to score on, run it a second time
+     through the wrapper and require the two to agree before trusting it.
+   - **Anchor every pattern; never case-fold a word that occurs in English
+     prose.** (RC-037.) Bare `OOM` matches "room", "bloomy", "zoom" — verified
+     3 hits vs 1 for `\bOOM\b` on a 3-line fixture, and it manufactured **276
+     phantom OOM hits** in one 35MB transcript, which is why earlier passes
+     believed this repo had memory pressure it does not have. Likewise
+     case-insensitive `FAILED` matches any prose "failed". Use `\b…\b`
+     anchors, prefer case-sensitive for acronyms and log-level tokens, and
+     re-check any count that looks surprisingly high before scoring it.
+
+   **Scope files by CONTENT date, not mtime** (RC-037, the highest-cost bug
+   found on the 2026-07-27 pass). A transcript's mtime moves when a session is
+   *resumed or compacted*, so `ls -lt` promotes long-finished sessions into the
+   window and the pass re-mines material earlier passes already scored. Verified
+   that pass: **5 of 15 mtime-in-scope files held zero records in the window** —
+   e.g. `76d4c3e6` had mtime 07-21 15:30 but content spanning 07-02→07-04 and
+   `grep -c '"timestamp":"2026-07-2[1-7]'` = **0**. Those 5 files carried the
+   only `index.lock` hits and one of two `timeout`-not-found hits, i.e. the
+   stale files were generating the friction "signal". So: use mtime only to
+   build a candidate list, then per file confirm at least one record dated after
+   the last pass (`grep -c '"timestamp":"<in-window date prefixes>"' "$f"`) and
+   DROP any file with zero. Report the mtime-window vs content-window split —
+   it is the difference between a real evidence base and a rerun of last month.
 4. **maps + reports** — [[SKILL_MAP]] § Future skills, `brain/generated/`
    hygiene/graph/daily-brief reports, `brain/TODO.md` blockers.
 
