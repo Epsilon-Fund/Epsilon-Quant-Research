@@ -51,9 +51,10 @@ subagent edit files. Standard four:
 3. **session transcripts (best-effort)** — `~/.claude/projects/<this repo>/`:
    grep-sample friction markers (errors, retries, repeated commands,
    corrections). Sampling only; never full reads; state confidence honestly.
-   Two gotchas (learned the 2026-07-06 pass — RC-029; gotcha #1 broadened the
-   2026-07-17 pass — RC-030; gotcha #1's *detection method* corrected the
-   2026-07-21 pass — RC-033), both mandatory for an accurate scan:
+   The gotchas below are cumulative and **all mandatory** for an accurate
+   scan — each was a real accuracy bug this skill shipped with, found by the
+   pass it bit (RC-029 2026-07-06 · RC-030 2026-07-17 · RC-033 2026-07-21 ·
+   RC-037 2026-07-27 · RC-042 2026-08-03). Report your compliance with each:
    - **Exclude EVERY reflection-pass transcript, not just the current one.** A
      reflection pass writes this SKILL's text, the gathering prompt's pattern
      list, and past candidates-table incident counts into its own `.jsonl`, so
@@ -117,6 +118,42 @@ subagent edit files. Standard four:
      case-insensitive `FAILED` matches any prose "failed". Use `\b…\b`
      anchors, prefer case-sensitive for acronyms and log-level tokens, and
      re-check any count that looks surprisingly high before scoring it.
+     This repo is saturated with skill machinery, so `kill` is especially
+     dangerous here: verified 2026-08-03, `-i kill` = **16** records vs
+     `\bkilled\b` = **0** on the same file — every hit was "skill"/"skills".
+   - **Count RECORDS, not occurrences: `/usr/bin/grep -c`, never
+     `grep -o … | wc -l`.** (RC-042, verified live 2026-08-03.) Every tool
+     result is stored **twice inside the same JSONL record** — once in the
+     `tool_result` content block and once mirrored under the record's
+     `toolUseResult` key. So an occurrence count double-counts every
+     tool-sourced marker, while `grep -c` (records matched) yields the correct
+     distinct-event count. Verified: `No module named 'scipy'` = **4**
+     occurrences but **2** records, and both copies sit on the same line
+     (`occurrences_in_this_record=2`). Historic counts in this backlog that
+     were reported occurrence-style (e.g. "nbstripout ×172") are therefore
+     inflated up to 2× — do not compare a new record-count against an old
+     occurrence-count and call the difference a trend.
+
+   **Scan TOP-LEVEL transcripts only; nested `subagents/` files are the
+   pass's own exhaust.** (RC-042, verified 2026-08-03.) The project dir holds
+   both `~/.claude/projects/<repo>/*.jsonl` (real sessions, 54) and
+   `~/.claude/projects/<repo>/<session-uuid>/subagents/agent-<id>.jsonl`
+   (**228** nested subagent transcripts). Use a top-level glob (`*.jsonl`),
+   **never** a bare `find … -name '*.jsonl'`. The reason is not cost, it is
+   contamination: on this pass, **all 9** in-window nested files were this
+   reflection run's *own* gathering subagents, and **3 of those 5 gathering
+   subagents trip NEITHER RC-033 discriminator** (b1 opening-header and b2
+   trio both silent for the scratch-lane, radar, and reports agents — their
+   prompts never name `reflection-weekly` and never mention all three of
+   `gtimeout`/`nbstripout`/`index.lock`). A future pass that widens the glob
+   "to be thorough" would therefore ingest the engine's own friction-pattern
+   vocabulary as if it were genuine work — the RC-029/RC-030 failure mode,
+   amplified per-subagent. If you ever do scan nested files, attribute each to
+   its parent session directory and apply the **parent's** include/exclude
+   verdict; the layout makes that attribution trivial. (Corollary checked and
+   dismissed: this is a contamination vector, not a missed-signal gap — the
+   one genuine work session this window spawned **zero** in-window subagents,
+   having done its work inline.)
 
    **Scope files by CONTENT date, not mtime** (RC-037, the highest-cost bug
    found on the 2026-07-27 pass). A transcript's mtime moves when a session is
