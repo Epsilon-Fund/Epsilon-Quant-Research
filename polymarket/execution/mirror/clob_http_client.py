@@ -52,6 +52,38 @@ from polymarket.execution._kernel.polymarket_adapter import (
 
 _OrderSigner = Callable[[dict[str, object], str | None], Mapping[str, object]]
 
+# Reserved keys attached to the signed-order mapping by create_signed_order and
+# stripped by submit_order before anything goes on the wire. They ride the mapping
+# because the kernel treats it as opaque (sign → submit), and the wire body needs
+# the order TYPE and the venue-id→client-id correlation needs the COID — neither of
+# which appears in the EIP-712 signed order itself.
+_RESERVED_ORDER_TYPE = "_order_type"
+_RESERVED_CLIENT_ORDER_ID = "_client_order_id"
+_RESERVED_HANDLE = "_handle"          # gateway-stashed SignedOrder handle (V2 path)
+
+# The gateway child processes requests SERIALLY and its SDK httpx read-timeout is
+# ~10s. If the parent's per-request budget (the kernel's 500ms submit/cancel timeout)
+# is SHORTER than that, the parent pre-empts a slow post with a TimeoutError, the
+# kernel marks it ambiguous and fires the rollback cancel — but that cancel is queued
+# behind the still-running post in the serial child, so a real order can rest
+# unattended until the child drains (~10s). Waiting LONGER than the child's own
+# timeout inverts the hierarchy: the child always returns a clean classified response
+# first (and is then free to service the cancel), so no cancel is ever head-of-line
+# blocked by an in-flight post. (Adversarial-review HIGH finding, 2026-07-09.)
+_GATEWAY_MIN_TIMEOUT_S = 20.0
+
+
+def _gateway_timeout_s(timeout_ms: int) -> float:
+    return max(max(1, int(timeout_ms)) / 1000.0, _GATEWAY_MIN_TIMEOUT_S)
+
+# Polymarket wire order types. The kernel's TimeInForce only knows GTC/IOC; the
+# venue's IOC-equivalent is FAK (fill-and-kill). "IOC" itself is NOT a valid wire
+# value and is rejected.
+_ORDER_TYPE_BY_TIF = {"GTC": "GTC", "IOC": "FAK", "FOK": "FOK", "GTD": "GTD"}
+
+# py-clob-client's pagination sentinel for GET /data/orders.
+_END_CURSOR = "LTE="
+
 
 @dataclass(frozen=True, slots=True)
 class ClobHttpClientConfig:
@@ -67,7 +99,8 @@ class ClobHttpClientConfig:
     updates_max_retries: int = 3
     updates_retry_base_ms: int = 100
     submit_path: str = "/order"
-    cancel_path: str = "/cancel"
+    cancel_path: str = "/order"          # Polymarket cancels via DELETE /order {"orderID": …}
+    cancel_all_path: str = "/cancel-all"  # coid-only fallback (no venue id known)
     updates_path: str = "/orders/updates"
     open_orders_path: str = "/data/orders"
     user_agent: str = "polyexecutor/1.0-substitute"
@@ -78,7 +111,7 @@ class ClobHttpClient(PolymarketCLOBClient):
 
     __slots__ = (
         "_config", "_signer", "_tick_size_by_token",
-        "_neg_risk_by_token", "_urlopen",
+        "_neg_risk_by_token", "_urlopen", "_coid_by_venue_id", "_gateway",
     )
 
     def __init__(
@@ -87,6 +120,7 @@ class ClobHttpClient(PolymarketCLOBClient):
         *,
         signer: _OrderSigner | None = None,
         urlopen_fn: Callable[..., Any] | None = None,
+        gateway: Any | None = None,
     ) -> None:
         if not config.api_url:
             raise ValueError("api_url must be non-empty")
@@ -108,6 +142,19 @@ class ClobHttpClient(PolymarketCLOBClient):
         self._neg_risk_by_token: dict[str, bool] = {}
         # Injectable for tests; defaults to stdlib urlopen.
         self._urlopen = urlopen_fn if urlopen_fn is not None else urlopen
+        # venue order id -> our client_order_id, learned from submit acks. Used to
+        # annotate GET /data/orders items (Polymarket does not store client ids), so
+        # the kernel's reconcile can attribute venue-open orders. Restart limitation:
+        # the map is per-process — orders resting across a restart cannot be
+        # attributed and reconcile will not see them (the runbook's end-of-session
+        # "UI shows zero open orders" check covers this).
+        self._coid_by_venue_id: dict[str, str] = {}
+        # V2 order path: Polymarket archived py-clob-client and rejects V1 signed
+        # orders ("invalid order version"). When a PySdkOrderGateway is wired in,
+        # sign/submit/cancel delegate to the successor SDK in its isolated child
+        # process; the legacy V1 wire path below remains ONLY for gateway-less
+        # construction (unit tests / fake flows) and cannot place real V2 orders.
+        self._gateway = gateway
 
     # ------------------------------------------------------------------
     # Side-channel for the wrapper to seed tick sizes before submit.
@@ -200,25 +247,106 @@ class ClobHttpClient(PolymarketCLOBClient):
         if request.expiration_ts is not None:
             unsigned["expiration_ts"] = int(request.expiration_ts)
 
+        # Reserved side-channel keys (stripped from the wire body by submit_order):
+        # the wire "orderType" and the venue-id→client-id correlation. tif "IOC" maps
+        # to Polymarket's FAK; "IOC" itself is not a valid wire order type.
+        reserved = {
+            _RESERVED_ORDER_TYPE: _ORDER_TYPE_BY_TIF.get(
+                str(request.tif or "GTC").upper(), "GTC"),
+            _RESERVED_CLIENT_ORDER_ID: request.client_order_id,
+        }
+
+        if self._gateway is not None:
+            # V2 path: the SDK signs (and resolves tick/neg-risk metadata itself).
+            # Only GTC resting orders are supported here — fail closed on anything
+            # else rather than mistranslate a time-in-force.
+            tif = str(request.tif or "GTC").upper()
+            if tif != "GTC":
+                raise ValueError(f"py-sdk gateway path supports GTC only, got {tif!r}")
+            resp = self._gateway.create_limit_order(
+                token_id=request.token_id, price=price_str, size=size_str,
+                side=str(request.side).upper(),
+            )
+            if not resp.get("ok"):
+                kind = resp.get("kind")
+                msg = f"gateway create_limit_order failed: {resp.get('error')}"
+                if kind == "timeout":
+                    raise TimeoutError(msg)
+                if kind == "transport":
+                    raise OSError(msg)
+                raise ValueError(msg)
+            return {
+                "order": resp.get("order", {}),
+                _RESERVED_HANDLE: resp.get("handle"),
+                **reserved,
+            }
+
         if self._signer is None:
-            return {"order": unsigned}
+            return {"order": unsigned, **reserved}
 
         signed = self._signer(unsigned, self._config.private_key)
         if isinstance(signed, Mapping):
-            return signed
-        return {"order": unsigned}
+            return {**signed, **reserved}
+        return {"order": unsigned, **reserved}
 
     def submit_order(
         self, signed_order: Mapping[str, object], timeout_ms: int
     ) -> Mapping[str, object]:
-        body = signed_order if isinstance(signed_order, Mapping) else {}
+        """POST the signed order in Polymarket's wire envelope with L2 auth.
+
+        Wire shape (py-clob-client ``post_order``/``order_to_json``):
+        ``{"order": <SignedOrder.dict()>, "owner": <api_key>, "orderType": <type>,
+        "postOnly": false}`` — POSTed to ``/order`` with POLY_* L2 headers whose HMAC
+        covers the exact serialized body. The previous implementation sent the bare
+        signed dict with legacy X-API headers → the venue's "missing address header".
+        """
+        raw = dict(signed_order) if isinstance(signed_order, Mapping) else {}
+        order_type = str(raw.pop(_RESERVED_ORDER_TYPE, "GTC") or "GTC")
+        coid = raw.pop(_RESERVED_CLIENT_ORDER_ID, None)
+        handle = raw.pop(_RESERVED_HANDLE, None)
+
+        if self._gateway is not None and handle:
+            # V2 path: post the SDK-signed order from the gateway's stash. A
+            # child-reported timeout/transport failure maps onto the kernel's
+            # ambiguous-submit semantics (TimeoutError/OSError); a clean venue
+            # rejection returns as a normal NACK mapping.
+            resp = self._gateway.post_order(
+                handle=str(handle), timeout_s=_gateway_timeout_s(timeout_ms))
+            if not resp.get("ok"):
+                kind = resp.get("kind")
+                msg = str(resp.get("error") or resp.get("message") or "rejected")
+                if kind == "timeout":
+                    raise TimeoutError(f"gateway post_order timeout: {msg}")
+                if kind == "transport":
+                    raise OSError(f"gateway post_order transport error: {msg}")
+                return {"status": "REJECTED", "error": msg,
+                        "code": resp.get("code"), "http_status": 400}
+            out = {k: v for k, v in resp.items() if k not in ("id", "ok")}
+            out.setdefault("status", "LIVE")
+            out.setdefault("http_status", 200)
+            venue_id = out.get("order_id")
+            if coid and isinstance(venue_id, str) and venue_id:
+                self._coid_by_venue_id[venue_id] = str(coid)
+            return out
+
+        body: dict[str, object] = {
+            "order": raw,
+            "owner": self._config.api_key,
+            "orderType": order_type,
+            "postOnly": False,
+        }
         status, payload = self._request_json(
             method="POST",
             path=self._config.submit_path,
             timeout_ms=timeout_ms,
-            json_body=dict(body),
+            json_body=body,
+            use_l2_auth=True,
         )
-        return _augment_response(payload, status)
+        out = _augment_response(payload, status)
+        venue_id = out.get("order_id")
+        if coid and isinstance(venue_id, str) and venue_id:
+            self._coid_by_venue_id[venue_id] = str(coid)
+        return out
 
     def cancel_order(
         self,
@@ -227,18 +355,75 @@ class ClobHttpClient(PolymarketCLOBClient):
         venue_order_id: str | None = None,
         timeout_ms: int,
     ) -> Mapping[str, object]:
-        body: dict[str, object] = {}
-        if client_order_id is not None:
-            body["client_order_id"] = client_order_id
-        if venue_order_id is not None:
-            body["order_id"] = venue_order_id
+        """Cancel via Polymarket's DELETE /order {"orderID": …} with L2 auth.
+
+        Without a venue order id (ambiguous-submit rollback, ack never parsed) there
+        is nothing to address a single-order cancel at, so fall back to cancel-all —
+        cancels are reduce-only and this account runs only this bot, so the blast
+        radius is exactly our own resting quotes.
+        """
+        if self._gateway is not None:
+            try:
+                resp = (self._gateway.cancel_order(
+                            order_id=venue_order_id,
+                            timeout_s=_gateway_timeout_s(timeout_ms))
+                        if venue_order_id else
+                        self._gateway.cancel_all(
+                            timeout_s=_gateway_timeout_s(timeout_ms)))
+            except (TimeoutError, OSError):
+                raise
+            if not resp.get("ok"):
+                kind = resp.get("kind")
+                msg = str(resp.get("error") or "cancel failed")
+                if kind == "timeout":
+                    raise TimeoutError(f"gateway cancel timeout: {msg}")
+                if kind == "transport":
+                    raise OSError(f"gateway cancel transport error: {msg}")
+                return {"status": "REJECTED", "error": msg, "http_status": 400}
+            out = {k: v for k, v in resp.items() if k not in ("id", "ok")}
+            canceled = out.get("canceled")
+            not_canceled = out.get("not_canceled")
+            if venue_order_id and isinstance(canceled, list) and venue_order_id in canceled:
+                out["status"] = "CANCELED"
+            elif venue_order_id and isinstance(not_canceled, Mapping) \
+                    and venue_order_id in not_canceled:
+                out["status"] = "NOT_FOUND"
+                out.setdefault("reason", str(not_canceled[venue_order_id]))
+            else:
+                out.setdefault("status", "CANCELED")
+            if not venue_order_id:
+                out.setdefault("fallback", "cancel_all")
+            out.setdefault("http_status", 200)
+            return out
+
+        if venue_order_id:
+            status, payload = self._request_json(
+                method="DELETE",
+                path=self._config.cancel_path,
+                timeout_ms=timeout_ms,
+                json_body={"orderID": venue_order_id},
+                use_l2_auth=True,
+            )
+            out = _augment_response(payload, status)
+            # Polymarket answers {"canceled": [...ids], "not_canceled": {id: reason}}.
+            canceled = out.get("canceled")
+            not_canceled = out.get("not_canceled")
+            if isinstance(canceled, list) and venue_order_id in canceled:
+                out.setdefault("status", "CANCELED")
+                out["status"] = "CANCELED"
+            elif isinstance(not_canceled, Mapping) and venue_order_id in not_canceled:
+                out["status"] = "NOT_FOUND"
+                out.setdefault("reason", str(not_canceled[venue_order_id]))
+            return out
         status, payload = self._request_json(
-            method="POST",
-            path=self._config.cancel_path,
+            method="DELETE",
+            path=self._config.cancel_all_path,
             timeout_ms=timeout_ms,
-            json_body=body,
+            use_l2_auth=True,
         )
-        return _augment_response(payload, status)
+        out = _augment_response(payload, status)
+        out.setdefault("fallback", "cancel_all")
+        return out
 
     def get_order_updates(
         self,
@@ -273,16 +458,42 @@ class ClobHttpClient(PolymarketCLOBClient):
         return tuple()
 
     def get_open_orders(self, *, timeout_ms: int) -> Sequence[Mapping[str, object]]:
-        status, payload = self._request_json(
-            method="GET",
-            path=self._config.open_orders_path,
-            timeout_ms=timeout_ms,
-            params={"next_cursor": "MA=="},
-            use_l2_auth=True,
-        )
-        if status >= 400:
-            raise OSError(f"open orders request failed with http_status={status}")
-        return tuple(_extract_items(payload))
+        """GET /data/orders (L2), following pagination, annotating client ids.
+
+        Polymarket pages with ``next_cursor`` until the ``LTE=`` sentinel and does
+        NOT store client order ids on orders — the kernel's reconcile attributes an
+        open order only via ``client_order_id``, so each item is annotated from the
+        submit-ack correlation map (see ``_coid_by_venue_id``; restart limitation
+        documented there).
+        """
+        items: list[Mapping[str, object]] = []
+        cursor = "MA=="
+        for _page in range(64):   # hard bound; a session's open orders fit in page 1
+            status, payload = self._request_json(
+                method="GET",
+                path=self._config.open_orders_path,
+                timeout_ms=timeout_ms,
+                params={"next_cursor": cursor},
+                use_l2_auth=True,
+            )
+            if status >= 400:
+                raise OSError(f"open orders request failed with http_status={status}")
+            items.extend(_extract_items(payload))
+            next_cursor = (payload.get("next_cursor")
+                           if isinstance(payload, Mapping) else None)
+            if not isinstance(next_cursor, str) or not next_cursor \
+                    or next_cursor in (_END_CURSOR, cursor):
+                break
+            cursor = next_cursor
+        out: list[Mapping[str, object]] = []
+        for item in items:
+            if item.get("client_order_id") or item.get("clientOrderId"):
+                out.append(item)
+                continue
+            venue_id = str(item.get("id") or item.get("order_id") or "")
+            coid = self._coid_by_venue_id.get(venue_id)
+            out.append({**item, "client_order_id": coid} if coid else item)
+        return tuple(out)
 
     # ------------------------------------------------------------------
     # Internals.
@@ -304,7 +515,10 @@ class ClobHttpClient(PolymarketCLOBClient):
         payload_bytes: bytes | None = None
         serialized_body: str | None = None
         if json_body is not None:
-            serialized_body = json.dumps(dict(json_body), separators=(",", ":"))
+            # Byte-identical to py-clob-client's serialization: the L2 HMAC covers this
+            # exact string, and the venue verifies it against the raw received body.
+            serialized_body = json.dumps(dict(json_body), separators=(",", ":"),
+                                         ensure_ascii=False)
             payload_bytes = serialized_body.encode("utf-8")
 
         request = Request(url, data=payload_bytes, method=method.upper())
@@ -389,6 +603,16 @@ def _augment_response(payload: object, status: int) -> dict[str, object]:
         out = dict(payload)
     else:
         out = {"raw": payload}
+    # Polymarket's field names → the keys the frozen kernel normalizer reads.
+    # Success: {"success": true, "status": "live"|"matched", "orderID": "0x…"} —
+    # the kernel reads order_id/id, so a missing remap loses the venue id (breaking
+    # cancel-by-id and reconcile). Errors arrive as errorMsg; kernel reads
+    # reason/error/message.
+    if "order_id" not in out and "id" not in out and out.get("orderID"):
+        out["order_id"] = out["orderID"]
+    if "error" not in out and "reason" not in out and "message" not in out \
+            and out.get("errorMsg"):
+        out["error"] = out["errorMsg"]
     if "status" not in out and "state" not in out:
         out["status"] = f"HTTP_{status}"
     out.setdefault("http_status", status)

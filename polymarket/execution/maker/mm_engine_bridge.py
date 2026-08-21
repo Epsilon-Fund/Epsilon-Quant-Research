@@ -119,6 +119,23 @@ LIVE_BRIDGE = "live_bridge"
 _EPS = 1e-9
 
 
+def positive_finite_size(raw: str, name: str = "MAKER_SIZE_CONTRACTS") -> float:
+    """Parse an order size, failing CLOSED on non-numeric / NaN / ±inf / ≤0.
+
+    Shared by the bridge quoter and the latency probe. A malformed size must never reach
+    the order path: the USD risk caps compare with ``>``, so NaN/negative sizes slip past
+    every cap (fail OPEN). Validating here means ``from_env``'s ``ValueError`` exits 2
+    (fail closed), with the venue adapter as a backstop rather than the sole defense
+    (adversarial-review finding, 2026-07-09)."""
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a number (got {raw!r})") from None
+    if value != value or value in (float("inf"), float("-inf")) or value <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0 (got {value})")
+    return value
+
+
 class BridgeVenue(Protocol):
     """The venue surface the bridge needs — satisfied by ``cli.build_venue_adapter`` output.
 
@@ -219,7 +236,7 @@ class BridgeConfig:
             condition_id=cond,
             asset_id=asset,
             half_spread=float(env.get("POLYMARKET_MM_BRIDGE_HALF_SPREAD", "0.01")),
-            size_contracts=float(env.get("MAKER_SIZE_CONTRACTS", "1")),
+            size_contracts=positive_finite_size(env.get("MAKER_SIZE_CONTRACTS", "1")),
             tick=float(env.get("POLYMARKET_MM_BRIDGE_TICK", "0.001")),
             order_type=env.get("POLYMARKET_MAKER_ORDER_TYPE", "GTC").upper(),
             coid_prefix=env.get("POLYMARKET_MM_BRIDGE_COID_PREFIX", ""),

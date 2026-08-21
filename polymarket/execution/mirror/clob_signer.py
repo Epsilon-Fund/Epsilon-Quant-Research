@@ -75,7 +75,7 @@ class ClobSigner:
         # the caller forgot to seed them (warning surfaces in the
         # HTTP client; this is just a safety net).
         neg_risk = bool(unsigned.get("_neg_risk", False))
-        tick_size = float(
+        tick_size = _tick_size_literal(
             unsigned.get("_tick_size", self._config.default_tick_size)
         )
 
@@ -128,14 +128,18 @@ class ClobSigner:
     def _build_order_args(self, unsigned: Mapping[str, object]) -> Any:
         # py-clob-client's OrderArgs fields:
         #   token_id, price, size, side, fee_rate_bps, nonce, expiration, taker
-        # The ClobHttpClient passes us pre-decoded `size` (decimal shares
-        # as a string) and `price` (dollar price as a string). We forward
-        # them as-is — py-clob-client accepts string-decimal forms and
-        # converts internally.
+        # The ClobHttpClient passes us pre-decoded `size` (decimal shares as a
+        # string) and `price` (dollar price as a string). OrderArgs types both
+        # as `float`, and py-clob-client's order builder does numeric math on
+        # them (round_normal(price, …), size comparisons) — a *string* price
+        # raises `'>=' not supported between 'str' and 'float'` deep in
+        # create_order. So coerce to float here (the ClobHttpClient already
+        # formatted them to venue precision). This path only runs against the
+        # real venue, so the fake-venue dry runs never exercised it.
         payload: dict[str, object] = {
             "token_id": unsigned.get("token_id"),
-            "price": unsigned.get("price"),
-            "size": unsigned.get("size"),
+            "price": _as_float(unsigned.get("price"), "price"),
+            "size": _as_float(unsigned.get("size"), "size"),
             "side": unsigned.get("side"),
         }
         expiration = unsigned.get("expiration_ts")
@@ -146,6 +150,41 @@ class ClobSigner:
         return self._order_args_cls(
             **{k: v for k, v in payload.items() if v is not None}
         )
+
+
+_VALID_TICK_SIZES = ("0.1", "0.01", "0.001", "0.0001")
+
+
+def _tick_size_literal(value: object) -> str:
+    """Map a tick size to py-clob-client's ``TickSize`` string literal.
+
+    py-clob-client types ``PartialCreateOrderOptions.tick_size`` as
+    ``Literal['0.1','0.01','0.001','0.0001']`` and indexes ``ROUNDING_CONFIG``
+    by it — a *float* 0.001 raises ``KeyError: 0.001`` inside ``create_order``.
+    Match by numeric value (tolerating float noise) to the canonical string;
+    fail loud on an unrecognized tick rather than signing at the wrong grid."""
+    try:
+        num = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"tick_size must be numeric, got {value!r}") from exc
+    for literal in _VALID_TICK_SIZES:
+        if abs(num - float(literal)) < 1e-12:
+            return literal
+    raise ValueError(
+        f"tick_size {num} is not a Polymarket tick ({', '.join(_VALID_TICK_SIZES)})")
+
+
+def _as_float(value: object, name: str) -> float:
+    """Coerce a pre-formatted decimal (str or number) to float for OrderArgs.
+
+    py-clob-client types ``price``/``size`` as ``float`` and does numeric math
+    on them; forwarding a string raises a ``TypeError`` deep inside
+    ``create_order``. Fail loud on a genuinely unparseable value rather than
+    signing a malformed order."""
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"OrderArgs {name} must be numeric, got {value!r}") from exc
 
 
 def _to_mapping(value: object) -> dict[str, object]:

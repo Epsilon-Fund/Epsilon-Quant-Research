@@ -4,8 +4,9 @@ Implements the protocol in
 ``polymarket/research/notes/overview/data_quality/mm_latency_measurement_spec.md``:
 
 * A probe is an order priced so far from the touch that it **cannot fill** — BUY at
-  ``0.001`` (the lowest tick) or SELL at ``0.999`` (the highest), size 1 contract — and it
-  is **cancelled immediately** after the venue acknowledges it.
+  ``0.001`` (the lowest tick) or SELL at ``0.999`` (the highest), size = ``size_contracts``
+  (default 1; set ``MAKER_SIZE_CONTRACTS`` to the venue minimum, e.g. 5, for a real run) —
+  and it is **cancelled immediately** after the venue acknowledges it.
 * The measured quantity is the **submit→ack round-trip on the local monotonic clock**:
   ``t_submit`` stamped immediately before the signed request leaves us, ``t_ack`` when the
   venue's synchronous ack (the ``submit_order`` return) arrives. Cancel round-trips are
@@ -59,6 +60,7 @@ from .mm_engine_bridge import (
     PlaceOutcome,
     VenueOrderRouter,
     ensure_mm_engine_importable,
+    positive_finite_size,
 )
 
 ensure_mm_engine_importable()
@@ -229,6 +231,11 @@ class LatencyProbeConfig:
     prefer: str = "auto"              # "auto" | "buy" | "sell"
     trim_frac: float = 0.02
     out_dir: Path | None = None       # where samples JSONL + fit JSON land (None = no files)
+    # Probe order size in contracts. Default keeps the historical 1-contract probe; markets
+    # with a venue minimum_order_size (e.g. 5 shares) reject smaller probes, so the real
+    # run sets MAKER_SIZE_CONTRACTS to that minimum. Probes stay unexecutable regardless of
+    # size (extreme-tick price, cancelled on ack) — size changes rejection risk, not risk.
+    size_contracts: float = PROBE_SIZE_CONTRACTS
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "LatencyProbeConfig":
@@ -245,6 +252,11 @@ class LatencyProbeConfig:
             prefer=(env.get("POLYMARKET_MM_LATENCY_SIDE", "auto") or "auto").lower(),
             trim_frac=float(env.get("POLYMARKET_MM_LATENCY_TRIM", "0.02")),
             out_dir=Path(out_dir_raw) if out_dir_raw else None,
+            # Same env knob the bridge uses, so one setting sizes both probe and quote
+            # to the venue minimum (5 shares on 0.001-tick politics markets). Validated
+            # finite-and-positive so a malformed size fails closed (never reaches an order).
+            size_contracts=positive_finite_size(
+                env.get("MAKER_SIZE_CONTRACTS", str(PROBE_SIZE_CONTRACTS))),
         )
 
 
@@ -308,7 +320,7 @@ class LatencyProbeHarness:
         price = PROBE_BUY_PRICE if side == "BUY" else PROBE_SELL_PRICE
         self._counter += 1
         client_id = f"probe{self._counter}"
-        order = Order(self.cfg.asset_id, side, price, PROBE_SIZE_CONTRACTS, tag="latency_probe")
+        order = Order(self.cfg.asset_id, side, price, self.cfg.size_contracts, tag="latency_probe")
 
         # SAME safety path as a bridge quote: risk breakers + RealOrderGate + venue.
         outcome: PlaceOutcome = self.router.place(
@@ -323,7 +335,7 @@ class LatencyProbeHarness:
             # cancel-by-coid before reporting the block (adversarial-review fix).
             if outcome.reason in ("ambiguous_submit", "mm_bridge_submit_exception"):
                 ao = ActiveOrder(order=order, client_id=client_id, placement_ts=0,
-                                 last_change_ts=0, remaining=PROBE_SIZE_CONTRACTS)
+                                 last_change_ts=0, remaining=self.cfg.size_contracts)
                 self.router.cancel(
                     ao,
                     condition_id=self.cfg.condition_id,
@@ -338,7 +350,7 @@ class LatencyProbeHarness:
         submit_ms = self.timing.last_submit_ms
         # cancel IMMEDIATELY (spec §1) — cancels reduce risk and are not gated.
         ao = ActiveOrder(order=order, client_id=client_id, placement_ts=0,
-                         last_change_ts=0, remaining=PROBE_SIZE_CONTRACTS)
+                         last_change_ts=0, remaining=self.cfg.size_contracts)
         self.router.cancel(
             ao,
             condition_id=self.cfg.condition_id,

@@ -163,9 +163,14 @@ class MarketMetadataCache:
 
     def _parse_tick_size(self, row: dict) -> float:
         # Gamma response keys we've observed for tick_size: "tick_size",
-        # "tickSize". Both have been strings in practice ("0.01"); accept
-        # numerics defensively.
-        for key in ("tick_size", "tickSize"):
+        # "tickSize", and — the one live Gamma actually ships on active
+        # markets — "orderPriceMinTickSize" (e.g. "0.001" on politics
+        # NegRisk markets). Missing the live key silently defaulted 0.001-tick
+        # markets to 0.01, encoding a valid 0.001 price to price_ticks<=0
+        # (rejected) and collapsing distinct touch quotes — the exact
+        # mis-pricing this module's docstring warns about. Strings in practice;
+        # accept numerics defensively.
+        for key in ("tick_size", "tickSize", "orderPriceMinTickSize"):
             raw = row.get(key)
             if raw is None:
                 continue

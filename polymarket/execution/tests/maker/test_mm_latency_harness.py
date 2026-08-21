@@ -298,8 +298,46 @@ def test_probe_config_from_env_and_missing_condition_rejected() -> None:
     assert cfg.condition_id == "0xcond"
     assert cfg.samples_target == 7
     assert cfg.prefer == "sell"
+    assert cfg.size_contracts == 1.0        # default preserved: historical 1-contract probe
     with pytest.raises(ValueError):
         LatencyProbeConfig.from_env({})
+
+
+def test_probe_size_env_override_reaches_the_order() -> None:
+    """Venue-minimum regression: ``MAKER_SIZE_CONTRACTS`` sizes the probe order itself.
+
+    Markets with ``minimum_order_size=5`` reject 1-share probes, so the same env knob the
+    bridge uses must flow from ``from_env`` into the submitted order (``size_shares``).
+    """
+    cfg = LatencyProbeConfig.from_env({
+        "POLYMARKET_MAKER_CONDITION_ID": "0xCOND",
+        "POLYMARKET_MM_BRIDGE_ASSET_ID": "t1",
+        "MAKER_SIZE_CONTRACTS": "5",
+    })
+    assert cfg.size_contracts == 5.0
+
+    venue = _MockVenue()
+    journal = _CapturingJournal()
+    harness, _ = _harness(venue=venue, journal=journal)
+    harness.cfg.size_contracts = 5.0
+    rec = harness.probe_once()
+    assert rec.accepted
+    assert venue.submit_calls, "probe order must reach the venue"
+    assert float(venue.submit_calls[-1]["size_shares"]) == 5.0
+
+
+@pytest.mark.parametrize("bad", ["nan", "-5", "0", "inf", "-inf", "abc", ""])
+def test_probe_size_fails_closed_on_malformed_env(bad: str) -> None:
+    """A malformed MAKER_SIZE_CONTRACTS must raise (fail closed), never reach an order.
+
+    NaN/negative sizes otherwise slip past the ``>``-based USD risk caps (fail open);
+    from_env rejects them so main() exits 2 (adversarial-review MEDIUM finding)."""
+    with pytest.raises(ValueError):
+        LatencyProbeConfig.from_env({
+            "POLYMARKET_MAKER_CONDITION_ID": "0xCOND",
+            "POLYMARKET_MM_BRIDGE_ASSET_ID": "t1",
+            "MAKER_SIZE_CONTRACTS": bad,
+        })
 
 
 def test_main_returns_2_on_missing_condition_id() -> None:

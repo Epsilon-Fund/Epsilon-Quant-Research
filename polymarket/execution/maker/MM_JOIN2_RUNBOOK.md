@@ -24,6 +24,34 @@ tags:
 - **Money at risk.** 1 contract per order, `MAX_REAL_ORDERS` raised deliberately run-by-run, hard inventory cap of 5 contracts, USD caps ≤ $50. Worst-case exposure is a few dollars.
 - **Who does what.** Everything in this note is **human-driven**. The machinery (latency harness, bridge wiring, calibration pipeline) was built and dry-run-proven agent-side; no agent places real orders.
 
+## ⚠️ 2026-07-09 update — real-venue order path rebuilt (V2 SDK), latency measured
+
+The first real-venue exercise (C4 latency probe) proved the machinery had **never
+actually placed a real order** — Join-2a was fake-venue-proven only. Five distinct
+bugs in the real submit path were found and fixed, and Polymarket had **archived
+`py-clob-client`** (venue now rejects V1 orders: "invalid order version"). Net changes:
+
+- **Order size is 5 shares (venue minimum), not 1.** `MAKER_SIZE_CONTRACTS=5`. The
+  latency-probe size is now env-configurable (was hardcoded to 1).
+- **Order placement goes through the successor SDK** (`polymarket-client`, GitHub
+  `Polymarket/py-sdk`) running in an **isolated child process** (`mirror/pysdk_gateway.py`
+  + `mirror/pysdk_order_gateway.py`) — the SDK's top-level `polymarket` package would
+  otherwise shadow this repo's `polymarket/`. `cli.build_venue_adapter` wires it in on
+  the real path (fail-closed if it can't start). Secrets travel to the child over stdin
+  only, never env/argv.
+- **Tick fix:** live Gamma ships the tick under `orderPriceMinTickSize` (0.001 here); the
+  metadata cache now reads it (was defaulting to 0.01 → every 0.001 order rejected AND
+  quotes mispriced).
+- **Wire fixes:** price/size as float (not str), tick as the `Literal` string, L2 POLY_*
+  headers + py-clob wire envelope, DELETE /order cancels. All in `mirror/`.
+- **Measured latency (2026-07-09, 30 clean probes on the Brazil-presidential market):**
+  **mean 160 ms, std 22, p50 155, p90 179, p99 233 → `POLYMARKET_MM_BRIDGE_LATENCY_MS=160`.**
+  (Validates the model's ~200ms assumption.) Probes left 0 resting orders; $0 spent.
+- **join-the-touch on a 0.001-tick market:** `POLYMARKET_MM_BRIDGE_HALF_SPREAD=0.0005`
+  rests exactly at the touch (verified in fake dry-run: BUY 5 @ 0.232 / SELL 5 @ 0.233).
+
+Suites after the rebuild: **execution 359 + gateway 7 green**; frozen `_kernel` untouched.
+
 ## 0. One-time sanity — what the v0 gate already established (2026-07-08)
 
 - `POLYMARKET_FUNDER` = `0xe2ef99558fc5170fcf5c9f73087e6c96ae3389e5` **is** the `@jamonator` proxy (Gamma public-profile match). Secrets in `.env` are SET.
