@@ -275,12 +275,46 @@ def analysis_c_cost_floor(real_l2: Path, raw: Path, universes: list[str]) -> pd.
     return pd.DataFrame(rows)
 
 
+def analysis_d_retest_bracket(real_l2: Path) -> pd.DataFrame:
+    """Aggregate the engine retest episodes across slices, per queue-model bracket leg.
+
+    One row per (universe, framing, queue_model, H): mean PnL cents/contract with a
+    market-cluster bootstrap CI, the zero-as-miss hit rate on episode PnL, and sample
+    counts. The bracket read: a framing is 'negative across the bracket' only when the
+    CI upper bound is < 0 under ALL THREE queue models; 'positive' requires CI lower
+    bound > 0 under all three (then it is a reopen-warranting candidate — the fill
+    model is still uncalibrated).
+    """
+    files = sorted(str(p) for p in real_l2.glob("*/*/retest_episodes.parquet"))
+    if not files:
+        return pd.DataFrame()
+    con = duckdb.connect()
+    eps = con.execute("SELECT * FROM read_parquet($f)", {"f": files}).df()
+    con.close()
+    rows = []
+    for (uni, framing, model, h), g in eps.groupby(["universe", "framing", "queue_model", "h_s"]):
+        pnl = g["pnl_cents_per_contract"].to_numpy(float)
+        clusters = g["market"].to_numpy(str)
+        lo, hi = cluster_boot_ci(pnl, clusters)
+        hr_miss, _ = hit_rate(np.ones_like(pnl), pnl, zero_move="miss")
+        rows.append({
+            "universe": uni, "framing": framing, "queue_model": model, "h_s": h,
+            "episodes": len(g), "markets": g["market"].nunique(),
+            "days": g["date"].nunique(),
+            "mean_pnl_cents": float(pnl.mean()),
+            "pnl_ci_lo": lo, "pnl_ci_hi": hi,
+            "median_pnl_cents": float(np.median(pnl)),
+            "hit_rate_pnl_pos": hr_miss,
+        })
+    return pd.DataFrame(rows).sort_values(["universe", "framing", "h_s", "queue_model"])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--real-l2-dir", type=Path, default=ROOT / "data" / "analysis" / "real_l2")
     ap.add_argument("--raw-dir", type=Path, default=ROOT / "data" / "l2_parquet_full")
     ap.add_argument("--universes", nargs="*", default=["politics_negrisk", "esports"])
-    ap.add_argument("--only", choices=["a", "b", "c"], default=None)
+    ap.add_argument("--only", choices=["a", "b", "c", "d"], default=None)
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -296,6 +330,10 @@ def main() -> None:
         c = analysis_c_cost_floor(args.real_l2_dir, args.raw_dir, args.universes)
         c.to_csv(OUT / "taker_cost_floor_new_markets.csv", index=False)
         print(c.to_string(), flush=True)
+    if args.only in (None, "d"):
+        d = analysis_d_retest_bracket(args.real_l2_dir)
+        d.to_csv(OUT / "classb_retest_queue_bracket.csv", index=False)
+        print(d.to_string(), flush=True)
 
 
 if __name__ == "__main__":
