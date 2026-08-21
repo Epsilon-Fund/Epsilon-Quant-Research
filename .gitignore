@@ -141,3 +141,8 @@ polymarket/research/data_infra/schemas/data_monitoring/
 
 # changepoint detector append-only output (regenerable break logs)
 infrastructure/changepoint/changepoints/
+
+# Per-machine Claude Code permissions/settings — LOCAL ONLY, never shared.
+# (Also covered by justin's global ~/.config/git/ignore; listed here so the rule
+# travels with the repo for every collaborator.)
+.claude/settings.local.json
