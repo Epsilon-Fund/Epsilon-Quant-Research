@@ -438,3 +438,28 @@ From [[OBSIDIAN_INFRA_ROADMAP]] — build only when the basics earn their keep:
 - **Sherpa** — **BUILT** (2026-07-11). Skill router that auto-surfaces the right skills on task context. See § Sherpa below. Graduated out of this deferred list.
 - **Graph audit** — implemented as `tools/brain_graph_audit.py`; future work is turning recurring graph findings into an automatic Cartographer/Janitor prompt.
 - **Indeaverse** — idea-graph + branch registry navigable by concept, not folder (Phase 5).
+
+## Vendored engineering skills (mattpocock/skills)
+
+> Vendored 2026-08-23 from [mattpocock/skills](https://github.com/mattpocock/skills) at
+> `5b15a47`, pristine (no local patch). Provenance in `skills-lock.json`. The same four
+> are installed in the OnlyFarmers workspace, plus three more that only make sense there.
+
+These are **runtime skills**, not brain passes: they say how to do a piece of work, not how
+to keep the vault clean. Four were taken; the rest of that repo was deliberately left.
+
+| Skill | Reach for it when | Guardrail |
+|---|---|---|
+| **`diagnosing-bugs`** | Something in `live_trading/`, `polymarket/`, or `tools/` is broken, throwing, wrong, or slow — **before** forming a theory | Phase 1 is the whole skill: one tight, deterministic command that goes red on *this* bug. No red-capable command, no hypothesis. Never build a loop against a live book |
+| **`grilling`** (`/grill-me`) | Framing a research idea, or any decision with branches, before pre-registration | Facts are the agent's job (dispatch subagents); the decisions stay Justin's. Pairs with [[START_RESEARCH_IDEA]] |
+| **`writing-for-agents`** | Editing [[CODEX]], [[COWORK]], `CLAUDE.md`, or any skill in this repo | Its own subject. The vocabulary — context load vs cognitive load, progressive disclosure, sediment, no-ops — is the pruning discipline these law files need |
+
+### Deliberately not vendored here
+
+`handoff` and `domain-modeling` collide with passes this vault already runs better:
+**Chronicler** owns session handoffs (`brain/handoffs/`), **Librarian** owns [[glossary]].
+`to-questionnaire` has no recurring use in a solo research repo. `to-spec`, `to-tickets`,
+`triage`, `wayfinder`, `implement` and `tdd` all require a configured issue tracker
+(GitHub/Linear) that this repo does not use — [[TODO]] is the tracker. `research` is three
+sentences and [[START_RESEARCH_IDEA]] is more. `ask-matt` is a router skill, which Sherpa
+already does, and ranks.
