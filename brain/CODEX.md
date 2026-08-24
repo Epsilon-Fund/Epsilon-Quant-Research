@@ -207,6 +207,7 @@ The canonical implementation-prompt preamble (read order, data-artifact line) li
 - No cross-importing between polymarket/ and crypto projects
 - No optimising on insufficient data — respect Task 5 triggers in Polymarket
 - No undelegated token-burn: token-heavy work (CPCV/WF sweeps, DuckDB scans, broad repo/vault reads) → apply the `efficient-fable` delegation pattern; long (> 30 min) or > 2-parallel-subagent runs → run the `stay-within-limits` budget check first. Both auto-trigger in Claude Code — see [[SKILL_MAP]] § Runtime efficiency skills.
+- No blind worker maxing: before fanning out a large worker pool (CPCV/WF sweeps, event-heavy parquet replays, any process/thread pool), size it to **RAM, not core count**, and health-check for memory-compression/swap thrash — `workers ≈ min(cores, floor(available_RAM × 0.7 / peak_RAM_per_worker))`, segment the queue by unit weight, and cut workers if sys-CPU/compressed-memory climb while worker-CPU collapses. See [[SKILL_MAP]] § Runtime efficiency skills → Worker right-sizing.
 
 ---
 
@@ -235,6 +236,7 @@ Worked anchor: the 2026-06-02 same-day OD Arm T survivor passed OOS+BH (fair) bu
 3. Read `brain/POLYMARKET_BRAIN.md` for Polymarket work, then the relevant hub (MM, OD, copytrade, dali, or STRATEGY_REFERENCE as appropriate)
 4. When hunting for prior work or related notes, use the **gbrain MCP tools** (semantic `search` + `traverse_graph`/`get_backlinks`) before grep/folder scans — it indexes this vault and resolves `[[basename]]` links as graph edges. Retrieval only; synthesis stays in-agent. Setup/teardown: `docs/tooling/gbrain_retrieval_layer.md`.
 5. For data-heavy work, read the relevant data/artifact manifest before scanning raw folders
-6. Only then begin implementation
+6. **Surface skills for the task (Sherpa).** Run `python3 tools/sherpa.py "<the task in a sentence>"` and load whatever skills it surfaces — at session start and again whenever the task shifts. It ranks the installed skills by keyword + local-semantic match (offline; keyword-only if the local embedder is down) and returns each with a one-line "use when". This is the reliable auto-surfacing mechanism; it complements Claude Code's native description-triggering. Wrapper skill: `find-skills`. See [[VAULT_MAP]] § Agent Bootstrap step 6 and [[SKILL_MAP]] § Sherpa.
+7. Only then begin implementation
 
 When you produce output (findings, scripts, results), save to the right location and add wikilinks back to the hub.

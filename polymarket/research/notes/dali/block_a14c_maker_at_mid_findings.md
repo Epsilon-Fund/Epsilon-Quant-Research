@@ -10,6 +10,10 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — its positive cell (+554.9 bps) was a queue-blind, fill-double-counting artifact — killed in [[block_a14h_maker_non_overlap_findings]] (fill rate 9.0%→0.2%); never cite the positive standalone. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+>
+> **Confirmed-closed-on-real-data (2026-07-21):** the maker-at-mid framing was re-run on real politics-NegRisk/esports L2 through the coded MM fill engine (latency-gated, full queue bracket, book-measured taker exits, fee=0): negative with CI below zero across the bracket (esports ≈ −1.7c/contract at H=5s). See [[dali_features_real_l2_remeasure_findings]] § B3.
+
 # Block A1.4c Maker-at-Mid Findings
 
 > Hub: [[COWORK]]

@@ -1,6 +1,13 @@
 ---
+title: "Block A1 Results"
+status: active
+hubs:
+  - COWORK
 tags: [dali, block-a1, results]
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — sign convention + honest pre-cost OFI characterization; caveat: the 64.1% top-decile hit is overlap-inflated in-sample description and must never be cited as edge evidence. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

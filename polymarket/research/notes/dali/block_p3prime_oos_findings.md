@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — pre-registered OOS bar on a genuine later holdout capture with frozen discovery thresholds; P2's deep-book fade correctly closed. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # P3' A0c OOS Reversion Replication Findings
 
 > Hub: [[COWORK]]

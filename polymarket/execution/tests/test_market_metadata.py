@@ -66,6 +66,18 @@ def test_cache_miss_fetches_negrisk_false_tick_0001() -> None:
     assert meta.tick_size == 0.001
 
 
+def test_tick_from_order_price_min_tick_size_key() -> None:
+    # Live Gamma ships the tick under "orderPriceMinTickSize" (not tick_size/
+    # tickSize) on active markets; missing it silently defaulted 0.001 markets
+    # to 0.01 → valid prices rejected as price_ticks<=0 (regression guard).
+    payload = [{"conditionId": "cid-live", "negRisk": True,
+                "orderPriceMinTickSize": "0.001"}]
+    cache = _cache(urlopen_fn=lambda *a, **k: _fake_response(payload))
+    meta = cache.get_by_condition("cid-live")
+    assert meta is not None
+    assert meta.tick_size == 0.001
+
+
 def test_url_error_returns_none_not_cached() -> None:
     state = {"calls": 0}
 

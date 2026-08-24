@@ -1,6 +1,13 @@
 ---
+title: "Block A1.5 TOB Extensions Findings"
+status: archived
+hubs:
+  - COWORK
 tags: [dali, block-a15, tob-extensions, results]
 ---
+
+> **Canon status (2026-07-19 audit, corrected 2026-07-21): HISTORICAL** — signal characterization; the 300s exp-decay 'winner' is composition-confounded with overlapping CIs — no live conclusion. (Correction: its 73.7% anchor did not "fail OOS" — that comparison was a metric mismatch; the descriptive signal replicated ~63% conditional OOS but remains non-monetizable. See [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1.) Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

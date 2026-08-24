@@ -18,7 +18,7 @@ tags:
 
 # MM Engine — Phase 0 & 1 Build Plan + Alvaro Handoff
 
-> Plan: [[mm_backtest_infra_plan|2026-06-16_mm_backtest_infra_plan]] · Why: [[mm_backtesting_methodology_explainer]] · Data limits: [[mm_clob_capture_semantics]].
+> Plan: [[2026-06-16_mm_backtest_infra_plan]] · Why: [[mm_backtesting_methodology_explainer]] · Data limits: [[mm_clob_capture_semantics]].
 > **Naming:** "Phase 0/1" here = the **backtest-engine** effort (NOT the politics live-loop phases). The three joins from the plan: **Join 0** = agree interface (Phase 0); **Join 1** = reconciliation; **Join 2** = calibration.
 
 ## Context (state as of 2026-06-23)
@@ -28,6 +28,17 @@ VPS→cloud **live L2 capture is up and verified** (continuous, gap-free going f
 **Reuse, don't rebuild:** `polymarket/research/lib/clob_book.py` (`ClobBook` — the book builder/OFI), `scripts/dali_clob_replay_features.py` (replay/state logic; note its convention: `best_bid_ask` is telemetry-only, never mutates the executable book), the capture format from `scripts/dali_live_clob_capture.py`, and `polymarket/execution/maker/` (safety + signing — only bridged later, at Join 2's real 1-contract step).
 
 **Engine home:** new package `polymarket/research/mm_engine/` (research venv; reuses `lib/clob_book`). Live-**shadow** (read-only WS) lives in the same package. Real 1-contract execution bridges to `execution/maker/` at Join 2, not before — that keeps Phase 0/1 inside one venv.
+
+---
+
+## Status — live progress (2026-06-30)
+
+- **Machine (Justin) — DONE.** Phase-0 scaffold + Phase-1 engine: feed adapters (replay + live-shadow), `BookTracker`, order manager, fill simulator, telemetry, reconciliation harness, `SymmetricQuoter`. Same-code-path proven (record→replay **0% gap**). Economics layer added: **fee + maker rebate** (`fees.py`, reuses canonical `FEE_BY_CATEGORY`), **three-way PnL** (gross / net_ex_rebate / net_with_rebate), **realized / unrealized / settled** split + `EngineResult.settle()`.
+- **Parquet adapter — DONE.** `feeds/replay_parquet.py` replays the typed VPS Parquet; equivalence-tested **byte-identical** to the JSONL adapter (real `research-live-clob` shard, 1,675 events) and **source-invariant** engine output. The gappy 1-week fixture was converted JSONL→Parquet (gaps preserved). → the durable, gap-free **VPS Parquet is now replayable**.
+- **Models (Alvaro) — DONE (Tasks 1–3 + hardening).** Reconstruction audit **PASSED** (~100% clean on decisive checkpoints, CI lower ~99%; sub-ms bursts flagged ambiguous). Three queue models behind the interface — `OptimisticQueue` / `RiskAverseQueue` / `ProbQueue` (power-law `f` + `calibrate()` hook) forming a provably-ordered bracket; `ConstantLatency`. **Task 4 (validation gates) deferred until after Join 1.**
+- **Join 1 (reconciliation) — DONE + LOCKED (2026-06-30).** All four checks pass on real gap-free VPS Parquet: record→replay **0% gap per model**, bracket `Opt ≥ Prob ≥ RA` holds, **0** `queue_ahead > depth` violations, deterministic + source-invariant. **Independently re-verified** (all cited numbers reconcile; 2 strengthened). The live-Parquet schema bug was **caught → fixed → regression-locked** (`tests/test_mm_engine_parquet_live_schema.py`; suite **85 green**), and the "68% mismatch" is **proven a metric-ordering artifact, not a book/fill error** (fills byte-identical regardless of `best_bid_ask` ordering). **Check A′** validated the **live WS JSON path on real frames** (0 parse errors / 11k+ frames; 0%-gap record→replay). Engine trustworthy as a consistency/determinism machine — **not yet** real-fill-realistic (Join 2). Notes: [[mm_join1_reconciliation_findings]], [[mm_reconstruction_audit_findings]].
+- **NOW — Task 4 ‖ Join 2 (in parallel).** **Task 4 (Alvaro lane):** the validation-gate / eval layer (A/B vs symmetric quoter, ND-PnL / markout / adverse-selection, DSR/CPCV, breakeven-fill-rate) — reads engine logs, no new engine code. **Join 2 (Justin lane):** the execution-safety bridge to `execution/maker` + the pre-registered 1-contract live-calibration loop that fits `ProbQueue.f` / the latency constant from real fills and collapses the optimistic/pessimistic bracket toward the live-measured rate. Reuse: [[mm_politics_negrisk_live_loop_design]] (gates), `mm_latency_measurement_spec`, the `calibrate()` hooks.
+- **Standing reminder:** until Join-2 calibration, every backtest number is a **bracketed range** (optimistic/pessimistic queue), not a point estimate.
 
 ---
 

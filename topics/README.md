@@ -30,5 +30,5 @@ This is the Obsidian bridge for the crypto research folders and top-level notebo
 - [[topics/statistical-arbitrage/README|stat-arb README]] - pairs trading research.
 - [[topics/long-short/README|long-short README]] - long/short topic stub and testing notebook.
 - [[topics/memecoin-defi/README|memecoin DeFi README]] - memecoin/DeFi topic stub.
-- [[topics/prediction-markets/README|prediction-markets README]] - older Falcon/Polymarket data pipeline.
+- (moved) the older Falcon/Polymarket data pipeline now lives at [[polymarket/archive/prediction_markets_falcon_pipeline/README|polymarket/archive/prediction_markets_falcon_pipeline]] — archived 2026-07-21, vendor-API dead end superseded by on-chain successors in `polymarket/research/`.
 

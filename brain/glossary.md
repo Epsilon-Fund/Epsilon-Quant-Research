@@ -58,7 +58,7 @@ Terms and acronyms across Epsilon projects.
 ## copytrade — execution
 
 - **py-clob-client** — official Polymarket CLOB Python client; used inside the vendored kernel.
-- **midas / midas kernel** — internal trading framework; bot vendored `_kernel/` from `midas/executor/` (treated as frozen).
+- **midas / midas kernel** — internal trading framework; bot vendored `_kernel/` from `polymarket/midas/executor/` (treated as frozen; midas moved under `polymarket/` 2026-07-21).
 - **PolymarketVenueAdapter** — kernel module implementing the venue Protocol (order lifecycle, idempotency, ambiguous-submit detection).
 - **FOK / IOC** — fill-or-kill / immediate-or-cancel order types. Bot requests FOK; kernel exposes IOC, which is functionally equivalent with immediate-expiry on Polymarket.
 - **Leader fill / current book** — two pricing modes the bot supports. `leader_fill` mirrors the leader's exact fill price; `current_book` uses best ask/bid + slippage.
@@ -95,7 +95,7 @@ Six pools materialised at `polymarket-copy/data/cohorts/*.parquet`. Detail in `p
 
 ## dali — short-horizon ML
 
-- **Dali** — Epsilon's short-horizon OFI/microstructure ML project for Polymarket. Separate from the copytrade bot. Targets taker (directional) and maker (liquidity provision) strategies.
+- **Dali** — the name is kept for continuity but is misleading if read narrowly: the folder (`polymarket/research/notes/dali/`) holds the **entire Polymarket research pipeline between Midas (copytrade) and the Alvaro-era MM focus** — it starts with OFI/TOB microstructure work (Blocks A0–A18, P, I, TFI, sign-convention) and turns into the two branches (MM and OD) via Block K. Chronology: Midas/copytrade → dali lineage → Block K split → MM + OD. Canon status of every dali note: [[pm_prealvaro_canon_audit_findings]].
 - **OFI (Order Flow Imbalance)** — signal capturing net directional pressure from limit order placements, cancellations, and fills. Core signal from Cont, Kukanov & Stoikov (2014). Explains ~65% of short-term price variance on equity CLOBs; TFI explains only ~32%.
 - **TFI (Trade Flow Imbalance)** — fill-only subset of OFI. Weaker signal; TFI is a degraded subset of OFI. Dali TFI baseline: OUTCOME 3 Mixed Results, Block B complete 2026-05-27.
 - **CKS** — shorthand for Cont, Kukanov & Stoikov (2014) OFI paper and their feature construction methodology. Dali uses CKS-style OFI computed via maintained book state replay.

@@ -2,13 +2,15 @@
 tags: [dali, block-a13, tob-imbalance, results]
 title: Block A1.3 TOB Imbalance Level Deep-Dive
 created: 2026-05-28
-status: archived
+status: active
 owner: justin
 project: polymarket
 para: resource
 hubs:
   - COWORK
 ---
+
+> **Canon status (2026-07-21 pipeline audit): CANON as corrected — the 73.7% headline is CONDEMNED.** The hit rate excluded zero-move windows from its denominator (only 59,778 of the cited n=299,864 entered it) over overlapping rows of a persistent state (~5–6k real episodes). Corrected claim: at |imbalance| ≥ ~0.94, *conditional on the mid moving within 5s*, it moves toward the imbalance ~70–75% in-sample and **~63% out-of-sample** (the famous "36.0% OOS" was a different metric — zero-as-miss, non-overlap — and is a false comparison; discovery scores 20–27% in those units). Mean 5s move +58–73 bps, mostly inside-spread reversion to microprice ([[block_a15b_decoupled_findings]]); not monetizable after costs (the closure stands on [[block_a18_passive_reversion_findings]] + Retests A/B). The corrected numbers are an in-session recomputation whose reproduction script is not yet committed — treat as provisional (evidence class A in the trust audit's methodology ledger). Details: [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1 + § Methodology. Ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block A1.3 TOB Imbalance Level Deep-Dive
 

@@ -1,6 +1,14 @@
 ---
+title: "Block A18 Passive Reversion-To-Microprice Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, a18, reversion, passive-maker, microprice, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — the strongest closure in the cluster: pre-registered pooled market-cluster CI gate across 4 captures (75 markets), conditional and unconditional EV both negative; stays closed. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+>
+> **Confirmed-closed-on-real-data (2026-07-21):** the fade-to-microprice passive framing was re-run on the real politics-NegRisk/esports L2 through the coded MM fill engine (latency-gated `FillSimulator`, full Optimistic/Prob/RiskAverse queue bracket, book-measured taker exits, captured fee=0): negative with market-cluster CI below zero across the entire bracket on the powered universe (esports, ≈ −2c/contract), and the anti-selection mechanism was observed directly (fills are sweep-driven — the maker fills exactly when the signal's prediction is violated). The assumption-grade objection (queue-blind fill proxy) is retired: the closure is robust. See [[dali_features_real_l2_remeasure_findings]] § B3.
 
 # Block A18 Passive Reversion-To-Microprice Findings
 

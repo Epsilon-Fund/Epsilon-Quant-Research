@@ -56,3 +56,24 @@ def test_negrisk_false_uses_binary_verifying_contract() -> None:
         "_tick_size": 0.01,
     }, "private-key")
     assert signed["domain"]["verifyingContract"] == CTF_EXCHANGE
+
+
+def test_order_args_price_and_size_coerced_to_float() -> None:
+    """py-clob-client's OrderArgs types price/size as float and does numeric
+    math on them; a string price raised `'>=' not supported between str and
+    float` deep in create_order against the REAL venue (fake dry runs never hit
+    this). The signer must coerce the ClobHttpClient's decimal strings to float."""
+    captured: dict[str, object] = {}
+
+    class _CapturingClient(_Client):
+        def create_order(self, order_args, options):  # noqa: ARG002
+            captured["price"] = order_args.kwargs["price"]
+            captured["size"] = order_args.kwargs["size"]
+            return {"domain": {"verifyingContract": CTF_EXCHANGE}}
+
+    signer = _signer()
+    signer._clob_client_cls = _CapturingClient
+    signer({"token_id": "asset", "price": "0.001", "size": "5", "side": "BUY",
+            "_neg_risk": True, "_tick_size": 0.001}, "private-key")
+    assert isinstance(captured["price"], float) and captured["price"] == 0.001
+    assert isinstance(captured["size"], float) and captured["size"] == 5.0

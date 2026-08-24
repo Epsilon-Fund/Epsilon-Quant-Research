@@ -2,8 +2,12 @@
 title: "Copytrade Structural Directional Carriers Findings"
 tags: [copytrade, market-making, directionality, structural-carriers]
 created: 2026-06-04
-status: not-copyable-as-taker-direction
+status: closed
+hubs:
+  - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — taker-copy of structural-carrier direction fails net-of-cost in all three sleeves with market-cluster bootstrap CIs; kill only strengthens under the later spread-surface costs; known gap: the replay script was never committed (reproducibility, not correctness). Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Copytrade Structural Directional Carriers Findings
 
@@ -128,3 +132,7 @@ The MM implication is also consistent with [[mm_structural_maker_directional_dec
 - Sports positive-K5 replay positions: `data/analysis/csv_outputs/copytrade/copytrade_structural_directional_carriers_sports_like_posk5_top3_positions.parquet`
 - Residual positive-K5 replay positions: `data/analysis/csv_outputs/copytrade/copytrade_structural_directional_carriers_residual_misc_posk5_top3_positions.parquet`
 - Equities replay positions: `data/analysis/csv_outputs/copytrade/copytrade_structural_directional_carriers_equities_updown_posk5_all_positions.parquet`
+
+## External context: eightdelta
+
+This note's subject — large two-sided wallets whose direction might be extractable — is block-flow analysis. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

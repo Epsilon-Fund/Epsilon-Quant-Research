@@ -29,6 +29,15 @@ SIZING = ["fixed_pct", "leader_proportional"]
 def main() -> None:
     BACKTESTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    # ── data-contract gate (fail-closed) ─────────────────────────────────────
+    # Validate the raw fills family + closed-position panel BEFORE the 72-run
+    # backtest matrix. Aborts on any contract violation (schema / append-only
+    # shard mutation / lowercase-0x addresses / finite / price∈[0,1] / no
+    # future-dated fills). Bypass in an emergency with EPSILON_DATA_CONTRACT=warn|off.
+    from data_infra.schemas import guard_dataset
+    guard_dataset("pm_trades")
+    guard_dataset("pm_closed_positions")
+
     matrix: list[tuple] = []
     for cohort_name in COHORTS:
         for bucket in BUCKETS:

@@ -13,8 +13,10 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from mm_engine.book import BookTracker
-from mm_engine.events import GapMarker, envelope_to_events
+from mm_engine.events import envelope_to_events
 from mm_engine.feeds.live_shadow import FrameTransport, live_shadow_feed
 from mm_engine.feeds.replay import replay_feed
 from mm_engine.interfaces import (
@@ -25,7 +27,7 @@ from mm_engine.interfaces import (
     QueueModel,
     Strategy,
 )
-from mm_engine.latency_models import ConstantLatency
+from mm_engine.latency_models import DEFAULT_ROUND_TRIP_MS, ConstantLatency, SampledLatency
 from mm_engine.queue_models import OptimisticQueue
 from mm_engine.runner import run_strategy
 from mm_engine.strategies import SymmetricQuoter
@@ -389,7 +391,74 @@ def test_constant_latency():
     assert lat.round_trip_ms(ts_exchange=1_781_000_000_000) == 12.5
 
 
+def test_constant_latency_default_is_realistic():
+    # default is the realistic ~200ms round-trip, not 0ms (instant fills)
+    assert DEFAULT_ROUND_TRIP_MS == 200.0
+    assert ConstantLatency().round_trip_ms(ts_exchange=1_781_000_000_000) == 200.0
+
+
+def test_sampled_latency_constant_when_std_zero():
+    lat = SampledLatency(mean=180.0, std=0.0)
+    assert lat.round_trip_ms(1) == 180.0 and lat.round_trip_ms(2) == 180.0   # degenerate -> mean
+
+
+def test_sampled_latency_is_seeded_and_reproducible():
+    a = SampledLatency(mean=200.0, std=30.0, seed=7)
+    b = SampledLatency(mean=200.0, std=30.0, seed=7)
+    seq_a = [a.round_trip_ms(t) for t in range(50)]
+    seq_b = [b.round_trip_ms(t) for t in range(50)]
+    assert seq_a == seq_b                                   # same seed -> identical draws (deterministic replay)
+    assert any(abs(x - 200.0) > 1e-9 for x in seq_a)        # actually dispersed, not constant
+    c = SampledLatency(mean=200.0, std=30.0, seed=8)
+    assert [c.round_trip_ms(t) for t in range(50)] != seq_a  # different seed -> different draws
+
+
+def test_sampled_latency_same_ts_is_pure_and_repeatable():
+    # round_trip_ms must be a PURE function of ts_exchange: fills.py probes a resting order
+    # once per trade-check with the SAME placement_ts, and the order's submit->live latency
+    # must be fixed once, not re-rolled on every probe.
+    lat = SampledLatency(mean=200.0, std=40.0, seed=2)
+    v = lat.round_trip_ms(1_781_000_000_777)
+    assert all(lat.round_trip_ms(1_781_000_000_777) == v for _ in range(25))   # repeat -> identical
+    assert lat.round_trip_ms(1_781_000_000_777.0) == v                          # keyed on int(ts)
+    # call ORDER / history does not perturb a given ts's value (the old sequential-RNG bug)
+    other = SampledLatency(mean=200.0, std=40.0, seed=2)
+    _ = [other.round_trip_ms(t) for t in (5, 9, 1, 12345)]                      # probe other ts first
+    assert other.round_trip_ms(1_781_000_000_777) == v
+
+
+def test_sampled_latency_disperses_across_ts():
+    lat = SampledLatency(mean=200.0, std=40.0, seed=2)
+    vals = [lat.round_trip_ms(t) for t in range(1000, 1200)]   # 200 distinct submit times
+    assert len(set(vals)) > 150                                # different ts -> different draws
+    assert max(vals) - min(vals) > 40.0                        # genuinely spread, not constant
+
+
+def test_sampled_latency_floor_clamps_nonnegative():
+    # tiny mean, wide std, floor 0 -> never returns a negative round-trip
+    lat = SampledLatency(mean=1.0, std=100.0, floor_ms=0.0, seed=3)
+    assert all(lat.round_trip_ms(t) >= 0.0 for t in range(500))
+
+
+def test_sampled_latency_from_samples_fits_mean_std():
+    lat = SampledLatency.from_samples([100.0, 200.0, 300.0], seed=0)
+    assert lat.mean == pytest.approx(200.0)
+    assert lat.std == pytest.approx((20000.0 / 3.0) ** 0.5)   # population std of {100,200,300} ≈ 81.65
+    # empty samples -> safe default, no crash
+    assert SampledLatency.from_samples([]).mean == DEFAULT_ROUND_TRIP_MS
+
+
+def test_sampled_latency_calibrate_refits_in_place():
+    lat = SampledLatency(mean=200.0, std=0.0, seed=1)
+    lat.calibrate([50.0, 50.0, 50.0, 50.0])
+    assert lat.mean == pytest.approx(50.0) and lat.std == pytest.approx(0.0)
+    assert lat.round_trip_ms(1) == pytest.approx(50.0)
+    lat.calibrate([])                                       # no samples -> unchanged
+    assert lat.mean == pytest.approx(50.0)
+
+
 def test_stub_protocol_conformance():
     assert isinstance(SymmetricQuoter(), Strategy)
     assert isinstance(OptimisticQueue(), QueueModel)
     assert isinstance(ConstantLatency(), LatencyModel)
+    assert isinstance(SampledLatency(), LatencyModel)

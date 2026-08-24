@@ -14,6 +14,8 @@ tags:
   - research
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — 'relayers drive the lift' became circular once the addresses were identified as exchange contracts ([[relayer_dig_findings]]); attribution tables are CI-free. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block E Lite Findings
 
 > Hub: [[COWORK]]

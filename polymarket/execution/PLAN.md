@@ -32,7 +32,7 @@ client is **not** used (broken wire encoding — see decision 15);
 `mirror/clob_http_client.py` is the substitute.
 
 The `_kernel/` folder is vendored from midas/executor/ on 2026-05-06
-and is treated as frozen. Do not edit it. Do not import from midas/.
+and is treated as frozen. Do not edit it. Do not import from polymarket/midas/.
 See CLAUDE.md "Kernel vendoring status" for context.
 
 ## Key decisions made
@@ -297,6 +297,28 @@ See CLAUDE.md "Kernel vendoring status" for context.
     `MakerQuoteSkipped reason="tick_size_not_allowed"` including the
     observed tick in `detail`.
 
+31a. **Join-2 live-execution machinery is DRY-RUN-proven, operator-driven.**
+    `maker/mm_latency_harness.py` (`--mode mm_latency`) measures our own
+    submit→ack round-trip with unexecutable probes (BUY@0.001 /
+    SELL@0.999, 1 contract, cancel-on-ack; refuses near-resolved books;
+    probes gated EXACTLY like quotes — same `VenueOrderRouter` +
+    `RealOrderGate`, budget + per-order confirm). The fitted trimmed
+    mean lands in the bridge via `POLYMARKET_MM_BRIDGE_LATENCY_MS`.
+    The bridge gained a HARD inventory cap in contracts
+    (`POLYMARKET_MM_BRIDGE_MAX_INVENTORY`; reduce-only at the cap,
+    `MakerQuoteSkipped reason="inventory_cap"`) because USD risk caps
+    don't bound contracts and account cash is invisible to the bridge.
+    `maker/mm_calibration.py` (`--mode mm_calibrate`) fits `ProbQueue.f`
+    (external grid — the frozen `calibrate()` is a stub) + the latency
+    constant and emits the bracket-collapse report. Market selection =
+    the pre-registered 5-screen filter
+    (`research/scripts/mm_join2_market_screen.py`). Funding pre-flight =
+    the authed read-only `tests/probes/mm_join2_balance_probe.py`
+    (public reads show $0 for custodied cash — v0 gate finding).
+    Operator procedure: `maker/MM_JOIN2_RUNBOOK.md`. No real order can
+    flow without (real venue) ∧ (MAX_REAL_ORDERS budget) ∧ (operator
+    confirm) — proven in `tests/maker/test_mm_join2_no_real_order_proof.py`.
+
 31. **Auth-only verification is a read path, not a quote path.**
     `python -m polymarket.execution --mode maker --check-auth` builds
     the real venue adapter, calls the kernel open-order reconciliation
@@ -556,7 +578,7 @@ See CLAUDE.md "Kernel vendoring status" for context.
     kernel signer entirely for NegRisk reasons).
 13. Polymarket account credentials into `.env` (private key
     from wallet; API key/secret/passphrase via
-    `midas/scripts/derive_api_keys.py` or Polymarket UI;
+    `polymarket/midas/scripts/derive_api_keys.py` or Polymarket UI;
     `POLYMARKET_FUNDER` from the Account page).
 14. Auth-only verification path implemented:
     `python -m polymarket.execution --mode maker --check-auth` hits
@@ -679,7 +701,7 @@ after the first real-money smoke succeeds.
 
 - Leader-proportional sizing (waits for research-side parquet).
 - API-key derivation at startup (currently manual paste in .env).
-  Reference: midas/scripts/derive_api_keys.py and the QuickNode
+  Reference: polymarket/midas/scripts/derive_api_keys.py and the QuickNode
   pattern (deriveApiKey() then createApiKey() fallback).
 - ~~Repo-wide reorganisation merging polymarket-copy/ and
   polymarket/execution/ under a shared parent.~~ Done — research
@@ -689,7 +711,7 @@ after the first real-money smoke succeeds.
 
 ## Open questions to resolve before real money
 
-- The +100 LOC growth in midas/executor/polymarket_sdk_signer.py
+- The +100 LOC growth in polymarket/midas/executor/polymarket_sdk_signer.py
   since vendoring: bug fix, feature, or refactor? **RESOLVED:
   bypassed entirely.** `mirror/clob_signer.py` replaces the
   kernel signer in the real-venue path (the kernel signer

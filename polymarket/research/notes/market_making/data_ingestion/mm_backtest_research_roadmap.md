@@ -2,7 +2,7 @@
 title: "MM Backtest Research Roadmap"
 tags: [market-making, backtesting, roadmap, queue-model, calibration]
 created: 2026-06-24
-status: active — Phase 0 not yet started
+status: active — Phase 0 + Phase 1 built; engine reconciliation locked (this roadmap's Join 2); calibration (Phase 2 / Join 3) next — see [[mm_engine_build_log]]
 identifier: "mm_backtest_research_roadmap"
 relationship: >
   Operational skeleton for the MM backtesting research process. Companion to
@@ -15,6 +15,12 @@ relationship: >
 # MM Backtest Research Roadmap
 
 > Hub: [[strat_market_making]] · [[COWORK]]
+> **Status update (2026-06-30):** the front of this roadmap is no longer "not yet started." Phase 0 (interface freeze) and Phase 1 (engine + models) are **built**, and engine reconciliation — this roadmap's **Join 2** (placeholder-quoter backtest == live-shadow, same decisions) — is **LOCKED** at 0% gap. What this roadmap calls **Phase 2 / Join 3** (calibrate to real fills) is the next step. Chronological build log + component map: **[[mm_engine_build_log]]**. (Note: the build-plan numbers the joins 0/1/2; this roadmap's Join 2/Join 3 = the build-plan's Join 1/Join 2 — same milestones, different labels.)
+
+## Plain-English Summary
+
+- The **step-by-step, gated skeleton** for building a calibrated MM backtester on Polymarket and iteratively researching strategies through it — each phase advances only when its gate passes.
+- The "what, in what order" companion to [[mm_backtesting_methodology_explainer]] (the "why"); the research/modelling counterpart to Justin's infrastructure plan. Feeds [[strat_market_making]] MM Path B; depends on L2 data from [[polymarket_l2_ingestion]].
 
 ## What this document is
 

@@ -1,5 +1,14 @@
 """Build data/traders.parquet — Phase 3 / per-trader metrics + style profile.
 
+⚠️ TRUST WARNING (2026-07-21): output CONDEMNED pending bundle-aware dedup.
+The aggressor of every _matchOrders bundle appears twice (sibling `taker`
+rows + internal-leg `maker` row; internal-leg addresses = EXCHANGE_INTERNAL_LEG
+in data_infra/operator_denylist.py). This builder explodes both roles with no
+dedup -> aggressive positions double-counted; cross-token bundles fabricate
+phantom offsetting legs. Do NOT re-run as-is (reproduces the defect). See
+notes/overview/pm_prealvaro_pipeline_trust_audit_findings.md Finding 2.
+
+
 One row per address that touched at least one closed market. Metrics:
   - Activity (fills, markets, volume, time range)
   - Position-level PnL stats (pos_*)  — primary, but inflated for NegRisk arb

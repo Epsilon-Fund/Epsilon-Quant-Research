@@ -10,6 +10,8 @@ hubs:
   - COWORK
 ---
 
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/200 executable cells; the rolling-rank-beats-deciles sizing insight survives as a design input only. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block P1 Rolling-Rank Findings
 
 > Hub: [[COWORK]]

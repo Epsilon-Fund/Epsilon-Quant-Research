@@ -1,7 +1,7 @@
 ---
 title: Block B Findings - Historical Fill-Only TFI Deep Dive
 created: 2026-05-27
-status: candidate
+status: archived
 owner: justin
 project: polymarket
 para: resource
@@ -14,6 +14,8 @@ tags:
   - tfi
   - research
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — its operator-filter headline was an emit-path artifact (signs inverted on ~35–41% of fills); the surviving 'no tradable TFI' claim is carried by [[copytrade_attribution_repartition_findings]]. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block B Findings - Historical Fill-Only TFI Deep Dive
 

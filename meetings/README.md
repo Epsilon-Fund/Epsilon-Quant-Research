@@ -15,3 +15,9 @@
 ## Meeting notes
 
 - [[2026-06-16_alvaro_mm_debrief_prep]] — prep for the Alvaro market-making debrief (2026-06-16).
+
+## Transcripts
+
+`transcripts/<YYYY-MM-DD>_<slug>/` holds diarized transcripts + `summary.md` produced by the
+`audio-transcribe-summarize` skill (see [[SKILL_MAP]]) from local recordings/voice notes. Raw
+derived output, not curated prep notes — kept separate from the notes above.

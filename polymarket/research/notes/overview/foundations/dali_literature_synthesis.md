@@ -13,6 +13,8 @@ related: [[dali_factor_construction]], [[block_k_maker_options_research]], [[202
 parent: dali
 ---
 
+> **Canon status (2026-07-19 audit): CANON** — literature core (CKS/Avellaneda-Stoikov/Glosten-Milgrom/Briola + PM-specific theory) remains the reference; §5 status and §6 roadmap are executed history, the §4.1 fee table predates the current fee=0/rebate=0 target categories, and §4.3's empirical patterns are un-sourced CI-free priors — treat those sections as historical. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # ML for Prediction Markets — Literature Synthesis and Strategy Layout
 
 > Hub: [[COWORK]]

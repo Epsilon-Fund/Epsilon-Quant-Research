@@ -33,6 +33,16 @@ Each stage has a single responsibility and the boundaries are enforced: risk is 
 | `tests/` | Failure-mode-first test suite (happy path / edge / failure per module) + read-only API probes with written findings ([WS](tests/probes/WS_PROBE_FINDINGS.md), [NegRisk](tests/probes/NEGRISK_FINDINGS.md)) |
 | `cli.py`, `config.py` | Entry point and env-driven configuration |
 
+## CLOB client stacks — which is source of truth for what
+
+Three CLOB client/signer stacks coexist **by design** (audited 2026-07-21; do not dedupe):
+
+| Stack | Role | Source of truth for |
+|---|---|---|
+| `polymarket/midas/executor/` | the original Midas bot executor | the Midas bot only |
+| `_kernel/` | **frozen** vendored snapshot of `midas/executor/` (2026-05-06; see [_kernel/README.md](_kernel/README.md)) | this module's venue adapter + order state machine — never edited, never synced |
+| `mirror/` (`clob_http_client.py`, `clob_signer.py`, `pysdk_gateway.py` + `pysdk_order_gateway.py`) | the live order path | real order placement. The V2 SDK (`Polymarket/py-sdk`) runs in an **isolated child process** — `pysdk_gateway.py` is the child, `pysdk_order_gateway.py` the parent-side wrapper (they are a pair, not duplicates) — because the SDK's top-level `polymarket` package shadows this repo's. Legacy V1 wire path retained only for the gateway-less fake/test path |
+
 ## Why it can be trusted
 
 The full execution test suite is **256 tests green**, with the maker + NegRisk dependency slice at 67. Tests never hit the real Polymarket API — order submission is exercised against the kernel's fake venue adapter. Where exchange behaviour was unclear, it was settled by read-only probe scripts whose findings are committed next to the tests. Conventions match the research side byte-for-byte (lowercase `0x` addresses, UTC timestamps, `condition_id` as market key, `(transaction_hash, log_index)` as trade key) so research artifacts plug in without translation.

@@ -14,6 +14,8 @@ tags:
   - research
 ---
 
+> **Canon status (2026-07-19 audit): HISTORICAL** — universe-selection planning snapshot, superseded by the A0/A0b/A0c captures and then the MM thread. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Dali Market Universe Screen
 
 > Hub: [[COWORK]]

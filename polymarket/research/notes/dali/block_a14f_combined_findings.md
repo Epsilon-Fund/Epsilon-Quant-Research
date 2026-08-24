@@ -1,6 +1,13 @@
 ---
+title: "Block A1.4f Combined Refined-Exit + Tight-Spread Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a14f, executable-cost, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/660 cells with CI-low > 0; stacking creates no new winner. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

@@ -1,7 +1,7 @@
 ---
 title: "Phase 5 — Walk-Forward Cohort Backtesting"
 created: 2026-06-05
-status: candidate
+status: archived
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - copytrade
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — sound walk-forward design spec, since executed; its flat-3c slippage fallback was superseded by [[copytrade_spread_surface_mtm_findings]] with no verdict flips. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Phase 5 — Walk-Forward Cohort Backtesting
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]

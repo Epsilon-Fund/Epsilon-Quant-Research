@@ -2,13 +2,15 @@
 tags: [dali, block-e-lite, results]
 title: Relayer Identification Dig Findings
 created: 2026-05-28
-status: closed
+status: active
 owner: justin
 project: polymarket
 para: resource
 hubs:
   - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — decisive multi-source identification: the two biggest 'trader' addresses are Polymarket's CTF Exchange v1 contracts — the pivot of the whole Block-B reinterpretation chain. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Relayer Identification Dig Findings
 
@@ -62,3 +64,7 @@ These are the same kind of infrastructure, not two unrelated operators: `0x4b...
 ## Recommended Next Action
 
 Justin should relabel the denylist category from `relayer` to `exchange_internal_leg`, include both V1 and V2 exchange addresses, and rerun Block B / Block E Lite with a decoder-level maker/taker interpretation check before treating the lift as a trader-flow result.
+
+## External context: eightdelta
+
+This note's trap — exchange contracts masquerading as whale wallets — is required reading for any block-flow attribution on Polymarket data. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

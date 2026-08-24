@@ -46,6 +46,16 @@ infrastructure/data/config.yaml
 *.pem
 .env
 secrets/
+# GCP service-account keys (e.g. GDELT BigQuery) — never commit; keep outside the repo
+newsfeed-epsilon-*.json
+*-service-account*.json
+gcp-*.json
+service_account*.json
+# OAuth client secrets + tokens (e.g. Gmail read-only) — never commit
+client_secret*.json
+gmail_client_secret.json
+gmail_token.json
+token.json
 
 # IDE Settings
 .vscode/
@@ -89,8 +99,15 @@ secrets.toml
 journal_logs/
 journal_logs_*/
 
+# Superforecasting skill — per-book forecast ledger (append-only runtime data; treat
+# like trades.json: never commit). One ledger per book; the books share no state.
+# (polymarket book is also covered by `polymarket/research/data/` below; listed here too for clarity.)
+polymarket/research/data/superforecast/
+live_trading/data/superforecast/
+
 # polymarket/research (was polymarket-copy/.gitignore — consolidated on restructure)
-polymarket/research/data/
+polymarket/research/data/*
+!polymarket/research/data/README.md
 polymarket/research/.env
 polymarket/research/.venv/
 polymarket/research/.tmp/
@@ -116,3 +133,16 @@ brain/**/.DS_Store
 /Users/
 /home/
 /private/
+
+# data-contract layer monitoring artifacts — regenerable (references, drift logs,
+# append-only manifests, failure reports). Code is tracked; this state is not.
+infrastructure/data/schemas/data_monitoring/
+polymarket/research/data_infra/schemas/data_monitoring/
+
+# changepoint detector append-only output (regenerable break logs)
+infrastructure/changepoint/changepoints/
+
+# Per-machine Claude Code permissions/settings — LOCAL ONLY, never shared.
+# (Also covered by justin's global ~/.config/git/ignore; listed here so the rule
+# travels with the repo for every collaborator.)
+.claude/settings.local.json

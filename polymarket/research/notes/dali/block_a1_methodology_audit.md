@@ -1,6 +1,13 @@
 ---
+title: "Block A1 Methodology Audit"
+status: active
+hubs:
+  - COWORK
 tags: [dali, block-a1, audit, methodology]
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — accurate implementation audit of the A1 replay/analyzer; itself documents the family's realism gaps (queue-blind maker proxy, event-row weighting, cost overlay ≠ executable PnL). Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

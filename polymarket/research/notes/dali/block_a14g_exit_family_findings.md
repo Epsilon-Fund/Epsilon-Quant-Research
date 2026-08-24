@@ -1,6 +1,13 @@
 ---
+title: "Block A1.4g Exit-Family Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a14g, executable-cost, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/165 across 15 exit families; final nail for taker-continuation. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

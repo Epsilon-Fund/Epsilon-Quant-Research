@@ -171,6 +171,24 @@ def build_venue_adapter(venue_mode: str, config: ExecutionConfig,
                 funder=config.funder,
             )
         )
+        # V2 order path (2026-07): Polymarket archived py-clob-client and the venue
+        # rejects V1 signed orders ("invalid order version"). Real-venue order
+        # placement goes through the py-sdk gateway (isolated subprocess — the SDK's
+        # top-level package name collides with this repo's `polymarket/`). Fail
+        # CLOSED if the gateway can't start: without it no real order can be placed.
+        import atexit
+
+        from polymarket.execution.mirror.pysdk_order_gateway import PySdkOrderGateway
+        gateway = PySdkOrderGateway()
+        gateway.start()
+        atexit.register(gateway.close)   # child exits with the process (stdin EOF backstop too)
+        gateway.init(
+            private_key=config.private_key,
+            wallet=config.funder,
+            api_key=config.api_key,
+            api_secret=config.api_secret,
+            passphrase=config.passphrase,
+        )
         http_client = ClobHttpClient(
             ClobHttpClientConfig(
                 api_url=config.clob_url,
@@ -181,6 +199,7 @@ def build_venue_adapter(venue_mode: str, config: ExecutionConfig,
                 chain_id=config.chain_id,
             ),
             signer=signer,
+            gateway=gateway,
         )
         kernel_adapter = PolymarketVenueAdapter(
             client=http_client,

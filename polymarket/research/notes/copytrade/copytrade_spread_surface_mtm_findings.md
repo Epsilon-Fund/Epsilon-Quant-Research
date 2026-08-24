@@ -1,7 +1,7 @@
 ---
 title: "Copy-Execution Phase 5: mid-as-data, category-gated surface fallback, and MTM equity (Block SPREAD-2)"
 created: 2026-06-11
-status: closed
+status: active
 owner: justin
 project: polymarket
 para: project
@@ -12,6 +12,9 @@ tags:
   - copytrade
   - spread
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — SPREAD-2 terminal verdict: execution price is the copy killer (Domah +$1.14M at his own prices vs −$429k as pure-taker copy on identical fills); lookahead-free MTM, frozen validated surface. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Phase-5 copy execution upgraded: the trade-time spread surface replaces the flat-3c slippage fallback, plus a lookahead-free MTM equity curve (Block SPREAD-2)
 
 > Hub: [[COWORK]]

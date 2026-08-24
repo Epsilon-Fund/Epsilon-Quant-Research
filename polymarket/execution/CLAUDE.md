@@ -30,9 +30,9 @@ the canonical version for this module. Treat it as frozen.
 ## Hard rules
 
 1. Never edit anything inside `_kernel/`. It is vendored from
-   midas/executor/. If you think it needs a change, stop and ask.
+   polymarket/midas/executor/. If you think it needs a change, stop and ask.
 
-2. Never write code that touches `midas/`. Different module, different
+2. Never write code that touches `polymarket/midas/`. Different module, different
    owner.
 
 3. Lowercase 0x-prefixed addresses everywhere. UTC timestamps everywhere.

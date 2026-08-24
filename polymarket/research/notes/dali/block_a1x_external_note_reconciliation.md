@@ -9,13 +9,15 @@ inputs:
   - block_a14_executable_taker_findings.md ... block_a17_lightgbm_findings.md
   - block_a15b_decoupled_findings.md (mean-reversion-to-micro-price diagnosis)
   - block_a16_binary_bet_findings.md (overlap-vs-non-overlap kill)
-status: analysis
+status: active
 owner: justin
 project: polymarket
 para: resource
 hubs:
   - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — the strategic triage that separated the falsified continuation FRAMING from the still-descriptive signal, and spawned Block A18/Block I; minor known error: describes A1.2 as an 'L2 proxy' test when it was a true per-level replay. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Reconciliation — External Strategy Library vs A1.4–A1.7
 
@@ -125,3 +127,7 @@ the non-overlap math is the reason the apparent winners evaporated.
   genuinely closed.
 - **Sequencing vs copytrade:** copytrade stays primary by default, but items (a)/(b) above are a few hours
   of replay on data we own, so they're cheap to settle before committing more A2 capture budget.
+
+## External context: eightdelta
+
+The untested framings this note catalogs under flow-toxicity (#11) and large-trade impact/reversal (#17) overlap the research program of the separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only), which studies block-trade identification and underlying impact on Deribit with more institutional rigor — see its `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study). Cross-reference before building anything in this space. Ledger: [[pm_prealvaro_canon_audit_findings]].

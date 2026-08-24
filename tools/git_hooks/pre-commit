@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Epsilon guard hook (RC-007, brain/reflection/candidates.md). Opt-in per clone:
+#   bash tools/git_hooks/install.sh
+#
+# Blocks three historically-observed foot-guns at commit time:
+#   1. committed merge-conflict markers  (shipped 6 unparseable files on 2026-06-24, commit 384151f)
+#   2. notebook outputs reaching the index (only happens when the nbstripout filter is broken)
+#   3. CRLF line endings in staged text  (8 LF-normalization chore commits in June 2026)
+# Bypass (deliberately, rarely): git commit --no-verify
+#
+# Design notes: reads index blobs only (git show :path) — never touches the working
+# tree, so it stays fast even when the tree is dirty. Binary files are skipped via
+# numstat's "-" marker (git's own binary detection). The conflict-marker pattern is
+# built with {7} repetition so this file can never trip its own check.
+set -uo pipefail
+
+fail=0
+while IFS=$'\t' read -r added deleted f; do
+  [ -z "$f" ] && continue
+  [ "$added" = "-" ] && continue                               # binary per git
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  [ "$size" -gt 5242880 ] && continue                          # >5MB: skip
+
+  # 1. merge-conflict markers ('<'x7+space / '>'x7+space at start of line;
+  #    '=======' alone is skipped on purpose — legitimate markdown setext underline).
+  if git show ":$f" 2>/dev/null | grep -qE '^(<{7} |>{7} )'; then
+    echo "BLOCKED: $f contains merge-conflict markers." >&2
+    fail=1
+  fi
+
+  # 2. notebook outputs in the index -> the nbstripout filter did not run.
+  if [ "${f##*.}" = "ipynb" ] && git show ":$f" 2>/dev/null | grep -q '"output_type"'; then
+    echo "BLOCKED: $f has cell outputs in the index — the nbstripout filter is broken here." >&2
+    echo "         Fix the filter:  bash tools/fix_nbstripout_filter.sh   then re-stage." >&2
+    fail=1
+  fi
+
+  # 3. CRLF in staged text (repo law: LF in the index — brain/MERGE_PROTOCOL.md § 6).
+  if git show ":$f" 2>/dev/null | grep -q $'\r'; then
+    echo "BLOCKED: $f is staged with CRLF line endings (repo stores LF; see brain/MERGE_PROTOCOL.md §6)." >&2
+    echo "         Fix:  git add --renormalize -- \"$f\"" >&2
+    fail=1
+  fi
+done < <(git diff --cached --numstat --diff-filter=ACM)
+
+exit $fail

@@ -47,12 +47,14 @@ Wikilinks keep the research memory navigable. A finding is only useful later if 
 - [[polymarket_data_manifest]] — family-level manifest for Parquet, CSV, JSONL, DuckDB, and raw Polymarket data artifacts.
 - [[polymarket_table_dictionary]] — shared definitions for compact table columns, bucket labels, filters, and indicators.
 - [[mm_clob_capture_semantics]] — public PM CLOB capture semantics: anonymous L2, trade-print alignment, timestamp handling, and reconstruction limits.
+- [[mm_engine_build_log]] — `mm_engine` recap: chronological build log (Phase 0 → Join 1), component map (every module + queue/latency models + strategy layer), and where-we-are (Join 1 LOCKED; Task 4 ‖ Join 2 in parallel). The navigable index over the engine notes.
 - [[trade_anchored_spread_surface_findings]] — SPREAD-1: trade-anchored half-spread surface from /prices-history mid + OrderFilled; `/prices-history` confirmed a true book midpoint; pre-registered validation gate FAIL (Spearman 0.496 < 0.6, MedAE exactly 1.000c) with a measured diagnosis — trade-time vs time-averaged spread divergence in fast crypto (2.29c vs 4.00c) + 1-min mid staleness; slow-category level prior survives (MedAE ≤ 0.9c).
 - [[spread_surface_tradetime_regate_findings]] — SPREAD-1b: the pre-registered successor gate — same frozen surface scored against the quoted half-spread as-of trade times (the quantity copy fills pay). **PASS on all three bars** (pooled MedAE 0.75c, fast-crypto 0.80c, 71.7% head-to-head vs flat-3c); the surface is a validated trade-time taker-cost prior for all categories except politics_negrisk (n=2); time-averaged consumers still must not use it.
 - [[polymarket_plot_gallery_index]] — wikilinked index of generated Polymarket plot-gallery attachments.
 - [[spacex_ipo_market_map_handoff]] — SpaceX IPO cross-market map for PM, Hyperliquid, TradingView, proxy funds, and agent handoff.
 - [[spacex_ipo_coworker_addendum]] — companion note from the coworker DOCX/PNG covering Class A vs Class B, `xyz:SPCX` vs `vntl:SPACEX`, Trade Republic, TradingView, and the PCHIP distribution.
 - [[spacex_pdf_construction_audit]] — methodology stress-test of the coworker PCHIP scripts: the multi-peak shape is an interpolation/differentiation artifact (not crowd belief); central stats (P(close>$135)≈80%, mean≈$167) are method-invariant, but shape/tail stats (mode, excess kurtosis +3.4→+0.8, P1/P99) are distorted; liquidity is unused. Reproduces the full original metric set under a liquidity-weighted lognormal and ships a drop-in replacement builder. Strategy framing intentionally out of scope.
+- [[data_contract_validation_layer_findings]] — executable data-contract + drift validation layer (the `data-contract` skill): schema, append-only, and lookahead invariants checked before any backtest/replay/research run.
 
 ## Strategy Folders
 
@@ -66,9 +68,13 @@ Folder index: [[INDEX]].
 - `polymarket/research/notes/overview/foundations/` — academic/deep research and external research libraries.
 - `polymarket/research/notes/overview/data_quality/` — validation, reconciliation, freshness, trigger, and methodology notes.
 - `polymarket/research/notes/overview/market_maps/` — market screens and maps.
+- `polymarket/research/notes/news_agent/` — News-Agent Fair-Value + Calibration Showcase (public showcase thread, Block-J lineage): hub [[strat_news_agent_showcase]], gate pre-registration [[newsagent_v0_gate_preregistration]], radar [[newsagent_repo_data_radar_findings]].
 
 ## Falsification And Redesign Anchors
 
+- **Pre-Alvaro canon audit (2026-07-19): [[pm_prealvaro_canon_audit_findings]]** — verdict ledger for all 62 dali/copytrade/foundations notes (16 CANON, 17 CLOSED-ROBUST, 29 HISTORICAL, 0 DEMOTED); every audited note now carries a status banner. Read this before citing any pre-MM-era number.
+- **Dali workflow revision decision (2026-07-21): [[pm_dali_workflow_revision_decision]]** — the "should the whole dali workflow be revised?" answer: strategy stays closed (Tier 1), fix five recurring workflow defects (Tier 2), re-measure the dali features on real captured L2 as MM-gate inputs only (Tier 3, Cowork-scoped). Standing rule: read spread/depth from the real book, never estimate.
+- **Pre-Alvaro pipeline trust audit (2026-07-21): [[pm_prealvaro_pipeline_trust_audit_findings]]** — the adversarial snowball pass: corrected the 73.7%/36.0% record (metric mismatch), proved the sign-fix never reached the derived tables **plus** a larger aggressor double-count/phantom-position defect (position pipeline condemned pending bundle-aware regeneration; esports latency screen condemned; Join-2 screen-4 must stay a preference), confirmed A17's regime confound (calibration table condemned), and stress-tested every kill against replay/fill/fee/split assumptions — no reopens, most kills strengthen.
 - dali is not globally closed; its original direct local microstructure continuation branch was falsified/redesigned via [[block_p3prime_oos_findings]], [[block_a0c_holdout_retest_findings]], [[block_a14h_maker_non_overlap_findings]], and [[block_a17_lightgbm_findings]].
 - Single-venue Polymarket market-making is closed; surviving maker value is in [[block_k5_findings]], [[block_k5b_findings]], and the copy/learn route.
 - Continuous/banded options-delta gamma scalp is closed; static-hedge Strategy A moved through [[block_k6_strategy_a_static_hedge_findings]] into [[od_strategy_a_v2_lifecycle_findings]], where the primary OOS lifecycle gate failed and the hedge overlay stayed gated.

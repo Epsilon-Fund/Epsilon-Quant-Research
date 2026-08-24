@@ -1,7 +1,7 @@
 ---
 title: Domah Trader Profile
 created: 2026-05-28
-status: candidate
+status: archived
 owner: justin
 project: polymarket
 para: resource
@@ -13,6 +13,8 @@ tags:
   - domah
   - research
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — honest whale dossier, but winner-screened by construction, its $4.0M PnL is at-his-own-prices (the same flow copied as taker loses −$429k per [[copytrade_spread_surface_mtm_findings]]), and its 7.89 style ratio predates the active_order_leg fix (corrected to 5.67). Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Trader profile — `0x9d84ce0306f8551e02efef1680475fc0f1dc1344`
 
@@ -161,3 +163,7 @@ This profile summarizes Domah (`0x9d84...1344`) as a copytrade candidate, includ
 ---
 
 _PnL computed from on-chain trade data + market resolution. Polymarket's UI may show different numbers due to fee accounting, mark-to-market on open positions, and merge/split events not captured here. Treat differences <20% as internally normal._
+
+## External context: eightdelta
+
+This dossier profiles a canonical large trader. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

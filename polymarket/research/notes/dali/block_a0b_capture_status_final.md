@@ -1,7 +1,7 @@
 ---
 title: "Block A0 Capture Status"
 created: 2026-06-05
-status: generated
+status: active
 owner: justin
 project: polymarket
 para: project
@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — terminal A0b capture data-quality record; gates A1b work. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A0 Capture Status
 > Hub: [[COWORK]]
 

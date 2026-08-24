@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import sys
 import threading
 import time
 import urllib.error
@@ -31,6 +30,7 @@ from polymarket.execution.journal import (
 from polymarket.execution.mirror.mirror_engine import SubmitResult
 
 from .event_calendar import EventCalendar
+from .order_safety import RealOrderGate
 
 _STOP_JOIN_TIMEOUT_S = 5.0
 _HTTP_USER_AGENT = "curl/8.0"
@@ -286,7 +286,11 @@ class MakerEngine:
         self._our_fill_count = 0
         self._session_start_utc = datetime.now(timezone.utc)
         self._today_utc = today_utc
-        self._real_attempts = 0
+        # Shared real-venue safety gate (MAX_REAL_ORDERS + REQUIRE_OPERATOR_CONFIRM).
+        # Single source of truth reused by the MM-engine live bridge — see order_safety.py.
+        self._gate = RealOrderGate(
+            config=execution_config, journal=journal, label="maker"
+        )
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -587,52 +591,23 @@ class MakerEngine:
     def _safety_block_reason(
         self, market: MakerMarket, *, side: str, price: float
     ) -> tuple[str, str] | None:
-        if not _is_real_venue(self._venue):
-            return None
-        if self._real_attempts >= self._execution_config.max_real_orders:
-            detail = (
-                f"maker reached limit of "
-                f"{self._execution_config.max_real_orders} real submits"
-            )
-            self._journal.write(RiskHalt(
-                ts_utc=datetime.now(timezone.utc),
-                reason="max_real_orders",
-                detail=detail,
-            ))
-            return "max_real_orders", detail
-        if self._execution_config.require_operator_confirm:
-            if not self._prompt_operator(market, side=side, price=price):
-                detail = "operator declined maker quote via stdin"
-                self._journal.write(RiskHalt(
-                    ts_utc=datetime.now(timezone.utc),
-                    reason="operator_aborted",
-                    detail=detail,
-                ))
-                return "operator_aborted", detail
-        self._real_attempts += 1
-        return None
+        # Delegate to the shared real-venue gate so the maker loop and the MM-engine
+        # bridge enforce MAX_REAL_ORDERS + REQUIRE_OPERATOR_CONFIRM identically. The gate
+        # journals the RiskHalt; the caller journals the MakerQuoteSkipped.
+        return self._gate.check(
+            venue=self._venue,
+            condition_id=market.condition_id,
+            asset_id=market.asset_id,
+            side=side,
+            size=float(self._config.size_contracts),
+            price=price,
+        )
 
     def _tick_size_allowed(self, tick_size: float) -> bool:
         return any(
             abs(tick_size - allowed) < 1e-12
             for allowed in self._config.allowed_tick_sizes
         )
-
-    def _prompt_operator(self, market: MakerMarket, *, side: str, price: float) -> bool:
-        print(
-            f"\n[operator confirm] Maker quote:\n"
-            f"  condition: {market.condition_id}\n"
-            f"  asset    : {market.asset_id}\n"
-            f"  side     : {side}\n"
-            f"  size     : {self._config.size_contracts}\n"
-            f"  price    : ${price:.4f}\n"
-            f"Type 'yes' to proceed: ",
-            end="", flush=True,
-        )
-        try:
-            return sys.stdin.readline().strip().lower() == "yes"
-        except (EOFError, KeyboardInterrupt):
-            return False
 
     def _log_fill_telemetry(
         self, row: dict[str, Any], *, coid: str, matched: bool
@@ -751,16 +726,6 @@ class MakerEngine:
 def _make_client_order_id(condition_id: str, side: str) -> str:
     raw = f"mm:{condition_id}:{side}:{time.time_ns()}".encode("utf-8")
     return f"mm-{hashlib.blake2b(raw, digest_size=8).hexdigest()}"
-
-
-def _is_real_venue(venue: Any) -> bool:
-    fn = getattr(venue, "is_real_venue", None)
-    if not callable(fn):
-        return False
-    try:
-        return bool(fn())
-    except Exception:
-        return False
 
 
 def _parse_clob_token_ids(raw: Any) -> list[str]:

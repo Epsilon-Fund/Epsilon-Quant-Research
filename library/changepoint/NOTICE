@@ -1,0 +1,9 @@
+lemma-changepoint
+Copyright 2026 Epsilon Research
+
+Extracted and generalized from the Epsilon internal quantitative research
+codebase (infrastructure/changepoint). BOCPD follows Adams & MacKay (2007),
+"Bayesian Online Changepoint Detection"; the Student-t posterior predictive
+follows Murphy (2007), "Conjugate Bayesian analysis of the Gaussian
+distribution". The in-package skills installer pattern is adapted from
+goldmansachs/gs-quant (Apache-2.0).

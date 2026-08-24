@@ -7,7 +7,12 @@ relationship: >
   Synthesises the whole Block K maker/options-delta arc (K1, K2, K2v2, K2v3, K-PEG + robustness +
   maker-exit, K3, K4, K6) into one readable document. Source notes remain authoritative for numbers;
   this is the orientation + glossary + strategy explainer.
+status: active
+hubs:
+  - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — glossary, K-block history, and the two structural lessons remain the shared DNA of ~25 downstream MM/OD notes; superseded parts: §0's pre-§8 TL;DR, §2's fee/rebate bullets, §6's 'Strategy A never tested with a static hedge' (since tested and gated negative), §7's next steps (executed), and §8's exact +171 bps (cite the K5-STRESS survivorship-fixed numbers instead). Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block K — Plain-English Synthesis
 

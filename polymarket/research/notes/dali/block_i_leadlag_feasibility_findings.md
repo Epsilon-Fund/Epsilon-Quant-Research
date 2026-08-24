@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — spot-return lead-lag exists weakly but is structurally unexecutable after spread+fees (OOS CI far below zero); perp-OFI and sub-second variants explicitly out of scope, not closed here. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block I Lead-Lag Feasibility Findings
 
 > Hub: [[COWORK]]

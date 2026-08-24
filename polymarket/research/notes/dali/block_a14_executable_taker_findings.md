@@ -1,6 +1,13 @@
 ---
+title: "Block A1.4 Executable Taker Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a14, executable-cost, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/12 cells positive under fill assumptions generous to the strategy; taker-continuation correctly killed. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

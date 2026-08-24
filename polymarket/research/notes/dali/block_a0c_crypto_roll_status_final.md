@@ -11,6 +11,9 @@ tags:
   - research
   - dali
 ---
+
+> **Canon status (2026-07-19 audit): CANON** — terminal crypto-roll capture record and the only note documenting roll-discovery health (77 discovery misses → roll-window coverage is not 100%). Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 # Block A0c Crypto Roll Final Status
 > Hub: [[COWORK]]
 

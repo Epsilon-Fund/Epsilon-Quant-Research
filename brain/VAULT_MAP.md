@@ -39,6 +39,11 @@ A two-project quantitative research monorepo. The projects **share no code** —
 3. Read your `local_agents/<role>.md` overlay (personal style), then the shared law `brain/CODEX.md` or `brain/COWORK.md`, then `brain/VAULT_MAP.md`, then `brain/TODO.md`.
 4. You operate on a personal branch named after the operator's GitHub handle. Commit/push only to that branch — never main. Merge main into your branch at session start; all merges follow [[MERGE_PROTOCOL]].
 5. **Daily canon check (start of day).** Establish the most-updated canon before working: after any `alvaro`/`justin` merge, `origin/main` is usually ahead, so `git fetch && git checkout <handle> && git merge main` (conflicts → [[MERGE_PROTOCOL]]). Then `git add --renormalize .` to confirm LF — this repo keeps LF in the index across Mac (`justin`) and Windows (`alvaro`); EOL safeguard in [[MERGE_PROTOCOL]] § 6. Only once the branch is current and LF-clean do you begin work.
+6. **Surface skills for the task (Sherpa).** Before starting — and again whenever the task shifts to a new kind of work — run the skill router on a one-line description of what you're about to do and load whatever it surfaces, without waiting to be told:
+   ```bash
+   python3 tools/sherpa.py "<the task in a sentence>"
+   ```
+   It returns the top-N installed skills with a one-line "use when", ranked by keyword + local-semantic match (fully offline; keyword-only if the local embedder is down). This is the reliable, agent-agnostic auto-surfacing mechanism — it works in Cowork, Codex, and Claude Code, and complements Claude Code's native description-triggering by catching skills the agent wouldn't have triggered on. The wrapper skill is `find-skills`; see [[SKILL_MAP]] § Sherpa.
 
 Precedence: personal overlay = voice/preferences; shared `CODEX`/`COWORK` + repo invariants = law (always win).
 
@@ -59,14 +64,15 @@ After bootstrap:
 | `brain/` | Git-tracked context hub: maps, hubs, task list, agent lanes, handoffs (this folder) |
 | `local_agents/` | Local-only per-person agent instruction overlays; git-ignored, never on any branch |
 | `polymarket/research/` | Polymarket research code, notes, data manifests |
-| `polymarket/execution/` (+ `midas/`) | Polymarket execution bot |
+| `polymarket/execution/` (+ `polymarket/midas/`) | Polymarket execution bot |
 | `live_trading/` | Unified Streamlit live-trading app + dashboards |
 | `topics/` | Crypto strategy research (momentum, stat-arb, BB-breakout, CPCV) |
 | `infrastructure/` | Walk-forward + CPCV engines for crypto |
 | `docs/` | Crypto strategy + data references |
 | `tools/` | Repo-level tooling (e.g. `brain_hygiene.py`) |
 | `Attachments/` | Obsidian attachment default (images/PDFs) |
-| `archive/` | Closed / historical material |
+| `archive/` | Closed / historical repo-level material (retired tooling) |
+| `polymarket/archive/` | Archived Polymarket material: Falcon prediction-markets pipeline, sports-arb stray, Midas audit snapshot |
 
 ## Core hubs
 
@@ -121,7 +127,7 @@ Concurrent-edit safety comes from the branch model: each collaborator edits on t
 | copytrade | `polymarket/research/notes/copytrade/` | active — first real-money smoke pending | [[COWORK]] § copytrade |
 | MM — market-making | `polymarket/research/notes/market_making/` | active live-measurement track; old single-venue K2/K-PEG path closed | [[strat_market_making]] |
 | OD — options-delta | `polymarket/research/notes/options_delta/` | standalone pricing closed; selected sizing/execution diagnostics feed MM | [[strat_options_delta]] |
-| dali / research lineage | `polymarket/research/notes/dali/` | not globally closed; individual branches falsified | [[COWORK]] § dali |
+| dali / research lineage | `polymarket/research/notes/dali/` | not globally closed; individual branches falsified — every note carries a canon-audit banner ([[pm_prealvaro_canon_audit_findings]]) | [[COWORK]] § dali |
 | crypto momentum (live) | `live_trading/dashboards/momentum/` | live (6-asset universe) | `docs/STRATEGY_REFERENCE.md` |
 
 > Closed/falsified branch anchors live in [[POLYMARKET_BRAIN]] § Falsification And Redesign Anchors. The single high-level map of the whole arc is [[2026-06-04_state_of_the_arc_and_novelty_frontier]].

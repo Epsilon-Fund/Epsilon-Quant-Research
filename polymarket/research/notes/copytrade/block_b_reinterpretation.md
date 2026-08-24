@@ -3,11 +3,13 @@ title: "Block B / Block E Lite Reinterpretation (post copytrade-relayer-implicat
 tags: [dali, block-b, block-e-lite, reinterpretation, supersession]
 created: 2026-05-28
 updated: 2026-05-28
-status: supersedes-partial
+status: archived
 supersedes: [block_b_findings, block_e_lite_findings]
 hubs:
   - COWORK
 ---
+
+> **Canon status (2026-07-19 audit): HISTORICAL** — correct bridge note; every pre-registered follow-up executed and absorbed by [[copytrade_attribution_repartition_findings]]. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block B / Block E Lite Reinterpretation
 
@@ -95,3 +97,7 @@ This is now a **tractable empirical hypothesis** rather than a "data is contamin
 - Original Block E Lite: [`block_e_lite_findings.md`](block_e_lite_findings.md)
 - Polymarket CTF Exchange source: https://github.com/Polymarket/ctf-exchange/blob/main/src/exchange/mixins/Trading.sol
 - Polymarket V2 migration: https://docs.polymarket.com/v2-migration
+
+## External context: eightdelta
+
+This note documents how batched aggressive-sweep events are emitted on-chain — a mechanism any block-flow read of Polymarket fills must know. The separate **eightdelta** project (outside this repo, `~/Desktop/is this the bottom/eightdelta`, read-only) studies block-trade identification and its effects on the underlying with more institutional rigor — most relevant: `research/part1-sebi-janestreet/part1_foundations.md` (block-trade identification, SEBI/Jane Street case study) and `data/PROBE_FINDINGS.md`/`data/QA_FINDINGS.md` (data-QA discipline). Cross-reference before extending this branch. Ledger: [[pm_prealvaro_canon_audit_findings]].

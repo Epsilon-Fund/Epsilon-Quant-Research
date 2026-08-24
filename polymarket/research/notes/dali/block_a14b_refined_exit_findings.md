@@ -1,6 +1,13 @@
 ---
+title: "Block A1.4b Refined-Exit Taker Findings"
+status: closed
+hubs:
+  - COWORK
 tags: [dali, block-a14b, executable-cost, results]
 ---
+
+> **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/36; exit engineering cannot beat spread cost. Full ledger: [[pm_prealvaro_canon_audit_findings]].
+
 > Hub: [[COWORK]]
 
 

@@ -15,8 +15,10 @@ factories) so no state leaks between legs.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from mm_engine.engine import BACKTEST, EngineResult, run_engine
+from mm_engine.feeds.replay import replay_feed
 
 
 def _gap(a: float, b: float) -> float:
@@ -89,8 +91,11 @@ def reconcile_results(
         ("fill_count", float(a.fill_count), float(b.fill_count)),
         ("filled_qty", a.filled_qty, b.filled_qty),
         ("net_position", _net(a.position), _net(b.position)),
-        ("cash", a.cash, b.cash),
-        ("equity", a.equity, b.equity),
+        ("realized_pnl", a.realized_pnl, b.realized_pnl),
+        ("gross_pnl", a.gross_pnl, b.gross_pnl),
+        ("net_ex_rebate", a.net_ex_rebate, b.net_ex_rebate),
+        ("net_with_rebate", a.net_with_rebate, b.net_with_rebate),
+        ("rebates", a.rebates_earned, b.rebates_earned),
         ("placed", float(a.placed_count), float(b.placed_count)),
         ("quotes", float(a.quote_count), float(b.quote_count)),
     ]
@@ -125,11 +130,15 @@ def run_and_reconcile(
     strategy_factory,
     queue_factory,
     latency_factory,
+    fee_model_factory=None,
     params: dict | None = None,
     mode: str = BACKTEST,
     tolerance: float = 0.05,
 ) -> ReconReport:
     """Run the engine on two freshly-built feeds and reconcile the results."""
+    def _fee():
+        return fee_model_factory() if fee_model_factory is not None else None
+
     result_a = run_engine(
         make_feed_a(),
         strategy=strategy_factory(),
@@ -137,6 +146,7 @@ def run_and_reconcile(
         latency_model=latency_factory(),
         mode=mode,
         params=params,
+        fee_model=_fee(),
     )
     result_b = run_engine(
         make_feed_b(),
@@ -145,5 +155,37 @@ def run_and_reconcile(
         latency_model=latency_factory(),
         mode=mode,
         params=params,
+        fee_model=_fee(),
     )
     return reconcile_results(result_a, result_b, tolerance=tolerance)
+
+
+def reconcile_against_recording(
+    live_result: EngineResult,
+    recording_path,
+    *,
+    strategy_factory,
+    queue_factory,
+    latency_factory,
+    fee_model_factory=None,
+    params: dict | None = None,
+    mode: str = BACKTEST,
+    tolerance: float = 0.05,
+) -> ReconReport:
+    """Replay a live session's OWN recorded frames and reconcile against the live result.
+
+    The recording is written by ``live_shadow_feed(..., record_to=...)`` DURING the live run, so
+    it holds the exact frames that session saw. Replaying it must reproduce the live session's
+    decisions/PnL — a real same-code-path / determinism test (not two replays of pre-captured
+    data). ``mode``/factories must match what produced ``live_result``.
+    """
+    replay_result = run_engine(
+        replay_feed(Path(recording_path)),
+        strategy=strategy_factory(),
+        queue_model=queue_factory(),
+        latency_model=latency_factory(),
+        mode=mode,
+        params=params,
+        fee_model=(fee_model_factory() if fee_model_factory is not None else None),
+    )
+    return reconcile_results(live_result, replay_result, tolerance=tolerance)

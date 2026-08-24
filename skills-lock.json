@@ -6,6 +6,15 @@
       "sourceType": "github",
       "skillPath": "skills/cost-mode/SKILL.md",
       "computedHash": "b78097dc1f3cf65294de09d6230f51ae1b34c6fa227b5982ab7b190a6388f98c"
+    },
+    "superforecasting": {
+      "source": "deusyu/superforecasting-skill",
+      "sourceType": "github",
+      "sourceCommit": "8913b0847ab63b7aefa0599bdffe00362ee360f2",
+      "skillPath": "SKILL.md",
+      "computedHash": "e047852d2aeb6e0fda9cb4ecfefed1c1f57f30ef6e75f97643b5985091786c00",
+      "hashMethod": "sha256 of the LC_ALL=C-sorted manifest of 'sha256(file)  relpath' lines over the vendored tree (.agents/skills/superforecasting/, excluding __pycache__); reflects the patched tree, not the upstream single file",
+      "localPatch": "LEDGER_DIR -> repo-controlled path, one per book (polymarket/research/data/superforecast, live_trading/data/superforecast) selected via SF_BOOK/SF_LEDGER_DIR; ledger-path doc refs in SKILL.md/AGENTS.md/event schema updated to match"
     }
   }
 }
