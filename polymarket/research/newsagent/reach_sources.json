@@ -1,0 +1,756 @@
+{
+  "version": "1.0",
+  "curated": "2026-08-24",
+  "curated_by": "attended session (Claude Code), agent-reach build slice",
+  "note": [
+    "Curated official resolution-source URLs per market, plus the event triggers that",
+    "decide which of them are worth fetching on a given day. This is the 'honest bulk",
+    "of the work' the scoping note called for, and it is DATA, not code: adding a",
+    "source is a JSON edit plus a probe record, never a code change.",
+    "",
+    "Every entry was probed live through the Jina path on the `curated` date and",
+    "carries what came back in `probe`. The load-bearing field is",
+    "probe.published_time, because the APPROVED timestamp rule dates a Jina item by",
+    "the `Published Time:` header and DISCARDS the item when that header is absent:",
+    "  verified  - the header is present and equals the document's release instant.",
+    "  touch     - the header is present but is an edit time on a rolling page. Such",
+    "              a page can only ever be an `index` (navigation), never an item.",
+    "  absent    - no header at all. The origin sends no Last-Modified (most modern",
+    "              CDN-fronted government sites) or sends a stale/meaningless one.",
+    "  fetch_clock - a stamp that tracks the FETCH instant, so it is always 'now'.",
+    "              Discovered during this build and the most dangerous class: it is",
+    "              never after the cutoff, so the approved after-cutoff check cannot",
+    "              catch it, and it back-dates nothing — a month-old document enters",
+    "              as today's news. centcom.mil and nobelprize.org both do this.",
+    "  blocked   - r.jina.ai could not reach it at all (403/404).",
+    "",
+    "MEASURED 2026-08-24: of 22 probed web sources, exactly ONE (federalreserve.gov",
+    "dated press releases) returns a usable publication timestamp. Sources measured",
+    "`absent` or `blocked` ship with enabled=false so they do not burn fetches on a",
+    "gate rejection that is already known — they stay here as curated provenance and",
+    "flip on the day either the site starts serving a timestamp or Justin approves an",
+    "additional declared timestamp source. The YouTube path is unaffected: yt-dlp",
+    "carries real upload timestamps everywhere, so the transcript channel is the one",
+    "that generalises.",
+    "",
+    "roles:  document = an immutable dated document, ingestable as an evidence item.",
+    "        index    = a rolling page. NAVIGATION ONLY. Fetched so the attended",
+    "                   agent can find today's dated document; never an item itself.",
+    "                   When it declares a `child` block, documents discovered under",
+    "                   it may be submitted and are pinned to that url_prefix.",
+    "        video    = a transcript job. With `channel` and no `video_id` it is a",
+    "                   discovery job: submit the matching video as a child.",
+    "triggers: always | weekday {weekdays} | window {start,end} |",
+    "          calendar {calendar, offsets_days}"
+  ],
+
+  "calendars": {
+    "fomc_decision_days_2026": [
+      "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17",
+      "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09"
+    ],
+    "fomc_sep_meetings_2026": [
+      "2026-03-18", "2026-06-17", "2026-09-16", "2026-12-09"
+    ],
+    "nobel_peace_announcement_2026": ["2026-10-09"]
+  },
+
+  "markets": {
+    "will-there-be-no-change-in-fed-interest-rates-after-the-september-2026-meeting-615": [
+      {
+        "label": "FOMC statement",
+        "role": "document",
+        "domain": "federalreserve.gov",
+        "source_type": "official_primary",
+        "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary{YYYYMMDD}a.htm",
+        "immutable": true,
+        "enabled": true,
+        "trigger": {"kind": "calendar", "calendar": "fomc_decision_days_2026", "offsets_days": [0, 1]},
+        "probe": {"date": "2026-08-24", "published_time": "verified", "bytes": 52119,
+                  "note": "July statement: Published Time Wed, 29 Jul 2026 18:00:15 GMT == origin Last-Modified == the 2:00pm ET release instant. 52KB -> 1.5KB after chrome-strip (2.8%), decision sentence intact."},
+        "why": "The statement IS the resolution of a 'no change in rates' market — the decision sentence verbatim, at the instant it was published, rather than a journalist's account of it."
+      },
+      {
+        "label": "FOMC implementation note",
+        "role": "document",
+        "domain": "federalreserve.gov",
+        "source_type": "official_primary",
+        "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary{YYYYMMDD}a1.htm",
+        "immutable": true,
+        "enabled": true,
+        "trigger": {"kind": "calendar", "calendar": "fomc_decision_days_2026", "offsets_days": [0, 1]},
+        "probe": {"date": "2026-08-24", "published_time": "verified",
+                  "note": "Same static-file path shape as the statement; linked from it as 'Implementation Note issued <date>'."},
+        "why": "The operative rates (IORB, ON RRP, discount) that the statement's target range is implemented with — decisive detail on a rates question."
+      },
+      {
+        "label": "FOMC meeting calendar (index)",
+        "role": "index",
+        "domain": "federalreserve.gov",
+        "source_type": "official_primary",
+        "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "touch",
+                  "note": "Published Time Wed, 19 Aug 2026 18:00:38 GMT is the July MINUTES release edit, not an event. The worked example of the rolling-page discard rule — navigation only."},
+        "why": "Confirms the meeting date and the statement URL for the next decision; the statement filename is derived from it."
+      },
+      {
+        "label": "Federal Reserve official channel — FOMC press conference",
+        "role": "video",
+        "domain": "youtube.com/@federalreserve",
+        "channel": "@federalreserve",
+        "source_type": "official_transcript",
+        "match": "FOMC Press Conference",
+        "search": "https://www.youtube.com/@federalreserve/videos",
+        "enabled": true,
+        "trigger": {"kind": "calendar", "calendar": "fomc_decision_days_2026", "offsets_days": [0, 1]},
+        "probe": {"date": "2026-08-24", "published_time": "verified",
+                  "note": "July presser (DLFXUkOc_7I): human-written caption track, 68KB VTT -> 6,753 words; timestamp 1785356671 = 2026-07-29T20:24:31Z; duration 2704s; live_status not_live. Reproduced the scoping measurement exactly."},
+        "why": "The guidance language, not just the decision — what Stage A scores as stance/strength for the NEXT meeting. Always display=False (a caption track is a full copy of the work)."
+      }
+    ],
+
+    "strait-of-hormuz-traffic-returns-to-normal-by-october-31-20260810151043583": [
+      {
+        "label": "UKMTO recent incidents (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/recent-incidents",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 21186,
+                  "note": "RICHEST find of the curation pass: dated per-incident narratives, several naming the Strait of Hormuz directly, in the last fortnight. Carries NO Published Time (origin sends no Last-Modified)."},
+        "dateline_reprobe": {"date": "2026-08-24", "body_leg": "yes — the incident text is full of datelines ('Incident Date: 20 Aug 2026', '18/08/2026 ATTACK:', 'Report Date: 08 Aug 2026')", "url_leg": "NONE, on every reachable UKMTO path", "detail": "Checked exhaustively under the amendment: /recent-incidents is one rolling page whose per-incident anchors are opaque GUIDs (#dc41f5ed-...); /ukmto-products/warnings drills down to YEAR-only URLs (/warnings/2026) and that page renders a JS month accordion with counts but no per-warning links; /ukmto-products/advisories has no drill-down at all. There is no address anywhere on this site that carries a month.", "verdict": "STAYS INDEX. This is the amendment's priority-1 target and the one it does not unlock, and the blocker is precisely the structural leg Justin kept. Under DL-5 a body dateline alone is not enough. Unblocking it requires dating an incident from its position on a rolling page — context-based inference, explicitly DEFERRED."},
+        "why": "The official navigational record the 'traffic returns to normal' question actually tracks. Guardian covers escalation; it does not report that a week passed without a transit incident."
+      },
+      {
+        "label": "UKMTO warnings (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/ukmto-products/warnings",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 2562},
+        "why": "Formal UKMTO WARNING series (numbered NNN-26) — the escalation side of the same record."
+      },
+      {
+        "label": "UKMTO advisories (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/ukmto-products/advisories",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 2825},
+        "why": "The ADVISORY series — lower-severity reports and reclassifications (a WARNING downgraded to ADVISORY is de-escalation evidence)."
+      },
+      {
+        "label": "UKMTO weekly VRA overview reports (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/ukmto-products/weekly-reports/{YYYY}",
+        "enabled": false,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 1136,
+                  "note": "DISABLED: the per-year listing renders EMPTY through Jina — the report list is client-side JavaScript, which the keyless Reader tier does not execute. The reports themselves would be the single best instrument for this market (a weekly 'what happened in the Voluntary Reporting Area' summary); they are unreachable on this path."},
+        "why": "Would be the direct instrument for 'traffic returned to normal'. Unreachable — recorded so the next pass does not rediscover it."
+      },
+      {
+        "label": "CENTCOM public releases (index)",
+        "role": "index",
+        "domain": "centcom.mil",
+        "source_type": "official_primary",
+        "url": "https://www.centcom.mil/MEDIA/PUBLIC-RELEASES/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.centcom.mil/MEDIA/PUBLIC-RELEASES/Article/",
+                  "immutable": true, "enabled": false,
+                  "published_time": "fetch_clock",
+                  "why_disabled": "MEASURED 2026-08-24, and this is the WORST class of failure found in the whole pass: the article at …/Article/4559495/us-strikes-irgc-targets-after-attempted-iranian-attacks/ is datelined July 29, 2026 in its own body and was served with `Published Time: Mon, 24 Aug 2026 13:28:03 GMT` — the fetch instant, 26 days late. A fetch-clock stamp is never AFTER the cutoff, so the approved after-cutoff check cannot catch it; it would have entered a month-old document into the packet as today's breaking evidence. Refused in code by the timestamp_trusted guard, not just by this flag.",
+                  "dateline_reprobe": {"date": "2026-08-24", "url_leg": "NONE", "verdict": "stays index — the STRUCTURAL leg is missing, and DL-5 forbids single-source dating. Unblocking this needs context-based inference (dating from an index listing or an anchor position), which DL-5 explicitly DEFERS."}},
+        "probe": {"date": "2026-08-24", "published_time": "fetch_clock", "bytes": 31206,
+                  "note": "Article IDs are unpredictable (…/Article/4559495/…), which is why this is an index with a pinned child prefix rather than a URL template. The index page itself returns no Published Time; individual articles return a fetch-clock stamp."},
+        "why": "5th Fleet / CENTCOM releases are the US side of the same navigational record; the index currently lists a run of Iran-strike releases."
+      },
+      {
+        "label": "IMO press briefings (index)",
+        "role": "index",
+        "domain": "imo.org",
+        "source_type": "official_primary",
+        "url": "https://www.imo.org/en/MediaCentre/PressBriefings/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 23699},
+        "why": "IMO circulars and briefings on shipping-lane security — the multilateral record alongside UKMTO's operational one."
+      },
+      {
+        "label": "CENTCOM official channel — briefings",
+        "role": "video",
+        "domain": "youtube.com/@centcom",
+        "channel": "@centcom",
+        "source_type": "official_transcript",
+        "search": "https://www.youtube.com/@centcom/videos",
+        "enabled": false,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "verified",
+                  "note": "Channel exists and yt-dlp reads it. DISABLED: there is no reliable event trigger for CENTCOM briefings, and an untriggered video sweep is ~9k tokens of pure burn on the days nothing happened — exactly what ADOPT-NARROW/event-triggered-only was decided to prevent."},
+        "why": "Enable ad hoc when a specific Hormuz-relevant briefing is announced."
+      }
+    ],
+
+    "strait-of-hormuz-traffic-returns-to-normal-by-december-31": [
+      {
+        "label": "UKMTO recent incidents (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/recent-incidents",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 21186},
+        "why": "Same official navigational record as the October market — one fetch serves both (the worklist dedupes by resolved target)."
+      },
+      {
+        "label": "UKMTO warnings (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/ukmto-products/warnings",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 2562},
+        "why": "Shared with the October market."
+      },
+      {
+        "label": "UKMTO advisories (index)",
+        "role": "index",
+        "domain": "ukmto.org",
+        "source_type": "official_primary",
+        "url": "https://www.ukmto.org/ukmto-products/advisories",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 2825},
+        "why": "Shared with the October market."
+      },
+      {
+        "label": "CENTCOM public releases (index)",
+        "role": "index",
+        "domain": "centcom.mil",
+        "source_type": "official_primary",
+        "url": "https://www.centcom.mil/MEDIA/PUBLIC-RELEASES/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.centcom.mil/MEDIA/PUBLIC-RELEASES/Article/",
+                  "immutable": true, "enabled": false,
+                  "published_time": "fetch_clock",
+                  "why_disabled": "See the October market: article pages return a FETCH-CLOCK timestamp (26 days late on the measured example), which is more dangerous than no timestamp.",
+                  "dateline_reprobe": {"date": "2026-08-24", "url_leg": "NONE", "verdict": "stays index — the STRUCTURAL leg is missing, and DL-5 forbids single-source dating. Unblocking this needs context-based inference (dating from an index listing or an anchor position), which DL-5 explicitly DEFERS."}},
+        "probe": {"date": "2026-08-24", "published_time": "fetch_clock", "bytes": 31206},
+        "why": "Shared with the October market."
+      },
+      {
+        "label": "IMO press briefings (index)",
+        "role": "index",
+        "domain": "imo.org",
+        "source_type": "official_primary",
+        "url": "https://www.imo.org/en/MediaCentre/PressBriefings/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 23699},
+        "why": "Shared with the October market."
+      }
+    ],
+
+    "will-the-iranian-regime-fall-by-the-end-of-2026": [
+      {
+        "label": "State Department press releases (index)",
+        "role": "index",
+        "domain": "state.gov",
+        "source_type": "official_primary",
+        "url": "https://www.state.gov/press-releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.state.gov/releases/", "immutable": true,
+                  "enabled": true,
+                  "enabled_by": "the two-source dateline amendment (§ 6a, locked 2026-08-24). The transport timestamp is still wrong — a release dated August 20, 2026 in its own body is served with Last-Modified: Tue, 17 Mar 2026 01:57:29 GMT, five months stale — but the URL path carries /2026/08/ and the body carries its own dateline, so DL-3 dates it at the body day.",
+                  "dateline": {"url_pattern": "/(?P<year>20\\d{2})/(?P<month>\\d{1,2})/", "body_pattern": "(?P<month_name>January|February|March|April|May|June|July|August|September|October|November|December)\\s+(?P<day>\\d{1,2}),\\s+(?P<year>20\\d{2})", "probe": {"date": "2026-08-24", "url_leg": "yes (/2026/08/)", "body_leg": "yes ('August 20, 2026', 322 chars into the stripped body, immediately under the headline)", "agree": true}}},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 41009,
+                  "note": "Index itself works and lists dated readouts/statements with URL-embedded dates (/releases/office-of-the-spokesperson/2026/08/<slug>/)."},
+        "why": "A 'did they meet / did the US say X' question resolves on a readout, not on coverage of one."
+      },
+      {
+        "label": "State Department press briefings (index)",
+        "role": "index",
+        "domain": "state.gov",
+        "source_type": "official_primary",
+        "url": "https://www.state.gov/department-press-briefings/",
+        "enabled": true,
+        "trigger": {"kind": "weekday", "weekdays": [0, 1, 2, 3, 4]},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 41772},
+        "why": "A question about Iran policy is usually answered live at the podium before any wire story carries it."
+      },
+      {
+        "label": "State Department official channel — press briefings",
+        "role": "video",
+        "domain": "youtube.com/@statedept",
+        "channel": "@statedept",
+        "source_type": "official_transcript",
+        "match": "Department Press Briefing",
+        "search": "https://www.youtube.com/@statedept/videos",
+        "enabled": true,
+        "trigger": {"kind": "weekday", "weekdays": [0, 1, 2, 3, 4]},
+        "probe": {"date": "2026-08-24", "published_time": "verified",
+                  "note": "Channel verified live via yt-dlp on 2026-08-24. Briefings are irregular; the discovery job returns nothing on days without one, which is a clean absence."},
+        "why": "The podium answer itself. display=False always."
+      },
+      {
+        "label": "IAEA press releases (index)",
+        "role": "index",
+        "domain": "iaea.org",
+        "source_type": "official_primary",
+        "url": "https://www.iaea.org/newscenter/pressreleases",
+        "enabled": false,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "blocked",
+                  "note": "DISABLED: r.jina.ai returns 'Warning: Target URL returned error 403: Forbidden' with a Cloudflare 'Just a moment...' interstitial. The keyless anonymous tier cannot pass the challenge."},
+        "why": "Would carry the nuclear-file record. Unreachable on the keyless tier."
+      }
+    ],
+
+    "will-the-us-invade-iran-before-2027": [
+      {
+        "label": "CENTCOM public releases (index)",
+        "role": "index",
+        "domain": "centcom.mil",
+        "source_type": "official_primary",
+        "url": "https://www.centcom.mil/MEDIA/PUBLIC-RELEASES/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.centcom.mil/MEDIA/PUBLIC-RELEASES/Article/",
+                  "immutable": true, "enabled": false, "published_time": "fetch_clock",
+                  "why_disabled": "Article pages return a fetch-clock timestamp (measured 2026-08-24: 26 days late).",
+                  "dateline_reprobe": {"date": "2026-08-24", "url_leg": "NONE", "verdict": "stays index — the STRUCTURAL leg is missing, and DL-5 forbids single-source dating. Unblocking this needs context-based inference (dating from an index listing or an anchor position), which DL-5 explicitly DEFERS."}},
+        "probe": {"date": "2026-08-24", "published_time": "fetch_clock", "bytes": 31206,
+                  "note": "The index currently lists a consecutive run of 'US completes Nth night of strikes against Iran' releases — the operational record of exactly this question."},
+        "why": "The combatant command's own account of what US forces did, dated, rather than a report of it."
+      },
+      {
+        "label": "Department of War news releases (index)",
+        "role": "index",
+        "domain": "war.gov",
+        "source_type": "official_primary",
+        "url": "https://www.war.gov/News/Releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 19597},
+        "why": "Department-level releases (deployments, authorisations) sit above CENTCOM's operational ones."
+      },
+      {
+        "label": "State Department press releases (index)",
+        "role": "index",
+        "domain": "state.gov",
+        "source_type": "official_primary",
+        "url": "https://www.state.gov/press-releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.state.gov/releases/", "immutable": true,
+                  "enabled": true, "enabled_by": "the two-source dateline amendment (§ 6a) — shared with the Iran-regime market.",
+                  "dateline": {"url_pattern": "/(?P<year>20\\d{2})/(?P<month>\\d{1,2})/", "body_pattern": "(?P<month_name>January|February|March|April|May|June|July|August|September|October|November|December)\\s+(?P<day>\\d{1,2}),\\s+(?P<year>20\\d{2})", "probe": {"date": "2026-08-24", "url_leg": "yes (/2026/08/)", "body_leg": "yes ('August 20, 2026', 322 chars into the stripped body, immediately under the headline)", "agree": true}}},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 41009},
+        "why": "The diplomatic track that precedes or forecloses military action."
+      }
+    ],
+
+    "will-the-us-invade-cuba-in-2026": [
+      {
+        "label": "State Department press releases (index)",
+        "role": "index",
+        "domain": "state.gov",
+        "source_type": "official_primary",
+        "url": "https://www.state.gov/press-releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.state.gov/releases/", "immutable": true,
+                  "enabled": true, "enabled_by": "the two-source dateline amendment (§ 6a) — shared with the Iran-regime market.",
+                  "dateline": {"url_pattern": "/(?P<year>20\\d{2})/(?P<month>\\d{1,2})/", "body_pattern": "(?P<month_name>January|February|March|April|May|June|July|August|September|October|November|December)\\s+(?P<day>\\d{1,2}),\\s+(?P<year>20\\d{2})", "probe": {"date": "2026-08-24", "url_leg": "yes (/2026/08/)", "body_leg": "yes ('August 20, 2026', 322 chars into the stripped body, immediately under the headline)", "agree": true}}},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 41009,
+                  "note": "The index currently carries Cuba sanctions designations — on-topic for this market."},
+        "why": "Sanctions designations and policy statements are the observable escalation ladder here."
+      },
+      {
+        "label": "Department of War news releases (index)",
+        "role": "index",
+        "domain": "war.gov",
+        "source_type": "official_primary",
+        "url": "https://www.war.gov/News/Releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 19597},
+        "why": "Any force movement toward the Caribbean would appear here first."
+      }
+    ],
+
+    "putin-out-before-2027": [
+      {
+        "label": "Kremlin presidential news (index)",
+        "role": "index",
+        "domain": "kremlin.ru",
+        "source_type": "official_state_claim",
+        "url": "http://en.kremlin.ru/events/president/news",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 11592},
+        "why": "Primary AND interested. A Kremlin readout is a state actor's contested claim about itself, which is why this whole domain carries source_type official_state_claim (weight 0.5), not official_primary (1.0). 'Official' must not import propaganda at full weight."
+      }
+    ],
+
+    "zelenskyy-out-as-ukraine-president-before-2027": [
+      {
+        "label": "Office of the President of Ukraine (index)",
+        "role": "index",
+        "domain": "president.gov.ua",
+        "source_type": "official_state_claim",
+        "url": "https://www.president.gov.ua/en/news/all",
+        "enabled": false,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "blocked",
+                  "note": "DISABLED: r.jina.ai returns 403 Access Denied (430-byte body). Geo/bot filtering on the keyless anonymous pool."},
+        "why": "Would be the Ukrainian-side primary record. Unreachable on the keyless tier."
+      },
+      {
+        "label": "NATO news (index)",
+        "role": "index",
+        "domain": "nato.int",
+        "source_type": "official_primary",
+        "url": "https://www.nato.int/cps/en/natohq/news.htm",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 50980},
+        "why": "A disinterested multilateral record on Ukraine leadership and support — the counterweight to the two state-claim sources in this family."
+      }
+    ],
+
+    "russia-x-ukraine-ceasefire-agreement-by-december-31-2026": [
+      {
+        "label": "NATO news (index)",
+        "role": "index",
+        "domain": "nato.int",
+        "source_type": "official_primary",
+        "url": "https://www.nato.int/cps/en/natohq/news.htm",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 50980},
+        "why": "A ceasefire is announced in statements and readouts before it is reported; NATO's is the non-belligerent one."
+      },
+      {
+        "label": "Kremlin presidential news (index)",
+        "role": "index",
+        "domain": "kremlin.ru",
+        "source_type": "official_state_claim",
+        "url": "http://en.kremlin.ru/events/president/news",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 11592},
+        "why": "One of the two parties to any ceasefire — primary, interested, weight 0.5."
+      },
+      {
+        "label": "State Department press releases (index)",
+        "role": "index",
+        "domain": "state.gov",
+        "source_type": "official_primary",
+        "url": "https://www.state.gov/press-releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.state.gov/releases/", "immutable": true,
+                  "enabled": true, "enabled_by": "the two-source dateline amendment (§ 6a) — shared with the Iran-regime market.",
+                  "dateline": {"url_pattern": "/(?P<year>20\\d{2})/(?P<month>\\d{1,2})/", "body_pattern": "(?P<month_name>January|February|March|April|May|June|July|August|September|October|November|December)\\s+(?P<day>\\d{1,2}),\\s+(?P<year>20\\d{2})", "probe": {"date": "2026-08-24", "url_leg": "yes (/2026/08/)", "body_leg": "yes ('August 20, 2026', 322 chars into the stripped body, immediately under the headline)", "agree": true}}},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 41009},
+        "why": "US-brokered talks produce readouts here first."
+      }
+    ],
+
+    "will-ukraine-recapture-crimean-territory-by-december-31-2026": [
+      {
+        "label": "NATO news (index)",
+        "role": "index",
+        "domain": "nato.int",
+        "source_type": "official_primary",
+        "url": "https://www.nato.int/cps/en/natohq/news.htm",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 50980},
+        "why": "Territorial-control claims by either belligerent are self-interested; NATO's assessments are the disinterested official read."
+      },
+      {
+        "label": "Kremlin presidential news (index)",
+        "role": "index",
+        "domain": "kremlin.ru",
+        "source_type": "official_state_claim",
+        "url": "http://en.kremlin.ru/events/president/news",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 11592},
+        "why": "A Russian loss of Crimean territory would be conspicuous by its absence here — weight 0.5."
+      }
+    ],
+
+    "will-united-russia-er-gain-the-most-seats-in-the-next-russian-parliamentary-election": [
+      {
+        "label": "Kremlin presidential news (index)",
+        "role": "index",
+        "domain": "kremlin.ru",
+        "source_type": "official_state_claim",
+        "url": "http://en.kremlin.ru/events/president/news",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 11592},
+        "why": "Election framing and scheduling. Weight 0.5 — the party's own state is the counterparty to the question."
+      },
+      {
+        "label": "Central Election Commission of Russia (index)",
+        "role": "index",
+        "domain": "cec.gov.ru",
+        "source_type": "official_state_claim",
+        "url": "http://www.cec.gov.ru/",
+        "enabled": false,
+        "trigger": {"kind": "window", "start": "2026-09-25", "end": "2026-10-07"},
+        "probe": {"date": "2026-08-24", "published_time": "blocked", "bytes": 242,
+                  "note": "DISABLED: returns a 242-byte empty shell through Jina — no usable content."},
+        "why": "Would be the election authority of record (vote due 2026-09-30). Unreachable."
+      }
+    ],
+
+    "will-china-invade-taiwan-by-december-31-2027": [
+      {
+        "label": "Department of War news releases (index)",
+        "role": "index",
+        "domain": "war.gov",
+        "source_type": "official_primary",
+        "url": "https://www.war.gov/News/Releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 19597},
+        "why": "US force posture in the Western Pacific is the observable that moves first on this question."
+      },
+      {
+        "label": "State Department press releases (index)",
+        "role": "index",
+        "domain": "state.gov",
+        "source_type": "official_primary",
+        "url": "https://www.state.gov/press-releases/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.state.gov/releases/", "immutable": true,
+                  "enabled": true, "enabled_by": "the two-source dateline amendment (§ 6a) — shared with the Iran-regime market.",
+                  "dateline": {"url_pattern": "/(?P<year>20\\d{2})/(?P<month>\\d{1,2})/", "body_pattern": "(?P<month_name>January|February|March|April|May|June|July|August|September|October|November|December)\\s+(?P<day>\\d{1,2}),\\s+(?P<year>20\\d{2})", "probe": {"date": "2026-08-24", "url_leg": "yes (/2026/08/)", "body_leg": "yes ('August 20, 2026', 322 chars into the stripped body, immediately under the headline)", "agree": true}}},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 41009},
+        "why": "Arms-sale notifications and Taiwan policy statements are dated official acts."
+      }
+    ],
+
+    "will-benjamin-netanyahu-be-the-next-prime-minister-of-israel": [
+      {
+        "label": "Government of Israel news (index)",
+        "role": "index",
+        "domain": "gov.il",
+        "source_type": "official_state_claim",
+        "url": "https://www.gov.il/en/collectors/news",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 18165},
+        "why": "Coalition and government announcements. Tagged state_claim (0.5), not procedural: a sitting government's statements about its own survival are an interested party's claims."
+      }
+    ],
+
+    "trump-out-as-president-before-2027": [
+      {
+        "label": "congress.gov House resolutions, 119th Congress (index)",
+        "role": "index",
+        "domain": "congress.gov",
+        "source_type": "official_primary",
+        "url": "https://www.congress.gov/browse/house-resolutions/119th-congress",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 27459},
+        "why": "The impeachment leg of this question is a resolution and a vote record — a procedural fact about Congress, which is as close to ground truth as evidence gets (weight 1.0)."
+      },
+      {
+        "label": "White House presidential actions (index)",
+        "role": "index",
+        "domain": "whitehouse.gov",
+        "source_type": "official_state_claim",
+        "url": "https://www.whitehouse.gov/presidential-actions/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 10573},
+        "why": "A 25th-Amendment or resignation event surfaces here. State_claim (0.5): the office's statements about the officeholder's own tenure are interested."
+      }
+    ],
+
+    "clarity-act-signed-into-law-in-2026": [
+      {
+        "label": "H.R.3633 Digital Asset Market Clarity Act — bill page (index)",
+        "role": "index",
+        "domain": "congress.gov",
+        "source_type": "official_primary",
+        "url": "https://www.congress.gov/bill/119th-congress/house-bill/3633",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "child": {"kind": "document", "url_prefix": "https://www.congress.gov/bill/119th-congress/house-bill/3633/text",
+                  "immutable": true, "enabled": false,
+                  "why_disabled": "congress.gov sends no Last-Modified and no published-time metadata (measured 2026-08-24), so even the immutable per-version bill texts are undated on this path.",
+                  "dateline_reprobe": {"date": "2026-08-24", "url_leg": "NONE", "verdict": "stays index — the STRUCTURAL leg is missing, and DL-5 forbids single-source dating. Unblocking this needs context-based inference (dating from an index listing or an anchor position), which DL-5 explicitly DEFERS."}},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 33064,
+                  "note": "Title confirms the market's subject: 'H.R.3633 - 119th Congress (2025-2026): Digital Asset Market Clarity Act'. Rolling by construction — actions accumulate on it."},
+        "why": "The bill's own status page. 'Signed into law' is an ACTION on this record; congress.gov is the register of that act, not a report of it."
+      },
+      {
+        "label": "H.R.3633 all actions (index)",
+        "role": "index",
+        "domain": "congress.gov",
+        "source_type": "official_primary",
+        "url": "https://www.congress.gov/bill/119th-congress/house-bill/3633/all-actions",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 46406},
+        "why": "The dated action list — where 'Became Public Law No: …' appears, which is literally the resolution criterion."
+      },
+      {
+        "label": "White House presidential actions (index)",
+        "role": "index",
+        "domain": "whitehouse.gov",
+        "source_type": "official_primary",
+        "url": "https://www.whitehouse.gov/presidential-actions/",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 10573},
+        "why": "A signing is a presidential action, published here on the day. Procedural (1.0): the act of signing is a fact about the signer."
+      }
+    ],
+
+    "will-marine-le-pen-win-the-2027-french-presidential-election": [
+      {
+        "label": "Conseil constitutionnel — actualités (index)",
+        "role": "index",
+        "domain": "conseil-constitutionnel.fr",
+        "source_type": "official_primary",
+        "url": "https://www.conseil-constitutionnel.fr/actualites",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 8044},
+        "why": "The body that rules on candidacy eligibility and proclaims results — the authority that decides whether a barred candidate may run at all. Directly relevant after the v3.3 card moved 25.0% -> 59.9% on a single column about a candidacy ban being lifted."
+      },
+      {
+        "label": "Ministère de l'Intérieur — communiqués (index)",
+        "role": "index",
+        "domain": "interieur.gouv.fr",
+        "source_type": "official_primary",
+        "url": "https://www.interieur.gouv.fr/actualites/communiques",
+        "enabled": false,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "blocked", "bytes": 889,
+                  "note": "DISABLED: Cloudflare 'Attention Required!' 403 through the anonymous Jina tier."},
+        "why": "Would be the election-administration authority. Unreachable on the keyless tier."
+      }
+    ],
+
+    "will-jordan-bardella-win-the-2027-french-presidential-election": [
+      {
+        "label": "Conseil constitutionnel — actualités (index)",
+        "role": "index",
+        "domain": "conseil-constitutionnel.fr",
+        "source_type": "official_primary",
+        "url": "https://www.conseil-constitutionnel.fr/actualites",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 8044},
+        "why": "Shared with the Le Pen market — same election, same authority; one fetch serves both."
+      }
+    ],
+
+    "will-luiz-incio-lula-da-silva-win-the-2026-brazilian-presidential-election": [
+      {
+        "label": "Tribunal Superior Eleitoral — notícias (index)",
+        "role": "index",
+        "domain": "tse.jus.br",
+        "source_type": "official_primary",
+        "url": "https://www.tse.jus.br/comunicacao/noticias",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 58411},
+        "why": "Brazil's electoral authority: candidacy registrations, ineligibility rulings and the official count. The 2026 vote is 2026-10-04."
+      }
+    ],
+
+    "will-flvio-bolsonaro-win-the-2026-brazilian-presidential-election": [
+      {
+        "label": "Tribunal Superior Eleitoral — notícias (index)",
+        "role": "index",
+        "domain": "tse.jus.br",
+        "source_type": "official_primary",
+        "url": "https://www.tse.jus.br/comunicacao/noticias",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "absent", "bytes": 58411},
+        "why": "Shared with the Lula market — same election, same authority. Candidacy eligibility is the live question on this side of the race."
+      }
+    ],
+
+    "will-donald-trump-win-the-nobel-peace-prize-in-2026-382": [
+      {
+        "label": "Nobel Peace Prize announcement page (index)",
+        "role": "index",
+        "domain": "nobelprize.org",
+        "source_type": "official_primary",
+        "url": "https://www.nobelprize.org/prizes/peace/",
+        "enabled": true,
+        "trigger": {"kind": "window", "start": "2026-10-05", "end": "2026-10-15"},
+        "probe": {"date": "2026-08-24", "published_time": "fetch_clock", "bytes": 12150,
+                  "note": "The scoping note's worked example of the discard rule, re-confirmed and sharpened: the origin DOES send Last-Modified, but it equals the fetch instant (Mon, 24 Aug 2026 17:42:32 GMT) — a dynamically generated page. A stamp that tracks the clock is worse than no stamp, because it always passes a naive freshness test."},
+        "why": "The announcement page for a prize announced 2026-10-09. Window-triggered so it costs nothing for the other 355 days."
+      },
+      {
+        "label": "Nobel Prize official channel — Peace Prize announcement",
+        "role": "video",
+        "domain": "youtube.com/@nobelprize",
+        "channel": "@nobelprize",
+        "source_type": "official_transcript",
+        "match": "Peace Prize",
+        "search": "https://www.youtube.com/@nobelprize/videos",
+        "enabled": true,
+        "trigger": {"kind": "calendar", "calendar": "nobel_peace_announcement_2026", "offsets_days": [0, 1]},
+        "probe": {"date": "2026-08-24", "published_time": "verified",
+                  "note": "Channel verified live via yt-dlp on 2026-08-24."},
+        "why": "The announcement is livestreamed and the upload carries a real timestamp — a DATED artifact for an event whose own web page is not datable. The cleanest illustration that the video channel generalises where the page channel does not."
+      }
+    ],
+
+    "billionaire-one-time-wealth-tax-passes-in-california-election-2026": [
+      {
+        "label": "California Secretary of State — ballot measures (index)",
+        "role": "index",
+        "domain": "sos.ca.gov",
+        "source_type": "official_primary",
+        "url": "https://www.sos.ca.gov/elections/ballot-measures",
+        "enabled": true,
+        "trigger": {"kind": "always"},
+        "probe": {"date": "2026-08-24", "published_time": "touch", "bytes": 7331,
+                  "note": "Published Time Tue, 23 Jun 2026 02:06:19 GMT — a genuine edit time on a rolling index, i.e. the touch-time case, not a publication instant. Navigation only."},
+        "why": "Qualification, numbering and certification of the measure are procedural facts of the SoS. Note the market's own tag stays POLL_DRIVEN: this source tracks whether the measure is ON the ballot, never how it will poll."
+      }
+    ]
+  },
+
+  "markets_deliberately_without_sources": {
+    "will-the-democratic-party-control-the-house-after-the-2026-midterm-elections":
+      "Per the scoping note's mapping table: low value. Politico + The Hill already cover US congressional politics densely in the existing RSS set, and there is no official document that bears on a seat-count forecast before election night.",
+    "will-the-democratic-party-control-the-senate-after-the-2026-midterm-elections":
+      "Same as the House market — dense existing coverage, no official pre-election document.",
+    "will-xavier-becerra-win-the-california-governor-election-in-2026":
+      "Tagged POLL_DRIVEN in config.py. The dominant channel is private/campaign polling; California publishes no official statistic that tracks it, so there is no primary source to pin. Adding an official page here would look like coverage without being it."
+  }
+}

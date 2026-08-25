@@ -405,10 +405,28 @@ def test_scheme_a_weight_mapping(monkeypatch):
     assert sourceweights.get_weight("politico.com") == 0.3
     assert sourceweights.get_weight("thehill.com") == 0.0
     assert sourceweights.get_weight("badnews.example") == 0.0
-    assert sourceweights.get_weight("newsletter:ING research") == 1.0   # uncovered->neutral
-    assert sourceweights.get_weight("en.wikipedia.org (Current events)") == 1.0
-    assert sourceweights.get_weight("unknown.example") == 1.0
+    # uncovered-source weights: APPROVED 2026-08-24 (were neutral 1.0 before)
+    assert sourceweights.get_weight("newsletter:ING research") == 0.9
+    assert sourceweights.get_weight("newsletter:ING THINK") == 0.9
+    assert sourceweights.get_weight("newsletter:Bloomberg") == 0.9
+    assert sourceweights.get_weight("am.jpmorgan.com") == 0.9      # bank research desk
+    assert sourceweights.get_weight("am.gs.com") == 0.9
+    assert sourceweights.get_weight("en.wikipedia.org (Current events)") == 0.8
+    assert sourceweights.get_weight("unknown.example") == 0.5      # genuinely unknown
     monkeypatch.setattr(sourceweights, "_WEIGHTS", None)   # reset module cache
+
+
+def test_blocklist_beats_declared_uncovered_weight(monkeypatch):
+    """Iffy precedence holds for the new declared rows too — a blocklisted domain
+    can never be resurrected by an uncovered-source weight."""
+    monkeypatch.setattr(sourceweights, "_WEIGHTS", None)
+    monkeypatch.setattr(sourceweights, "_IFFY", set())
+    monkeypatch.setattr(sourceweights, "refresh", lambda force=False: {
+        "fetched_at": "2026-08-24T00:00:00+00:00",
+        "rsp_status_by_id": {"the guardian": "s-gr"},
+        "iffy_domains": ["bloomberg.com"]})
+    assert sourceweights.get_weight("bloomberg.com") == 0.0
+    monkeypatch.setattr(sourceweights, "_WEIGHTS", None)
 
 
 # ---------------------------------------------------------------- v3: band ------
@@ -663,10 +681,26 @@ def test_extract_via_api_gemini_needs_key(monkeypatch):
 # ------------------------------------------------------------- market tagging --
 
 def test_tract_tagging():
-    fed = "will-there-be-no-change-in-fed-interest-rates-after-the-july-2026-meeting"
+    """The v3.1 tag split into data-driven vs poll-driven (Justin, 2026-08-24)."""
+    fed = "will-there-be-no-change-in-fed-interest-rates-after-the-september-2026-meeting-615"
     assert na_config.tract(fed) == "data"
-    assert na_config.tract("putin-out-before-2027") == "news"
-    assert all(s in na_config.LIVE_MARKETS for s in na_config.DATA_DRIVEN)
+    assert na_config.tract("will-xavier-becerra-win-the-california-governor-election-in-2026") == "poll"
+    assert na_config.tract("billionaire-one-time-wealth-tax-passes-in-california-election-2026") == "poll"
+    assert na_config.tract("trump-out-as-president-before-2027") == "news"
+    # the two families stay disjoint and every tagged market is on the live slate
+    assert not (set(na_config.DATA_DRIVEN) & set(na_config.POLL_DRIVEN))
+    assert all(s in na_config.LIVE_MARKETS for s in na_config.NOT_NEWS_TRACTABLE)
+    # every tagged market carries a public note
+    assert all(na_config.tract_note(s) for s in na_config.NOT_NEWS_TRACTABLE)
+    assert na_config.tract_note("trump-out-as-president-before-2027") == ""
+
+
+def test_becerra_note_is_refreshed_to_general_election():
+    """v3.1 said 'state-primary polling'; the June primary has passed (2026-08-24)."""
+    note = na_config.tract_note(
+        "will-xavier-becerra-win-the-california-governor-election-in-2026")
+    assert "primary" not in note.lower()
+    assert "general-election polling" in note.lower()
 
 
 # --------------------------------------------------------- bias breakdown ------
@@ -825,7 +859,7 @@ def test_annotate_composes_reliability_and_lean(monkeypatch):
     assert out[0]["source_w"] == pytest.approx(0.75)
     assert out[1]["source_w"] == pytest.approx(1.0)
     assert out[2]["source_w"] == 0.0                       # lean can never resurrect a blocklisted source
-    assert out[3]["source_w"] == 1.0 and out[3]["source_lean"] is None
+    assert out[3]["source_w"] == 0.5 and out[3]["source_lean"] is None   # unknown 0.5
     monkeypatch.setattr(sourceweights, "_WEIGHTS", None)
 
 
@@ -1017,3 +1051,440 @@ def test_band_quality_shown_on_card():
     out = dashboard.render_html(dashboard.build_showcase([s], _series()))
     assert "evidence-quality multiplier" in out
     assert "one-sided coverage" in out
+
+
+# ------------------------------------------- v3.3: credential loading (.env) ---
+
+def test_load_env_sets_only_missing_keys_and_skips_comments(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text(
+        "# a comment line\n"
+        "\n"
+        "GUARDIAN_API_KEY=abc123\n"
+        "ALREADY_SET=from_file\n"
+        "NOT_PASTED_YET=      # registered but no value here\n"
+        "QUOTED_KEY=\"quoted-value\"\n"
+        "junk line without equals\n")
+    monkeypatch.delenv("GUARDIAN_API_KEY", raising=False)
+    monkeypatch.delenv("NOT_PASTED_YET", raising=False)
+    monkeypatch.setenv("ALREADY_SET", "from_shell")
+    loaded = na_config.load_env(env)
+    import os
+    assert "GUARDIAN_API_KEY" in loaded and os.environ["GUARDIAN_API_KEY"] == "abc123"
+    assert os.environ["QUOTED_KEY"] == "quoted-value"
+    # the shell always wins over the file
+    assert "ALREADY_SET" not in loaded and os.environ["ALREADY_SET"] == "from_shell"
+    # "KEY=  # not pasted yet" must NOT arm a garbage credential
+    assert "NOT_PASTED_YET" not in loaded and "NOT_PASTED_YET" not in os.environ
+    for k in ("GUARDIAN_API_KEY", "QUOTED_KEY"):
+        monkeypatch.delenv(k, raising=False)
+
+
+def test_load_env_resolves_credential_paths_against_the_env_file(tmp_path, monkeypatch):
+    """A relative *_CREDENTIALS path must survive being run from another cwd."""
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / ".env").write_text("GOOGLE_APPLICATION_CREDENTIALS=secrets/sa.json\n")
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    na_config.load_env(tmp_path / ".env")
+    import os
+    got = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    assert got == str((tmp_path / "secrets" / "sa.json").resolve())
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+
+
+def test_load_env_absent_file_is_not_an_error(tmp_path):
+    assert na_config.load_env(tmp_path / "nope.env") == []
+
+
+# ------------------------------------------ v3.3: re-slug (gamma_slug) ---------
+
+def test_market_state_follows_a_reslug_without_moving_our_key(monkeypatch):
+    """Polymarket re-slugged putin-out-before-2027 mid-life. Our key must not move:
+    the ledger id, prior, state and feature cache all hang off it."""
+    seen = {}
+
+    def fake_http_json(url, retries=4):
+        seen["url"] = url
+        assert "putin-out-before-2027-346" in url
+        return [{"question": "Putin out?", "description": "d", "endDate": "2027-01-01",
+                 "closed": False, "bestBid": 0.07, "bestAsk": 0.08}]
+
+    monkeypatch.setattr(feeds_mod, "http_json", fake_http_json)
+    mkt = feeds_mod.market_state("putin-out-before-2027", "putin-out-before-2027-346")
+    assert mkt["slug"] == "putin-out-before-2027"       # OUR key comes back
+    assert mkt["mid"] == pytest.approx(0.075)
+
+
+def test_market_state_raises_a_useful_error_when_gamma_has_nothing(monkeypatch):
+    monkeypatch.setattr(feeds_mod, "http_json", lambda url, retries=4: [])
+    with pytest.raises(RuntimeError, match="re-slug"):
+        feeds_mod.market_state("gone-slug")
+
+
+# ------------------------------------- v3.3: newsletter credential degradation --
+
+def test_dead_newsletter_credential_degrades_instead_of_breaking_the_run(monkeypatch, capsys):
+    """A revoked OAuth token must not stop --stage fetch (observed 2026-08-24)."""
+    monkeypatch.setattr(email_ingest, "available", lambda: (True, "gmail"))
+    monkeypatch.setattr(email_ingest, "CACHE_DIR", email_ingest.CACHE_DIR)
+
+    def boom(_days):
+        raise RuntimeError("HTTP Error 400: Bad Request")
+
+    monkeypatch.setattr(email_ingest, "_fetch_gmail", boom)
+    monkeypatch.setattr(email_ingest, "fetch_newsletters",
+                        email_ingest.fetch_newsletters)   # keep the real one
+    out = email_ingest.fetch_newsletters(day="2999-01-01")
+    assert out == []
+    assert "credential failed" in capsys.readouterr().out
+
+
+# --------------------------------------- v3.3: public settled track record ------
+
+def _settled(sf_id, slug, p, y, res, last_fc, method="news"):
+    return {"sf_id": sf_id, "slug": slug, "question": f"Q {sf_id}?", "final_p": p,
+            "outcome": y, "brier": round((p - y) ** 2, 6), "resolution_date": res,
+            "settled_at": "2026-08-24", "last_update": last_fc, "method": method}
+
+
+def test_live_track_record_scores_per_method_and_flags_staleness(monkeypatch):
+    from newsagent import ledger as ledger_mod
+    recs = [_settled("sf-1", "m1", 0.20, 0, "2026-07-17", "2026-07-05"),
+            _settled("sf-2", "m2", 0.60, 1, "2026-07-29", "2026-07-05")]
+    monkeypatch.setattr(ledger_mod, "settled_records", lambda: recs)
+    monkeypatch.setattr(ledger_mod, "method_for", lambda slug: "news")
+    monkeypatch.setattr(dashboard, "_extended_scorecard", lambda: None)
+    series = {"m1": [{"date": "2026-07-05", "fv_pct": 20.0, "mid_pct": 38.5,
+                      "segment": "live"}]}
+    ltr = dashboard._live_track_record(series)
+    assert ltr["n_settled"] == 2
+    assert ltr["brier"] == pytest.approx((0.04 + 0.16) / 2, abs=1e-6)
+    assert ltr["per_method"]["news"]["n"] == 2
+    assert ltr["records"][0]["mid_pct_at_last_snapshot"] == 38.5   # context only
+    assert ltr["max_stale_days"] == 24        # 2026-07-05 -> 2026-07-29
+    assert "append-only" in ltr["note"]
+
+
+def test_live_track_record_shows_the_n0_transition_line_for_a_new_method(monkeypatch):
+    """DC-8: methods are reported separately; a method with nothing settled says so."""
+    from newsagent import ledger as ledger_mod
+    monkeypatch.setattr(ledger_mod, "settled_records",
+                        lambda: [_settled("sf-1", "m1", 0.2, 0, "2026-07-17", "2026-07-05")])
+    monkeypatch.setattr(ledger_mod, "method_for",
+                        lambda slug: "news+data" if slug == "fed" else "news")
+    monkeypatch.setattr(na_config, "LIVE_MARKETS", {"fed": {}, "m1": {}})
+    monkeypatch.setattr(dashboard, "_extended_scorecard", lambda: None)
+    ltr = dashboard._live_track_record({})
+    assert ltr["per_method"]["news"]["n"] == 1
+    assert ltr["per_method"]["news+data"]["n"] == 0
+    assert ltr["per_method"]["news+data"]["note"] == "new method — no settled track record yet (n=0)"
+    assert ltr["per_method"]["news+data"]["brier"] is None
+
+
+def test_html_renders_the_settled_track_record_panel(monkeypatch):
+    from newsagent import ledger as ledger_mod
+    monkeypatch.setattr(ledger_mod, "settled_records",
+                        lambda: [_settled("sf-1", "m1", 0.537, 1, "2026-07-29", "2026-07-05")])
+    monkeypatch.setattr(ledger_mod, "method_for", lambda slug: "news")
+    monkeypatch.setattr(dashboard, "_extended_scorecard", lambda: None)
+    sc = dashboard.build_showcase([_snapshot31()], _series())
+    out = dashboard.render_html(sc)
+    assert "Public track record" in out
+    assert "0.2143" in out or "0.214" in out          # the settled Brier
+    assert "snapshot age" in out and "24" in out      # staleness is displayed
+    assert "method" in out
+
+
+def test_ledger_method_labels_default_to_news_and_never_merge(tmp_path, monkeypatch):
+    from newsagent import ledger as ledger_mod
+    monkeypatch.setattr(ledger_mod, "METHODS", tmp_path / "methods.json")
+    monkeypatch.setattr(na_config, "DATA_CHANNEL_MARKETS", frozenset({"fed-market"}))
+    assert ledger_mod.method_for("some-news-market") == ledger_mod.METHOD_NEWS
+    assert ledger_mod.method_for("fed-market") == ledger_mod.METHOD_NEWS_DATA
+    ledger_mod.record_method("sf-9", "fed-market", "2026-08-24")
+    assert ledger_mod.method_of("sf-9") == ledger_mod.METHOD_NEWS_DATA
+    assert ledger_mod.method_of("sf-unknown") == ledger_mod.METHOD_NEWS   # pre-labelling
+
+
+# ------------------------------------------------ v3.3: poll-driven card copy ---
+
+def test_html_poll_driven_card_says_polling_not_data(monkeypatch):
+    s = _snapshot31(tract="poll")
+    s["stage_b"]["tract_note"] = "General-election polling drives this race."
+    sc = dashboard.build_showcase([s], _series())
+    out = dashboard.render_html(sc)
+    assert "◆ poll-driven" in out
+    assert "private/campaign or ballot-issue" in out
+    assert "structurally blind" in out
+
+
+# =========================================================== v3.4: simulated-live
+# The reconstruction is a DIFFERENT OBJECT from the forward ledger. These tests pin
+# that separation as hard as the privacy boundary is pinned: a reconstruction number
+# must never be summed into the forward track record, and must never reach the page
+# without the word "reconstruction" attached.
+
+def _simlive_payload(**over):
+    sl = {
+        "generated": "2026-08-25", "label": "reconstruction",
+        "n_markets": 44, "n_snapshots": 326,
+        "params": {"alpha": 2.75, "band_mult": 0.75, "gamma": 1.0},
+        "at_resolution": {
+            "brier": 0.1896, "log_loss": 0.639, "brier_prior_only": 0.192,
+            "base_rate_pct": 29.5, "mean_forecast_pct": 15.3, "mean_age_days": 1.0,
+            "mean_abs_shift_from_prior_pp": 3.46, "share_moved_ge_1pp": 0.34,
+            "murphy": {"reliability": 0.0238, "resolution": 0.0355,
+                       "uncertainty": 0.2082, "base_rate": 0.295, "n_bins_populated": 4},
+            "spiegelhalter": {"z": 3.405, "p": 0.001},
+            "reliability_curve": [
+                {"bin": "0-20%", "n": 33, "mean_forecast_pct": 6.2,
+                 "observed_yes_pct": 21.2, "thin": False},
+                {"bin": "20-40%", "n": 6, "mean_forecast_pct": 31.8,
+                 "observed_yes_pct": 33.3, "thin": False},
+                {"bin": "40-60%", "n": 4, "mean_forecast_pct": 51.9,
+                 "observed_yes_pct": 75.0, "thin": False},
+                {"bin": "60-80%", "n": 1, "mean_forecast_pct": 69.7,
+                 "observed_yes_pct": 100.0, "thin": True},
+                {"bin": "80-100%", "n": 0, "mean_forecast_pct": None,
+                 "observed_yes_pct": None, "thin": True}],
+        },
+        "staleness": {
+            "raw": [{"days_before_resolution": h, "n": 44, "brier": 0.18,
+                     "log_loss": 0.6, "mean_forecast_pct": 15.0}
+                    for h in (1, 5, 9, 13, 17, 21, 25, 29)],
+            "balanced": [{"days_before_resolution": h, "n": 30, "brier": 0.15,
+                          "log_loss": 0.5, "mean_forecast_pct": 15.0,
+                          "mean_abs_shift_from_prior_pp": 2.1,
+                          "share_moved_ge_1pp": 0.25}
+                         for h in (1, 5, 9, 13, 17, 21, 25, 29)],
+            "n_markets_balanced": 30,
+            "derived_cadence": [{"cadence_days": 4, "horizons_averaged": [1],
+                                 "expected_brier": 0.1572},
+                                {"cadence_days": 28, "horizons_averaged": [1, 5],
+                                 "expected_brier": 0.1492}],
+        },
+        "splits": {
+            "tract": [
+                {"tract": "news", "n": 34, "brier": 0.223, "log_loss": 0.71,
+                 "base_rate_pct": 32.4, "mean_forecast_pct": 13.7, "thin": False},
+                {"tract": "poll", "n": 6, "brier": 0.0773, "log_loss": 0.3,
+                 "base_rate_pct": 16.7, "mean_forecast_pct": 18.1, "thin": False},
+                {"tract": "data", "n": 4, "brier": 0.0741, "log_loss": 0.28,
+                 "base_rate_pct": 25.0, "mean_forecast_pct": 24.6, "thin": True}],
+            "family": [
+                {"family": "iran", "n": 7, "brier": 0.3974, "log_loss": 1.2,
+                 "base_rate_pct": 42.9, "mean_forecast_pct": 10.3, "thin": False},
+                {"family": "fed", "n": 5, "brier": 0.0776, "log_loss": 0.3,
+                 "base_rate_pct": 40.0, "mean_forecast_pct": 33.6, "thin": False},
+                {"family": "solo", "n": 1, "brier": 0.5, "log_loss": 1.0,
+                 "base_rate_pct": 100.0, "mean_forecast_pct": 25.0, "thin": True}],
+        },
+        "divergence": {
+            "n_flagged_snapshots": 2, "n_flagged_markets": 2,
+            "n_snapshots_with_a_mid": 300, "flagged_markets_resolved_yes": 1,
+            "fv_below_mid_snapshots": 2, "fv_above_mid_snapshots": 0,
+            "closure": "The v0 fair-value-vs-mid gate is CLOSED and is NOT reopened here.",
+        },
+        "exclusions_note": ("Reconstruction sees ONLY channels with a timestamped "
+                            "archive: Guardian, Wikipedia Current Events and GDELT."),
+    }
+    sl.update(over)
+    return sl
+
+
+def _with_simlive(monkeypatch, payload=None):
+    monkeypatch.setattr(dashboard, "_simlive", lambda: payload or _simlive_payload())
+
+
+def test_simlive_loader_rejects_anything_not_labelled_reconstruction(tmp_path, monkeypatch):
+    import json as _json
+    p = tmp_path / "simlive_results.json"
+    monkeypatch.setattr(dashboard, "SIMLIVE_PATH", p)
+    assert dashboard._simlive() is None                       # absent file
+    p.write_text(_json.dumps({"label": "forward", "n_markets": 44}))
+    assert dashboard._simlive() is None                       # wrong label
+    p.write_text(_json.dumps(_simlive_payload(n_markets=0)))
+    assert dashboard._simlive() is None                       # empty sample
+    p.write_text("{ not json")
+    assert dashboard._simlive() is None                       # unreadable
+    p.write_text(_json.dumps(_simlive_payload()))
+    assert dashboard._simlive()["n_markets"] == 44
+
+
+def test_html_renders_the_simulated_live_section(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "Simulated-live reconstruction" in out
+    assert "not forecasts we published" in out.lower()
+    assert "0.1896" in out                       # pooled Brier at resolution
+    assert "0.639" in out                        # log-loss
+    assert "Brier vs snapshot age" in out        # the centrepiece chart
+    assert "reconstruction</span>" in out        # the standing chip
+    assert "Murphy" in out or "reliability" in out.lower()
+
+
+def test_simlive_never_merges_with_the_forward_ledger(monkeypatch):
+    from newsagent import ledger as ledger_mod
+    monkeypatch.setattr(ledger_mod, "settled_records",
+                        lambda: [_settled("sf-1", "m1", 0.20, 0, "2026-07-17", "2026-07-05")])
+    monkeypatch.setattr(ledger_mod, "method_for", lambda slug: "news")
+    monkeypatch.setattr(dashboard, "_extended_scorecard", lambda: None)
+    _with_simlive(monkeypatch)
+    sc = dashboard.build_showcase([_snapshot31()], _series())
+    # separate keys, separate n, and the forward panel is unaffected by the payload
+    assert sc["simlive"]["n_markets"] == 44
+    assert sc["live_track_record"]["n_settled"] == 1
+    assert sc["live_track_record"]["brier"] == round((0.20 - 0) ** 2, 4)
+    out = dashboard.render_html(sc)
+    assert out.index("Public track record") < out.index("Simulated-live reconstruction")
+
+
+def test_simlive_section_absent_when_no_reconstruction_exists(monkeypatch):
+    monkeypatch.setattr(dashboard, "_simlive", lambda: None)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "Simulated-live reconstruction" not in out
+    assert "All markets at a glance" in out      # the rest of the page is intact
+
+
+def test_html_shows_the_per_tract_accuracy_split(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "accuracy by market type" in out
+    for label in ("news-driven", "poll-driven", "data-driven"):
+        assert label in out
+    assert "0.2230" in out                       # the news-driven Brier
+    assert "0.0773" in out and "0.0741" in out   # poll- and data-driven beside it
+    # the uncomfortable direction is stated, not left for the reader to infer
+    assert "worse</b> on the\n        news-driven markets" in out
+    # base rates are shown beside every Brier so composition is visible
+    assert "32%" in out and "17%" in out and "25%" in out
+
+
+def test_html_states_the_staleness_finding_and_its_mechanism(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "The curve is flat" in out
+    assert "not the binding constraint" in out
+    assert "3.46pp" in out                        # mean |FV - prior| at resolution
+    assert "34%" in out                           # share that moved >= 1pp
+    assert "0.1920" in out                        # prior-only Brier shown beside it
+    assert 'reconchip">derived' in out            # the cadence table is chip-labelled
+    assert "every <span class=\"mono\">28</span> days" in out
+
+
+def test_html_says_the_reconstruction_is_in_sample(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "in-sample, and that is not a detail" in out
+    assert "2.75" in out                          # the fitted alpha is named
+    assert "not an out-of-sample test" in out
+    assert "upper bound" in out
+    assert "§ 06" in out                          # points at the genuinely OOS numbers
+
+
+def test_html_restates_the_v0_closure_wherever_flags_are_described(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "CLOSED" in out and "NOT reopened here" in out
+    assert "beat the mid" not in out.lower()      # never phrased as an edge claim
+
+
+def test_html_states_the_evidence_poorer_caveat(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "evidence-poorer world" in out
+    assert "timestamped" in out
+
+
+def test_simlive_page_is_still_self_contained_and_ip_scrubbed(monkeypatch):
+    _with_simlive(monkeypatch)
+    sc = dashboard.build_showcase([_snapshot31(with_newsletter=True)], _series())
+    out = dashboard.render_html(sc)
+    assert "ZQX-SECRET" not in out and "newsletter:" not in out
+    assert "/Users/" not in out                   # no absolute local path leaks
+    assert "<script src" not in out and "http://cdn" not in out
+    assert "private analysis item" in out
+
+
+def test_simlive_uses_only_the_enforced_palette(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    import re as _re
+    allowed = {dashboard.BG, dashboard.PANEL, dashboard.TX, dashboard.DIM,
+               dashboard.ACC, dashboard.HI, dashboard.NEG, "#fff", "#000"}
+    section = out[out.index("Simulated-live reconstruction"):]
+    section = section[:section.index("Reliability — model FV")]
+    for hexcol in set(_re.findall(r"#[0-9a-fA-F]{3,6}", section)):
+        assert hexcol.lower() in {a.lower() for a in allowed}, hexcol
+
+
+def test_staleness_svg_marks_the_balanced_series_and_its_n(monkeypatch):
+    svg = dashboard._svg_staleness(_simlive_payload())
+    assert "balanced" in svg and "30 markets" in svg
+    assert "n=30" in svg
+    assert "stroke-dasharray" in svg              # raw series is the dashed one
+    assert "snapshot age" in svg
+
+
+# ------------------------------------------- v3.4: data-channel card, regime split
+
+def test_data_channel_card_shows_the_regime_where_the_method_loses(monkeypatch, tmp_path):
+    import json as _json
+    p = tmp_path / "v3_results.json"
+    p.write_text(_json.dumps({"by_regime": {
+        "hiking": {"n": 16, "brier": 0.136, "base": 0.3277, "violations": 0},
+        "holding": {"n": 5, "brier": 0.1528, "base": 0.1236, "violations": 0}}}))
+    monkeypatch.setattr(dashboard, "DC_RESULTS_PATH", p)
+    out = dashboard._dc_regime_html()
+    assert "by rate regime" in out
+    assert "WORSE than doing nothing" in out      # the holding row, stated plainly
+    assert "this market" in out                   # and marked as the live regime
+    assert "0.1528" in out and "0.1236" in out
+
+
+def test_data_channel_regime_split_degrades_when_results_absent(monkeypatch, tmp_path):
+    monkeypatch.setattr(dashboard, "DC_RESULTS_PATH", tmp_path / "missing.json")
+    assert dashboard._dc_regime_html() == ""
+
+
+def test_data_channel_card_says_fv_equals_the_structural_anchor(monkeypatch, tmp_path):
+    import json as _json
+    p = tmp_path / "v3_results.json"
+    p.write_text(_json.dumps({"by_regime": {
+        "holding": {"n": 5, "brier": 0.1528, "base": 0.1236, "violations": 0}}}))
+    monkeypatch.setattr(dashboard, "DC_RESULTS_PATH", p)
+    s = _snapshot31(fv=50.7, tract="data")
+    s["stage_b"].update({"p0_source": "p_struct", "p0_used_pct": 50.7,
+                         "method": "news+data", "n_double_counted": 1,
+                         "market_implied": {"available": False,
+                                            "why": "the Atlanta Fed Market Probability "
+                                                   "Tracker stops quoting a 3-month "
+                                                   "window once that window opens"}})
+    out = dashboard.render_html(dashboard.build_showcase([s], _series()))
+    assert "◆ data-channel scored" in out
+    assert "equals the structural anchor" in out
+    assert "no settled track record yet (n=0)" in out
+    assert "Market Probability Tracker" in out    # MPT dark, rendered in words
+    assert "contribute zero evidence" in out      # double-count guard, labelled
+
+
+def test_mpt_going_dark_does_not_break_the_panel(monkeypatch, tmp_path):
+    monkeypatch.setattr(dashboard, "DC_RESULTS_PATH", tmp_path / "missing.json")
+    s = _snapshot31(fv=50.7, tract="data")
+    s["stage_b"].update({"p0_source": "p_struct", "p0_used_pct": 50.7,
+                         "method": "news+data", "market_implied": None})
+    out = dashboard.render_html(dashboard.build_showcase([s], _series()))
+    assert "◆ data-channel scored" in out         # card still renders end to end
+    assert "unavailable" in out
+    assert "n=0" in out
+
+
+# ------------------------------------------------------ v3.4: reach honesty note
+
+def test_page_states_what_the_reach_channel_actually_reaches(monkeypatch):
+    _with_simlive(monkeypatch)
+    out = dashboard.render_html(dashboard.build_showcase([_snapshot31()], _series()))
+    assert "federalreserve.gov" in out and "state.gov" in out
+    assert "ukmto.org" in out and "navigation-only" in out
+    assert "T+1" in out
+    assert "headline, source and link only" in out

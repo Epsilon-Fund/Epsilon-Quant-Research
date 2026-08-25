@@ -1,7 +1,7 @@
 ---
 title: "Observatory v3 — multi-source news (RSS + newsletters), Scheme-A bias weighting, 24-market universe, gauge/grid charts (attended build)"
 created: 2026-07-05
-status: shipped — attended/manual loop over 24 markets; Scheme-A live with uncovered-source proposal awaiting sign-off; website parked
+status: shipped — attended/manual loop over 24 markets; Scheme-A live and the uncovered-source proposal APPROVED + ACTIVATED 2026-08-24 (α refit 2.7 → 2.85); website parked
 owner: justin
 project: polymarket
 para: project
@@ -47,6 +47,8 @@ Mechanics: all RSS feeds are fetched ONCE per run (day-cached) and filtered per 
 **Verified live:** all five wired outlets resolve to generally-reliable (weight 1.0) from real RSP rows — including the Sky News UK vs Sky News Australia split — and the parser demonstrably differentiates (Fox News → s-nc/0.7, Daily Mail → s-d/0.0, Iffy-listed test domain → 0.0). So today Scheme A changes no number; it becomes load-bearing exactly when sources broaden — which is the point of wiring it before they do.
 
 **Proposal for sign-off (uncovered sources — NOT hard-adopted; all run at the neutral 1.0 = previous flat Scheme B until Justin approves):**
+
+> **APPROVED AS PROPOSED — Justin, 2026-08-24. LIVE from that date.** The three rows below are now the declared weights in `sourceweights.py` (`UNCOVERED_SOURCE_W` / `WP_CE_W` / `UNKNOWN_W`), joined by the v3.1 additions (Bloomberg 0.9, bank research desks 0.9). Activating them changed real Stage-B inputs, so α was refit through `scripts/newsagent_hist_backfill.py --fit` on the same 355-pair / 49-market resolved sample: **α 2.7 → 2.85**, pooled Brier 0.2214 → 0.2215 (i.e. the reweighting bought principle, not fit), band_mult unchanged at 0.5. The neutral-1.0 baseline was re-run first and reproduced α = 2.7 exactly, which is what makes the +0.15 attributable to this decision and nothing else. See [[newsagent_observatory_v33_findings]].
 
 | Source | Proposed weight | Rationale |
 |---|---|---|
@@ -97,9 +99,9 @@ Cost: ~899 cheap-model extractions + 19 mid-model priors, all in-session; steady
 ## What Justin needs to do
 
 1. **Email credential** for newsletter ingestion: read-only app password → `secrets/email_imap.json` (module docstring has the exact shape). Until then the loop runs without newsletters.
-2. **Scheme-A sign-off**, now including the uncovered-source proposal table above (ING 0.9 / WP-CE 0.8 / unknown 0.5).
+2. ~~**Scheme-A sign-off**, now including the uncovered-source proposal table above (ING 0.9 / WP-CE 0.8 / unknown 0.5).~~ **DONE 2026-08-24 — APPROVED and live** (α refit 2.7 → 2.85).
 3. Unchanged: `ANTHROPIC_API_KEY` + `GUARDIAN_API_KEY` + cron-env `GOOGLE_APPLICATION_CREDENTIALS` for the future unattended switch (see `newsagent/AUTOMATION.md` — scaffold only); website handoff stays parked per this round's mandate.
-4. **Settlements ahead:** four markets resolve in July — run `sf settle` + slate refresh + `--fit` per the runbook when they do.
+4. ~~**Settlements ahead:** four markets resolve in July — run `sf settle` + slate refresh + `--fit` per the runbook when they do.~~ **DONE 2026-08-24** (overdue by 3-5 weeks): all four settled and scored, slate refreshed, α refit. First public Brier **0.0794** on n=4. See [[newsagent_observatory_v33_findings]].
 
 ## STRETCH / BACKLOG (marked; nothing blocks the shipped v3 slice)
 

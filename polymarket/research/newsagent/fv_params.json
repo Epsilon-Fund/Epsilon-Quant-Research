@@ -1,5 +1,5 @@
 {
- "alpha": 2.7,
+ "alpha": 2.75,
  "lambda": {
   "slow": 0.9,
   "shock": 0.6
@@ -12,14 +12,14 @@
   "slow": 0.5,
   "shock": 0.0
  },
- "fitted_on": "v0_archive + hist_backfill (resolved >= 2026-02-15)",
- "n_pairs": 355,
- "n_markets": 49,
- "notes": "alpha grid-fit on v0-archive + v3.1 historical-backfill resolved outcomes; band_mult set by the pre-registered bucket-coverage rescale on the backfill pairs. lambda/floors/gamma declared, not fit.",
+ "fitted_on": "v0_archive + hist_backfill + the 4 settled July-2026 forward markets (resolved >= 2026-02-15); Scheme-A weights live 2026-08-24",
+ "n_pairs": 379,
+ "n_markets": 53,
+ "notes": "REFIT 2026-08-25 with the four settled July markets folded into the sample (v3.3 \u00a7 9 item 6): 355 pairs/49 markets -> 379 pairs/53 markets. alpha 2.85 -> 2.75, pooled Brier 0.2215 -> 0.2104 (prior-only 0.2216). READ THE MOVE AS NOISE, NOT LEARNING: the alpha surface is flat to four decimals from 2.40 to 3.00 (0.2104-0.2106) and the previous 2.85 scores 0.2104 on the new sample too \u2014 identical to the argmin. band_mult 0.5 -> 0.75 by the same pre-registered bucket-coverage selector, and this one is a DEGRADATION worth reading: NO knob on the 0.25..3.0 grid reaches the nominal 0.8 coverage any more (max 0.6 = 3 of 5 scoreable buckets), so the selector fell back to its declared closest-to-nominal branch. Bands are not merely re-scaled, they fail to cover two buckets at any width. lambda/floors/gamma/s_min/shift-clips declared, not fit. NOT refit on reach composition (no reach item has ever entered a fitted packet) and NOT refit for the data channel (DC-4: p_struct enters via p0, not A_t). See newsagent_simulated_live_findings.",
  "gamma": 1.0,
  "shift_clip_logits": {
   "slow": 1.5,
   "shock": null
  },
- "band_mult": 0.5
+ "band_mult": 0.75
 }

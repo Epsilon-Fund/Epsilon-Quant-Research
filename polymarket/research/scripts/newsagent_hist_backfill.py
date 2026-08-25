@@ -220,6 +220,103 @@ def cmd_discover(limit: int) -> None:
               f"end={m['end_date']}  {m['question'][:70]}")
 
 
+# ------------------------------------------------------- add settled forward ---
+
+def cmd_add_settled() -> None:
+    """APPEND the forward slate's own SETTLED markets to the backfill universe.
+
+    v3.3 § 9 item 6: "fold the four settled markets into the fit sample on the next
+    refit (via --discover/--fetch/--ingest), which is the honest way to make
+    'refit on every settlement' literally true." They cannot arrive through
+    cmd_discover: the declared FAMILY_CAP is already saturated on both of their
+    families (iran ×4, fed ×4), so the sweep drops them.
+
+    DECLARED DEVIATION, recorded here rather than in a commit message: the family
+    cap is a DISCOVERY rule for sweeping the resolved universe — it exists so a
+    correlated cluster cannot inflate n while adding no information. These markets
+    enter by a different route: they are our OWN forward slate's settlements, and
+    "refit on every settlement" is a standing commitment, not a sampling choice.
+    The cap therefore does not govern them. The resulting family concentration IS
+    reported (the findings note prints per-family counts), and the fit is reported
+    both with and without them so the effect of the breach is visible rather than
+    buried.
+
+    Rows carry src="settled_forward" so downstream code can always separate them.
+    Never overwrites universe.json wholesale — appends only, idempotently.
+    """
+    from newsagent.config import RETIRED_MARKETS
+
+    universe = json.loads(UNIVERSE.read_text()) if UNIVERSE.exists() else []
+    have = {m["slug"] for m in universe}
+    added = []
+    for slug, meta in RETIRED_MARKETS.items():
+        if slug in have:
+            print(f"  already present: {slug[:60]}")
+            continue
+        m = _gamma_resolved(slug)
+        if m is None:
+            print(f"  MISS gamma has nothing for {slug[:60]} (tried closed=true + search)")
+            continue
+        outcomes = json.loads(m.get("outcomes") or "[]")
+        prices = [float(p) for p in json.loads(m.get("outcomePrices") or "[]")]
+        y = round(prices[outcomes.index(next(o for o in outcomes if o.lower() == "yes"))])
+        expected = 1 if meta["outcome"] == "YES" else 0
+        if y != expected:
+            raise SystemExit(f"outcome mismatch for {slug}: gamma says {y}, "
+                             f"config.RETIRED_MARKETS says {expected} — refusing to write")
+        q = (m.get("question") or "")
+        end = (m.get("endDate") or "")[:10]
+        start = (m.get("startDate") or m.get("createdAt") or "")[:10]
+        row = {"slug": slug, "question": q,
+               "description": (m.get("description") or "")[:600],
+               "end_date": end,
+               "close_date": (m.get("closedTime") or "")[:10] or end,
+               "start_date": start,
+               "volume": round(float(m.get("volumeNum") or 0)),
+               "y": y, "mtype": "slow" if any(k in q.lower() for k in SLOW_HINTS) else "shock",
+               "family": coarse_family(q),
+               "src": "settled_forward", "sf_id": meta["sf_id"],
+               **draft_keys(q)}
+        universe.append(row)
+        added.append(row)
+    UNIVERSE.write_text(json.dumps(universe, indent=1))
+    fams = {}
+    for m in universe:
+        fams[m["family"]] = fams.get(m["family"], 0) + 1
+    print(f"\n+{len(added)} settled-forward markets -> {len(universe)} total in {UNIVERSE}")
+    print("families now:", ", ".join(f"{k}×{v}" for k, v in sorted(fams.items())))
+    for r in added:
+        print(f"  y={r['y']} {r['mtype']:>5} {r['family']:>14} {r['sf_id']}  "
+              f"end={r['end_date']} start={r['start_date']}  {r['question'][:62]}")
+
+
+def _gamma_resolved(slug: str) -> dict | None:
+    """Resolved-market lookup that survives Polymarket's silent re-slugs.
+
+    Closed markets need closed=true on the slug lookup (the v3.1 gotcha); a market
+    Polymarket has RENAMED returns zero rows even with the flag and has to be
+    recovered through /public-search (the v3.3 gotcha). Both paths are tried here
+    so a rename cannot silently drop a settlement out of the fit sample."""
+    base = "https://gamma-api.polymarket.com/markets?"
+    for extra in ({"slug": slug}, {"slug": slug, "closed": "true"}):
+        rows = http_json(base + urllib.parse.urlencode(extra))
+        if rows:
+            return rows[0]
+    try:
+        res = http_json("https://gamma-api.polymarket.com/public-search?"
+                        + urllib.parse.urlencode({"q": slug[:70], "limit_per_type": "20"}))
+    except Exception:
+        return None
+    cands = (res or {}).get("events") or []
+    for ev in cands:
+        for mk in ev.get("markets") or []:
+            s = mk.get("slug") or ""
+            if s.startswith(slug[:60]) and mk.get("umaResolutionStatus") == "resolved":
+                print(f"    re-slug recovered: {slug[:48]} -> {s[:60]}")
+                return mk
+    return None
+
+
 # --------------------------------------------------------------------- fetch ---
 
 def snapshot_dates(mkt: dict) -> list[str]:
@@ -230,6 +327,12 @@ def snapshot_dates(mkt: dict) -> list[str]:
     lo = max(start + timedelta(days=1),
              end - timedelta(days=SNAPSHOT_WINDOW_DAYS),
              datetime.fromisoformat("2026-02-01").replace(tzinfo=timezone.utc))
+    # onboard_date: markets whose prior is the LEDGER PRIOR OF RECORD (the settled
+    # forward markets folded in on 2026-08-25) may not be scored before the day that
+    # prior actually existed — anchoring a 2026-06-27 snapshot on a 2026-07-05 prior
+    # would be a lookahead. Clip the schedule instead of silently allowing it.
+    if mkt.get("onboard_date"):
+        lo = max(lo, datetime.fromisoformat(mkt["onboard_date"]).replace(tzinfo=timezone.utc))
     dates, t = [], end - timedelta(days=1)
     while t >= lo and len(dates) < MAX_SNAPSHOTS:
         dates.append(t.strftime("%Y-%m-%d"))
@@ -336,10 +439,17 @@ def cmd_fetch(max_markets: int | None) -> None:
 
 # -------------------------------------------------------------------- ingest ---
 
-def cmd_ingest(features_file: str | None, priors_file: str | None) -> None:
+def cmd_ingest(features_file: str | None, priors_file: str | None,
+               oob_source: str = "oob:hist_backfill") -> None:
+    """Ingest out-of-band Stage-A features / priors.
+
+    `oob_source` is stamped into every cache record's `_meta.source`. It is NOT
+    cosmetic: alpha is fitted on HAIKU-era extraction, so a round produced by a
+    different extractor is a provider change in everything but name and has to be
+    attributable after the fact (the v3.3 § 5a caveat). Pass the real provenance."""
     if features_file:
         done = json.loads(Path(features_file).read_text())
-        n = features.ingest_features(done, source="oob:hist_backfill")
+        n = features.ingest_features(done, source=oob_source)
         print(f"ingested {n} feature records")
     if priors_file:
         raw = json.loads(Path(priors_file).read_text())
@@ -357,14 +467,21 @@ def cmd_ingest(features_file: str | None, priors_file: str | None) -> None:
 
 # ---------------------------------------------------------------- gdelt scan ---
 
-def cmd_pull_gdelt() -> None:
+def cmd_pull_gdelt(win_from: str | None = None, win_to: str | None = None) -> None:
     """Chunked <=70-day windows: each scan stays under the 25 GB per-query guard;
-    the multi-month total (~37 GB) is ~4% of the 1 TB/mo free tier."""
+    the multi-month total (~37 GB) is ~4% of the 1 TB/mo free tier.
+
+    win_from/win_to bound the scan explicitly. Use them to TOP UP a gap rather than
+    re-scanning eleven months: the four settled-forward markets were retired from
+    the live slate on 2026-08-24, so their attention series stops on 2026-07-05 and
+    every reconstruction snapshot after that date would silently lose the GDELT
+    burst term (burst_z -> None -> amplify no-ops) while the other 40 markets keep
+    it. Refreshing the window restores parity instead of degrading four markets."""
     universe = json.loads(UNIVERSE.read_text())
     name_keys = {m["slug"]: m["gdelt_keys"] for m in universe if m.get("gdelt_keys")}
-    lo = min(m["start_date"] for m in universe)
-    hi = max(m["end_date"] for m in universe)
-    t = datetime.fromisoformat(lo) - timedelta(days=16)
+    lo = win_from or min(m["start_date"] for m in universe)
+    hi = win_to or max(m["end_date"] for m in universe)
+    t = datetime.fromisoformat(lo) - (timedelta(0) if win_from else timedelta(days=16))
     end = datetime.fromisoformat(hi)
     cache = {}
     while t < end:
@@ -423,7 +540,7 @@ def build_hist_pairs(gamma: float, gdelt_series: dict, params: dict) -> list[dic
                           "shift_clip": tp["shift_clip"],
                           "band_floor": floor, "band_raw": comp["raw"],
                           "n_missing_feats": sum(1 for r in feats if r["features"] is None),
-                          "src": "hist"})
+                          "src": m.get("src", "hist")})
     if skipped:
         print(f"  skipped {len(skipped)} markets: "
               + "; ".join(f"{s[:40]} ({r})" for s, r in skipped))
@@ -596,6 +713,9 @@ def cmd_fit() -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--discover", action="store_true")
+    ap.add_argument("--add-settled", action="store_true",
+                    help="append config.RETIRED_MARKETS (the forward slate's own "
+                         "settled markets) to the universe — see cmd_add_settled")
     ap.add_argument("--limit", type=int, default=40)
     ap.add_argument("--fetch", action="store_true")
     ap.add_argument("--markets", type=int, default=None,
@@ -603,21 +723,30 @@ def main() -> None:
     ap.add_argument("--ingest", action="store_true")
     ap.add_argument("--features-file")
     ap.add_argument("--priors-file")
+    ap.add_argument("--oob-source", default="oob:hist_backfill",
+                    help="provenance stamped into _meta.source of every ingested "
+                         "feature record (alpha is Haiku-era — say who extracted)")
     ap.add_argument("--pull-gdelt", action="store_true")
+    ap.add_argument("--gdelt-from", help="YYYY-MM-DD lower bound for --pull-gdelt (top-up)")
+    ap.add_argument("--gdelt-to", help="YYYY-MM-DD upper bound for --pull-gdelt (top-up)")
     ap.add_argument("--fit", action="store_true")
     args = ap.parse_args()
     if args.discover:
         cmd_discover(args.limit)
+    if args.add_settled:
+        cmd_add_settled()
     if args.fetch:
         cmd_fetch(args.markets)
     if args.ingest:
-        cmd_ingest(args.features_file, args.priors_file)
+        cmd_ingest(args.features_file, args.priors_file, args.oob_source)
     if args.pull_gdelt:
-        cmd_pull_gdelt()
+        cmd_pull_gdelt(args.gdelt_from, args.gdelt_to)
     if args.fit:
         cmd_fit()
-    if not (args.discover or args.fetch or args.ingest or args.pull_gdelt or args.fit):
-        print("nothing to do — pass --discover / --fetch / --ingest / --pull-gdelt / --fit")
+    if not (args.discover or args.add_settled or args.fetch or args.ingest
+            or args.pull_gdelt or args.fit):
+        print("nothing to do — pass --discover / --add-settled / --fetch / "
+              "--ingest / --pull-gdelt / --fit")
 
 
 if __name__ == "__main__":

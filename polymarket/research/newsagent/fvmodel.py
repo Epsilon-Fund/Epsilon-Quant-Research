@@ -341,11 +341,17 @@ def _reliability_tier(w: float) -> str:
 
 
 def _source_label(domain: str) -> str:
-    """Public-safe source name: newsletters show their generic label only
-    (never title/text/link — the v3 privacy rule)."""
+    """Public-safe source name for a never-displayed item.
+
+    Newsletters show their generic house label only (the v3 privacy rule); reach
+    TRANSCRIPTS show the channel as a transcript, because a caption track is a
+    full copy of the work and is display=False on every source regardless of who
+    published it. Neither ever contributes a title, body or link."""
     d = domain or "unknown"
     if d.startswith("newsletter:"):
         return d.split(":", 1)[1].strip() + " (newsletter)"
+    if d.startswith("youtube.com/@"):
+        return d.split("@", 1)[1].strip() + " (transcript)"
     return d
 
 
@@ -498,6 +504,10 @@ def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list
             continue
         rows.append({"title": r["article"].get("title", "")[:140],
                      "domain": r["article"].get("domain", ""),
+                     # carried so the PAGE can enforce display=False; v3.1 caught a
+                     # latent leak exactly because the filter existed at the source
+                     # but not at the page boundary
+                     "display": bool(r["article"].get("display", True)),
                      "c": round(w * c, 4), "weight": w, "features": r.get("features")})
     rows.sort(key=lambda x: -abs(x["c"]))
 
@@ -523,7 +533,7 @@ def breakdown(p0_pct: float, prev_state: dict | None, date: str, day_feats: list
     for x in rows:
         running_a += x["c"] * scale
         fv_here = _fv_at(running_a)
-        steps.append({**{k: x[k] for k in ("title", "domain", "c")},
+        steps.append({**{k: x[k] for k in ("title", "domain", "display", "c")},
                       "pp_effect": round(fv_here - prev_fv, 2)})
         prev_fv = fv_here
     return {"p0_pct": p0_pct, "carry_pp": round(carry_pp, 2), "alpha": alpha,

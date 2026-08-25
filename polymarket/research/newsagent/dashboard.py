@@ -18,7 +18,7 @@ Layout (v3.2): the PAGE is two columns — left pane = the aggregated news/
 evidence feed (sticky, own scroll), right pane = markets. Every market's donut
 gauge sits in a full-width overview grid, visible WITHOUT expanding anything;
 deep detail (time series, FV construction) stays in collapsible cards. Extras:
-a big-movers strip (largest day-over-day FV changes from the published series,
+a big-movers strip (largest FV change since each market's previous published snapshot,
 which mirrors the append-only ledger) and an evidence-quality badge per market.
 
 Framing rules (enforced in copy):
@@ -41,8 +41,8 @@ import math
 from datetime import datetime, timezone
 
 from . import sourcelean, sourceweights
-from .config import (CSV_OUT, SHOWCASE, DIVERGENCE_GAP_PP, DIVERGENCE_HALF_MAX_PP,
-                     DIVERGENCE_NREL_MIN)
+from .config import (CSV_OUT, DATA, SHOWCASE, DIVERGENCE_GAP_PP,
+                     DIVERGENCE_HALF_MAX_PP, DIVERGENCE_NREL_MIN)
 
 # ---- design tokens (deployed epsilon site, read-only borrow; v3.2) -------------
 BG = "#242423"          # --color-bg
@@ -93,6 +93,53 @@ def _interim_scores(fv_series: dict) -> dict:
             "n": len(overall), "per_market": per_market}
 
 
+SIMLIVE_PATH = DATA.parent / "simlive" / "simlive_results.json"
+
+
+def _simlive() -> dict | None:
+    """The SIMULATED-LIVE RECONSTRUCTION payload — a DIFFERENT OBJECT from the
+    forward ledger and never mixed with it.
+
+    Produced by scripts/newsagent_simlive.py: what the current model WOULD have
+    published on already-resolved markets, replayed lookahead-free. It is not a
+    record of forecasts we made. Nothing here is written to the sf ledger, nothing
+    here is summed with `live_track_record`, and every element it renders carries
+    the word "reconstruction". Absent file -> the section simply does not render.
+    """
+    if not SIMLIVE_PATH.exists():
+        return None
+    try:
+        d = json.loads(SIMLIVE_PATH.read_text())
+    except (ValueError, OSError):
+        return None
+    return d if d.get("label") == "reconstruction" and d.get("n_markets") else None
+
+
+def _simlive_bins(sl: dict) -> list[dict]:
+    """Reconstruction reliability curve in the shape _svg_reliability expects."""
+    out = []
+    for b in sl["at_resolution"]["reliability_curve"]:
+        if not b["n"]:
+            continue
+        out.append({"lo": 0.0, "hi": 1.0, "mean_fv": b["mean_forecast_pct"] / 100.0,
+                    "outcome_rate": b["observed_yes_pct"] / 100.0, "n": b["n"]})
+    return out
+
+
+# Reach reality, stated on the page rather than only in the build notes. These are
+# MEASURED counts from the shipped agent-reach extension, not aspirations.
+REACH_STATUS_NOTE = (
+    "Primary-source reach, honestly: the page channel currently reaches <b>two</b> "
+    "domains that carry a trustworthy publication date — federalreserve.gov and "
+    "state.gov/releases. The best instrument found for the Hormuz questions, "
+    "ukmto.org, stays <b>navigation-only</b> because nothing on the page dates it. "
+    "The dateline path is also <b>T+1</b>: a document published on the run day is "
+    "refused rather than risked, so today's official statement reaches the packet "
+    "tomorrow. Official documents show headline, source and link only; transcripts "
+    "and private analysis are counted and never shown."
+)
+
+
 def _reliability_bins(nbins: int = 5) -> list[dict]:
     """Reliability data from the Stage-B archive calibration pairs (in-sample,
     resolved outcomes). The forward ledger takes over as markets settle."""
@@ -113,9 +160,14 @@ def _reliability_bins(nbins: int = 5) -> list[dict]:
 
 
 def _movers(cards: list[dict], fv_series: dict, top_n: int = 6) -> dict:
-    """Big movers (v3.2): largest day-over-day FV changes across the book, from
-    the published live series — one point per published day, mirroring the
-    append-only sf ledger (backfill/reconstructed segments never count)."""
+    """Big movers: largest FV change since each market's PREVIOUS PUBLISHED
+    snapshot, from the live series only (backfill/reconstructed segments never
+    count — they are not in the append-only sf ledger).
+
+    v3.3 wording fix: the observatory runs ATTENDED, so consecutive snapshots can
+    be days or weeks apart (2026-07-05 -> 2026-08-24 was 50 days). Calling that a
+    "day-over-day" move, as v3.2 did, overstated the cadence; every row carries
+    its own from/to dates and the gap in days."""
     items = []
     for c in cards:
         pts = [p for p in fv_series.get(c["slug"], [])
@@ -123,17 +175,109 @@ def _movers(cards: list[dict], fv_series: dict, top_n: int = 6) -> dict:
         if len(pts) < 2:
             continue
         prev, last = pts[-2], pts[-1]
+        try:
+            gap_days = (datetime.fromisoformat(last["date"])
+                        - datetime.fromisoformat(prev["date"])).days
+        except ValueError:
+            gap_days = None
         items.append({"slug": c["slug"], "question": c["question"],
                       "fv_pct": last["fv_pct"],
                       "delta_pp": round(last["fv_pct"] - prev["fv_pct"], 1),
-                      "from_date": prev["date"], "to_date": last["date"]})
+                      "from_date": prev["date"], "to_date": last["date"],
+                      "gap_days": gap_days})
     items.sort(key=lambda m: -abs(m["delta_pp"]))
+    gaps = [m["gap_days"] for m in items[:top_n] if m.get("gap_days")]
+    span = (f" These snapshots are {min(gaps)}–{max(gaps)} days apart: the "
+            "observatory is attended, not a daily cron, so a move is the change "
+            "since the last published number, not a one-day move."
+            if gaps and max(gaps) > 1 else "")
     return {"items": items[:top_n],
-            "note": ("Largest day-over-day changes in our fair value (published "
-                     "snapshots only — reconstructed history never counts). Big "
-                     "moves trace to the evidence shown on the market's card.")
+            "note": ("Largest changes in our fair value since each market's "
+                     "previous PUBLISHED snapshot (reconstructed history never "
+                     "counts). Big moves trace to the evidence shown on the "
+                     "market's card." + span)
             if items else
-            "Movers appear once two published daily snapshots exist per market."}
+            "Movers appear once a market has two published snapshots."}
+
+
+def _extended_scorecard() -> dict | None:
+    """Optional extras from the `calibrate` skill (log-loss, ECE, Spiegelhalter Z).
+
+    calibrate is a READ-ONLY consumer of the same ledger and is the scorer of
+    record; it lives behind lemma-calibrate, which the daily loop must not depend
+    on — if it is not importable the page simply shows the headline Brier, which
+    dashboard code computes from the ledger itself.
+    """
+    try:
+        from lib.calibration import core as cal   # noqa: PLC0415
+        sc = cal.score_ledger(book="polymarket")
+    except Exception:
+        return None
+    # keep only JSON-serialisable scalars: score_ledger also returns a pandas
+    # reliability table, and showcase.json must stay plain JSON for the website.
+    return {"n": sc.get("n"), "brier": sc.get("brier"),
+            "log_loss": sc.get("log_loss"), "ece": sc.get("ece"), "mce": sc.get("mce"),
+            "murphy": {k: v for k, v in (sc.get("murphy") or {}).items()},
+            "spiegelhalter": {k: v for k, v in (sc.get("spiegelhalter") or {}).items()},
+            "calibration_in_the_large": {
+                k: v for k, v in (sc.get("calibration_in_the_large") or {}).items()}}
+
+
+def _live_track_record(fv_series: dict | None = None) -> dict:
+    """The public FORWARD track record: every settled ledger entry, scored on the
+    number we had actually published when the market resolved.
+
+    Reported PER METHOD and never merged (DC-8, approved 2026-08-24): a Brier
+    earned by the news-only model is not credited to a later news+data model. A
+    method that is live but has settled nothing yet shows the honest transition
+    line "new method — no settled track record yet (n=0)".
+    """
+    from . import config, ledger   # noqa: PLC0415
+    recs = ledger.settled_records()
+    fv_series = fv_series or {}
+    for r in recs:
+        pts = [p for p in fv_series.get(r["slug"], [])
+               if p.get("segment", "live") == "live" and p.get("mid_pct") is not None]
+        r["mid_pct_at_last_snapshot"] = pts[-1]["mid_pct"] if pts else None
+        lag = None
+        if r["resolution_date"] and r["last_update"]:
+            try:
+                lag = (datetime.fromisoformat(r["resolution_date"])
+                       - datetime.fromisoformat(r["last_update"])).days
+            except ValueError:
+                lag = None
+        r["stale_days"] = lag
+    live_methods = {ledger.method_for(slug) for slug in config.LIVE_MARKETS}
+    per_method = {}
+    for m in sorted(live_methods | {r["method"] for r in recs}):
+        rows = [r for r in recs if r["method"] == m]
+        per_method[m] = {
+            "n": len(rows),
+            "brier": round(sum(r["brier"] for r in rows) / len(rows), 4) if rows else None,
+            "base_rate": round(sum(r["outcome"] for r in rows) / len(rows), 3) if rows else None,
+            "note": ("new method — no settled track record yet (n=0)" if not rows else
+                     f"{len(rows)} settled forecast{'s' if len(rows) != 1 else ''}"),
+        }
+    stale = [r["stale_days"] for r in recs if r["stale_days"] is not None]
+    return {
+        "status": "scored" if recs else "collecting",
+        "n_settled": len(recs),
+        "brier": round(sum(r["brier"] for r in recs) / len(recs), 4) if recs else None,
+        "per_method": per_method,
+        "records": recs,
+        "max_stale_days": max(stale) if stale else None,
+        "extended": _extended_scorecard(),
+        "note": ("Daily snapshots go to an append-only forecast ledger (anti-post-hoc: "
+                 "settled entries reject edits); Brier and reliability appear here as "
+                 "markets resolve." if not recs else
+                 "Each row is scored on the probability we had ALREADY PUBLISHED when "
+                 "the market resolved — the ledger is append-only and settled entries "
+                 "reject edits, so nothing here can be improved after the fact. Scores "
+                 "are kept separately per method and never merged. The market mid is "
+                 "shown as context only: with a handful of resolutions a head-to-head "
+                 "would be noise, and the pre-registered gates that closed the "
+                 "beat-the-mid claim are the scoreboard above."),
+    }
 
 
 def _norm_title(t: str) -> str:
@@ -187,7 +331,8 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
         div = sb.get("divergence", {})
         # public evidence feed: display=False items (private newsletters) NEVER
         # appear — only their count does. Everything shown is headline+source+link.
-        shown = [a for a in s["packet"]["articles"] if a.get("display", True)]
+        shown = [a for a in s["packet"]["articles"]
+                 if a.get("display", True) and not _never_public(a.get("domain", ""))]
         n_private = len(s["packet"]["articles"]) - len(shown)
         half_pp = sb.get("half_pp",
                          round((fc["band_hi_pct"] - fc["band_lo_pct"]) / 2, 1))
@@ -200,7 +345,14 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
         cards.append({
             "slug": mkt["slug"], "question": mkt["question"], "region": s.get("region", ""),
             "mtype": sb.get("mtype", ""), "deadline": mkt["end_date"][:10],
-            "tract": sb.get("tract", "news"), "tract_note": sb.get("tract_note", ""),
+            "tract": ("data_scored" if sb.get("p0_source") == "p_struct"
+                      else sb.get("tract", "news")),
+            "tract_note": sb.get("tract_note", ""),
+            "method": sb.get("method", "news"),
+            "p0_source": sb.get("p0_source", "onboarding_prior"),
+            "p0_used_pct": sb.get("p0_used_pct"),
+            "n_double_counted": sb.get("n_double_counted", 0),
+            "market_implied": sb.get("market_implied"),
             "fv_pct": fc["p_pct"], "band": [fc["band_lo_pct"], fc["band_hi_pct"]],
             "market_pct": round(mkt["mid"] * 100, 1),
             "gap_pp": div.get("gap_pp", round(fc["p_pct"] - mkt["mid"] * 100, 1)),
@@ -218,6 +370,10 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
                               sourcelean.get_lean(a.get("domain", "")))}
                          for a in shown],
             "n_private_items": n_private,
+            "n_transcripts": sum(1 for a in s["packet"]["articles"]
+                                 if a.get("reach_kind") == "transcript"),
+            "n_reach_docs": sum(1 for a in s["packet"]["articles"]
+                                if a.get("reach_kind") == "document"),
             "series": fv_series.get(mkt["slug"], []),
             "sf_id": s.get("sf_id", ""),
         })
@@ -259,10 +415,11 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
                                  "resolved June-2026 archive (the calibration set). "
                                  "The forward ledger becomes the real track record "
                                  "as live markets settle.")},
-        "live_track_record": {"status": "collecting", "note": (
-            "Daily snapshots go to an append-only forecast ledger (anti-post-hoc: "
-            "settled entries reject edits); Brier/reliability appear here as markets "
-            "resolve.")},
+        "live_track_record": _live_track_record(fv_series),
+        # A DIFFERENT OBJECT from live_track_record. Kept as its own key precisely so
+        # nothing downstream can accidentally sum the two.
+        "simlive": _simlive(),
+        "reach_status": REACH_STATUS_NOTE,
         "markets": cards,
         "movers": _movers(cards, fv_series),
         "feed": _build_feed(cards),
@@ -350,6 +507,77 @@ def _svg_reliability(bins: list[dict], w: int = 340, h: int = 300) -> str:
 {pts}{ticks}
 <text x="{(w+pad)/2:.0f}" y="{h-4}" fill="{DIM}" font-size="10" text-anchor="middle" font-family="{SANS}">model fair value</text>
 <text x="12" y="{h/2:.0f}" fill="{DIM}" font-size="10" text-anchor="middle" font-family="{SANS}" transform="rotate(-90 12 {h/2:.0f})">observed outcome rate</text>
+</svg>"""
+
+
+def _svg_staleness(sl: dict, w: int = 660, h: int = 300) -> str:
+    """The CENTREPIECE: pooled Brier as a function of snapshot age.
+
+    Two series. The BALANCED one (markets carrying all eight grid snapshots) is the
+    honest read — the raw one moves partly because short-lived markets drop out of
+    the far horizons, and a curve that changes shape because its sample changed is
+    not a finding. Lower is better; the x-axis runs old -> fresh left to right.
+    """
+    raw = [r for r in sl["staleness"]["raw"] if r["brier"] is not None]
+    bal = [r for r in sl["staleness"]["balanced"] if r["brier"] is not None]
+    if not bal:
+        return '<div class="nochart">staleness curve appears once the reconstruction runs</div>'
+    pad_l, pad_b, pad_t = 46, 40, 14
+    xs = [r["days_before_resolution"] for r in bal]
+    lo_x, hi_x = min(xs), max(xs)
+    vals = [r["brier"] for r in raw + bal]
+    lo_y, hi_y = 0.0, max(vals) * 1.18
+    def xx(d):   # old (left) -> fresh (right)
+        return pad_l + (w - pad_l - 14) * (hi_x - d) / max(1, hi_x - lo_x)
+    def yy(v):
+        return (h - pad_b) - (h - pad_b - pad_t) * (v - lo_y) / (hi_y - lo_y or 1)
+
+    def path(rows, colour, dash, width):
+        d = " ".join(f'{"M" if i == 0 else "L"}{xx(r["days_before_resolution"]):.1f},'
+                     f'{yy(r["brier"]):.1f}' for i, r in enumerate(sorted(
+                         rows, key=lambda r: -r["days_before_resolution"])))
+        dots = "".join(f'<circle cx="{xx(r["days_before_resolution"]):.1f}" '
+                       f'cy="{yy(r["brier"]):.1f}" r="3.4" fill="{colour}"/>' for r in rows)
+        return (f'<path d="{d}" fill="none" stroke="{colour}" stroke-width="{width}"'
+                + (f' stroke-dasharray="{dash}"' if dash else "")
+                + f'/>{dots}')
+
+    gridlines, yticks = "", ""
+    steps = 4
+    for i in range(steps + 1):
+        v = lo_y + (hi_y - lo_y) * i / steps
+        y = yy(v)
+        gridlines += f'<line x1="{pad_l}" y1="{y:.1f}" x2="{w-14}" y2="{y:.1f}" stroke="{LINE}"/>'
+        yticks += (f'<text x="{pad_l-8}" y="{y+3:.1f}" fill="{DIM}" font-size="9" '
+                   f'text-anchor="end" font-family="{MONO}">{v:.2f}</text>')
+    xticks = "".join(
+        f'<text x="{xx(r["days_before_resolution"]):.1f}" y="{h-pad_b+15}" fill="{DIM}" '
+        f'font-size="9" text-anchor="middle" font-family="{MONO}">'
+        f'{r["days_before_resolution"]}d</text>'
+        f'<text x="{xx(r["days_before_resolution"]):.1f}" y="{h-pad_b+27}" fill="{DIM}" '
+        f'font-size="8" text-anchor="middle" font-family="{MONO}">n={r["n"]}</text>'
+        for r in bal)
+    legend = (f'<circle cx="{pad_l+8}" cy="{pad_t+2}" r="3.4" fill="{HI}"/>'
+              f'<text x="{pad_l+18}" y="{pad_t+6}" fill="{DIM}" font-size="9.5" '
+              f'font-family="{SANS}">balanced — the '
+              f'{sl["staleness"]["n_markets_balanced"]} markets with all 8 snapshots '
+              f'(the honest read)</text>'
+              f'<circle cx="{pad_l+8}" cy="{pad_t+18}" r="3.4" fill="{DIM}"/>'
+              f'<text x="{pad_l+18}" y="{pad_t+22}" fill="{DIM}" font-size="9.5" '
+              f'font-family="{SANS}">raw — all {sl["n_markets"]} markets, n varies by '
+              f'horizon</text>')
+    return f"""<svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Reconstruction: pooled Brier by snapshot age">
+{gridlines}
+<line x1="{pad_l}" y1="{h-pad_b}" x2="{w-14}" y2="{h-pad_b}" stroke="{LINE}"/>
+<line x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{h-pad_b}" stroke="{LINE}"/>
+{path(raw, DIM, "4 4", 1.4)}
+{path(bal, HI, "", 2.2)}
+{yticks}{xticks}{legend}
+<text x="{(w+pad_l)/2:.0f}" y="{h-4}" fill="{DIM}" font-size="10" text-anchor="middle"
+      font-family="{SANS}">snapshot age at publication — older (left) to fresher (right)</text>
+<text x="13" y="{h/2:.0f}" fill="{DIM}" font-size="10" text-anchor="middle"
+      font-family="{SANS}" transform="rotate(-90 13 {h/2:.0f})">pooled Brier (lower is better)</text>
 </svg>"""
 
 
@@ -467,15 +695,15 @@ def _overview_grid_html(cards: list[dict]) -> str:
     """All markets at a glance (v3.2): a full-width DONUT grid — every market's
     gauge visible without expanding anything, ordered by the divergence layer
     (flags first, then |gap|). Each cell: donut (FV arc + band + mid tick),
-    question, fv/mid/gap numerals, badges (⚑ flag, ◆ data-driven,
+    question, fv/mid/gap numerals, badges (⚑ flag, ◆ not-news-tractable,
     evidence-quality). Click a cell to open the market's detail card."""
     cells = ""
     for c in sorted(cards, key=lambda x: (not x["divergence_flag"], -abs(x["gap_pp"]))):
         q = c["question"][:96] + ("…" if len(c["question"]) > 96 else "")
         gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
         flag = '<span class="gflag">⚑</span> ' if c["divergence_flag"] else ""
-        dmark = ('<span class="dmark" title="data-driven — not news-tractable">◆</span> '
-                 if c.get("tract") == "data" else "")
+        dmark = (f'<span class="dmark" title="{_TRACT_TITLE[c["tract"]]}">◆</span> '
+                 if c.get("tract") in _TRACT_TITLE else "")
         cells += f"""<a class="cell" href="#card-{html.escape(c["slug"])}"
  onclick="revealCard('{html.escape(c["slug"])}')" data-flag="{1 if c["divergence_flag"] else 0}">
   <div class="celldonut">{_svg_donut(c["fv_pct"], c["band"][0], c["band"][1], c["market_pct"], flagged=c["divergence_flag"])}</div>
@@ -516,7 +744,7 @@ def _lean_chip(lean_lbl: str) -> str:
     return f'<span class="lean lean-{html.escape(lean_lbl)}" title="source lean: {html.escape(lean_lbl)} (AllSides-informed)">{short}</span>'
 
 
-def _feed_html(feed: dict) -> str:
+def _feed_html(feed: dict, reach_note: str = "") -> str:
     items = ""
     for e in feed.get("items", []):
         refs = "".join(
@@ -539,7 +767,8 @@ def _feed_html(feed: dict) -> str:
   <div class="sub" style="margin:0">news &amp; evidence feed</div>
   <div class="note" style="margin:.3rem 0 .6rem">{html.escape(feed.get("note", ""))}</div>
 </div>
-<ul class="ev">{items or '<li class="dim">no public items yet today</li>'}</ul>"""
+<ul class="ev">{items or '<li class="dim">no public items yet today</li>'}</ul>
+<div class="note reachnote">{reach_note}</div>"""
 
 
 def _svg_divergence(cards: list[dict], w: int = 660) -> str:
@@ -578,13 +807,37 @@ def _svg_divergence(cards: list[dict], w: int = 660) -> str:
 # ------------------------------------------------------------------ HTML render --
 
 def _bd_row_public(a: dict) -> tuple[str, str]:
-    """Breakdown row -> (public domain label, public title). Private newsletter
-    items show their generic source label only — never title/text/link."""
+    """Breakdown row -> (public domain label, public title).
+
+    THE PAGE BOUNDARY. Any item flagged display=False shows its generic source
+    label and nothing else — never a title, never text, never a link. Keying off
+    the `display` flag rather than a `newsletter:` domain prefix is what makes
+    this cover reach transcripts as well: their titles are internal, and one of
+    them is a content-hash-suffixed cache key that must never be public.
+
+    Belt and braces on purpose: the flag is checked AND the domain is re-checked
+    against the never-public prefixes. A breakdown record written before the flag
+    existed would default to display=True, and this boundary must not depend on
+    an upstream field being present to keep a secret."""
     dom = a.get("domain", "")
-    if dom.startswith("newsletter:"):
-        label = dom.split(":", 1)[1].strip()
-        return f"{label} (newsletter)", "private analysis item — not displayed"
+    if not a.get("display", True) or _never_public(dom):
+        return _public_source_label(dom), "private analysis item — not displayed"
     return dom, a.get("title", "")
+
+
+# Source families whose ITEM TEXT may never reach the page, whatever a record's
+# display flag happens to say: private newsletters and any video transcript.
+NEVER_PUBLIC_PREFIXES = ("newsletter:", "youtube.com/@")
+
+
+def _never_public(domain: str) -> bool:
+    return (domain or "").startswith(NEVER_PUBLIC_PREFIXES)
+
+
+def _public_source_label(domain: str) -> str:
+    """Generic, public-safe name for a never-displayed source."""
+    from . import fvmodel
+    return fvmodel._source_label(domain)
 
 
 def _breakdown_html(bd: dict | None) -> str:
@@ -650,12 +903,264 @@ def _bias_html(bias: dict | None) -> str:
             f'blocklist); lean per the curated AllSides-informed table.</p>{table}{cov_html}')
 
 
-def _tract_html(c: dict) -> str:
-    if c.get("tract") != "data":
+# Tractability chips (v3.1 tag, split 2026-08-24 into data-driven vs poll-driven —
+# see newsagent/config.py). "news" markets carry no chip.
+_TRACT_LABEL = {"data": "data-driven", "poll": "poll-driven",
+                "data_scored": "data-channel scored"}
+_TRACT_TITLE = {
+    "data": "data-driven — official statistics drive this, not news text",
+    "poll": "poll-driven — private/issue polling drives this, not news text",
+    "data_scored": ("data-channel scored — this number is built from official "
+                    "statistics, not from news text alone"),
+}
+# APPROVED display treatment, sign-off row 10. A market only shows the
+# `data_scored` copy once it is really in config.DATA_CHANNEL_MARKETS — the
+# labelling follows the method, never the intention.
+_TRACT_LEAD = {
+    "data_scored": ("◆ data-channel scored — this number is built from official "
+                    "statistics (CPI/PCE/labour + the Cleveland Fed nowcast + FOMC "
+                    "projections), entering as the anchor the news evidence then "
+                    "moves. Market-implied odds are shown for context and are "
+                    "never used as an input."),
+    "data": ("◆ data-driven — our news-FV is structurally blind here. The question "
+             "turns on official statistics rather than news text; a data-evidence "
+             "channel built from public statistics is designed and pre-registered "
+             "but NOT yet built, so this number is still news-only."),
+    "poll": ("◆ poll-driven — our news-FV is structurally blind here. The question "
+             "turns on private/campaign or ballot-issue polling, which is not an "
+             "official statistic and is not available to us at any price."),
+}
+
+
+DC_RESULTS_PATH = DATA.parent / "datachannel" / "v3_results.json"
+# The regime the LIVE data-channel market sits in. Declared, not inferred: the regime
+# labels in the v3 retro-test are hand-assigned for reporting and are never a model
+# input, so the mapping from "today's market" to "which row of that table applies"
+# is a human call and belongs in code where it can be read.
+DC_LIVE_REGIME = "holding"
+
+
+def _dc_regime_html() -> str:
+    """The § 5 regime split, on the card rather than only in the findings note.
+
+    The retro-test that authorised this channel ALSO measured that the method is
+    worse than doing nothing in the holding regime — and the live market is in that
+    regime. Showing the pooled pass without that row would be the flattering half of
+    a result we already know both halves of.
+    """
+    if not DC_RESULTS_PATH.exists():
         return ""
-    return (f'<div class="tractnote">◆ not news-tractable — our news-FV is structurally '
-            f'blind here. {html.escape(c.get("tract_note", ""))} Scored in public anyway; '
+    try:
+        by = json.loads(DC_RESULTS_PATH.read_text()).get("by_regime") or {}
+    except (ValueError, OSError):
+        return ""
+    if not by:
+        return ""
+    order = ["hiking", "cutting", "normalisation", "holding"]
+    rows = ""
+    for k in [r for r in order if r in by] + [r for r in by if r not in order]:
+        v = by[k]
+        beats = v["brier"] < v["base"]
+        here = k == DC_LIVE_REGIME
+        rows += (f'<tr{" class=\"rowhi\"" if here else ""}>'
+                 f'<td>{html.escape(k)}{" — <b>this market</b>" if here else ""}</td>'
+                 f'<td class="mono">{v["n"]}</td>'
+                 f'<td class="mono">{v["brier"]:.4f}</td>'
+                 f'<td class="mono dim">{v["base"]:.4f}</td>'
+                 f'<td class="{"" if beats else "neg"}">'
+                 f'{"beats doing nothing" if beats else "WORSE than doing nothing"}</td></tr>')
+    return (
+        '<div class="sub">Method accuracy by rate regime — including where it loses</div>'
+        '<table><tr><th>regime</th><th>meetings</th><th>Brier</th>'
+        '<th>base-rate-only</th><th></th></tr>' + rows + '</table>'
+        '<p class="note callout">Measured on 40 resolved FOMC decisions before this '
+        'channel was switched on. It earns its keep where there is pressure to read, '
+        'and <b>in the quiet holding regime it is worse than doing nothing</b> — which '
+        'is the regime this market is in. That is stated here rather than buried: the '
+        'pre-registered bars were met on the pooled set, and this row is the part of '
+        'the same result that argues for caution.</p>')
+
+
+def _tract_html(c: dict) -> str:
+    t = c.get("tract", "news")
+    if t not in _TRACT_LEAD:
+        return ""
+    if t == "data_scored":
+        # The transition line is mandatory (row 10): a new method starts with no
+        # settled forecasts of its own, and the two tracks never merge.
+        extra = ('<br><b>New method — no settled track record yet (n=0).</b> The '
+                 'Brier shown elsewhere on this page belongs to the news-only '
+                 'method and is attributed to it; this market\'s data-channel '
+                 'track starts today and is scored separately from here on.')
+        mi = c.get("market_implied") or {}
+        if not mi.get("available"):
+            extra += ('<br><span class="dim">Market-implied context: '
+                      + html.escape(mi.get("why", "unavailable")) + '.</span>')
+        if c.get("n_double_counted"):
+            n = c["n_double_counted"]
+            extra += (f'<br><span class="dim">{n} article'
+                      f'{"s" if n != 1 else ""} in this packet report a release the '
+                      'data channel already counted; they are shown below but '
+                      'contribute zero evidence, so the same print cannot move the '
+                      'number twice.</span>')
+        # When the news half contributes nothing, the published number IS the
+        # structural anchor. Saying so is the difference between a reader thinking
+        # two channels agreed and knowing only one of them spoke.
+        p0u = c.get("p0_used_pct")
+        if p0u is not None and abs(c["fv_pct"] - p0u) < 0.05:
+            extra += (f'<br><b>Today the published number equals the structural '
+                      f'anchor exactly ({p0u}%)</b>: no news in this packet cleared '
+                      'the decisive-evidence threshold for a slow market, so the '
+                      'evidence term is zero and the anchor is the answer. The news '
+                      'half of "news+data" has yet to do any work on this market.')
+        return (f'<div class="tractnote">{_TRACT_LEAD[t]} '
+                f'{html.escape(c.get("tract_note", ""))}{extra}</div>'
+                + _dc_regime_html())
+    return (f'<div class="tractnote">{_TRACT_LEAD[t]} '
+            f'{html.escape(c.get("tract_note", ""))} Scored in public anyway; '
             f'expect the market to carry information our packet cannot see.</div>')
+
+
+_TRACT_PLAIN = {"news": "news-driven", "data": "data-driven", "poll": "poll-driven"}
+
+
+def _simlive_html(sl: dict | None) -> str:
+    """§ 07 — the simulated-live RECONSTRUCTION panel.
+
+    Deliberately separated from § 06 in both senses the brief asked for: visually
+    (its own `.recon` treatment and a standing "reconstruction" chip on every
+    element) and verbally (the first sentence says what it is NOT). The forward
+    ledger stays the headline; this is context.
+    """
+    if not sl:
+        return ""
+    a = sl["at_resolution"]
+    m, sp = a["murphy"], a["spiegelhalter"]
+    calib = ("<b>and it fails a calibration test</b>" if abs(sp["z"]) > 1.96
+             else "and a calibration test does not reject it")
+    tract_rows = "".join(
+        f'<tr><td>{html.escape(_TRACT_PLAIN.get(r["tract"], r["tract"]))}</td>'
+        f'<td class="mono">{r["n"]}</td><td class="mono">{r["brier"]:.4f}</td>'
+        f'<td class="mono">{r["log_loss"]:.3f}</td>'
+        f'<td class="mono dim">{r["base_rate_pct"]:.0f}%</td>'
+        f'<td class="mono dim">{r["mean_forecast_pct"]:.0f}%</td>'
+        f'<td class="dim">{"thin — read as a hint, not a result" if r["thin"] else ""}</td></tr>'
+        for r in sl["splits"]["tract"])
+    fam = [r for r in sl["splits"]["family"] if r["n"] >= 4]
+    fam_rows = "".join(
+        f'<tr><td>{html.escape(r["family"])}</td><td class="mono">{r["n"]}</td>'
+        f'<td class="mono">{r["brier"]:.4f}</td>'
+        f'<td class="mono dim">{r["base_rate_pct"]:.0f}%</td>'
+        f'<td class="mono dim">{r["mean_forecast_pct"]:.0f}%</td></tr>' for r in fam)
+    cad_rows = "".join(
+        f'<tr><td>every <span class="mono">{c["cadence_days"]}</span> days</td>'
+        f'<td class="mono">{c["expected_brier"]:.4f}</td></tr>'
+        for c in sl["staleness"]["derived_cadence"])
+    d = sl["divergence"]
+    return f"""
+      <div class="panel recon" style="margin-top:1.3rem">
+        {_sechead("07", "Simulated-live reconstruction — what the model WOULD have shown")}
+        <p class="reconlead"><span class="reconchip">reconstruction</span>
+        <b>These are not forecasts we published.</b> This section replays the current
+        model over {sl["n_markets"]} markets that have already resolved, and scores
+        what it would have shown on each day — lookahead-free throughout. The forward
+        record in § 06 above is the real one: numbers published before the fact into an
+        append-only ledger. Reconstruction rows are never added to it, never averaged
+        with it, and are labelled reconstruction wherever they appear.</p>
+
+        <p class="note"><b>{sl["n_markets"]} resolved markets</b> ·
+        {sl["n_snapshots"]} reconstructed snapshots · at resolution:
+        Brier <span class="mono">{a["brier"]:.4f}</span> ·
+        log-loss <span class="mono">{a["log_loss"]:.3f}</span> ·
+        base rate <span class="mono">{a["base_rate_pct"]:.1f}%</span> ·
+        mean forecast <span class="mono">{a["mean_forecast_pct"]:.1f}%</span>.
+        Murphy: reliability <span class="mono">{m["reliability"]:.4f}</span> −
+        resolution <span class="mono">{m["resolution"]:.4f}</span> +
+        uncertainty <span class="mono">{m["uncertainty"]:.4f}</span> ·
+        Spiegelhalter Z <span class="mono">{sp["z"]:+.2f}</span>
+        (p&nbsp;{sp["p"]:.3f}).</p>
+
+        <p class="note callout"><b>Read this before the Brier.</b> The reconstruction
+        forecasts <span class="mono">{a["mean_forecast_pct"]:.1f}%</span> on average
+        against a <span class="mono">{a["base_rate_pct"]:.1f}%</span> base rate — it
+        leans systematically too far toward NO — {calib} at |Z|&nbsp;&gt;&nbsp;1.96.
+        A low Brier here is mostly the base rate, not skill: the Murphy split puts
+        resolution at just <span class="mono">{m["resolution"]:.4f}</span> against
+        uncertainty <span class="mono">{m["uncertainty"]:.4f}</span>.</p>
+
+        <p class="note callout"><b>This is in-sample, and that is not a detail.</b>
+        The single fitted parameter (the evidence weight α, currently
+        <span class="mono">{sl["params"]["alpha"]}</span>) was calibrated on these same
+        resolved markets. The reconstruction is therefore a replay of a model that has
+        seen this sample, not an out-of-sample test, and its Brier should be read as an
+        upper bound on what the same model would score on markets it was not fitted to.
+        The only genuinely out-of-sample numbers on this page are the settled forecasts
+        in § 06.</p>
+
+        <div class="sub">Brier vs snapshot age — the cadence question, answered</div>
+        <div class="scrollwrap">{_svg_staleness(sl)}</div>
+        <p class="note">Each point scores the number the model would have been showing
+        that many days before resolution. <b>The curve is flat.</b> A fresher snapshot
+        did not score better than a stale one on this sample, and the mechanism is
+        visible in the model rather than mysterious: at resolution the reconstructed
+        fair value sits a mean of
+        <span class="mono">{a["mean_abs_shift_from_prior_pp"]:.2f}pp</span> from its
+        onboarding prior, and only
+        <span class="mono">{a["share_moved_ge_1pp"]:.0%}</span> of markets moved as much
+        as 1pp off it — so prior-only scores
+        <span class="mono">{a["brier_prior_only"]:.4f}</span> against the model's
+        <span class="mono">{a["brier"]:.4f}</span>. <b>In this reconstruction, cadence is
+        not the binding constraint; how much the evidence can move the number is.</b>
+        That conclusion is bounded by the caveat below — the reconstruction runs in an
+        evidence-poorer world than the live loop.</p>
+
+        <div class="grid2">
+          <div>
+            <div class="sub">Derived — expected Brier by publish cadence
+              <span class="reconchip">derived</span></div>
+            <table><tr><th>run the loop</th><th>expected Brier</th></tr>{cad_rows}</table>
+            <p class="note">Derived, not measured: a number published under an N-day
+            cadence has an age uniform on [0,&nbsp;N), so this averages the balanced
+            curve over the horizons inside that window.</p>
+          </div>
+          <div>
+            <div class="sub">Reliability at n={sl["n_markets"]}
+              <span class="reconchip">reconstruction</span></div>
+            {_svg_reliability(_simlive_bins(sl), w=320, h=250)}
+            <p class="note">Dot size = markets in the bin. Points sitting above the
+            diagonal are the same under-forecasting the Z-score picks up.</p>
+          </div>
+        </div>
+
+        <div class="sub">Where does this actually work? — accuracy by market type</div>
+        <table><tr><th>market type</th><th>n</th><th>Brier</th><th>log-loss</th>
+          <th>base rate</th><th>mean forecast</th><th></th></tr>{tract_rows}</table>
+        <p class="note">This is the honest answer to "where does this work", and it is
+        not the flattering one: the reconstruction scores <b>worse</b> on the
+        news-driven markets the method is built for than on the ones our own tags call
+        structurally blind. Base rates differ sharply across the three groups, so much
+        of the gap is composition rather than skill — which is exactly why the base-rate
+        and mean-forecast columns are shown beside every Brier.</p>
+
+        <div class="sub">By event family (families with n ≥ 4)</div>
+        <table><tr><th>family</th><th>n</th><th>Brier</th><th>base rate</th>
+          <th>mean forecast</th></tr>{fam_rows}</table>
+        <p class="note">Markets are clustered by event family and snapshots within a
+        market are serially dependent, so no confidence interval is quoted anywhere in
+        this section.</p>
+
+        <div class="sub">Divergence flags in reconstruction</div>
+        <p class="note">Of {d["n_snapshots_with_a_mid"]} reconstructed snapshots that had
+        a market mid to compare against, <span class="mono">{d["n_flagged_snapshots"]}</span>
+        cleared the divergence rule, across
+        <span class="mono">{d["n_flagged_markets"]}</span> markets;
+        {d["flagged_markets_resolved_yes"]} of those markets resolved YES, and
+        {d["fv_below_mid_snapshots"]} of the flagged snapshots had our number below the
+        mid. <b>{html.escape(d["closure"])}</b></p>
+
+        <p class="note callout"><b>An evidence-poorer world than the live page.</b>
+        {html.escape(sl["exclusions_note"])}</p>
+      </div>"""
 
 
 def _card_html(c: dict, expanded: bool) -> str:
@@ -664,13 +1169,17 @@ def _card_html(c: dict, expanded: bool) -> str:
     ev_note = (f'{n_ev} public item{"s" if n_ev != 1 else ""} in the shared news feed '
                f'(left pane), tagged to this market')
     if c.get("n_private_items"):
+        kinds = "newsletters/research"
+        if c.get("n_transcripts"):
+            kinds = "newsletters/research/transcripts"
         ev_note += (f' · + {c["n_private_items"]} private analysis item'
-                    f'{"s" if c["n_private_items"] != 1 else ""} (newsletters/research '
+                    f'{"s" if c["n_private_items"] != 1 else ""} ({kinds} '
                     '— used internally, never displayed)')
     gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
     flag = ('<span class="flag">⚑ divergence — high-confidence disagreement</span>'
             if c["divergence_flag"] else "")
-    dchip = ' · <span class="dmark">◆ data-driven</span>' if c.get("tract") == "data" else ""
+    dchip = (f' · <span class="dmark">◆ {_TRACT_LABEL[c["tract"]]}</span>'
+             if c.get("tract") in _TRACT_LABEL else "")
     return f"""
     <div class="card{'' if expanded else ' collapsed'}" id="card-{html.escape(c["slug"])}"
          data-slug="{html.escape(c["slug"])}" data-flag="{1 if c["divergence_flag"] else 0}">
@@ -747,6 +1256,55 @@ def render_html(sc: dict) -> str:
         f'<td class="verdict">{html.escape(b["verdict"])}</td></tr>'
         for b in sc["backtests"])
 
+    ltr = sc["live_track_record"]
+    if ltr.get("n_settled"):
+        tr_rows = ""
+        for r in ltr["records"]:
+            mid = (f'{r["mid_pct_at_last_snapshot"]:g}%'
+                   if r.get("mid_pct_at_last_snapshot") is not None else "—")
+            stale = (f'{r["stale_days"]}d' if r.get("stale_days") is not None else "—")
+            tr_rows += (
+                f'<tr><td>{html.escape(r["question"][:78])}</td>'
+                f'<td class="mono">{html.escape(r["resolution_date"])}</td>'
+                f'<td class="mono">{r["final_p"] * 100:g}%</td>'
+                f'<td class="mono">{"YES" if r["outcome"] else "NO"}</td>'
+                f'<td class="mono">{r["brier"]:.3f}</td>'
+                f'<td class="mono dim">{mid}</td>'
+                f'<td class="mono dim">{stale}</td>'
+                f'<td class="mono dim">{html.escape(r["method"])}</td></tr>')
+        meth_bits = " · ".join(
+            f'{html.escape(m)}: ' + (f'n={v["n"]}, Brier {v["brier"]:.4f}'
+                                     if v["n"] else html.escape(v["note"]))
+            for m, v in ltr["per_method"].items())
+        ext = ltr.get("extended") or {}
+        ext_bits = ""
+        if ext.get("n"):
+            ext_bits = (f' Log-loss <span class="mono">{ext["log_loss"]:.4f}</span> · '
+                        f'ECE <span class="mono">{ext["ece"]:.4f}</span> · '
+                        f"Spiegelhalter Z <span class=\"mono\">{ext['spiegelhalter']['z']:+.2f}</span> "
+                        "(|Z| &gt; 1.96 would reject calibration-in-the-large).")
+        stale_note = ""
+        if ltr.get("max_stale_days"):
+            stale_note = (
+                f' <b>Read this before the Brier:</b> the observatory ran attended, not '
+                f'daily — the scored numbers are the last ones published before each '
+                f'market resolved, up to <span class="mono">{ltr["max_stale_days"]}</span> '
+                f'days stale. That staleness is part of the score, not an excuse '
+                f'removed from it.')
+        track_html = f"""
+      <div class="panel" style="margin-top:1.3rem">{_sechead("06", "Public track record — settled forecasts (first published 2026-08-24)")}
+        <p class="note"><b>{ltr["n_settled"]} settled</b> · mean Brier
+          <span class="mono">{ltr["brier"]:.4f}</span> · by method: {meth_bits}.{ext_bits}</p>
+        <table><tr><th>question</th><th>resolved</th><th>our published p</th><th>outcome</th>
+          <th>Brier</th><th>mid (context)</th><th>snapshot age</th><th>method</th></tr>{tr_rows}</table>
+        <p class="note">{html.escape(ltr["note"])}{stale_note}</p>
+      </div>"""
+    else:
+        track_html = f"""
+      <div class="panel" style="margin-top:1.3rem">{_sechead("06", "Public track record — settled forecasts")}
+        <p class="note">{html.escape(ltr["note"])}</p>
+      </div>"""
+
     inter = sc["interim"]
     inter_html = ""
     if inter.get("overall_mean") is not None:
@@ -780,6 +1338,19 @@ def render_html(sc: dict) -> str:
   .main {{ min-width:0; }}
   .feedpane {{ min-width:0; }}
   .scrollwrap {{ overflow-x:auto; }}
+  /* RECONSTRUCTION: deliberately a different surface from the forward panels, so a
+     reader skimming cannot mistake replayed numbers for published ones. */
+  .panel.recon {{ background:transparent; border:1px dashed {LINE}; }}
+  .panel.recon .sechead {{ opacity:.95; }}
+  .reconchip {{ font:600 .62rem/1 {MONO}; letter-spacing:.09em; text-transform:uppercase;
+                border:1px solid {LINE}; border-radius:99px; padding:.24rem .5rem;
+                color:{DIM}; margin-right:.5rem; white-space:nowrap; vertical-align:middle; }}
+  .reconlead {{ font-size:.92rem; color:{TX}; border-left:2px solid {LINE};
+                padding-left:.85rem; margin:.2rem 0 1rem; }}
+  .note.callout {{ border-left:2px solid {HI}; padding-left:.85rem; }}
+  tr.rowhi td {{ background:rgba(204,92,68,0.10); }}
+  .reachnote {{ border-top:1px solid {LINE}; margin-top:.9rem; padding-top:.7rem;
+                font-size:.78rem; }}
   @media (max-width:820px) {{
     .layout {{ grid-template-columns:minmax(0,1fr); }}
     .feedpane {{ position:static; max-height:400px; order:2; }}
@@ -912,7 +1483,7 @@ def render_html(sc: dict) -> str:
   <p class="framing">{html.escape(sc["framing"])}</p>
 
   <div class="layout">
-    <aside class="feedpane">{_feed_html(sc.get("feed", {}))}</aside>
+    <aside class="feedpane">{_feed_html(sc.get("feed", {}), sc.get("reach_status", ""))}</aside>
     <div class="main">
 
       <div class="panel">{_sechead("01", "All markets at a glance")}
@@ -922,7 +1493,7 @@ def render_html(sc: dict) -> str:
         Click any tile for the full time series, evidence and FV construction.</p>
       </div>
 
-      <div class="panel">{_sechead("02", "Big movers — largest day-over-day FV changes")}
+      <div class="panel">{_sechead("02", "Big movers — largest change since the previous published snapshot")}
         {_movers_html(sc.get("movers", {}))}
       </div>
 
@@ -941,7 +1512,7 @@ def render_html(sc: dict) -> str:
           <div class="picklist">{picker}</div>
         </details>
         <span class="note" style="margin:0">cards ordered flags-first, then |gap|; click a
-        card header to expand/collapse; ◆ = data-driven (not news-tractable)</span>
+        card header to expand/collapse; ◆ = not news-tractable (data-driven or poll-driven)</span>
       </div>
       <div class="cards" id="cards">{cards}</div>
 
@@ -950,15 +1521,16 @@ def render_html(sc: dict) -> str:
         <p class="note">These two pre-registered gates closed the claim that our number beats the market mid — permanently.
         What runs now is different: an independent fair value judged against resolved outcomes, with the mid as context.</p>
         {inter_html}
-        <p class="note">{html.escape(sc["live_track_record"]["note"])}</p>
       </div>
+{track_html}
+{_simlive_html(sc.get("simlive"))}
 
       <div class="grid2">
-        <div class="panel">{_sechead("06", "Reliability — model FV vs observed outcomes")}
+        <div class="panel">{_sechead("08", "Reliability — model FV vs observed outcomes")}
           {_svg_reliability(sc["reliability"]["bins"])}
           <p class="note">{html.escape(sc["reliability"]["note"])} Dot size = number of forecast pairs in the bin; the dashed diagonal is perfect calibration.</p>
         </div>
-        <div class="panel analytical">{_sechead("07", "Method")}
+        <div class="panel analytical">{_sechead("09", "Method")}
           <p style="font-size:.88rem">{html.escape(sc["method"])}</p>
         </div>
       </div>

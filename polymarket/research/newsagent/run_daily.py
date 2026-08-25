@@ -1,7 +1,10 @@
 """Daily observatory run — hybrid FV pipeline (Stage A extract -> Stage B model).
 
 Stages (composable; day state under data/newsagent/live/<YYYY-MM-DD>/):
-  fetch       market state + full-text news packet per LIVE_MARKETS slate
+  fetch       market state + full-text news packet per LIVE_MARKETS slate; also
+              writes reach_worklist.json (curated official-source URLs + event
+              triggers) and, with --reach-file, validates and merges the raw
+              agent-reach payloads produced out-of-band against it
   onboard     render five-perspective prior prompts for markets with no stored
               prior (out-of-band or API); ingest with --priors-file
   extract     Stage A: cache-miss article features. API path with ANTHROPIC_API_KEY
@@ -16,6 +19,9 @@ Stages (composable; day state under data/newsagent/live/<YYYY-MM-DD>/):
                     forward-only)
 
 Typical daily cron:  PYTHONPATH=. uv run python -m newsagent.run_daily --stage all
+Reach flow:          --stage fetch                          (writes reach_worklist.json)
+                     <agent runs the listed shell commands>  (agent-reach skill)
+                     --stage fetch --reach-file reach_items.json
 Out-of-band flow:    --stage fetch && --stage extract        (writes pending file)
                      <agents produce features>               (cheap-LLM extraction)
                      --stage extract --features-file done.json && --stage publish
@@ -28,8 +34,8 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import (config, dashboard, email_ingest, engine, features, feeds, fvmodel,
-               gdelt_bq, ledger, pdf_ingest, sourceweights)
+from . import (config, dashboard, datachannel, email_ingest, engine, features,
+               feeds, fvmodel, gdelt_bq, ledger, pdf_ingest, reach, sourceweights)
 
 
 def _gdelt_burst(slug: str, date: str, series_all: dict) -> dict | None:
@@ -73,28 +79,91 @@ def _load_day(d: Path, slug: str) -> tuple[dict, dict] | None:
     return json.loads(mf.read_text()), json.loads(pf.read_text())
 
 
-def stage_fetch(date: str) -> None:
+def _reach_pass(date: str, d: Path, reach_file: str | None) -> list[dict]:
+    """Two-level fragility gate for the agent-reach evidence extension (v3.4).
+
+    Level 1 — the doctor PRE-FLIGHT, once per run, cached into the day dir. Mirrors
+    `_refresh_gdelt`: a missing binary, a timed-out doctor or an unhealthy channel
+    is a CLEAN SKIP with the reason printed, and the packet is built without it. A
+    machine that never installed agent-reach runs exactly as it did before.
+
+    Level 2 — per-item validation on ingest, because green-at-the-channel says
+    nothing about the specific URL (the scoping probe had `web` reporting `ok`
+    while r.jina.ai refused reuters.com outright). Failures are ABSENT.
+
+    Returns the validated items; always writes today's worklist so the attended
+    agent knows what to fetch.
+    """
+    doc = reach.doctor(d)
+    if not doc.get("available"):
+        print(f"  reach: skipped ({doc.get('why')})")
+    else:
+        for ch in ("web", "youtube"):
+            ok, why = reach.channel_status(doc, ch)
+            if not ok:
+                print(f"  reach: {ch} skipped ({why})")
+    wl = reach.build_worklist(date, list(config.LIVE_MARKETS), doc)
+    (d / "reach_worklist.json").write_text(json.dumps(wl, indent=1))
+    n_disabled = sum(1 for s in wl["skipped"] if s["channel"] == "config")
+    print(f"  reach: worklist {wl['n_jobs']} job(s) -> {d / 'reach_worklist.json'}"
+          f"  ({n_disabled} source(s) disabled by probe, "
+          f"{len(wl['skipped']) - n_disabled} channel-skipped)")
+    if not reach_file:
+        return []
+    cutoff = datetime.fromisoformat(date).replace(hour=23, minute=59, second=59,
+                                                  tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    cutoff = min(cutoff, now)
+    items, rejected = reach.ingest_reach_file(Path(reach_file), wl, d, cutoff)
+    (d / "reach_rejected.json").write_text(json.dumps(rejected, indent=1))
+    print(f"  reach: {len(items)} item(s) validated, {len(rejected)} rejected")
+    for r in rejected:
+        print(f"    reject [{r['label'][:44]}]: {r['why'][:96]}")
+    for a in items:
+        how = a.get("dated_by", "published_time")
+        note = {"published_time": "", "dateline": "  dated-by=dateline",
+                "dateline_conflict": "  dated-by=dateline CONFLICT (tie-broken)"}.get(how, "")
+        print(f"    ok     [{a['domain']}] {a['title'][:52]}  {a['seendate']}"
+              f"  display={a['display']}{note}")
+    n_conf = sum(1 for a in items if a.get("dateline_conflict"))
+    n_dl = sum(1 for a in items if a.get("dated_by", "").startswith("dateline"))
+    if n_dl:
+        # the conflict RATE is the health signal on the dateline amendment: a
+        # source whose two legs keep disagreeing should be demoted back to index
+        print(f"  reach: {n_dl} item(s) dated by the two-source dateline rule, "
+              f"{n_conf} of them tie-broken on a conflict")
+    (d / "reach_items_validated.json").write_text(json.dumps(items, indent=1))
+    return items
+
+
+def stage_fetch(date: str, reach_file: str | None = None) -> None:
     d = day_dir(date)
     _refresh_gdelt(date)
+    reach_items = _reach_pass(date, d, reach_file)
     rss_items = feeds.fetch_rss_items(date)
     print(f"  rss: {len(rss_items)} items across the feed set")
     nl_ok, nl_why = email_ingest.available()
     nl_items = email_ingest.fetch_newsletters(day=date) if nl_ok else []
-    print(f"  newsletters: {len(nl_items)} items ({nl_why})" if nl_ok
-          else f"  newsletters: skipped ({nl_why})")
+    if not nl_ok:
+        print(f"  newsletters: skipped ({nl_why})")
+    elif nl_items:
+        print(f"  newsletters: {len(nl_items)} items ({nl_why})")
     pdf_items = pdf_ingest.fetch_pdf_reports(date)
     print(f"  macro pdfs: {len(pdf_items)}/{len(pdf_ingest.PDF_SOURCES)} reports")
     for slug, cfg in config.LIVE_MARKETS.items():
-        mkt = feeds.market_state(slug)
+        mkt = feeds.market_state(slug, cfg.get("gamma_slug"))
         if mkt["closed"]:
             print(f"  SKIP (closed): {slug} — settle its ledger entry (sf settle) and "
                   "refresh the slate in config.py")
             continue
         packet = feeds.build_packet(slug, cfg, rss_items=rss_items,
-                                    newsletter_items=nl_items, pdf_items=pdf_items)
+                                    newsletter_items=nl_items, pdf_items=pdf_items,
+                                    reach_items=reach_items)
         (d / f"{slug[:80]}.market.json").write_text(json.dumps(mkt, indent=1))
         (d / f"{slug[:80]}.packet.json").write_text(json.dumps(packet, indent=1))
-        print(f"  {slug[:60]}  mid={mkt['mid']:.3f}  articles={len(packet['articles'])}")
+        rch = f"  reach={packet['n_reach']}" if packet.get("n_reach") else ""
+        print(f"  {slug[:60]}  mid={mkt['mid']:.3f}  "
+              f"articles={len(packet['articles'])}{rch}")
 
 
 def stage_onboard(date: str, priors_file: str | None) -> None:
@@ -168,12 +237,28 @@ def stage_extract(date: str, features_file: str | None,
 
 def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
                     state: dict, params: dict, p0_pct: float,
-                    gdelt_series: dict | None = None) -> dict:
+                    gdelt_series: dict | None = None,
+                    dc_snapshot: dict | None = None) -> dict:
     """One market's Stage-B pass: S_t from NEW articles (GDELT-burst amplified),
-    state step, FV, band, flag."""
+    state step, FV, band, flag.
+
+    On a DATA-CHANNEL market (Option C, live 2026-08-24) the anchor `p0_pct` is
+    REPLACED by the structural probability from the offline snapshot — DC-5's
+    blend weight is a declared 1.0 — and the § 4d double-count guard zeroes the
+    Stage-B weight of articles that merely report a release the data channel has
+    already eaten. A missing or stale snapshot degrades to the stored onboarding
+    prior and says so; α, λ and the band are untouched either way (DC-4)."""
     mtype = cfg.get("mtype", "shock")
     tp = fvmodel.type_params(params, mtype)
+    p0_source, p0_why = "onboarding_prior", ""
+    if slug in config.DATA_CHANNEL_MARKETS:
+        p_s, p0_why = datachannel.p_struct_for(slug, date, dc_snapshot)
+        if p_s is not None:
+            p0_pct, p0_source = p_s, "p_struct"
+        else:
+            p0_source = "onboarding_prior (data channel degraded)"
     feats = sourceweights.annotate(features.features_for(slug, pkt["articles"]))
+    feats, n_double = datachannel.apply_double_count_guard(feats, slug)
     st = state.get(slug)
     counted = set(st.get("counted", [])) if st else set()
     new = [r for r in feats if r["cache_key"] not in counted]
@@ -208,7 +293,11 @@ def _compute_market(slug: str, cfg: dict, mkt: dict, pkt: dict, date: str,
                 n_rel, half, config.DIVERGENCE_HALF_MAX_PP, config.DIVERGENCE_NREL_MIN,
                 band_q=band_q),
             "tract": config.tract(slug),
-            "tract_note": config.DATA_DRIVEN.get(slug, "")}
+            "tract_note": config.tract_note(slug),
+            "method": ledger.method_for(slug),
+            "p0_source": p0_source, "p0_why": p0_why, "p0_used_pct": round(p0_pct, 1),
+            "n_double_counted": n_double,
+            "market_implied": datachannel.market_implied_note(slug, dc_snapshot)}
 
 
 def stage_publish(date: str, write_ledger: bool) -> None:
@@ -217,6 +306,11 @@ def stage_publish(date: str, write_ledger: bool) -> None:
     priors = fvmodel.load_priors()
     state = fvmodel.load_state()
     gdelt_series = gdelt_bq.load_series()
+    dc_snapshot = datachannel.load_snapshot()
+    if config.DATA_CHANNEL_MARKETS and not dc_snapshot:
+        print("  data channel: no snapshot on disk — data-channel markets fall "
+              "back to their onboarding priors (run "
+              "scripts/newsagent_datachannel_snapshot.py)")
     series_path = config.DATA / "fv_series.json"
     fv_series = json.loads(series_path.read_text()) if series_path.exists() else {}
     snapshots = []
@@ -229,20 +323,29 @@ def stage_publish(date: str, write_ledger: bool) -> None:
             continue
         mkt, pkt = loaded
         rec = _compute_market(slug, cfg, mkt, pkt, date, state, params,
-                              priors[slug]["p0_pct"], gdelt_series)
+                              priors[slug]["p0_pct"], gdelt_series, dc_snapshot)
+        if rec["p0_source"] == "p_struct":
+            print(f"  data channel: {slug[:44]} anchored on p_struct="
+                  f"{rec['p0_used_pct']}% (method {rec['method']}"
+                  + (f", {rec['n_double_counted']} article(s) zeroed by the "
+                     "double-count guard" if rec["n_double_counted"] else "") + ")")
+        elif rec["p0_why"]:
+            print(f"  data channel: {slug[:44]} degraded ({rec['p0_why']})")
         if rec["missing_features"]:
             print(f"  WARN {rec['missing_features']} uncached articles for {slug[:50]} "
                   "(run --stage extract) — they contribute 0 evidence today")
         fc = {"p_pct": rec["fv_pct"], "band_lo_pct": rec["band_lo_pct"],
               "band_hi_pct": rec["band_hi_pct"]}
-        # drivers are public copy: newsletter items appear as their generic source
-        # label only (title/text/link never leave the internal packet)
+        # drivers are PUBLIC COPY and land in the append-only ledger, so this is a
+        # page boundary too: any display=False item (private newsletters, and reach
+        # transcripts) appears as its generic source label only — title/text/link
+        # never leave the internal packet.
         drivers = [(fvmodel._source_label(a["domain"]) + " — private analysis item")
-                   if a.get("domain", "").startswith("newsletter:") else a["title"]
+                   if not a.get("display", True) else a["title"]
                    for a in rec["breakdown"]["articles"][:3]] or \
                   [f"no new qualifying evidence; prior {rec['breakdown']['p0_pct']}% "
                    "with decayed carry"]
-        sf_id = ledger.log_snapshot(mkt, fc, drivers) if write_ledger else ""
+        sf_id = ledger.log_snapshot(mkt, fc, drivers, date) if write_ledger else ""
         ser = [p for p in fv_series.get(slug, []) if p["date"] != date]
         ser.append({"date": date, "fv_pct": rec["fv_pct"],
                     "band_lo_pct": rec["band_lo_pct"], "band_hi_pct": rec["band_hi_pct"],
@@ -270,7 +373,7 @@ def stage_backfill_fetch(date: str, days: int) -> None:
         sdir = bdir / slug[:80]
         sdir.mkdir(exist_ok=True)
         try:
-            mkt = feeds.market_state(slug)
+            mkt = feeds.market_state(slug, cfg.get("gamma_slug"))
         except Exception as e:
             print(f"  WARN market_state failed for {slug}: {e}")
             continue
@@ -286,7 +389,7 @@ def stage_backfill_fetch(date: str, days: int) -> None:
                 slug, mkt["question"], mkt["description"], pkt["articles"]))
         print(f"  {slug[:60]}: {days} daily packets reconstructed")
         try:
-            hist = feeds.mid_history(slug, days=days + 7)
+            hist = feeds.mid_history(cfg.get("gamma_slug", slug), days=days + 7)
             (sdir / "mid_history.json").write_text(json.dumps(hist, indent=1))
         except Exception as e:
             print(f"  WARN mid_history failed for {slug}: {e}")
@@ -371,6 +474,10 @@ def main() -> None:
                     choices=["auto", "anthropic", "gemini", "oob"],
                     help="Stage-A extraction provider (auto = env keys decide; "
                          "gemini = 2.5 Flash free tier; oob = write pending file)")
+    ap.add_argument("--reach-file", default=None,
+                    help="agent-reach RAW payloads produced out-of-band against "
+                         "the day dir's reach_worklist.json; validated by "
+                         "newsagent.reach before anything enters a packet")
     ap.add_argument("--priors-file", default=None,
                     help="onboarding priors JSON {slug: {estimates_pct, drivers, ...}}")
     ap.add_argument("--days", type=int, default=14, help="backfill window length")
@@ -379,7 +486,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.stage in ("fetch", "all"):
-        stage_fetch(args.date)
+        stage_fetch(args.date, args.reach_file)
     if args.stage == "onboard" or (args.stage == "all" and args.priors_file):
         stage_onboard(args.date, args.priors_file)
     if args.stage in ("extract", "all"):

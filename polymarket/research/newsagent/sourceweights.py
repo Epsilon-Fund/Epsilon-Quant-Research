@@ -12,10 +12,18 @@ Scheme B flat weights until now):
 The weight scales an article's influence in STAGE-B aggregation (contribution and
 band dispersion) — never Stage-A extraction. Scope rule: the RSP tier mapping
 applies to NEWS OUTLETS. Sources that are not news outlets (Wikipedia Current
-Events digests, private research newsletters) are OUT OF SCOPE of the tiers and
-run at the neutral 1.0 (identical to the previous flat Scheme B) until Justin
-signs off the proposed tier mapping in the v3 findings note — nothing is
-hard-adopted for uncovered sources.
+Events digests, private research newsletters, bank research desks) are OUT OF
+SCOPE of the tiers and take a DECLARED weight from UNCOVERED_SOURCE_W below.
+
+Sign-off status: the uncovered-source weights proposed in v3/v3.1 were APPROVED
+by Justin on 2026-08-24 and are LIVE from that date (ING 0.9 / Wikipedia Current
+Events 0.8 / Bloomberg 0.9 / bank research desks 0.9 / genuinely unknown 0.5).
+Before that date every uncovered source ran at the neutral 1.0, so alpha fitted
+under the old neutral default is not comparable — activating these weights
+changes Stage-B inputs and REQUIRES a refit through
+scripts/newsagent_hist_backfill.py --fit (done the same day; see
+newsagent_observatory_v33_findings). The values are declared judgments, not
+fits — n is far too small to fit them.
 
 Refresh cadence: weekly, ATTENDED (`refresh(force=True)` — this round has no
 cron by mandate). The cache carries fetched_at; a stale cache warns but still
@@ -45,7 +53,89 @@ RSP_STATUS_W = {
     "s-d": 0.0,    # deprecated
     "s-b": 0.0,    # blacklisted
 }
-UNCOVERED_W = 1.0  # neutral (= previous flat Scheme B) pending sign-off
+# DECLARED weights for sources outside the RSP news-outlet scope (Justin
+# APPROVED 2026-08-24; ran at the neutral 1.0 before that date).
+#   ING / Bloomberg newsletters, bank research desks -> 0.9: professional
+#     analysis with a named house behind it, but not a news outlet the RSP
+#     community has ruled on, so a small discount against a generally-reliable
+#     wire rather than parity.
+#   Wikipedia Current Events -> 0.8: a curated, sourced digest, one editorial
+#     step removed from the reporting it summarises.
+#   genuinely unknown -> 0.5: no basis to trust or distrust; it should be able
+#     to move the number, but only half as far as a source we have vetted.
+UNKNOWN_W = 0.5    # anything with no declared row and no RSP tier
+WP_CE_W = 0.8      # Wikipedia Current Events digests (domain prefix match)
+UNCOVERED_SOURCE_W: dict[str, float] = {
+    "newsletter:ing think": 0.9,
+    "newsletter:ing research": 0.9,
+    "newsletter:bloomberg": 0.9,
+    "bloomberg.com": 0.9,
+    # bank research desks — the pdf_ingest macro set (pdf_ingest.PDF_SOURCES)
+    "am.jpmorgan.com": 0.9,
+    "jpmorganfunds.com": 0.9,
+    "am.gs.com": 0.9,
+    "ml.com": 0.9,
+}
+UNCOVERED_W = UNKNOWN_W  # back-compat alias: the default for uncovered sources
+
+# ---------------------------------------------------------------------------
+# agent-reach source types (v3.4). APPROVED as proposed by Justin 2026-08-24
+# ([[newsagent_agentreach_scoping]] § Sign-off block 1); inert until this build,
+# because no reach item could carry a weight before there were reach items.
+# ---------------------------------------------------------------------------
+# The split below is the substantive point and it is a DECLARED judgment, not a
+# fit: **"official" is not the same as "reliable."** A Federal Reserve statement
+# about the Federal Reserve's own decision is a PROCEDURAL fact about the issuing
+# institution — as close to ground truth as a source gets. A Kremlin readout about
+# Russian intentions is a primary document AND an interested party's contested
+# claim about itself. Collapsing both into one "official = 1.0" row would import
+# propaganda at maximum weight, so they get separate rows.
+OFFICIAL_PRIMARY_W = 1.0        # procedural fact about the issuing institution
+OFFICIAL_STATE_CLAIM_W = 0.5    # a state actor's contested claim about itself
+OFFICIAL_TRANSCRIPT_W = 1.0     # an official body's own video, official channel
+UNKNOWN_VIDEO_W = 0.5           # any other uploader (or its RSP tier if wired)
+
+# Domains curated in newsagent/reach_sources.json. Kept HERE rather than read from
+# the JSON so the weight table stays a declared constant in code that tests pin —
+# a data-file edit must never be able to move a source into a heavier weight row.
+OFFICIAL_PRIMARY_DOMAINS = frozenset({
+    "federalreserve.gov", "congress.gov", "state.gov", "war.gov", "centcom.mil",
+    "nato.int", "ukmto.org", "imo.org", "iaea.org", "nobelprize.org",
+    "sos.ca.gov", "conseil-constitutionnel.fr", "tse.jus.br", "interieur.gouv.fr",
+    "whitehouse.gov",
+})
+OFFICIAL_STATE_CLAIM_DOMAINS = frozenset({
+    "kremlin.ru", "en.kremlin.ru", "mfa.gov.ir", "president.gov.ua", "mod.ru",
+    "gov.il", "cec.gov.ru",
+})
+# Official-body channels, as they appear in an item's `domain` field
+# ("youtube.com/@handle"). Anything else on youtube.com takes UNKNOWN_VIDEO_W.
+OFFICIAL_TRANSCRIPT_CHANNELS = frozenset({
+    "youtube.com/@federalreserve", "youtube.com/@statedept",
+    "youtube.com/@centcom", "youtube.com/@nobelprize",
+})
+_VIDEO_PREFIX = "youtube.com/@"
+
+
+def _reach_weight(domain: str) -> float | None:
+    """Declared weight for a reach source domain, or None if it is not one.
+
+    NOTE the caller checks the Iffy blocklist BEFORE this — an official domain
+    that ever lands on the blocklist still resolves to 0.0. That precedence is
+    test-enforced (`test_blocklist_beats_an_official_reach_domain`).
+    """
+    d = (domain or "").lower().strip()
+    if d.startswith(_VIDEO_PREFIX):
+        return (OFFICIAL_TRANSCRIPT_W if d in OFFICIAL_TRANSCRIPT_CHANNELS
+                else UNKNOWN_VIDEO_W)
+    # state-claim is checked first: a domain must never fall through to the
+    # procedural 1.0 row just because it also looks official.
+    if d in OFFICIAL_STATE_CLAIM_DOMAINS:
+        return OFFICIAL_STATE_CLAIM_W
+    if d in OFFICIAL_PRIMARY_DOMAINS:
+        return OFFICIAL_PRIMARY_W
+    return None
+
 
 # Our packet domains -> RSP row ids (parsed case-insensitively from the table).
 DOMAIN_RSP_ID = {
@@ -121,7 +211,15 @@ def _build_weights(cache: dict) -> dict[str, float]:
 
 
 def get_weight(domain: str) -> float:
-    """Stage-B weight for an article's source domain (1.0 for uncovered/absent)."""
+    """Stage-B weight for an article's source domain.
+
+    Resolution order (blocklist first — Iffy always wins, test-enforced):
+      1. Iffy blocklist            -> 0.0
+      2. RSP tier (news outlets)   -> RSP_STATUS_W
+      3. declared uncovered row    -> UNCOVERED_SOURCE_W / WP_CE_W
+      4. declared reach row (v3.4) -> official primary / state claim / transcript
+      5. anything else             -> UNKNOWN_W (0.5)
+    """
     global _WEIGHTS, _IFFY
     if _WEIGHTS is None:
         cache = refresh(force=False)
@@ -133,14 +231,19 @@ def get_weight(domain: str) -> float:
                       "refresh (sourceweights.refresh(force=True))")
         _WEIGHTS = _build_weights(cache)
         _IFFY = set(cache.get("iffy_domains", []))
-    d = (domain or "").lower()
-    if d.startswith("newsletter:") or d.startswith("en.wikipedia.org"):
-        return UNCOVERED_W   # out of RSP scope; proposal pending sign-off
-    if d in _WEIGHTS:
-        return _WEIGHTS[d]
+    d = (domain or "").lower().strip()
     if d in _IFFY:
         return 0.0
-    return UNCOVERED_W
+    if d in _WEIGHTS:
+        return _WEIGHTS[d]
+    if d.startswith("en.wikipedia.org"):
+        return WP_CE_W
+    if d in UNCOVERED_SOURCE_W:
+        return UNCOVERED_SOURCE_W[d]
+    reach_w = _reach_weight(d)
+    if reach_w is not None:
+        return reach_w
+    return UNKNOWN_W
 
 
 def annotate(feats: list[dict]) -> list[dict]:
@@ -171,5 +274,10 @@ def summary() -> dict:
             "weights": _build_weights(cache),
             "n_rsp_entries": cache.get("n_rsp", 0),
             "n_iffy_domains": cache.get("n_iffy", 0),
-            "uncovered_default": UNCOVERED_W,
+            "uncovered_default": UNKNOWN_W,
+            "uncovered_declared": dict(UNCOVERED_SOURCE_W, **{"en.wikipedia.org": WP_CE_W}),
+            "reach_declared": {"official_primary": OFFICIAL_PRIMARY_W,
+                               "official_state_claim": OFFICIAL_STATE_CLAIM_W,
+                               "official_transcript": OFFICIAL_TRANSCRIPT_W,
+                               "unknown_video": UNKNOWN_VIDEO_W},
             "attribution": ATTRIBUTION}

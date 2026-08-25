@@ -54,6 +54,8 @@ Mechanics: PDFs get a **disclaimer-strip** (declared line-pattern list — boile
 
 **Uncovered-source weight proposal — additions for sign-off** (all run at neutral 1.0 until Justin approves, alongside the v3 table in [[newsagent_observatory_v3_findings]]):
 
+> **APPROVED AS PROPOSED — Justin, 2026-08-24. LIVE from that date**, together with the v3 rows (ING 0.9 / WP-CE 0.8 / unknown 0.5). Bloomberg newsletters and the JPM/GS/BofA research PDFs now carry 0.9 in `sourceweights.UNCOVERED_SOURCE_W`, keyed on their actual packet domains (`newsletter:Bloomberg`, `am.jpmorgan.com`, `jpmorganfunds.com`, `am.gs.com`, `ml.com`). α refit on activation: **2.7 → 2.85**. See [[newsagent_observatory_v33_findings]].
+
 | Source | Proposed weight | Rationale |
 |---|---|---|
 | Bloomberg newsletters | 0.9 | major wire-adjacent outlet; newsletter form is analysis, a notch below the wire tier |
@@ -134,14 +136,14 @@ Cost: ~1,900 cheap-model extractions + 40 mid-model priors + 2 small daily batch
 
 **Modeled assumptions:** auto-drafted retrieval keys ≈ adequate historical coverage (declared; empty/noisy packets degrade to prior-only pairs, and 11/302 packets were empty); backfill (market, snapshot) pairs stand in for ledger forecasts in the first band_mult rescale (pre-registered knob, declared substitution); the family cap (≤4) bounds but does not eliminate event-cluster correlation; priors from present-day models answering as-of past dates are honest given the canary protocol (0 known, 2 suspected, sensitivity-checked); Scheme-A weight proposals for Bloomberg/bank-desk sources await sign-off (neutral 1.0 meanwhile); disclaimer-strip patterns are declared, not learned.
 
-**Live-only unknowns:** forward calibration of the 24-market book under the new α/band_mult (first resolutions: US–Iran meeting 07-17, Fed July 07-29, Hormuz + Iran-MOU 07-31); whether narrower bands change the divergence-flag fire rate (none fired at re-publish); Gemini feature agreement (blocked on key); newsletter/PDF marginal value to Stage-B (they now enter packets daily — their weight sign-off pending); the upper-edge coverage pattern (recheck at the first forward rescale).
+**Live-only unknowns** (the first four are now KNOWN — settled 2026-08-24, pooled Brier 0.0794 on n=4, [[newsagent_observatory_v33_findings]]): forward calibration of the 24-market book under the new α/band_mult (first resolutions: US–Iran meeting 07-17, Fed July 07-29, Hormuz + Iran-MOU 07-31); whether narrower bands change the divergence-flag fire rate (none fired at re-publish); Gemini feature agreement (blocked on key); newsletter/PDF marginal value to Stage-B (they now enter packets daily — their weight sign-off pending); the upper-edge coverage pattern (recheck at the first forward rescale).
 
 ## What Justin needs to do
 
-1. **Scheme-A sign-off** — one table now: v3's ING 0.9 / WP-CE 0.8 / unknown 0.5 **plus** Bloomberg 0.9 and bank research desks 0.9 (all running neutral 1.0 until then).
-2. **`GUARDIAN_API_KEY`** — registered but not exported on this machine; the backfill ran on the demo key (worked, but it's the fragile path). Add to the shell env or `secrets/`-based loading.
+1. ~~**Scheme-A sign-off** — one table now: v3's ING 0.9 / WP-CE 0.8 / unknown 0.5 **plus** Bloomberg 0.9 and bank research desks 0.9 (all running neutral 1.0 until then).~~ **DONE 2026-08-24 — APPROVED as proposed and activated** (α 2.7 → 2.85).
+2. **`GUARDIAN_API_KEY`** — registered but not exported on this machine; the backfill ran on the demo key (worked, but it's the fragile path). ~~Add to the shell env or `secrets/`-based loading.~~ **The loading is now built (2026-08-24):** `config.load_env()` reads the git-ignored `polymarket/research/.env` at import, and that file carries a `GUARDIAN_API_KEY=` line **awaiting its value** — paste it there and the demo-key fallback stops being used. Still the one open credential item on this list.
 3. **`GEMINI_API_KEY`** (free tier) — unblocks the provider spot-check; do not flip the provider before it passes.
-4. **July settlements** unchanged: `sf settle` + slate refresh + refit per the runbook (the refit command is now `scripts/newsagent_hist_backfill.py --fit`, which supersedes the stageb-only fit by including the backfill pairs).
+4. ~~**July settlements** unchanged: `sf settle` + slate refresh + refit per the runbook.~~ **DONE 2026-08-24** — all four settled/scored, slate refreshed (4 retired, 4 added, Putin re-slug handled), α refit via `scripts/newsagent_hist_backfill.py --fit`. See [[newsagent_observatory_v33_findings]].
 5. Website stays parked; `newsagent/AUTOMATION.md` updated for the new credential/provider reality.
 
 ## STRETCH / BACKLOG (marked; nothing blocks the shipped v3.1 slice)

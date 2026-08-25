@@ -30,6 +30,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
+from . import reach
 from .config import DATA, GUARDIAN_KEY_ENV
 
 # Free feeds, live-probed 200 (2026-07-05). Display rule for every RSS source:
@@ -60,12 +61,26 @@ def http_json(url: str, retries: int = 4) -> dict:
     raise RuntimeError("unreachable")
 
 
-def market_state(slug: str) -> dict:
-    """Question, resolution criteria, deadline, and current mid for a live market."""
-    url = "https://gamma-api.polymarket.com/markets?" + urllib.parse.urlencode({"slug": slug})
+def market_state(slug: str, gamma_slug: str | None = None) -> dict:
+    """Question, resolution criteria, deadline, and current mid for a live market.
+
+    `slug` is OUR key (ledger registry, priors, fv_state/series, feature cache all
+    hang off it) and is what comes back in the result. `gamma_slug` is what
+    Polymarket calls the market today — pass it when Polymarket re-slugs a market
+    mid-life (it appends a numeric suffix and the old slug then returns 0 rows,
+    even with closed=true). Keeping the two separate is what stops a re-slug from
+    silently forking a second ledger entry for the same question.
+    """
+    q = gamma_slug or slug
+    url = "https://gamma-api.polymarket.com/markets?" + urllib.parse.urlencode({"slug": q})
     rows = http_json(url)
     if not rows:  # closed markets need the flag
         rows = http_json(url + "&closed=true")
+    if not rows:
+        raise RuntimeError(
+            f"gamma returned no market for slug {q!r} (tried closed=true). "
+            "Polymarket may have re-slugged it — look it up via /public-search "
+            "and set gamma_slug in newsagent/config.py.")
     m = rows[0]
     best_bid = float(m.get("bestBid") or 0)
     best_ask = float(m.get("bestAsk") or 1)
@@ -248,18 +263,35 @@ def _keyword_filter(items: list[dict], query: str, keys: list[str],
 def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: int = 12,
                  rss_items: list[dict] | None = None,
                  newsletter_items: list[dict] | None = None,
-                 pdf_items: list[dict] | None = None) -> dict:
+                 pdf_items: list[dict] | None = None,
+                 reach_items: list[dict] | None = None) -> dict:
     """Packet = newsletters (analysis-grade, Stage-A-only, never displayed) +
     macro-research PDFs (public URLs; body internal-only, evidence feed shows
     headline+source+link) + relevance-ranked Guardian items (title + trail +
     lede + last paragraph, internal-only text) + keyword-matched RSS headlines +
     Wikipedia Current Events bullets, deduped cross-source by normalized-title hash.
 
-    Per-slot caps (of max_items=12): newsletters <=2, PDFs <=2, Guardian <=6,
-    RSS <=4, WP fills the remainder. `now` in the past reconstructs a
-    lookahead-free HISTORICAL packet from Guardian+WP only — RSS/newsletters/PDFs
-    are live-only sources (feeds carry current state; no timestamped archive),
-    so they are excluded from any reconstruction by construction."""
+    Per-slot caps (of max_items=12): newsletters <=2, PDFs <=2, **reach <=2**,
+    Guardian <=6 (**4 on days a reach item exists**), RSS <=4, WP fills the
+    remainder. `now` in the past reconstructs a lookahead-free HISTORICAL packet
+    from Guardian+WP only — RSS/newsletters/PDFs are live-only sources (feeds
+    carry current state; no timestamped archive), so they are excluded from any
+    reconstruction by construction.
+
+    The reach slot (v3.4, APPROVED 2026-08-24) is the agent-reach evidence
+    extension: curated official resolution-source documents and event-triggered
+    official transcripts, validated by `newsagent.reach` before they get here. It
+    DISPLACES two Guardian items rather than growing the packet, on the declared
+    judgment that a primary document dominates three restatements of it. That is a
+    packet-composition change, so it changes what Stage B sees and alpha must be
+    refit through scripts/newsagent_hist_backfill.py --fit whenever reach items
+    start appearing in the fitted sample.
+
+    Reach items are CURATED PER MARKET: `reach.items_for_slug` restricts an item
+    to the markets that asked for it, so a UKMTO advisory cannot drift into an
+    unrelated packet on a keyword coincidence. Their windows are their own —
+    14 days for official documents (state-of-record, not news) and 72h for
+    transcripts — declared, not fitted."""
     t = now or datetime.now(timezone.utc)
     g_items = guardian_search(cfg["guardian_q"], t - timedelta(hours=72), t)
     window = "72h"
@@ -279,6 +311,15 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
     # windowed to 8 days so a Friday report still serves the following week
     pdf_sel = _keyword_filter(pdf_items or [], cfg["guardian_q"], cfg["wp_keys"],
                               t - timedelta(days=8), t)
+    # reach: per-market curated, then each kind windowed by its own declared span
+    reach_mine = reach.items_for_slug(reach_items or [], slug)
+    reach_sel = []
+    for kind in ("document", "transcript"):
+        subset = [a for a in reach_mine if a.get("reach_kind") == kind]
+        reach_sel += _keyword_filter(subset, cfg["guardian_q"], cfg["wp_keys"],
+                                     reach.window_start(kind, t), t)
+    reach_sel = reach_sel[:reach.MAX_REACH_ITEMS]
+    g_cap = reach.GUARDIAN_CAP_WITH_REACH if reach_sel else reach.GUARDIAN_CAP_DEFAULT
 
     lookback = 3 if window == "72h" else 7
     wp_items = []
@@ -289,7 +330,8 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
                 wp_items.append({"title": b[:200], "seendate": day.strftime("%Y%m%dT235900Z"),
                                  "domain": "en.wikipedia.org (Current events)"})
     seen, items = set(), []
-    for a in nl_sel[:2] + pdf_sel[:2] + g_items[:6] + rss_sel[:4] + wp_items[-4:]:
+    for a in (nl_sel[:2] + pdf_sel[:2] + reach_sel + g_items[:g_cap]
+              + rss_sel[:4] + wp_items[-4:]):
         key = title_hash(a.get("title", ""))
         if key in seen or not a.get("title"):
             continue
@@ -297,10 +339,14 @@ def build_packet(slug: str, cfg: dict, now: datetime | None = None, max_items: i
         items.append(a)
         if len(items) >= max_items:
             break
+    src = "newsletters+pdf+guardian+rss+wp" if (nl_sel or rss_sel or pdf_sel) \
+        else "guardian+wp_currentevents"
+    if reach_sel:
+        src = "reach+" + src
     return {"slug": slug, "asof": t.isoformat(), "query": cfg["guardian_q"],
             "wp_keys": cfg["wp_keys"], "window": window,
-            "source": "newsletters+pdf+guardian+rss+wp" if (nl_sel or rss_sel or pdf_sel)
-                      else "guardian+wp_currentevents",
+            "source": src, "guardian_cap": g_cap,
+            "n_reach": len(reach_sel),
             "articles": items}
 
 
