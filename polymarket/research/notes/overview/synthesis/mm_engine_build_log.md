@@ -16,6 +16,9 @@ tags:
   - recap
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Engine — Build Log & Component Map
 
 > Hubs: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · Plan + status: [[2026-06-23_mm_engine_phase01_buildplan]] · How/why it works: [[mm_backtesting_methodology_explainer]] §6 · Research roadmap: [[mm_backtest_research_roadmap]]

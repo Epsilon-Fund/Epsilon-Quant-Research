@@ -14,6 +14,9 @@ tags:
   - research
 ---
 
+> **DEPRIORITISED (2026-08-25).** The copy-trading thread is not the active research thread (that is [[strat_market_making]]). It is not archived either — its execution/signing infrastructure is live and shared with the market-making machinery. Pick this thread back up only with Justin.
+
+
 > **Canon status (2026-07-19 audit): HISTORICAL** — honest whale dossier, but winner-screened by construction, its $4.0M PnL is at-his-own-prices (the same flow copied as taker loses −$429k per [[copytrade_spread_surface_mtm_findings]]), and its 7.89 style ratio predates the active_order_leg fix (corrected to 5.67). Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Trader profile — `0x9d84ce0306f8551e02efef1680475fc0f1dc1344`

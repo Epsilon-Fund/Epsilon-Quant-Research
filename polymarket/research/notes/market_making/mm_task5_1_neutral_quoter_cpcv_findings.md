@@ -15,6 +15,9 @@ tags:
   - backtesting
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # Neutral Spike-Avoidance Market-Making under Whole-Market Nested CPCV (Task 5.1)
 
 > Hubs: [[strat_market_making]] · [[mm_backtesting_methodology_explainer]] · supersedes the evaluation methodology and the inventory controller of [[mm_task5_inventory_quoter_findings]] (Task 5); keeps its frozen engine, costed-PnL machinery, ladder discipline, and {Optimistic, Prob, RiskAverse} queue bracketing · PRD: [[2026-07-07_mm_task5_1_redesign_prd_reference]] · controller grounding: the LOTECH post-event study (Alvaro Fernandez, 2025-04-27 LO-USDT session) · definitions: [[glossary]] · [[polymarket_table_dictionary]]

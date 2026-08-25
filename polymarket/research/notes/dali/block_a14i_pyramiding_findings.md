@@ -6,6 +6,9 @@ hubs:
 tags: [dali, block-a14i, pyramiding, results]
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — K-cap sweep explains the artifact mechanism: positive only at K=∞ (≈153 concurrent positions in one episode). Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 > Hub: [[COWORK]]

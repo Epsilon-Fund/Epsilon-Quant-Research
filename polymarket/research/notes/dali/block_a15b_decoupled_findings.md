@@ -10,6 +10,9 @@ hubs:
   - COWORK
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): HISTORICAL** — the diagnostic that showed the TOB move is mean-reversion to microprice inside the spread, not continuation alpha; seeded [[block_a18_passive_reversion_findings]]. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block A1.5b Decoupled Micro-Price Target Findings

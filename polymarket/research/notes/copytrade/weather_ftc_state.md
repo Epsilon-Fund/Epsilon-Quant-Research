@@ -12,6 +12,9 @@ tags:
   - copytrade
 ---
 
+> **DEPRIORITISED (2026-08-25).** The copy-trading thread is not the active research thread (that is [[strat_market_making]]). It is not archived either — its execution/signing infrastructure is live and shared with the market-making machinery. Pick this thread back up only with Justin.
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — taker path killed by observed 5–7c slippage (not the modeled constant); all 21 sticky-queue cells lose; the passive branch was correctly dispositioned as a live measurement loop and never run; in-note CI-free positives were retracted in-note. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Weather FTC TP — state of the strategy (2026-05-15)

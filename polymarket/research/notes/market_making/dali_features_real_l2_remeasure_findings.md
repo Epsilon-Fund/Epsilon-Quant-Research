@@ -16,6 +16,9 @@ tags:
   - audit
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # Dali features re-measured on real captured L2 — workflow hardening + class-B closure re-tests
 
 > Hub: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · Decision this executes: [[pm_dali_workflow_revision_decision]] · Why: [[pm_prealvaro_pipeline_trust_audit_findings]] · Data: [[mm_vps_capture_setup]] · [[polymarket_data_manifest]] · Table terms: [[polymarket_table_dictionary]]

@@ -10,6 +10,9 @@ relationship: >
   [[polymarket_l2_ingestion]]. Queue model research from deep-research pass (2026-06-20).
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Backtesting Methodology Explainer
 
 ## Summary

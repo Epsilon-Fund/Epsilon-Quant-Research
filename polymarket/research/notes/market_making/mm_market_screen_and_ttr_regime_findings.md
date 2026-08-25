@@ -18,6 +18,9 @@ tags:
   - engine
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # Market-Making Design Inputs — the Failure-Driver Market Screen + the NegRisk Time-to-Resolution Regime
 
 > Hubs: [[strat_market_making]] · [[mm_backtesting_methodology_explainer]] · builds directly on [[mm_symmetric_quoter_validation_findings]] (Task 4 — the per-token VIABLE/DEAD verdict this consumes) · concept lineage: [[mm_concepts_and_strategy_buildup]] §Layer 4 (spike-zone avoidance), [[block_k5_findings]] (late-spike avoidance) · data limits: [[mm_clob_capture_semantics]] · definitions: [[glossary]] · [[polymarket_table_dictionary]]

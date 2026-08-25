@@ -5,6 +5,9 @@ created: 2026-06-04
 status: measurement-grade-not-production-grade
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Maker Infrastructure Audit Findings
 
 > Hub: [[strat_market_making]] · [[COWORK]]

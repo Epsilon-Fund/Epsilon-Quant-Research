@@ -11,6 +11,9 @@ hubs:
   - POLYMARKET_BRAIN
 ---
 
+> **DEPRIORITISED (2026-08-25).** The copy-trading thread is not the active research thread (that is [[strat_market_making]]). It is not archived either — its execution/signing infrastructure is live and shared with the market-making machinery. Pick this thread back up only with Justin.
+
+
 > **Canon status (2026-07-19 audit, corrected 2026-07-21): CANON** — the house-standard note: exact reconciliation anchors, Wilson + bootstrap CIs, paired composition control, explicit realism ledger; the definitive close of the Block-B operator saga. **One scope claim is now falsified:** "PnL/position attribution is unaffected — style framing only" is true of the label swap but false of the position pipeline — the aggressor of every `_matchOrders` bundle appears twice (sibling `taker` rows + internal-leg `maker` row), so the both-role explode in `build_closed_positions.py` double-counts aggressive positions and fabricates phantom complementary-token legs; `active_order_leg` alone does not fix it, and **no derived table was ever regenerated post-fix**. See [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 2. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Copytrade attribution repartition — who was actually the aggressor on each fill, and what that changes (style labels yes, PnL no)

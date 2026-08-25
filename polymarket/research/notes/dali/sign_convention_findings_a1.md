@@ -12,6 +12,9 @@ tags:
   - dali
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CANON** — the one durable live output of the dali cluster: live trade side = token-side aggressor (99.9%/1.7% conditionals, n=847 classified); underwrites every downstream OFI/TFI sign and the MM thread's aggressor labeling. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Dali Sign Convention Findings

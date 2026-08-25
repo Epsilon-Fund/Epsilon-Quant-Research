@@ -16,6 +16,9 @@ tags:
   - research
 ---
 
+> **PARKED (2026-08-25).** Out of scope for the active market-making project — historical record of an earlier research era. Do not build on this note or quote its numbers as current. The canon surface is [[strat_market_making]] + [[mm_model]].
+
+
 # Block K2 v3: digital-anchored maker mechanism test
 
 > **Strat:** [[strat_market_making]] (Market-Making). Sibling: [[strat_options_delta]]. Arc: [[block_k_plain_english_synthesis]].

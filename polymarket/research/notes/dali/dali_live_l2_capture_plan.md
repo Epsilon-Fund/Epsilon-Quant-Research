@@ -12,6 +12,9 @@ tags:
   - dali
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): HISTORICAL** — plan executed by the A0/A0b/A0c captures; one caveat stays live: public PM CLOB L2 is anonymous aggregate data (no wallet/order-owner identity), which constrains any attribution work. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Dali Live L2 Capture Plan

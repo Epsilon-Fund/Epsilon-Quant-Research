@@ -18,6 +18,9 @@ tags:
   - queue-model
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Task 5 / 5.1 — Methodology Build-Up, the Ladder, and What We're Actually Testing
 
 > Hubs: [[strat_market_making]] · sibling of [[mm_backtesting_methodology_explainer]] (that note covers the *engine*; this note covers the *Task-5/5.1 evaluation logic, the ladder, and the concepts*). Findings of record: [[mm_task5_inventory_quoter_findings]] (consolidated) · [[mm_task5_1_neutral_quoter_cpcv_findings]] (full 5.1). Code: `mm_engine/strategies.py`, `mm_engine/queue_models.py`, `mm_eval/cpcv.py`, `mm_eval/tape.py`.

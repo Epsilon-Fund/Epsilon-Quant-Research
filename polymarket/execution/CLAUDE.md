@@ -1,3 +1,11 @@
+# polymarket/execution/ — agent context
+
+> **This folder hosts two things** (2026-08-25):
+> 1. **ACTIVE — the market-making live-measurement machinery**: `maker/` (quoting bridge, latency harness, runbook `maker/MM_JOIN2_RUNBOOK.md`, live guide) and the venue client/signing layer in `mirror/` including the SDK order gateway (`mirror/pysdk_gateway.py` / `pysdk_order_gateway.py`). Its research context: `../research/notes/market_making/strat_market_making.md`.
+> 2. **DEPRIORITISED — the copy-trading mirror bot** described below. Paused; not the active thread.
+>
+> The signing/venue/safety layer is shared between the two — treat it as live production infrastructure regardless of which thread you are on. The no-real-order safety defaults and operator-confirm requirements apply to everything.
+
 # polymarket/execution/ — Claude Code rules
 
 > Hub: [[COWORK]] · [[POLYMARKET_BRAIN]]

@@ -6,6 +6,9 @@ hubs:
 tags: [dali, block-a15, tob-extensions, results]
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit, corrected 2026-07-21): HISTORICAL** — signal characterization; the 300s exp-decay 'winner' is composition-confounded with overlapping CIs — no live conclusion. (Correction: its 73.7% anchor did not "fail OOS" — that comparison was a metric mismatch; the descriptive signal replicated ~63% conditional OOS but remains non-monetizable. See [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1.) Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 > Hub: [[COWORK]]

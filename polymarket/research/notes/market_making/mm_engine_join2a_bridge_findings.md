@@ -17,6 +17,9 @@ tags:
   - live-loop
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Engine JOIN 2a — Live Bridge (same-code-path → real venue, DRY-RUN/mock)
 
 > Hub: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · Build plan: [[2026-06-23_mm_engine_phase01_buildplan]] · Reconciliation it builds on: [[mm_join1_reconciliation_findings]] · Live-loop gates: [[mm_politics_negrisk_live_loop_design]] · Live maker safety/signing reused: [[mm_maker_infra_audit_findings]] · Queue/latency realism: [[mm_backtesting_methodology_explainer]]

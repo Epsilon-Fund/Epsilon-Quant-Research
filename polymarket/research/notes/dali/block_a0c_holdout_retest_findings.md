@@ -10,6 +10,9 @@ hubs:
   - COWORK
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-21 pipeline audit): CLOSED-ROBUST, with the stated reason CORRECTED.** The closure stands — carried by Retest A (taker −2,341 bps pooled), Retest B, and [[block_a18_passive_reversion_findings]] — but the headline "73.7% replicated at 36.0% — artifact_confirmed" is a **false comparison between two different metrics** (A13 excluded zero-moves over overlapping rows; Retest C counted zero-as-miss on non-overlapping events — in Retest C's own units, discovery scores 20–27%, so the holdout *beat* in-sample). Under a consistent conditional metric the descriptive signal replicated at ~63% vs ~70–75% IS, and this note's own surface CSV shows pooled directional return +58.1 bps OOS vs +72.9 IS — unreported at the time. The *executable* claims failed OOS; the descriptive hit rate never collapsed. Capture-noise ruled out (retest ran on a0c_roll with ≤5s staleness gates; 0.23% of events near gaps). The correction rests on an in-session recomputation (it does reproduce this note's official 36.0% on the exact retest universe, which anchors it) — reproduction script not yet committed, treat the discovery-side numbers as provisional. Details: [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 1 + § Methodology. Ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # A0c Holdout Retest Findings

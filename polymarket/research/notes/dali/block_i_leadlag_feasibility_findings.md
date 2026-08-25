@@ -12,6 +12,9 @@ tags:
   - dali
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — spot-return lead-lag exists weakly but is structurally unexecutable after spread+fees (OOS CI far below zero); perp-OFI and sub-second variants explicitly out of scope, not closed here. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block I Lead-Lag Feasibility Findings

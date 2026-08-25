@@ -10,6 +10,9 @@ hubs:
   - COWORK
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 0/200 executable cells; the rolling-rank-beats-deciles sizing insight survives as a design input only. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block P1 Rolling-Rank Findings

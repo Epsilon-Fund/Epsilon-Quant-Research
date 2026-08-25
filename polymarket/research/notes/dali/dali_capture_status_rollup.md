@@ -13,6 +13,9 @@ tags:
   - capture
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 # Dali L2 capture status — one-page rollup (A0 / A0b / A0c / crypto-roll)
 
 > Hub: [[COWORK]] · Canon context: [[pm_prealvaro_canon_audit_findings]] · Integrity re-audit: [[pm_prealvaro_pipeline_trust_audit_findings]]

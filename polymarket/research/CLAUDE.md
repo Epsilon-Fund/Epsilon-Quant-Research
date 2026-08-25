@@ -1,3 +1,9 @@
+# polymarket/research/ — agent context
+
+> **The active project in this folder is MARKET-MAKING** (2026-08-25). Canon surface: `notes/market_making/strat_market_making.md` → `notes/market_making/mm_model.md` — read those before anything else. The replay engine is `mm_engine/`, the evaluation harness `mm_eval/`. Research notes carry status banners (ACTIVE canon / HISTORICAL EVIDENCE / PARKED / DEPRIORITISED); never build on a banner-marked parked note.
+>
+> The remainder of this file documents the **copy-trading data infrastructure** that also lives here. That thread is deprioritised — the data infra and conventions below remain valid reference for anyone touching `data_infra/` or the historical fills data.
+
 # Polymarket Copy-Trading: Data Infrastructure
 
 > Hub: [[POLYMARKET_BRAIN]] · [[COWORK]]
