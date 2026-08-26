@@ -1488,3 +1488,534 @@ def test_page_states_what_the_reach_channel_actually_reaches(monkeypatch):
     assert "ukmto.org" in out and "navigation-only" in out
     assert "T+1" in out
     assert "headline, source and link only" in out
+
+
+# ================================================================ v3.5 additions ==
+# Dashboard v3.5: group markets by the evidence that actually feeds them, and make
+# "no evidence" impossible to miss. Everything below is DISPLAY — see the module
+# docstring of newsagent/provenance.py — so these tests assert on what the page
+# says, on which box a card lands in, and on the invariant that none of it can
+# reach the model.
+
+from newsagent import config, provenance
+
+
+def _prov_env(monkeypatch, relevant=(), priors=None, settled=None):
+    """Drive provenance deterministically.
+
+    `relevant` is the set of article titles Stage A found relevant; everything
+    else is 'read but not relevant'. Titles absent from the mapping entirely
+    stand in for the uncached case. Disk is cut out completely: no day dirs, no
+    priors file, no ledger.
+    """
+    rel = set(relevant)
+    monkeypatch.setattr(provenance, "_day_dirs", lambda root=None: [])
+    monkeypatch.setattr(provenance, "_relevance",
+                        lambda slug, title: (1.0 if title in rel else 0.0))
+    monkeypatch.setattr(provenance, "_priors", lambda root=None: dict(priors or {}))
+    monkeypatch.setattr(provenance, "settled_by_group",
+                        lambda *a, **k: dict(settled or {}))
+
+
+def _art(title, domain="theguardian.com", **kw):
+    return {"title": title, "domain": domain, "seendate": "20260825T000000Z",
+            "url": f"https://{domain}/x", **kw}
+
+
+def _snapshot35(slug="m1", fv=40.0, mid=0.30, articles=None, asof="2026-08-25",
+                p0_source="onboarding_prior", p0_used=None, gdelt=None):
+    s = _snapshot31(slug=slug, fv=fv, mid=mid)
+    s["packet"] = {"asof": f"{asof}T00:07:44+00:00",
+                   "articles": list(articles if articles is not None
+                                    else [_art("guardian story")])}
+    s["stage_b"]["p0_source"] = p0_source
+    if p0_used is not None:
+        s["stage_b"]["p0_used_pct"] = p0_used
+    s["stage_b"]["gdelt"] = gdelt
+    return s
+
+
+def _series35(slug="m1", fv=40.0):
+    return {slug: [
+        {"date": "2026-08-24", "fv_pct": fv, "band_lo_pct": fv - 10,
+         "band_hi_pct": fv + 10, "mid_pct": 30.0, "segment": "live"},
+        {"date": "2026-08-25", "fv_pct": fv, "band_lo_pct": fv - 10,
+         "band_hi_pct": fv + 10, "mid_pct": 30.0, "segment": "live"}]}
+
+
+# ------------------------------------------------- (1) the declared bands ------
+
+def test_display_bands_are_declared_with_the_thresholds_they_claim():
+    # the well-fed bar is not a new number: it IS the divergence flag's confidence
+    # leg, reused so the page has one evidence bar rather than two
+    assert provenance.WELL_FED_MIN == config.DIVERGENCE_NREL_MIN == 5
+    assert provenance.WINDOW_DAYS == 30
+    assert provenance.GROUP_ORDER == ("news+data", "news, well-fed",
+                                      "news, thin", "prior-only")
+
+
+def test_group_for_bands_at_and_around_every_boundary():
+    g = provenance.group_for
+    assert g(0) == provenance.GROUP_PRIOR_ONLY
+    assert g(1) == provenance.GROUP_THIN
+    assert g(provenance.WELL_FED_MIN - 1) == provenance.GROUP_THIN
+    assert g(provenance.WELL_FED_MIN) == provenance.GROUP_WELL_FED
+    assert g(99) == provenance.GROUP_WELL_FED
+    # the data channel is checked FIRST and wins at any article count, including 0
+    for n in (0, 1, 4, 5, 40):
+        assert g(n, "p_struct") == provenance.GROUP_NEWS_DATA
+
+
+def test_group_is_computed_from_evidence_not_from_the_tract_tag(monkeypatch):
+    """The v3.4 grid could not tell these two apart; that is the whole point."""
+    _prov_env(monkeypatch, relevant=[f"a{i}" for i in range(6)])
+    fed = _snapshot35(slug="fed", articles=[_art(f"a{i}") for i in range(6)])
+    fed["stage_b"]["tract"] = "news"
+    starved = _snapshot35(slug="starved", articles=[_art("nothing relevant")])
+    starved["stage_b"]["tract"] = "news"          # same tag, no evidence
+    sc = dashboard.build_showcase([fed, starved],
+                                  {**_series35("fed"), **_series35("starved")})
+    by = {c["slug"]: c["provenance"]["group"] for c in sc["markets"]}
+    assert by["fed"] == provenance.GROUP_WELL_FED
+    assert by["starved"] == provenance.GROUP_PRIOR_ONLY
+
+    # ...and a poll-driven market that IS being fed is not filed as prior-only
+    _prov_env(monkeypatch, relevant=[f"a{i}" for i in range(6)])
+    poll = _snapshot35(slug="poll", articles=[_art(f"a{i}") for i in range(6)])
+    poll["stage_b"]["tract"] = "poll"
+    sc = dashboard.build_showcase([poll], _series35("poll"))
+    assert sc["markets"][0]["provenance"]["group"] == provenance.GROUP_WELL_FED
+
+
+def test_a_market_moves_between_groups_as_evidence_arrives(monkeypatch):
+    """The same market, three days of evidence: prior-only -> thin -> well-fed.
+
+    This is the property the grouping has to have. A band that a market can never
+    leave is a relabelled tract tag, which is exactly what v3.5 replaced.
+    """
+    seen = []
+    for n in (0, 2, 6):
+        titles = [f"story {i}" for i in range(n)]
+        _prov_env(monkeypatch, relevant=titles,
+                  priors={"m1": {"p0_pct": 40.0, "set_on": "2026-07-05"}})
+        arts = [_art(t) for t in titles] + [_art("background noise")]
+        sc = dashboard.build_showcase([_snapshot35(articles=arts)], _series35())
+        prov = sc["markets"][0]["provenance"]
+        seen.append((prov["group"], prov["n_relevant"], prov["n_items"]))
+    assert seen == [(provenance.GROUP_PRIOR_ONLY, 0, 1),
+                    (provenance.GROUP_THIN, 2, 3),
+                    (provenance.GROUP_WELL_FED, 6, 7)]
+
+
+def test_group_rows_are_declared_order_and_skip_empty_groups(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"])
+    snaps = [_snapshot35(slug="thin", articles=[_art("hit")]),
+             _snapshot35(slug="none", articles=[_art("miss")])]
+    series = {**_series35("thin"), **_series35("none")}
+    rows = dashboard.build_showcase(snaps, series)["evidence_groups"]
+    assert [r["group"] for r in rows] == ["news, thin", "prior-only"]   # no empties
+    assert [r["n"] for r in rows] == [1, 1]
+
+
+# --------------------------------------- (1b) group header: count + own Brier ---
+
+def test_group_header_shows_count_and_its_own_settled_brier_with_the_n(monkeypatch):
+    _prov_env(monkeypatch, relevant=[f"a{i}" for i in range(6)],
+              settled={"news, well-fed": {"n": 2, "brier": 0.0347}})
+    sc = dashboard.build_showcase(
+        [_snapshot35(articles=[_art(f"a{i}") for i in range(6)])], _series35())
+    out = dashboard.render_html(sc)
+    assert "1 market</span>" in out                      # count, singular
+    assert "settled Brier 0.0347" in out
+    assert "(n=2 —" in out and "not a result" in out     # n never detached from it
+
+
+def test_group_with_no_settled_markets_says_so_rather_than_showing_nothing(monkeypatch):
+    _prov_env(monkeypatch)
+    out = dashboard.render_html(
+        dashboard.build_showcase([_snapshot35(articles=[_art("m")])], _series35()))
+    assert "no settled markets in this group yet" in out
+
+
+def test_settled_by_group_scores_each_market_in_the_group_it_resolved_in(monkeypatch):
+    monkeypatch.setattr(provenance, "_day_dirs", lambda root=None: [])
+    monkeypatch.setattr(provenance, "_relevance", lambda slug, title: 0.0)
+    out = provenance.settled_by_group([
+        {"slug": "a", "resolution_date": "2026-07-17", "brier": 0.2, "method": "news"},
+        {"slug": "b", "resolution_date": "2026-07-31", "brier": 0.4, "method": "news"}])
+    # no evidence reachable for either -> both prior-only, averaged, n carried
+    assert out == {"prior-only": {"n": 2, "brier": 0.3}}
+    assert provenance.settled_by_group([]) == {}          # empty ledger degrades
+
+
+def test_grid_degrades_to_the_flat_v34_layout_without_group_rows():
+    cards = [{"slug": "m1", "question": "Q?", "fv_pct": 40.0, "band": [30.0, 50.0],
+              "market_pct": 30.0, "gap_pp": 10.0, "divergence_flag": False,
+              "tract": "news", "evidence_quality": None}]
+    flat = dashboard._overview_grid_html(cards, None)
+    assert flat.startswith('<div class="donutgrid">') and "evgroup" not in flat
+
+
+# ------------------------------------------------ (2) provenance, in words ------
+
+def test_provenance_line_names_every_wired_channel_in_words(monkeypatch):
+    titles = ["g", "r", "w", "doc", "nl", "pdf"]
+    _prov_env(monkeypatch, relevant=titles)
+    arts = [_art("g"), _art("r", domain="bbc.co.uk"),
+            _art("w", domain="en.wikipedia.org (Current events)"),
+            _art("doc", domain="state.gov", reach_kind="document"),
+            _art("nl", domain="newsletter:ING THINK", display=False),
+            _art("pdf", domain="am.jpmorgan.com")]
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=arts)], _series35()))
+    for words in ("Guardian", "RSS (BBC/Sky/Politico/The Hill)",
+                  "Wikipedia Current Events", "reach — official document",
+                  "newsletters (private, counted never shown)",
+                  "macro-research PDFs"):
+        assert words in out, words
+    assert "newsletter:" not in out          # the raw private tag still never ships
+
+
+def test_provenance_line_counts_relevant_articles_in_the_trailing_window(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit1", "hit2"])
+    arts = [_art("hit1"), _art("hit2"), _art("miss1"), _art("miss2")]
+    sc = dashboard.build_showcase([_snapshot35(articles=arts)], _series35())
+    prov = sc["markets"][0]["provenance"]
+    assert (prov["n_relevant"], prov["n_items"], prov["window_days"]) == (2, 4, 30)
+    out = dashboard.render_html(sc)
+    assert 'Last 30 days: <span class="mono">2</span> relevant articles of' in out
+    assert '<span class="mono">4</span> read' in out
+
+
+def test_a_thin_market_is_told_it_is_below_the_pages_own_bar(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"])
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=[_art("hit")])], _series35()))
+    assert "below the page's own confidence bar of 5 relevant articles" in out
+    assert "a prior that has been nudged" in out
+
+
+def test_an_uncached_article_is_read_but_never_counted_as_relevant(monkeypatch):
+    """An article Stage A never scored contributes zero evidence to the model, so
+    counting it on the page would overstate the diet."""
+    monkeypatch.setattr(provenance, "_day_dirs", lambda root=None: [])
+    monkeypatch.setattr(provenance, "_relevance", lambda slug, title: None)
+    monkeypatch.setattr(provenance, "_priors", lambda root=None: {})
+    monkeypatch.setattr(provenance, "settled_by_group", lambda *a, **k: {})
+    sc = dashboard.build_showcase(
+        [_snapshot35(articles=[_art("a"), _art("b")])], _series35())
+    prov = sc["markets"][0]["provenance"]
+    assert prov["n_items"] == 2 and prov["n_relevant"] == 0
+    assert prov["group"] == provenance.GROUP_PRIOR_ONLY
+
+
+def test_gdelt_is_named_only_when_a_burst_could_actually_have_amplified(monkeypatch):
+    quiet = {"n": 12, "n_trailing_mean": 800.0, "vol_z": -3.0}
+    burst = {"n": 3000, "n_trailing_mean": 800.0, "vol_z": 2.4}
+    for gd, expected in ((None, False), (quiet, False), (burst, True)):
+        _prov_env(monkeypatch, relevant=["hit"])
+        sc = dashboard.build_showcase(
+            [_snapshot35(articles=[_art("hit")], gdelt=gd)], _series35())
+        assert sc["markets"][0]["provenance"]["gdelt_amplified"] is expected
+    # ...and never on a market with no directional evidence to amplify
+    _prov_env(monkeypatch)
+    sc = dashboard.build_showcase(
+        [_snapshot35(articles=[_art("miss")], gdelt=burst)], _series35())
+    assert sc["markets"][0]["provenance"]["gdelt_amplified"] is False
+
+
+def test_channel_of_maps_each_wired_source_and_falls_back_honestly():
+    c = provenance.channel_of
+    assert c({"domain": "theguardian.com"}) == provenance.CH_GUARDIAN
+    assert c({"domain": "thehill.com"}) == provenance.CH_RSS
+    assert c({"domain": "en.wikipedia.org (Current events)"}) == provenance.CH_WIKIPEDIA
+    assert c({"domain": "newsletter:ING THINK"}) == provenance.CH_NEWSLETTER
+    assert c({"domain": "am.gs.com"}) == provenance.CH_PDF
+    assert c({"domain": "youtube.com/@statedept"}) == provenance.CH_REACH_TRANSCRIPT
+    # reach items are self-identifying: the kind comes from the curated worklist,
+    # never from the fetched payload, so it outranks the domain
+    assert c({"domain": "state.gov", "reach_kind": "document"}) == provenance.CH_REACH_DOC
+    assert c({"domain": "state.gov", "reach_kind": "transcript"}) == provenance.CH_REACH_TRANSCRIPT
+    assert c({"domain": "somewhere-new.example"}) == provenance.CH_OTHER
+    assert c({}) == provenance.CH_OTHER
+
+
+# ------------------------------- (2b) the prior-only card, and its exact words ---
+
+def test_prior_only_card_states_the_exact_line_with_its_prior_date(monkeypatch):
+    _prov_env(monkeypatch, priors={"m1": {"p0_pct": 14.0, "set_on": "2026-07-05"}})
+    sc = dashboard.build_showcase(
+        [_snapshot35(fv=14.0, mid=0.952, articles=[_art("irrelevant")])],
+        _series35(fv=14.0))
+    assert sc["markets"][0]["provenance"]["unchanged"] is True
+    out = dashboard.render_html(sc)
+    assert ("No relevant evidence found; this number is the onboarding prior, "
+            "unchanged since 2026-07-05.") in out
+    assert "not a researched disagreement" in out
+    assert "1 item reached the packet inside that window" in out
+
+
+def test_prior_only_with_decayed_carry_does_not_claim_to_be_unchanged(monkeypatch):
+    """FV 35.0 against a 37.7 prior is not 'unchanged' — it is the prior plus
+    carry from evidence that has aged out. Saying 'unchanged' there would be a
+    false statement in the one place the page is trying hardest to be honest."""
+    _prov_env(monkeypatch, priors={"m1": {"p0_pct": 37.7, "set_on": "2026-07-05"}})
+    sc = dashboard.build_showcase(
+        [_snapshot35(fv=35.0, articles=[_art("irrelevant")])], _series35(fv=35.0))
+    assert sc["markets"][0]["provenance"]["unchanged"] is False
+    out = dashboard.render_html(sc)
+    assert "unchanged since" not in out
+    assert "No relevant evidence found in the last 30 days." in out
+    assert "onboarding prior of <span class=\"mono\">37.7%</span> set on 2026-07-05" in out
+    assert "of decayed carry" in out and "-2.7pp" in out
+
+
+def test_prior_only_card_survives_a_market_with_no_prior_of_record(monkeypatch):
+    _prov_env(monkeypatch, priors={})                # nothing on file for m1
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=[_art("irrelevant")])], _series35()))
+    assert "nothing recent has refreshed this number" in out
+    assert "onboarding prior of" not in out          # claims no figure it cannot source
+
+
+def test_prior_only_cards_are_visually_distinct_at_a_glance(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"fed": {"p0_pct": 40.0, "set_on": "2026-07-05"},
+                      "bare": {"p0_pct": 14.0, "set_on": "2026-07-05"}})
+    snaps = [_snapshot35(slug="fed", articles=[_art("hit")] * 1),
+             _snapshot35(slug="bare", fv=14.0, articles=[_art("miss")])]
+    out = dashboard.render_html(dashboard.build_showcase(
+        snaps, {**_series35("fed"), **_series35("bare", 14.0)}))
+    assert out.count('class="cell prioronly"') == 1        # only the starved one
+    assert out.count("prior only · no evidence") == 1      # tile chip
+    assert "prior only — no relevant evidence" in out      # detail-card chip
+    assert 'provchip provchip-hi">no evidence' in out
+
+
+def test_prior_only_donut_is_dashed_and_muted_not_a_confident_cream_arc():
+    solid = dashboard._svg_donut(40.0, 30.0, 50.0, 30.0)
+    muted = dashboard._svg_donut(40.0, 30.0, 50.0, 30.0, prior_only=True)
+    assert "stroke-dasharray" not in solid and "stroke-dasharray" in muted
+    assert f'stroke="{dashboard.ACC}" stroke-width="7" stroke-linecap' in solid
+    assert f'stroke="{dashboard.DIM}" stroke-width="7" stroke-linecap' in muted
+    assert f'fill="{dashboard.TX}"' in solid and f'fill="{dashboard.DIM}"' in muted
+    assert "prior only" in muted                            # and in the aria-label
+
+
+# ---------------------------------------- (3) the movement indicator ------------
+
+def test_every_card_states_how_far_evidence_has_moved_its_number(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"m1": {"p0_pct": 31.7, "set_on": "2026-07-05"}})
+    sc = dashboard.build_showcase(
+        [_snapshot35(fv=40.0, articles=[_art("hit")])], _series35())
+    assert sc["markets"][0]["provenance"]["moved_pp"] == 8.3
+    out = dashboard.render_html(sc)
+    assert "how much has evidence moved this number" in out
+    assert 'prior <span class="mono">31.7%</span> (2026-07-05) → published' in out
+    assert "<b class=\"mono\">+8.3pp</b>" in out
+    assert 'class="cellmove mono mv-moved"' in out        # compact tile indicator
+    assert "prior 31.7% → 40%" in out
+
+
+def test_an_unmoved_number_says_so_rather_than_showing_a_bare_zero(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"m1": {"p0_pct": 40.0, "set_on": "2026-07-05"}})
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(fv=40.0, articles=[_art("hit")])], _series35()))
+    assert "Evidence has moved this number by less than a percentage point." in out
+    assert 'class="cellmove mono mv-still"' in out
+
+
+def test_movement_on_a_data_channel_market_splits_the_anchor_from_the_news(monkeypatch):
+    """prior -> data anchor -> published. Crediting the data channel's re-anchor
+    to 'news evidence' would misattribute the only move this market has made."""
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"m1": {"p0_pct": 44.0, "set_on": "2026-07-05"}})
+    sc = dashboard.build_showcase(
+        [_snapshot35(fv=50.7, articles=[_art("hit")],
+                     p0_source="p_struct", p0_used=50.7)], _series35(fv=50.7))
+    prov = sc["markets"][0]["provenance"]
+    assert prov["group"] == provenance.GROUP_NEWS_DATA
+    assert (prov["moved_pp"], prov["moved_from_anchor_pp"]) == (6.7, 0.0)
+    out = dashboard.render_html(sc)
+    assert 'data anchor <span class="mono">50.7%</span>' in out
+    assert "The data channel moved it" in out and "news has moved it" in out
+    assert "anchored on the data channel" in out
+
+
+def test_movement_indicator_absent_rather_than_invented_without_a_prior(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"], priors={})
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=[_art("hit")])], _series35()))
+    assert "how much has evidence moved this number" not in out
+    assert 'class="cellmove' not in out          # CSS is always present; the tile is not
+
+
+def test_movement_summary_matches_the_cards_it_summarises(monkeypatch):
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"a": {"p0_pct": 40.0, "set_on": "2026-07-05"},
+                      "b": {"p0_pct": 10.0, "set_on": "2026-07-05"}})
+    snaps = [_snapshot35(slug="a", fv=40.0, articles=[_art("hit")]),
+             _snapshot35(slug="b", fv=14.0, articles=[_art("hit")])]
+    sc = dashboard.build_showcase(snaps, {**_series35("a"), **_series35("b", 14.0)})
+    mv = sc["movement"]
+    assert mv == {"n": 2, "mean_abs_pp": 2.0, "n_moved_ge_1pp": 1,
+                  "share_moved_ge_1pp": 0.5, "share_still_ge_1pp": 0.5}
+    out = dashboard.render_html(sc)
+    assert 'a mean of <span class="mono">2.00pp</span>' in out
+    assert "50%</span> are still within 1pp of it" in out
+
+
+def test_movement_summary_is_empty_not_wrong_when_no_priors_are_known(monkeypatch):
+    _prov_env(monkeypatch, priors={})
+    sc = dashboard.build_showcase([_snapshot35(articles=[_art("m")])], _series35())
+    assert sc["movement"]["n"] == 0 and sc["movement"]["mean_abs_pp"] is None
+
+
+def test_reconstruction_panel_states_the_mechanism_finding_in_one_line(monkeypatch):
+    _with_simlive(monkeypatch)
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"m1": {"p0_pct": 31.7, "set_on": "2026-07-05"}})
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(fv=40.0, articles=[_art("hit")])], _series35()))
+    assert "How much has evidence moved these numbers? Barely." in out
+    assert "3.46pp" in out                       # the reconstruction's own number
+    assert '<span class="mono">66%</span> never move' in out   # 1 - share_moved_ge_1pp
+    assert "Most of what this page publishes is still the prior" in out
+    assert "On the <span class=\"mono\">1</span> live markets above" in out
+
+
+def test_the_movement_finding_degrades_with_no_reconstruction_on_disk(monkeypatch):
+    monkeypatch.setattr(dashboard, "_simlive", lambda: None)
+    _prov_env(monkeypatch, priors={"m1": {"p0_pct": 40.0, "set_on": "2026-07-05"}})
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=[_art("m")])], _series35()))
+    assert "How much has evidence moved these numbers?" not in out
+    assert "how much has evidence moved this number" in out    # per-card survives
+
+
+# -------------------------------- (4) v3.4 stays intact, and v3.5 stays display --
+
+def test_v34_panels_all_survive_the_v35_regrouping(monkeypatch):
+    _with_simlive(monkeypatch)
+    _prov_env(monkeypatch, relevant=["hit"])
+    s = _snapshot35(fv=50.7, articles=[_art("hit")], p0_source="p_struct", p0_used=50.7)
+    s["stage_b"].update({"tract": "data_scored", "method": "news+data",
+                         "market_implied": {"available": False, "why": "MPT dark"}})
+    out = dashboard.render_html(dashboard.build_showcase([s], _series35(fv=50.7)))
+    assert "Public track record — settled forecasts" in out          # § 06
+    assert "Simulated-live reconstruction" in out and "reconchip" in out   # § 07
+    assert "snapshot age" in out                                     # staleness curve
+    assert "WORSE than doing nothing" in out and "rowhi" in out      # regime split
+    assert "ukmto.org" in out and "navigation-only" in out           # reach status
+    assert "divergence layer" in out.lower()                         # § 03
+    assert "previous PUBLISHED snapshot" in out                      # § 02 movers
+    assert "in-sample, and that is not a detail" in out
+    assert "evidence-poorer world" in out
+
+
+def test_v35_page_is_still_self_contained_and_scrubbed(monkeypatch):
+    _with_simlive(monkeypatch)
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"m1": {"p0_pct": 31.7, "set_on": "2026-07-05"}})
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=[_art("hit")])], _series35()))
+    assert "<script src" not in out and "http://cdn" not in out
+    assert "/Users/" not in out
+    assert "beat the mid" not in out.lower()
+
+
+def test_v35_uses_only_the_enforced_palette(monkeypatch):
+    import re as _re
+    _prov_env(monkeypatch, relevant=["hit"],
+              priors={"m1": {"p0_pct": 31.7, "set_on": "2026-07-05"}})
+    out = dashboard.render_html(dashboard.build_showcase(
+        [_snapshot35(articles=[_art("hit")])], _series35()))
+    allowed = {dashboard.BG, dashboard.PANEL, dashboard.PANEL2, dashboard.TX,
+               dashboard.DIM, dashboard.ACC, dashboard.HI, dashboard.NEG,
+               "#fff", "#000"}
+    section = out[out.index("All markets at a glance"):out.index("Big movers")]
+    for hexcol in set(_re.findall(r"#[0-9a-fA-F]{3,6}", section)):
+        assert hexcol.lower() in {a.lower() for a in allowed}, hexcol
+
+
+def test_provenance_is_display_only_and_the_model_cannot_import_it():
+    """The invariant the whole module docstring rests on, checked rather than
+    asserted in prose: nothing that computes a published number may depend on
+    how the page groups it."""
+    import pathlib
+    root = pathlib.Path(dashboard.__file__).parent
+    for mod in ("fvmodel.py", "features.py", "engine.py", "ledger.py",
+                "datachannel.py", "feeds.py", "run_daily.py", "sourceweights.py"):
+        src = (root / mod).read_text()
+        assert "provenance" not in src, f"{mod} must not depend on the display layer"
+
+
+def test_evidence_window_never_reads_reconstructed_backfill_packets(tmp_path):
+    """backfill/ packets never produced a published number, so they cannot have
+    fed one — the same rule the movers strip applies to the FV series."""
+    (tmp_path / "2026-08-25").mkdir()
+    (tmp_path / "backfill").mkdir()
+    (tmp_path / "feature_cache").mkdir()
+    assert [d.name for d in provenance._day_dirs(tmp_path)] == ["2026-08-25"]
+
+
+def test_evidence_window_dedupes_one_story_across_consecutive_days(tmp_path, monkeypatch):
+    for day in ("2026-08-24", "2026-08-25"):
+        d = tmp_path / day
+        d.mkdir()
+        (d / "m1.packet.json").write_text(json.dumps(
+            {"articles": [_art("the same headline"), _art(f"only on {day}")]}))
+    monkeypatch.setattr(provenance, "_relevance", lambda slug, title: 1.0)
+    win = provenance.evidence_window("m1", "2026-08-25", [], root=tmp_path)
+    assert win["n_items"] == 3 and win["n_relevant"] == 3     # 1 shared + 2 unique
+    # ...and the window really is a window: shrink it to a single day and the
+    # 2026-08-24 packet drops out, taking its unique story with it
+    assert provenance.evidence_window(
+        "m1", "2026-08-25", [], window_days=0, root=tmp_path)["n_items"] == 2
+
+
+def test_evidence_window_with_no_datable_asof_scores_only_what_it_was_handed(monkeypatch):
+    """A window we cannot date is not one we may fill from disk — anchoring to the
+    wall clock is the defect class that produced all three v3.4 channel bugs."""
+    called = []
+    monkeypatch.setattr(provenance, "_day_dirs",
+                        lambda root=None: called.append(1) or [])
+    monkeypatch.setattr(provenance, "_relevance", lambda slug, title: 1.0)
+    win = provenance.evidence_window("m1", "", [_art("a")])
+    assert win["n_items"] == 1 and not called
+
+
+def test_footer_separates_the_snapshot_date_from_the_render_time(monkeypatch):
+    """A presentation-only round re-renders an existing snapshot, so a footer that
+    only says "Generated <today>" implies the numbers were refreshed today. They
+    were not, and on this page that distinction is the whole subject."""
+    _prov_env(monkeypatch, relevant=["hit"])
+    sc = dashboard.build_showcase(
+        [_snapshot35(articles=[_art("hit")], asof="2026-08-25")], _series35())
+    assert sc["snapshot_date"] == "2026-08-25"
+    out = dashboard.render_html(sc)
+    assert "Numbers from the <b>2026-08-25</b> snapshot." in out
+    assert "Page rendered" in out and "Generated" not in out
+
+
+def test_footer_omits_the_snapshot_line_rather_than_guessing_a_date(monkeypatch):
+    _prov_env(monkeypatch)
+    s = _snapshot35(articles=[_art("m")])
+    s["packet"].pop("asof")
+    sc = dashboard.build_showcase([s], _series35())
+    assert sc["snapshot_date"] == ""
+    assert "Numbers from the" not in dashboard.render_html(sc)
+
+
+def test_the_two_article_counts_on_a_card_are_each_labelled_with_their_window(monkeypatch):
+    """The quality chip counts the 72h band/flag input; the provenance line counts
+    the trailing 30 days. Both are correct and they differ, so each says which."""
+    _prov_env(monkeypatch, relevant=["a", "b", "c"])
+    s = _snapshot35(articles=[_art("a"), _art("b"), _art("c")])
+    s["stage_b"]["evidence_quality"] = {"tier": "moderate", "n_relevant": 2,
+                                        "half_pp": 10.1, "note": "n"}
+    out = dashboard.render_html(dashboard.build_showcase([s], _series35()))
+    assert "2 arts/72h" in out                                   # the chip
+    assert 'Last 30 days: <span class="mono">3</span> relevant' in out   # provenance

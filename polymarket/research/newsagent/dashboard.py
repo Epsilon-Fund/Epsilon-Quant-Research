@@ -40,7 +40,7 @@ import json
 import math
 from datetime import datetime, timezone
 
-from . import sourcelean, sourceweights
+from . import provenance, sourcelean, sourceweights
 from .config import (CSV_OUT, DATA, SHOWCASE, DIVERGENCE_GAP_PP,
                      DIVERGENCE_HALF_MAX_PP, DIVERGENCE_NREL_MIN)
 
@@ -377,9 +377,24 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
             "series": fv_series.get(mkt["slug"], []),
             "sf_id": s.get("sf_id", ""),
         })
+    # v3.5 EVIDENCE PROVENANCE. Attached BEFORE the sort, while `cards` and
+    # `snapshots` are still index-aligned. Display only — see newsagent/provenance.py:
+    # it decides which box a card renders in and what its provenance line says,
+    # and it is never read by the model that produced the number.
+    priors = provenance._priors()
+    for card, snap in zip(cards, snapshots):
+        card["provenance"] = provenance.for_card(
+            card, snap["packet"].get("articles"),
+            (snap["packet"].get("asof") or "")[:10], priors)
     cards.sort(key=lambda c: (not c["divergence_flag"], -abs(c["gap_pp"])))
+    # The date the NUMBERS are from, as distinct from the moment the page was
+    # rendered. A presentation-only round re-renders an existing snapshot, so
+    # without this the footer's "Generated <today>" would quietly imply the
+    # numbers were refreshed today. They were not.
+    asofs = sorted((s.get("packet", {}).get("asof") or "")[:10] for s in snapshots)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "snapshot_date": asofs[-1] if asofs and asofs[-1] else "",
         "framing": ("Epsilon Observatory — our independent fair value on liquid "
                     "politics and macro questions, scored in public against what "
                     "actually happens. Polymarket tells us which questions matter "
@@ -420,6 +435,10 @@ def build_showcase(snapshots: list[dict], fv_series: dict) -> dict:
         # nothing downstream can accidentally sum the two.
         "simlive": _simlive(),
         "reach_status": REACH_STATUS_NOTE,
+        # v3.5: the declared evidence-source bands, and the live-page counterpart
+        # to the reconstruction's "how much has evidence moved this number" finding.
+        "evidence_groups": provenance.group_rows(cards),
+        "movement": provenance.movement_summary(cards),
         "markets": cards,
         "movers": _movers(cards, fv_series),
         "feed": _build_feed(cards),
@@ -612,10 +631,16 @@ def _svg_gauge(fv: float, lo: float, hi: float, mid: float,
 
 
 def _svg_donut(fv: float, lo: float, hi: float, mid: float,
-               size: int = 120, flagged: bool = False) -> str:
+               size: int = 120, flagged: bool = False,
+               prior_only: bool = False) -> str:
     """Overview donut (v3.2): full ring — FV arc from 12 o'clock (cream), band
     segment underneath (cream, faint), mid tick (muted, context), FV numeral in
-    the center. Flagged markets get a terracotta FV arc."""
+    the center. Flagged markets get a terracotta FV arc.
+
+    v3.5: a PRIOR-ONLY market (zero relevant articles in the trailing window)
+    draws its arc dashed and muted, and its numeral in the muted colour. A solid
+    cream arc on this page means "evidence moved this"; an untouched onboarding
+    prior must not be able to borrow that look at a glance."""
     cx = cy = size / 2
     r = size / 2 - 9
 
@@ -631,13 +656,15 @@ def _svg_donut(fv: float, lo: float, hi: float, mid: float,
 
     mx0, my0 = pt(mid, r - 6)
     mx1, my1 = pt(mid, r + 6)
-    color = HI if flagged else ACC
-    return f"""<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="fair value donut">
+    color = DIM if prior_only else (HI if flagged else ACC)
+    dash = ' stroke-dasharray="4 4"' if prior_only else ""
+    numeral = DIM if prior_only else TX
+    return f"""<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{'fair value donut — prior only, no relevant evidence' if prior_only else 'fair value donut'}">
 <circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{LINE}" stroke-width="7"/>
 <path d="{arc(max(0.3, lo), min(99.7, hi), r)}" fill="none" stroke="{ACC}" stroke-width="7" opacity="0.22"/>
-{f'<path d="{arc(0.0, fv, r)}" fill="none" stroke="{color}" stroke-width="7" stroke-linecap="round"/>' if fv > 0.3 else ''}
+{f'<path d="{arc(0.0, fv, r)}" fill="none" stroke="{color}" stroke-width="7" stroke-linecap="round"{dash}/>' if fv > 0.3 else ''}
 <line x1="{mx0:.1f}" y1="{my0:.1f}" x2="{mx1:.1f}" y2="{my1:.1f}" stroke="{DIM}" stroke-width="2"/>
-<text x="{cx}" y="{cy + 7:.0f}" fill="{TX}" font-size="{size * 0.21:.0f}" text-anchor="middle"
+<text x="{cx}" y="{cy + 7:.0f}" fill="{numeral}" font-size="{size * 0.21:.0f}" text-anchor="middle"
  font-family="{MONO}" font-weight="700">{fv:g}</text>
 </svg>"""
 
@@ -670,8 +697,12 @@ def _quality_chip(q: dict | None) -> str:
     tier = q.get("tier", "moderate")
     bq = q.get("band_mult_q")
     qtag = f' · band ×{bq:.2f}' if bq is not None and abs(bq - 1.0) >= 0.02 else ""
+    # v3.5: the window is stamped on the count. This chip's `n_relevant` is the
+    # 72h band/flag input, while the provenance line beside it counts the trailing
+    # 30 days — two different, both-correct numbers that must not read as one.
     return (f'<span class="qual qual-{tier}" title="{html.escape(q.get("note", ""))}">'
-            f'evidence: {tier} · {q.get("n_relevant", 0)} arts · ±{q.get("half_pp", 0):g}pp{qtag}</span>')
+            f'evidence: {tier} · {q.get("n_relevant", 0)} arts/72h · '
+            f'±{q.get("half_pp", 0):g}pp{qtag}</span>')
 
 
 def _band_quality_html(q: dict | None) -> str:
@@ -691,29 +722,196 @@ def _band_quality_html(q: dict | None) -> str:
             f'calibration pending)</span></p>')
 
 
-def _overview_grid_html(cards: list[dict]) -> str:
-    """All markets at a glance (v3.2): a full-width DONUT grid — every market's
-    gauge visible without expanding anything, ordered by the divergence layer
-    (flags first, then |gap|). Each cell: donut (FV arc + band + mid tick),
-    question, fv/mid/gap numerals, badges (⚑ flag, ◆ not-news-tractable,
-    evidence-quality). Click a cell to open the market's detail card."""
-    cells = ""
-    for c in sorted(cards, key=lambda x: (not x["divergence_flag"], -abs(x["gap_pp"]))):
-        q = c["question"][:96] + ("…" if len(c["question"]) > 96 else "")
-        gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
-        flag = '<span class="gflag">⚑</span> ' if c["divergence_flag"] else ""
-        dmark = (f'<span class="dmark" title="{_TRACT_TITLE[c["tract"]]}">◆</span> '
-                 if c.get("tract") in _TRACT_TITLE else "")
-        cells += f"""<a class="cell" href="#card-{html.escape(c["slug"])}"
- onclick="revealCard('{html.escape(c["slug"])}')" data-flag="{1 if c["divergence_flag"] else 0}">
-  <div class="celldonut">{_svg_donut(c["fv_pct"], c["band"][0], c["band"][1], c["market_pct"], flagged=c["divergence_flag"])}</div>
+def _prior_only(c: dict) -> bool:
+    return (c.get("provenance") or {}).get("group") == provenance.GROUP_PRIOR_ONLY
+
+
+def _channel_words(channels: list[str]) -> str:
+    """Evidence channels, in the page's own words rather than internal keys."""
+    return ", ".join(provenance.CHANNEL_LABEL.get(ch, ch) for ch in channels)
+
+
+def _provenance_html(c: dict) -> str:
+    """v3.5 — every card states its evidence provenance IN WORDS.
+
+    Which channels actually contributed, how many relevant articles arrived in
+    the trailing window, and — where that count is zero — an explicit line saying
+    the published number is the onboarding prior and has not been touched. The
+    zero case is the one this whole section exists for: a fair value on a market
+    with no relevant evidence, rendered like every other fair value, reads as a
+    considered disagreement with the market. It is not one.
+    """
+    prov = c.get("provenance") or {}
+    if not prov:
+        return ""
+    wd = prov.get("window_days", provenance.WINDOW_DAYS)
+    n_rel, n_items = prov.get("n_relevant", 0), prov.get("n_items", 0)
+    if prov.get("group") == provenance.GROUP_PRIOR_ONLY:
+        since = prov.get("prior_set_on") or "onboarding"
+        p0, carry = prov.get("prior_pct"), prov.get("moved_pp")
+        if prov.get("unchanged"):
+            head = ('<b>No relevant evidence found; this number is the onboarding '
+                    f'prior, unchanged since {html.escape(since)}.</b>')
+        elif p0 is not None and carry is not None:
+            head = (f'<b>No relevant evidence found in the last {wd} days.</b> The '
+                    'published number is the onboarding prior of '
+                    f'<span class="mono">{p0:g}%</span> set on {html.escape(since)}, '
+                    f'plus <span class="mono">{carry:+g}pp</span> of decayed carry '
+                    'from evidence that has since aged out of the window — nothing '
+                    'recent has refreshed it.')
+        else:
+            # no prior of record on file for this market: say the part we know and
+            # claim no figure we cannot source.
+            head = (f'<b>No relevant evidence found in the last {wd} days; nothing '
+                    'recent has refreshed this number.</b>')
+        read = (f' {n_items} item{"s" if n_items != 1 else ""} reached the packet '
+                'inside that window and none of them scored relevant.' if n_items
+                else ' Nothing at all reached the packet inside that window.')
+        return ('<div class="prov prov-prior">'
+                '<span class="provchip provchip-hi">no evidence</span>'
+                f'{head}{read} The gap against the market mid is therefore not a '
+                'researched disagreement and must not be read as one.</div>')
+
+    words = _channel_words(prov.get("channels") or [])
+    extra = ""
+    if prov.get("anchor_pct") is not None:
+        moved = prov.get("moved_from_anchor_pp")
+        extra += (' The number is <b>anchored on the data channel</b> at '
+                  f'<span class="mono">{prov["anchor_pct"]:g}%</span>; the news '
+                  f'half has moved it <span class="mono">{moved:+g}pp</span> '
+                  'from there.') if moved is not None else ""
+    if prov.get("gdelt_amplified"):
+        extra += (' A GDELT attention burst amplified that evidence — bursts scale '
+                  'a day\'s directional evidence and can never set its direction.')
+    thin = ('' if prov.get("group") != provenance.GROUP_THIN else
+            f' That is below the page\'s own confidence bar of {provenance.WELL_FED_MIN} '
+            'relevant articles, so read this as a prior that has been nudged rather '
+            'than a researched estimate.')
+    return ('<div class="prov"><span class="provchip">evidence</span>'
+            f'Last {wd} days: <span class="mono">{n_rel}</span> relevant article'
+            f'{"s" if n_rel != 1 else ""} of <span class="mono">{n_items}</span> '
+            f'read, via {html.escape(words) if words else "no named channel"}.'
+            f'{thin}{extra}</div>')
+
+
+def _move_cls(d: float | None) -> str:
+    """Movement styling: an unmoved number is muted on purpose — it is the finding."""
+    if d is None:
+        return "mv-none"
+    return "mv-still" if abs(d) < 1.0 else "mv-moved"
+
+
+def _movement_cell_html(c: dict) -> str:
+    """Compact prior → current indicator for an overview tile."""
+    prov = c.get("provenance") or {}
+    p0, d = prov.get("prior_pct"), prov.get("moved_pp")
+    if p0 is None or d is None:
+        return ""
+    return (f'<div class="cellmove mono {_move_cls(d)}" title="how far evidence has '
+            f'moved this number off its onboarding prior">prior {p0:g}% → '
+            f'{c["fv_pct"]:g}% · {d:+g}pp</div>')
+
+
+def _movement_html(c: dict) -> str:
+    """v3.5 — 'how much has evidence moved this number', on the detail card.
+
+    The reconstruction's central finding is that the published fair value sits a
+    mean of 3.35pp from its prior and 66% of markets never move 1pp at all. That
+    is the most important thing this project currently knows, so it is shown per
+    market rather than left in a note: prior → published, in pp, on every card.
+    """
+    prov = c.get("provenance") or {}
+    p0, d = prov.get("prior_pct"), prov.get("moved_pp")
+    if p0 is None or d is None:
+        return ""
+    since = prov.get("prior_set_on") or ""
+    anchor = prov.get("anchor_pct")
+    if anchor is not None:
+        news = prov.get("moved_from_anchor_pp")
+        chain = (f'prior <span class="mono">{p0:g}%</span>'
+                 f'{f" ({html.escape(since)})" if since else ""} → data anchor '
+                 f'<span class="mono">{anchor:g}%</span> → published '
+                 f'<span class="mono">{c["fv_pct"]:g}%</span>')
+        read = (f' The data channel moved it <span class="mono">'
+                f'{round(anchor - p0, 1):+g}pp</span> and news has moved it '
+                f'<span class="mono">{news:+g}pp</span> from the anchor.'
+                if news is not None else "")
+    else:
+        chain = (f'prior <span class="mono">{p0:g}%</span>'
+                 f'{f" ({html.escape(since)})" if since else ""} → published '
+                 f'<span class="mono">{c["fv_pct"]:g}%</span>')
+        read = (' Evidence has moved this number by less than a percentage point.'
+                if abs(d) < 1.0 else "")
+    return (f'<div class="movebar {_move_cls(d)}">'
+            '<span class="sub" style="margin:0">how much has evidence moved this '
+            f'number</span> {chain} — <b class="mono">{d:+g}pp</b>.{read}</div>')
+
+
+def _group_head_html(row: dict) -> str:
+    """Group header: the declared band, its market count, and — where at least one
+    market in it has settled — that group's own forward Brier, with its n attached
+    so nobody reads four settled markets as a result."""
+    if row.get("settled_n"):
+        n = row["settled_n"]
+        score = (f'<span class="evgbrier mono">settled Brier '
+                 f'{row["settled_brier"]:.4f} <span class="dim">(n={n} — '
+                 'a description of these markets, not a result)</span></span>')
+    else:
+        score = '<span class="evgbrier dim">no settled markets in this group yet</span>'
+    return (f'<div class="evghead"><span class="evgname">{html.escape(row["group"])}</span>'
+            f'<span class="evgn mono">{row["n"]} market'
+            f'{"s" if row["n"] != 1 else ""}</span>{score}</div>'
+            f'<p class="note evglead">{row["lead"]}</p>')
+
+
+def _cell_html(c: dict) -> str:
+    q = c["question"][:96] + ("…" if len(c["question"]) > 96 else "")
+    gap_cls = "pos" if c["gap_pp"] > 0 else "neg"
+    flag = '<span class="gflag">⚑</span> ' if c["divergence_flag"] else ""
+    dmark = (f'<span class="dmark" title="{_TRACT_TITLE[c["tract"]]}">◆</span> '
+             if c.get("tract") in _TRACT_TITLE else "")
+    po = _prior_only(c)
+    chip = ('<span class="qual qual-thin">prior only · no evidence</span>' if po
+            else _quality_chip(c.get("evidence_quality")))
+    return f"""<a class="cell{' prioronly' if po else ''}" href="#card-{html.escape(c["slug"])}"
+ onclick="revealCard('{html.escape(c["slug"])}')" data-flag="{1 if c["divergence_flag"] else 0}"
+ data-group="{html.escape((c.get("provenance") or {}).get("group", ""))}">
+  <div class="celldonut">{_svg_donut(c["fv_pct"], c["band"][0], c["band"][1], c["market_pct"], flagged=c["divergence_flag"], prior_only=po)}</div>
   <div class="cellq">{flag}{dmark}{html.escape(q)}</div>
   <div class="cellnums mono">fv <b>{c["fv_pct"]:g}%</b> · mid {c["market_pct"]:g}% ·
    <span class="{gap_cls}">{c["gap_pp"]:+g}pp</span></div>
   <div class="cellband mono">band {c["band"][0]:g}–{c["band"][1]:g}%</div>
-  {_quality_chip(c.get("evidence_quality"))}
+  {_movement_cell_html(c)}
+  {chip}
 </a>"""
-    return f'<div class="donutgrid">{cells}</div>'
+
+
+def _overview_grid_html(cards: list[dict], groups: list[dict] | None = None) -> str:
+    """All markets at a glance — v3.5: GROUPED BY EVIDENCE SOURCE.
+
+    v3.2–v3.4 rendered one wall of 24 donuts ordered by disagreement, which made a
+    number built on a month of coverage indistinguishable from a number that has
+    read nothing. The groups here are computed from what actually reached each
+    market's packets (newsagent/provenance.py), never from the tract tag — the tag
+    says what a question is ABOUT, not what arrived. Inside each group the old
+    ordering is kept: flags first, then |gap|.
+
+    Falls back to the flat v3.4 grid when no group rows are supplied, so an older
+    showcase.json still renders.
+    """
+    order = lambda x: (not x["divergence_flag"], -abs(x["gap_pp"]))   # noqa: E731
+    if not groups:
+        return f'<div class="donutgrid">{"".join(_cell_html(c) for c in sorted(cards, key=order))}</div>'
+    by_slug = {c["slug"]: c for c in cards}
+    out = ""
+    for row in groups:
+        members = sorted((by_slug[s] for s in row["slugs"] if s in by_slug), key=order)
+        if not members:
+            continue
+        cells = "".join(_cell_html(c) for c in members)
+        out += (f'<div class="evgroup" data-group="{html.escape(row["group"])}">'
+                f'{_group_head_html(row)}<div class="donutgrid">{cells}</div></div>')
+    return out
 
 
 def _movers_html(movers: dict) -> str:
@@ -1024,7 +1222,41 @@ def _tract_html(c: dict) -> str:
 _TRACT_PLAIN = {"news": "news-driven", "data": "data-driven", "poll": "poll-driven"}
 
 
-def _simlive_html(sl: dict | None) -> str:
+def _movement_finding_html(sl: dict | None, mv: dict | None) -> str:
+    """The project's most important current finding, stated once, in one line.
+
+    The v3.4 reconstruction measured that the published fair value sits a mean of
+    3.35pp from its onboarding prior and that 66% of markets never move 1pp at
+    all — i.e. most of what this page publishes is still the prior. That was a
+    paragraph inside a panel. Here it is a standing line, with the SAME
+    measurement recomputed over the live markets above it, so a reader can check
+    it against the per-card indicators instead of taking it on trust.
+    """
+    if not sl:
+        return ""
+    a = sl["at_resolution"]
+    live = ""
+    if mv and mv.get("n") and mv.get("mean_abs_pp") is not None:
+        live = (f' On the <span class="mono">{mv["n"]}</span> live markets above, '
+                'the same measurement reads '
+                f'<span class="mono">{mv["mean_abs_pp"]:.2f}pp</span>, with '
+                f'<span class="mono">{mv["share_still_ge_1pp"]:.0%}</span> '
+                'still sitting within 1pp of their prior.')
+    return ('<p class="note callout movefind"><b>How much has evidence moved these '
+            'numbers? Barely.</b> Across the '
+            f'<span class="mono">{sl["n_markets"]}</span> reconstructed markets the '
+            'published fair value sits a mean of '
+            f'<span class="mono">{a["mean_abs_shift_from_prior_pp"]:.2f}pp</span> '
+            'from its onboarding prior, and '
+            f'<span class="mono">{1 - a["share_moved_ge_1pp"]:.0%}</span> never move '
+            '1pp at all — which is why prior-only scores '
+            f'<span class="mono">{a["brier_prior_only"]:.4f}</span> against the '
+            f'model\'s <span class="mono">{a["brier"]:.4f}</span>.{live} '
+            '<b>Most of what this page publishes is still the prior</b>, and every '
+            'card above states how far its own number has come.</p>')
+
+
+def _simlive_html(sl: dict | None, movement: dict | None = None) -> str:
     """§ 07 — the simulated-live RECONSTRUCTION panel.
 
     Deliberately separated from § 06 in both senses the brief asked for: visually
@@ -1067,6 +1299,8 @@ def _simlive_html(sl: dict | None) -> str:
         record in § 06 above is the real one: numbers published before the fact into an
         append-only ledger. Reconstruction rows are never added to it, never averaged
         with it, and are labelled reconstruction wherever they appear.</p>
+
+        {_movement_finding_html(sl, movement)}
 
         <p class="note"><b>{sl["n_markets"]} resolved markets</b> ·
         {sl["n_snapshots"]} reconstructed snapshots · at resolution:
@@ -1180,12 +1414,17 @@ def _card_html(c: dict, expanded: bool) -> str:
             if c["divergence_flag"] else "")
     dchip = (f' · <span class="dmark">◆ {_TRACT_LABEL[c["tract"]]}</span>'
              if c.get("tract") in _TRACT_LABEL else "")
+    po = _prior_only(c)
+    pchip = ('<span class="dmark"> · ◆ prior only — no relevant evidence</span>'
+             if po else "")
     return f"""
-    <div class="card{'' if expanded else ' collapsed'}" id="card-{html.escape(c["slug"])}"
-         data-slug="{html.escape(c["slug"])}" data-flag="{1 if c["divergence_flag"] else 0}">
+    <div class="card{'' if expanded else ' collapsed'}{' prioronly' if po else ''}"
+         id="card-{html.escape(c["slug"])}"
+         data-slug="{html.escape(c["slug"])}" data-flag="{1 if c["divergence_flag"] else 0}"
+         data-group="{html.escape((c.get("provenance") or {}).get("group", ""))}">
       <div class="cardhead" onclick="toggleCard(this.parentElement)">
         <div class="headleft">
-          <div class="chip">{html.escape(c["region"])} · {html.escape(c["mtype"])} · closes {c["deadline"]}{dchip}</div>
+          <div class="chip">{html.escape(c["region"])} · {html.escape(c["mtype"])} · closes {c["deadline"]}{dchip}{pchip}</div>
           <div class="q">{html.escape(c["question"])}</div>
         </div>
         <div class="headnums mono">fv <span class="acc">{c["fv_pct"]}%</span>
@@ -1196,6 +1435,8 @@ def _card_html(c: dict, expanded: bool) -> str:
       </div>
       <div class="cardbody">
         {flag}
+        {_provenance_html(c)}
+        {_movement_html(c)}
         {_tract_html(c)}
         <div class="cardcols">
           <div class="colcharts">
@@ -1305,6 +1546,20 @@ def render_html(sc: dict) -> str:
         <p class="note">{html.escape(ltr["note"])}</p>
       </div>"""
 
+    snap = sc.get("snapshot_date") or ""
+    snap_line = (f'Numbers from the <b>{html.escape(snap)}</b> snapshot. '
+                 if snap else "")
+
+    mv = sc.get("movement") or {}
+    mv_line = ""
+    if mv.get("n") and mv.get("mean_abs_pp") is not None:
+        mv_line = (
+            f'<b>Across these {mv["n"]} markets, evidence has moved the published '
+            f'number a mean of <span class="mono">{mv["mean_abs_pp"]:.2f}pp</span> '
+            f'off its onboarding prior, and <span class="mono">'
+            f'{mv["share_still_ge_1pp"]:.0%}</span> are still within 1pp of it.</b> '
+            'Every tile carries its own prior&nbsp;&rarr;&nbsp;published figure.')
+
     inter = sc["interim"]
     inter_html = ""
     if inter.get("overall_mean") is not None:
@@ -1366,6 +1621,37 @@ def render_html(sc: dict) -> str:
              padding:8px 28px; cursor:pointer; font:500 .75rem {SANS}; text-transform:uppercase;
              letter-spacing:.1em; transition:background 150ms ease,color 150ms ease; }}
   .toggle:hover, .toggle.on {{ background:{TX}; color:{BG}; border-color:{TX}; }}
+  /* -------- v3.5 evidence-source groups -------- */
+  .grouplead {{ max-width:88ch; margin:0 0 1.1rem; }}
+  .evgroup {{ margin-bottom:1.5rem; }}
+  .evghead {{ display:flex; align-items:baseline; gap:.75rem; flex-wrap:wrap;
+              border-bottom:1px solid {LINE}; padding-bottom:.4rem; }}
+  .evgname {{ font:600 .74rem/1 {MONO}; text-transform:uppercase; letter-spacing:.11em;
+              color:{TX}; }}
+  .evgn, .evgbrier {{ font-size:.7rem; color:{DIM}; }}
+  .evgbrier {{ margin-left:auto; }}
+  .evglead {{ margin:.5rem 0 .9rem; max-width:88ch; }}
+  /* PRIOR-ONLY: dashed + muted, the page's established "this is not what it looks
+     like" device (it is what .panel.recon uses), so an untouched onboarding prior
+     cannot borrow the look of a researched estimate at a glance. */
+  .cell.prioronly {{ border-style:dashed; background:transparent; }}
+  .cell.prioronly .cellnums b {{ color:{DIM}; font-weight:400; }}
+  .card.prioronly {{ border-style:dashed; }}
+  .prov {{ border:1px dashed {LINE}; border-radius:8px; color:{DIM}; font-size:.82rem;
+           padding:.6rem .9rem; margin-bottom:.8rem; }}
+  .prov-prior {{ border:1px solid rgba(204,92,68,0.5); border-left-width:3px; }}
+  .prov-prior b {{ color:{TX}; }}
+  .provchip {{ display:inline-block; font:600 .6rem/1 {MONO}; text-transform:uppercase;
+               letter-spacing:.09em; border:1px solid {LINE}; border-radius:99px;
+               padding:.2rem .5rem; margin-right:.5rem; color:{DIM}; white-space:nowrap; }}
+  .provchip-hi {{ color:{HI}; border-color:rgba(204,92,68,0.55); }}
+  .cellmove {{ font-size:.66rem; color:{DIM}; margin-top:.3rem; }}
+  .cellmove.mv-still {{ opacity:.75; }}
+  .movebar {{ border-left:2px solid {LINE}; padding:.15rem 0 .15rem .85rem;
+              color:{DIM}; font-size:.82rem; margin-bottom:.8rem; }}
+  .movebar .sub {{ display:block; }}
+  .movebar.mv-moved {{ border-left-color:rgba(209,202,183,0.45); }}
+  .movefind {{ margin:.2rem 0 1rem; }}
   /* -------- overview donut grid -------- */
   .donutgrid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.9rem; }}
   .cell {{ display:block; background:{PANEL2}; border:1px solid {LINE}; border-radius:8px;
@@ -1486,11 +1772,23 @@ def render_html(sc: dict) -> str:
     <aside class="feedpane">{_feed_html(sc.get("feed", {}), sc.get("reach_status", ""))}</aside>
     <div class="main">
 
-      <div class="panel">{_sechead("01", "All markets at a glance")}
-        {_overview_grid_html(sc["markets"])}
-        <p class="note">Ordered by disagreement (flags first, then |gap|). Ring = our
-        fair value; faint segment = the band; grey tick = the Polymarket mid (context).
-        Click any tile for the full time series, evidence and FV construction.</p>
+      <div class="panel">{_sechead("01", "All markets at a glance — grouped by what evidence actually feeds them")}
+        <p class="note grouplead">Markets are grouped by the evidence that really
+        reached their packets over the trailing
+        <span class="mono">{provenance.WINDOW_DAYS}</span> days, <b>not</b> by what
+        the question is about: our tractability tags say a market is "news-driven",
+        which tells you nothing about whether any news arrived. The bands are
+        declared in code — <span class="mono">&ge;{provenance.WELL_FED_MIN}</span>
+        distinct relevant articles is "well-fed" (the same bar the divergence flag
+        uses), 1&ndash;{provenance.WELL_FED_MIN - 1} is "thin", zero is
+        <b>prior-only</b> — and they are display bands that never enter the model.
+        {mv_line}</p>
+        {_overview_grid_html(sc["markets"], sc.get("evidence_groups"))}
+        <p class="note">Within each group: flags first, then |gap|. Ring = our fair
+        value; faint segment = the band; grey tick = the Polymarket mid (context); a
+        <b>dashed, muted ring</b> means prior-only — no relevant evidence, so the
+        number is the onboarding prior rather than a researched estimate. Click any
+        tile for the full time series, evidence and FV construction.</p>
       </div>
 
       <div class="panel">{_sechead("02", "Big movers — largest change since the previous published snapshot")}
@@ -1523,7 +1821,7 @@ def render_html(sc: dict) -> str:
         {inter_html}
       </div>
 {track_html}
-{_simlive_html(sc.get("simlive"))}
+{_simlive_html(sc.get("simlive"), sc.get("movement"))}
 
       <div class="grid2">
         <div class="panel">{_sechead("08", "Reliability — model FV vs observed outcomes")}
@@ -1535,7 +1833,7 @@ def render_html(sc: dict) -> str:
         </div>
       </div>
 
-      <footer>{html.escape(sc["attribution"])} · Generated {sc["generated_at"][:16]}Z ·
+      <footer>{html.escape(sc["attribution"])} · {snap_line}Page rendered {sc["generated_at"][:16]}Z ·
       Not investment advice; not a trading signal; a public measurement experiment. Reconstructed
       (pre-launch) segments are marked and never enter the scored ledger.</footer>
     </div>

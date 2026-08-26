@@ -1,7 +1,7 @@
 ---
 title: "Epsilon — Master TODO"
 created: 2026-06-05
-updated: 2026-08-25
+updated: 2026-08-26
 status: active
 owner: justin
 project: infra
@@ -45,7 +45,9 @@ tags:
 ## DEPRIORITISED — not active, not archived
 
 - **Copy-trading** — paused at the brink of a first $10 live trade; its execution/signing infra is live and shared with market-making. Open items preserved in [[TODO_ARCHIVE]] § copytrade. Resume only with Justin.
-- **News-agent / calibration observatory** — shipped; Justin-owned open items (sign-offs, API keys, settlements) in [[TODO_ARCHIVE]] § News-Agent.
+- **News-agent / calibration observatory** — shipped; Justin-owned open items (sign-offs, API keys, settlements) in [[TODO_ARCHIVE]] § News-Agent. **Dashboard v3.5 built 2026-08-26** (presentation only — the grid is grouped by the evidence that actually feeds each market, and the 10 of 24 cards whose published number is an untouched onboarding prior now say so; no number, parameter or ledger entry changed; 738 tests green). Two things it leaves for Justin, neither of them work anyone should start unasked:
+  - **Deploy.** v3.4 and v3.5 are both built and un-deployed; the push to Vercel is Justin's.
+  - **The question the grouping surfaces, which display cannot answer.** 10 of 24 published numbers have zero relevant evidence behind them, and the page now says so on each of them — but it still publishes them, and they still enter the append-only ledger and will be scored. Whether a market with no evidence should publish a number at all (or publish it un-ledgered, or be retired from the slate) is a **method decision, pre-registered before anything is computed**, exactly as the v3.4 pass was. Not started, not recommended either way here.
 - **Crypto live momentum book** — live; three standing items (re-baseline quoted Sharpe, plateau-centre re-optimisation rule, overfitting gate on new searches) in [[TODO_ARCHIVE]] § Crypto.
 - **Brain infrastructure / skills lifecycle** — operational, low-touch; remaining items in [[TODO_ARCHIVE]].
 
