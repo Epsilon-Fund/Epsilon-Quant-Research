@@ -1,25 +1,5 @@
 #!/usr/bin/env bash
 #
-<<<<<<< HEAD
-# sync_cloud.sh — push local L2 data to Cloudflare R2, then prune old local raw.
-#
-# Run hourly (after the compression pipeline) via systemd/cron. Assumes rclone is
-# already configured with a remote named "r2" pointing at the R2 account
-# (see deploy/ for one-time setup). It does NOT configure rclone.
-#
-# What it does:
-#   1. parquet -> R2 with `rclone sync`  (mirror the working set both ways)
-#   2. raw     -> R2 with `rclone copy`  (backup; copy NEVER deletes on the
-#      destination, so pruning local raw below does not erase the cloud backup)
-#   3. delete LOCAL raw *.jsonl.gz older than RETENTION_DAYS (cloud keeps them)
-#   4. never deletes local parquet (we query those locally)
-#
-# IMPORTANT: raw uses `copy`, not `sync`, ON PURPOSE. `rclone sync` makes the
-# destination match the source — so once we delete a local raw shard, a `sync`
-# would delete it from R2 too, destroying the backup. `copy` only adds/updates.
-#
-# Exits nonzero on any rclone failure so the cron/systemd unit flags the problem.
-=======
 # sync_cloud.sh — push local L2 data to Cloudflare R2, then prune old local
 # raw AND parquet that are confirmed safe in R2.
 #
@@ -78,15 +58,6 @@
 #   changes (in-place parquet rewrites / recompaction), switch this check to a
 #   content hash (rclone lsf --format ph --hash md5) before trusting it.
 #
-<<<<<<< HEAD
-# DISK MATH / CADENCE: `find -mtime +N` keeps files up to ~N+1 days old, so the
-# real retention is ~4d raw + ~8d parquet ≈ 20.8 + 9.2 = ~30 GB on the ~40 GB
-# disk (~75%, ~10 GB headroom). The DISK_ALERT_PCT guard below is the backstop:
-# if a persistent R2 outage (the only path where pruning legitimately can't run,
-# because we keep everything we cannot verify) lets the disk creep back up, the
-# run exits nonzero so the systemd unit / log monitoring surfaces it.
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
-=======
 # DISK MATH / CADENCE: raw is now pruned on parse-confirm (not by age), so local raw
 # holds only the unparsed window plus a <=RAW_RETENTION_DAYS verified backstop of
 # parquet-less unknown_*/failed shards — typically ~1-2 GB. Parquet keeps ~8 days
@@ -95,26 +66,18 @@
 # persistent R2 outage (the only path where pruning legitimately can't run, because
 # we keep everything we cannot verify) lets the disk creep back up, the run exits
 # nonzero so the systemd unit / log monitoring surfaces it.
->>>>>>> 4db6a7162b20699b30e5f55de68719c057cbb3ba
 
 set -euo pipefail
 
 # --- config ---------------------------------------------------------------
 REMOTE="r2"
 BUCKET="epsilon-polymarket-data"
-<<<<<<< HEAD
-<<<<<<< HEAD
-RETENTION_DAYS=7
-=======
-=======
 # RAW_RETENTION_DAYS is now ONLY a backstop for UNPARSED raw (unknown_*/failed parses)
 # that is already safe in R2 — parsed raw is deleted immediately on parse-confirm,
 # regardless of age (see prune_raw_if_parsed).
->>>>>>> 4db6a7162b20699b30e5f55de68719c057cbb3ba
 RAW_RETENTION_DAYS=3
 PARQUET_RETENTION_DAYS=7
 DISK_ALERT_PCT=90
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/data"
@@ -125,12 +88,6 @@ LOG_FILE="$LOG_DIR/sync_cloud.log"
 
 mkdir -p "$LOG_DIR"
 
-<<<<<<< HEAD
-log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG_FILE"; }
-
-# rclone options shared by both transfers:
-#   --checksum : compare by content hash, not mtime+size (see notes / explanation)
-=======
 # keep the (append-only) sync log bounded so it never contributes to disk fill
 if [ -f "$LOG_FILE" ] && [ "$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)" -gt 20000 ]; then
     tail -n 5000 "$LOG_FILE" > "$LOG_FILE.tmp" 2>/dev/null && mv "$LOG_FILE.tmp" "$LOG_FILE"
@@ -140,7 +97,6 @@ log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG_FILE"; }
 
 # rclone options shared by both transfers:
 #   --checksum : compare by content hash, not mtime+size
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 #   --transfers/--checkers : modest parallelism for many small files
 #   --stats-one-line : compact periodic + final summary line
 RCLONE_OPTS=(--checksum --transfers 8 --checkers 16 --stats-one-line --stats=1m)
@@ -149,11 +105,8 @@ RCLONE_OPTS=(--checksum --transfers 8 --checkers 16 --stats-one-line --stats=1m)
 command -v rclone >/dev/null 2>&1 || { log "ERROR: rclone not found in PATH"; exit 2; }
 
 START=$SECONDS
-<<<<<<< HEAD
-=======
 UPLOAD_ERRORS=0
 PRUNED_TOTAL=0
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 log "=== sync_cloud start (remote=$REMOTE bucket=$BUCKET) ==="
 
 # run_rclone <mode> <src> <dst> : stream+log output, return rclone's exit code
@@ -170,13 +123,6 @@ run_rclone() {
     return "$rc"
 }
 
-<<<<<<< HEAD
-# --- 1. parquet (working set) -> sync (mirror) ----------------------------
-log "syncing parquet  $PARQUET_DIR -> $REMOTE:$BUCKET/parquet"
-if ! run_rclone sync "$PARQUET_DIR" "$REMOTE:$BUCKET/parquet"; then
-    log "ERROR: parquet sync failed"
-    exit 1
-=======
 # prune_verified <local_dir> <remote_subpath> <glob> <retention_days>
 #   Deletes local files older than <retention_days> ONLY when R2 already holds an
 #   object at the same relative path with an identical byte size. Files not yet on
@@ -280,32 +226,8 @@ log "backing up parquet $PARQUET_DIR -> $REMOTE:$BUCKET/parquet  (copy, no remot
 if ! run_rclone copy "$PARQUET_DIR" "$REMOTE:$BUCKET/parquet"; then
     log "WARN: parquet upload had errors — raw prune keeps any shard whose parquet is not yet in R2"
     UPLOAD_ERRORS=$((UPLOAD_ERRORS + 1))
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 fi
 
-<<<<<<< HEAD
-# --- 2. raw (backup) -> copy (never deletes remote) -----------------------
-log "backing up raw   $RAW_DIR -> $REMOTE:$BUCKET/raw  (copy, no remote deletes)"
-<<<<<<< HEAD
-RAW_OK=1
-if ! run_rclone copy "$RAW_DIR" "$REMOTE:$BUCKET/raw"; then
-    log "ERROR: raw backup failed — will NOT prune local raw this run"
-    RAW_OK=0
-fi
-
-# --- 3. prune local raw older than RETENTION_DAYS (only if backup succeeded) -
-PRUNED=0
-if [ "$RAW_OK" -eq 1 ] && [ -d "$RAW_DIR" ]; then
-    log "pruning local raw *.jsonl.gz older than ${RETENTION_DAYS}d (cloud retains them)"
-    while IFS= read -r -d '' f; do
-        rm -f "$f" && PRUNED=$((PRUNED + 1)) && log "  pruned $(basename "$f")"
-    done < <(find "$RAW_DIR" -name '*.jsonl.gz' -type f -mtime +"$RETENTION_DAYS" -print0)
-    log "  pruned $PRUNED local raw file(s)"
-fi
-
-# --- 4. summary -----------------------------------------------------------
-=======
-=======
 # --- 2. prune LOCAL raw whose parquet is confirmed in R2 (any age) --------
 #   MUST run before the raw upload so parsed raw is never (re-)uploaded — this is the
 #   fix for the expire<->sync re-upload churn (2026-06-24).
@@ -314,7 +236,6 @@ prune_raw_if_parsed
 
 # --- 3. raw (only the remaining UNPARSED shards) -> copy ------------------
 log "backing up remaining unparsed raw $RAW_DIR -> $REMOTE:$BUCKET/raw  (copy, no remote deletes)"
->>>>>>> 4db6a7162b20699b30e5f55de68719c057cbb3ba
 if ! run_rclone copy "$RAW_DIR" "$REMOTE:$BUCKET/raw"; then
     log "WARN: raw upload had errors (expected: the live current-hour shard) — safe to retry next run"
     UPLOAD_ERRORS=$((UPLOAD_ERRORS + 1))
@@ -331,24 +252,13 @@ prune_verified "$RAW_DIR" "raw" '*.jsonl.gz' "$RAW_RETENTION_DAYS"
 log "pruning local parquet *.parquet older than ${PARQUET_RETENTION_DAYS}d (only files verified in R2)"
 prune_verified "$PARQUET_DIR" "parquet" '*.parquet' "$PARQUET_RETENTION_DAYS"
 
-<<<<<<< HEAD
-# --- 5. summary -----------------------------------------------------------
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
-=======
 # --- 6. summary -----------------------------------------------------------
->>>>>>> 4db6a7162b20699b30e5f55de68719c057cbb3ba
 DUR=$((SECONDS - START))
 PARQUET_BYTES=$( [ -d "$PARQUET_DIR" ] && du -sb "$PARQUET_DIR" 2>/dev/null | cut -f1 || echo 0 )
 RAW_BYTES=$( [ -d "$RAW_DIR" ] && du -sb "$RAW_DIR" 2>/dev/null | cut -f1 || echo 0 )
 PARQUET_FILES=$( [ -d "$PARQUET_DIR" ] && find "$PARQUET_DIR" -name '*.parquet' -type f | wc -l || echo 0 )
 RAW_FILES=$( [ -d "$RAW_DIR" ] && find "$RAW_DIR" -name '*.jsonl.gz' -type f | wc -l || echo 0 )
 
-<<<<<<< HEAD
-log "transfer summary (bytes transferred are in the rclone 'Transferred:' lines above)"
-log "  local parquet: ${PARQUET_FILES} files, ${PARQUET_BYTES} bytes"
-log "  local raw    : ${RAW_FILES} files, ${RAW_BYTES} bytes (pruned ${PRUNED} this run)"
-log "=== sync_cloud done in ${DUR}s ==="
-=======
 log "transfer + prune summary (bytes transferred are in the rclone 'Transferred:' lines above)"
 log "  local parquet: ${PARQUET_FILES} files, ${PARQUET_BYTES} bytes"
 log "  local raw    : ${RAW_FILES} files, ${RAW_BYTES} bytes"
@@ -361,5 +271,4 @@ if [ -n "$DISK_PCT" ] && [ "$DISK_PCT" -ge "$DISK_ALERT_PCT" ]; then
     log "CRITICAL: disk at ${DISK_PCT}% (>= ${DISK_ALERT_PCT}%) after sync+prune — backup/prune may be failing. Check R2 reachability and this log; do NOT delete data/raw or data/parquet by hand."
     exit 1
 fi
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 exit 0

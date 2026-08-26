@@ -537,6 +537,47 @@ The "relayer" addresses are Polymarket CTF Exchange v1 contracts. Active taker-o
 - [ ] **Justin — open items (consolidated):** (1) **Scheme-A sign-off** — one table: ING 0.9 / WP-CE 0.8 / unknown 0.5 ([[newsagent_observatory_v3_findings]]) + **Bloomberg 0.9 / bank research desks 0.9** ([[newsagent_observatory_v31_findings]]); all run neutral 1.0 until approved; (2) **NEW v3.2 — lean sign-off** ([[newsagent_observatory_v32_findings]]): the AllSides-seeded table + declared multipliers (live, refit-covered; veto = 1-line revert + refit) and the band_mult selector call (narrowest-≥-nominal keeps 0.5 vs closest 0.25); (3) **NEW v3.2 — AllSides written-NC-OK** email (non-blocking nicety); (4) **export `GUARDIAN_API_KEY`** (registered; the backfill ran on the demo key — fragile path); (5) **`GEMINI_API_KEY`** (free tier) to unblock the provider spot-check; (6) keys for the future unattended switch (scaffold `newsagent/AUTOMATION.md`): `ANTHROPIC_API_KEY` + cron-env `GOOGLE_APPLICATION_CREDENTIALS`; (7) website handoff parked this round (page now matches the deployed design — lift-ready); (8) **July settlements** (`sf settle` + slate refresh + refit): US–Iran meeting 07-17, Fed July 07-29, Hormuz-Jul + Iran-MOU 07-31.
 - [ ] **Daily observatory run** — `PYTHONPATH=. uv run python -m newsagent.run_daily --stage all` from `polymarket/research/` (out-of-band: fetch → extract-pending → agent features → extract --features-file → publish; `--provider gemini` once the key + spot-check land). On resolution: `sf settle`, refresh the slate in `newsagent/config.py`, refit via `scripts/newsagent_hist_backfill.py --fit` (supersedes the stageb-only fit — includes the 302 backfill pairs), `calibrate` renders the public track record (first resolution due 2026-07-17: US–Iran meeting).
 
+## Data Layer — research dataset, loader, viewer (added 2026-08-25)
+
+> Full plan: [[DATA_LAYER_PLAN]]. Session context: [[2026-08-25_cowork_data_layer_session]].
+> Premise: we hold **67 days** of capture (R2 parquet = 11,985 objects / 71.08 GiB, 2026-06-19 → 2026-08-21) and every published MM result was computed on 11-18 days. Making this data easy to research with is the precondition for re-running the ladder at full sample.
+
+**Storage decision (taken 2026-08-25):** R2 stays, as a distribution channel not a query engine. Queries run against a local mirror; DuckDB over Parquet on disk; no database server. Derived datasets are versioned and immutable (`research/v1/`, then `v2`); Layer-0 raw is never touched.
+
+**Phase A — know what we have**
+- [ ] A1 `rclone lsl` manifests of `parquet/`, `raw/`, `research-live-clob/` -> day-by-day coverage calendar per universe, missing hours, volume trend. 30 min, no download.
+- [ ] A2 Pull one hour, verify the four tables against `mm_engine/feeds/replay_parquet.py` column by column (incl. the known `bba` drift: ships `spread`, not sizes).
+- [ ] A3 Build `catalog.parquet` — one row per (asset_id, date): identity, coverage, activity, microstructure, `capture_gate` verdict, lifecycle. **Key output: how many event groups have a full lifecycle inside the window** — the number that decides whether 67 days can certify what 18 could not.
+
+**Phase B — research dataset**
+- [ ] B1 Layout: Hive partitions `universe=/date=`, sorted by `(asset_id, timestamp_ms)`, book exploded to `bid_px_1..10`/`bid_sz_1..10`/`ask_px_1..10`/`ask_sz_1..10`, convenience columns (`mid`, `microprice`, `spread_c`, `imbalance`), zstd, 64-128 MB files.
+- [ ] B2 Builder script — idempotent, resumable, one day at a time.
+- [ ] B3 Validate: row counts match source; one market spot-checked against raw JSONL; `capture_gate` verdicts unchanged; convenience columns match recomputation.
+- [ ] B4 Publish to `r2:epsilon-polymarket-data/research/v1/` with `_manifest.json`. Built once by one person; everyone else downloads the product.
+- Rule: convenience columns are for viewing/screening only. The engine always recomputes from raw levels.
+
+**Phase C — loader (`get_data`)**
+- [ ] C1 `catalog()` / `load()` / `events()`, config via env var, lazy local cache that fetches missing slices from R2 on demand, `sync()` for bulk, DuckDB-over-S3 as explicit fallback.
+- [ ] C2 **Anti-drift test:** `events()` must produce a stream identical to `replay_parquet` on a shared day. It is the ONLY files -> `MarketEvent` conversion in the codebase; engine and research both use it.
+
+**Phase D — viewer**
+- [ ] D1 Pure plotting functions (data in, figure out), eight panels on one time axis: price+spread band, trade prints, spread, depth at touch and to 5 levels, volume, book imbalance, post-trade markout, capture-health strip.
+- [ ] D2 Small multiples + the screen scatter (spread vs depth / vs adverse selection).
+- [ ] D3 **Optional strategy-overlay hook** designed in from the start (quote ladder, fills, inventory, PnL, gate state as background shading) so Gonzalo supplies a data source rather than a second plotting stack.
+- [ ] D4 Thin local app over the functions — pick market, pick window, render.
+
+**Phase E — onboarding**
+- [ ] E1 README: clone -> one env var -> `catalog()` -> first plot, under an hour.
+- [ ] E2 Gonzalo's first work: strategy-debugging views on the D3 overlay — where we quoted, where we filled, inventory, PnL, gate state; "when are we losing on this quoting and does it coincide with price running?"
+
+**Still open**
+- [ ] Decide whether to keep capturing — **after A3**, not before. Costs a few euros/month and the stream is irreplaceable.
+- [ ] Re-enable the `crypto_control` universe (11 commented-out lines in `universes.yaml`). It is the falsification instrument and it is currently off. `culture_other` was never written into the config at all.
+- [ ] Where the loader module lives, and matching the existing crypto `get_data` conventions.
+- [ ] Research-tooling API beyond the viewer (screens, sweeps, markout tooling) — its own design session.
+
+---
+
 ## done (recent)
 
 - [x] **Runtime efficiency skills vendored** (2026-06-11). `efficient-fable` + `stay-within-limits` adapted from BuilderIO/skills into `.agents/skills/` (symlinked from `.claude/skills/`, cost-mode convention); auto-trigger descriptions retargeted to this repo's heavy work; wired into [[SKILL_MAP]] § Runtime efficiency skills, [[CODEX]] § Anti-patterns, and [[COWORK]] § Delegation discipline.

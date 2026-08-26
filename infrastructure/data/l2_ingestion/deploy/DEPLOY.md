@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 ---
 title: "Deploying the L2 Ingestion Pipeline on the Hetzner VPS"
 created: 2026-06-18
@@ -10,7 +8,6 @@ para: project
 tags: [data, infrastructure, deploy, market-making]
 ---
 
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 # Deploying the L2 Ingestion Pipeline on the Hetzner VPS
 
 Step-by-step guide to run the Polymarket L2 capture pipeline 24/7 on our existing
@@ -39,11 +36,7 @@ crashes. We talk to the server over SSH.
 | Hostname | `Midas` (Helsinki) |
 | Access | SSH as `root` (already working) |
 
-<<<<<<< HEAD
 > ⚠️ **DO NOT TOUCH** the existing `/opt/epsilon/` repo clone or the running
-=======
-> **DO NOT TOUCH** the existing `/opt/epsilon/` repo clone or the running
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 > `epsilon-dashboard.service`. Everything below lives in a **new** subfolder,
 > `/opt/epsilon/l2_ingestion/`, and uses its own systemd units. We never modify
 > or restart the dashboard.
@@ -190,11 +183,7 @@ vps# ./venv/bin/python capture/daemon.py --duration-seconds 60
 vps# ./venv/bin/python compression/pipeline.py --input data/raw/$(date -u +%F)/ --force
 
 # 4) sync — upload to R2 and report
-<<<<<<< HEAD
-vps# ./venv/bin/bash sync/sync_cloud.sh
-=======
 vps# bash sync/sync_cloud.sh
->>>>>>> 7703de6cc61a18ab11cfc528ecd0e18666dedbf5
 
 # 5) health check — should be mostly GREEN right after the above
 vps# ./venv/bin/python monitoring/health_check.py
@@ -310,7 +299,13 @@ vps# systemctl restart capture.service
 
 ## Disk safety
 
-On the 40 GB disk, raw is the buffer: ~1.2 GB/day raw, pruned locally after 7
-days by `sync_cloud.sh` (cloud keeps the backup via `rclone copy`). Parquet stays
-local for querying. If disk ever fills, check `du -sh /opt/epsilon/l2_ingestion/data/*`
-and confirm sync is running (Step 11).
+On the 40 GB disk, raw is the buffer. `sync_cloud.sh` (every 6 h) prunes local raw
+**per-file verified**: a local shard is deleted only once R2 already holds the same
+relative path at the same byte size — as soon as its Parquet is confirmed in R2
+(`prune_raw_if_parsed`), with a `RAW_RETENTION_DAYS=3` backstop for unparsed/`unknown_*`
+shards. Local parquet is kept ~8 days (`PARQUET_RETENTION_DAYS=7`), then pruned only
+when verified in R2. Both transfers use `rclone copy` (never `sync`) so pruning local
+never deletes the R2 archive; the `r2` remote needs `no_check_bucket = true`. A
+`DISK_ALERT_PCT=90` guard exits nonzero if the disk stays full after a run. If disk
+ever fills, check `du -sh /opt/epsilon/l2_ingestion/data/*` and confirm sync is
+running (Step 11).

@@ -24,6 +24,7 @@ import gzip
 import json
 import logging
 import time
+import zlib
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ PKG_ROOT = HERE.parent                          # .../l2_ingestion
 DEFAULT_RAW_ROOT = PKG_ROOT / "data" / "raw"
 DEFAULT_PARQUET_ROOT = PKG_ROOT / "data" / "parquet"
 PROCESSED_STATE = DEFAULT_PARQUET_ROOT / "_processed.txt"
+QUARANTINE_STATE = DEFAULT_PARQUET_ROOT / "_quarantine.txt"
 
 AGE_THRESHOLD_S = 3600  # only process shards older than 1 hour (completed)
 
@@ -237,6 +239,7 @@ def process_files(
     files: list[Path],
     parquet_root: Path,
     processed_state: Path = PROCESSED_STATE,
+    quarantine_state: Path = QUARANTINE_STATE,
 ) -> dict[str, Any]:
     run_stats: Counter[str] = Counter()
     pc_envelopes_total = 0
@@ -244,6 +247,12 @@ def process_files(
     total_rows = 0
     written: list[dict[str, Any]] = []
     per_universe: dict[str, Counter[str]] = defaultdict(Counter)
+    quarantined: list[str] = []
+    # Shards already recorded as unreadable on a previous run. Unlike processed
+    # shards, quarantined ones are deliberately RE-attempted every run (so a shard
+    # that gets salvaged is picked up automatically), but we only append each path
+    # to the quarantine file once to keep it bounded.
+    already_quarantined = load_processed(quarantine_state)
     # Final on-disk size per Parquet file. A file can be appended to by several
     # shards this run; keep the LATEST size keyed by path so we don't multi-count
     # the same growing file when computing the compression ratio.
@@ -251,8 +260,30 @@ def process_files(
 
     for path in files:
         date = path.parent.name  # data/raw/{date}/{file}
+        try:
+            groups, stats = parse_shard(path)
+        except (zlib.error, EOFError, OSError, UnicodeDecodeError) as exc:
+            # A single unreadable shard (e.g. a gzip truncated by an unclean
+            # shutdown / hard reboot) must NOT abort the whole run — otherwise one
+            # bad file silently blocks every pending shard behind it. Log it loudly,
+            # set it aside, and carry on so every other shard is still processed.
+            # KeyboardInterrupt / SystemExit are intentionally NOT caught here.
+            #
+            # _quarantine.txt is a TO-SALVAGE list (data pending recovery), NOT a
+            # discard list: a hard reboot leaves a truncated first gzip member
+            # followed by a COMPLETE appended member, and most of the shard's data is
+            # in the second member. Recover with compression/salvage_truncated_shard.py,
+            # after which the repaired shard re-processes automatically on the next run.
+            rp = str(path.resolve())
+            logger.error("QUARANTINE %s — unreadable shard set aside for salvage (%s: %s); "
+                         "recover with compression/salvage_truncated_shard.py",
+                         path, type(exc).__name__, exc)
+            if rp not in already_quarantined:
+                record_quarantined(quarantine_state, path)
+                already_quarantined.add(rp)
+            quarantined.append(rp)  # counted every run so the exit stays non-zero
+            continue
         source_bytes += path.stat().st_size
-        groups, stats = parse_shard(path)
         run_stats["bad_lines"] += stats["bad_lines"]
         run_stats["skipped_non_target"] += stats["skipped_non_target"]
         pc_envelopes_total += stats["pc_envelopes"]
@@ -314,6 +345,7 @@ def process_files(
         "total_rows": total_rows,
         "bad_lines": run_stats["bad_lines"],
         "skipped_non_target": run_stats["skipped_non_target"],
+        "quarantined": quarantined,
         "written": written,
         "per_universe": {u: dict(c) for u, c in per_universe.items()},
     }
@@ -332,6 +364,18 @@ def record_processed(state_path: Path, path: Path) -> None:
     """Append a SINGLE processed shard to the state file. Called per-file (right
     after that shard's Parquet is written) so a mid-run crash never causes an
     already-written shard to be reprocessed."""
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    with state_path.open("a", encoding="utf-8") as fh:
+        fh.write(str(path.resolve()) + "\n")
+
+
+def record_quarantined(state_path: Path, path: Path) -> None:
+    """Append a SINGLE unreadable shard to the quarantine file, immediately — same
+    crash-safe, append-only style as record_processed. This file is a TO-SALVAGE list
+    (data pending recovery), not a discard list. A quarantined shard FAILED to parse,
+    so it is deliberately NEVER written to _processed.txt; the caller dedupes so each
+    bad path is recorded here only once even though it is retried each run (a salvaged
+    shard then parses cleanly and moves itself off this list)."""
     state_path.parent.mkdir(parents=True, exist_ok=True)
     with state_path.open("a", encoding="utf-8") as fh:
         fh.write(str(path.resolve()) + "\n")
@@ -380,15 +424,25 @@ def main(argv: list[str] | None = None) -> int:
     # process_files records each shard as processed immediately after writing it.
     summary = process_files(files, args.parquet_root)
 
+    quarantined = summary["quarantined"]
     logger.info("=" * 60)
-    logger.info("DONE: %d files | %d bad lines | %d non-target skipped",
-                summary["files"], summary["bad_lines"], summary["skipped_non_target"])
+    logger.info("DONE: %d files | %d bad lines | %d non-target skipped | %d quarantined",
+                summary["files"], summary["bad_lines"], summary["skipped_non_target"],
+                len(quarantined))
     logger.info("price_change envelopes: %d -> flattened rows in parquet (expansion from arrays)",
                 summary["pc_envelopes_total"])
     logger.info("size: %.1f KB JSONL.gz -> %.1f KB parquet (%.2fx)",
                 summary["source_bytes"] / 1024, summary["parquet_bytes"] / 1024,
                 summary["compression_ratio_jsonlgz_to_parquet"])
     logger.info("per-universe rows: %s", summary["per_universe"])
+    if quarantined:
+        # Surface the failure loudly and exit non-zero so the systemd unit is marked
+        # degraded — but only AFTER every readable shard was processed above. These
+        # paths are pending SALVAGE (see compression/salvage_truncated_shard.py), not
+        # written off; the run keeps exiting non-zero until they are recovered.
+        logger.error("QUARANTINED %d unreadable shard(s) this run — TO-SALVAGE, recorded in %s:\n  %s",
+                     len(quarantined), QUARANTINE_STATE, "\n  ".join(quarantined))
+        return 1
     return 0
 
 
