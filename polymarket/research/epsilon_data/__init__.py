@@ -12,13 +12,13 @@ from __future__ import annotations
 from .config import __version__, data_root
 from .catalog import (
     catalog, events, search, resolve,
-    coverage, reconciliation, activity_by_time,
+    coverage, reconciliation, activity_by_time, negrisk_sum,
 )
-from .tape import load_l1, load_trades, load_pair, load_event
+from .tape import load_l1, load_trades, load_pair, load_event, markout
 
 __all__ = [
     "catalog", "events", "search", "resolve",
-    "load_l1", "load_trades", "load_pair", "load_event",
-    "coverage", "reconciliation", "activity_by_time",
+    "load_l1", "load_trades", "load_pair", "load_event", "markout",
+    "coverage", "reconciliation", "activity_by_time", "negrisk_sum",
     "data_root", "__version__",
 ]

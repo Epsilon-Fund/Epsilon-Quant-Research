@@ -155,3 +155,25 @@ def activity_by_time(universe=None) -> pd.DataFrame:
     """Trade counts and volume by UTC hour-of-day and weekday (0=Sunday). Answers 'when is there
     flow to capture?'. Scans the 7.2M-row trades table (cached). Esports and politics differ sharply."""
     return _activity_cached(str(_i.data_root()), universe)
+
+
+def negrisk_sum(event_slug):
+    """The NegRisk YES-sum for an event computed **at a common timestamp** — never a sum of
+    per-candidate medians (which is invalid: sum-to-1 holds instantaneously, and candidates live
+    in different windows). Uses `load_event()` to align the tapes. Returns a DataFrame indexed by
+    `ts` with `yes_sum` (sum of the YES-side mids present at that instant) and `n_live` (how many
+    candidates were quoting then). `.attrs['n_captured']` = candidates we hold; `.attrs['note']`
+    flags that Gamma's full listed count is not in v1 (a sum < 1 with missing candidates is
+    explained; a sum meaningfully > 1 with all present is a finding)."""
+    from .tape import load_event
+    from . import _internal as _i2  # local alias for clarity
+    wide = load_event(event_slug)
+    meta = wide.attrs.get("tokens", {})
+    yes_cols = [a for a in wide.columns if meta.get(a, {}).get("outcome") == "YES"]
+    if not yes_cols:  # non-politics or unlabeled: fall back to outcome_index 0 per market
+        yes_cols = [a for a in wide.columns if meta.get(a, {}).get("outcome_index") == 0]
+    sub = wide[yes_cols]
+    out = pd.DataFrame({"yes_sum": sub.sum(axis=1, min_count=1), "n_live": sub.notna().sum(axis=1)})
+    out.attrs["n_captured"] = len(yes_cols)
+    out.attrs["note"] = "YES-sum at a common timestamp; missing candidates pull the sum down only."
+    return out

@@ -20,6 +20,8 @@ matplotlib.use("Agg")
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 import epsilon_data as ed
 
@@ -83,6 +85,31 @@ def pair_df(condition_id):
 def event_wide(event_slug):
     w = ed.load_event(event_slug)
     return w, w.attrs.get("tokens", {})
+
+@st.cache_data(show_spinner=True)
+def markout_df(asset_id):
+    return ed.markout(asset_id)
+
+@st.cache_data(show_spinner=True)
+def negrisk_df(event_slug):
+    ns = ed.negrisk_sum(event_slug)
+    return ns, ns.attrs.get("n_captured", 0)
+
+PLOT_BG = "#0e1117"
+def _style(fig, height):
+    fig.update_layout(template="plotly_dark", paper_bgcolor=PLOT_BG, plot_bgcolor=PLOT_BG,
+                      height=height, margin=dict(l=50, r=20, t=30, b=20), hovermode="x unified",
+                      legend=dict(orientation="h", y=1.02, yanchor="bottom", font=dict(size=10)),
+                      font=dict(family="monospace", size=11))
+    fig.update_xaxes(gridcolor="#232936", showspikes=True, spikemode="across", spikethickness=1)
+    fig.update_yaxes(gridcolor="#232936")
+    return fig
+
+def _logit(p):
+    p = np.clip(np.asarray(p, dtype=float), 1e-4, 1 - 1e-4)
+    return np.log(p / (1 - p))
+
+_LOGIT_TICKS = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999]
 
 
 def mono(df: pd.DataFrame):
@@ -164,56 +191,215 @@ def header(cid):
 
 
 # ================================================================ EXPLORE
+_RANGEBUTTONS = dict(buttons=[
+    dict(count=1, label="1h", step="hour", stepmode="backward"),
+    dict(count=6, label="6h", step="hour", stepmode="backward"),
+    dict(count=1, label="1d", step="day", stepmode="backward"),
+    dict(count=7, label="1w", step="day", stepmode="backward"),
+    dict(step="all", label="all"),
+], bgcolor="#161a23", activecolor="#4c9be8", font=dict(size=10))
+
+def _sg(n):  # WebGL above ~20k points
+    return go.Scattergl if n > 20000 else go.Scatter
+
+def _bucket(span_s):
+    return "1min" if span_s <= 2*3600 else "5min" if span_s <= 26*3600 else "30min" if span_s <= 8*86400 else "1h"
+
+def _window(ts_max, choice):
+    return {"1h": pd.Timedelta("1h"), "6h": pd.Timedelta("6h"), "1d": pd.Timedelta("1D"),
+            "1w": pd.Timedelta("7D")}.get(choice)
+
+def market_panel(l1, pair, trades, labels, scale):
+    """I2 — stacked, shared-x plotly: A price+band+trades, B volume, C imbalance, D spread, E vol."""
+    fig = make_subplots(rows=5, cols=1, shared_xaxes=True, vertical_spacing=0.03,
+                        row_heights=[0.42, 0.14, 0.16, 0.14, 0.14],
+                        subplot_titles=("price · bid–ask band · trades", "volume (buy↑ / sell↓)",
+                                        "order-flow imbalance & cumulative signed", "spread", "realised vol (mid returns)"))
+    logit = (scale == "logit")
+    ytx = (_logit([b/100 for b in [0.5]]) if logit else None)
+    def yv(p_dollars):
+        return _logit(p_dollars) if logit else np.asarray(p_dollars, dtype=float) * 100
+    n = len(l1)
+    Sg = _sg(n)
+    # A: band (ask top, bid fill), mid, complement mid, trades
+    fig.add_trace(Sg(x=l1.ts, y=yv(l1.best_ask), name="ask", line=dict(width=0), showlegend=False, hoverinfo="skip"), 1, 1)
+    fig.add_trace(Sg(x=l1.ts, y=yv(l1.best_bid), name="bid–ask band", fill="tonexty",
+                     fillcolor="rgba(76,155,232,0.12)", line=dict(width=0), hoverinfo="skip"), 1, 1)
+    fig.add_trace(Sg(x=l1.ts, y=yv(l1.mid), name=f"{labels.get(0,'A')} mid", line=dict(color=C_A, width=1.3)), 1, 1)
+    if pair is not None and not pair.empty and 1 in pair.columns:
+        fig.add_trace(_sg(len(pair))(x=pair.index, y=yv(pair[1]), name=f"{labels.get(1,'B')} mid",
+                                     line=dict(color=C_B, width=1.0)), 1, 1)
+    if trades is not None and not trades.empty:
+        smax = max(float(trades["size"].max()), 1.0)
+        for side, col in (("BUY", C_WON), ("SELL", C_LOST)):
+            t = trades[trades.side == side]
+            if t.empty: continue
+            fig.add_trace(_sg(len(t))(x=t.ts, y=yv(t.price), mode="markers", name=f"{side}",
+                          marker=dict(color=col, size=5 + 16 * (t["size"] / smax), opacity=0.55, line=dict(width=0)),
+                          customdata=np.c_[t["size"], t.price * 100],
+                          hovertemplate=side + " %{customdata[0]:.0f}@%{customdata[1]:.1f}¢<extra></extra>"), 1, 1)
+    if logit:
+        fig.update_yaxes(tickvals=_logit(_LOGIT_TICKS), ticktext=[f"{p:g}" for p in _LOGIT_TICKS], row=1, col=1, title="prob (logit)")
+    else:
+        fig.update_yaxes(title="¢", row=1, col=1)
+    # B/C: volume + imbalance from trades in bucket
+    if trades is not None and not trades.empty:
+        span_s = (trades.ts.max() - trades.ts.min()).total_seconds() or 1
+        b = _bucket(span_s)
+        t = trades.set_index("ts")
+        buy = t[t.side == "BUY"]["size"].resample(b).sum()
+        sell = t[t.side == "SELL"]["size"].resample(b).sum()
+        idx = buy.index.union(sell.index)
+        buy = buy.reindex(idx, fill_value=0); sell = sell.reindex(idx, fill_value=0)
+        fig.add_trace(go.Bar(x=idx, y=buy, name="buy vol", marker_color=C_WON, showlegend=False), 2, 1)
+        fig.add_trace(go.Bar(x=idx, y=-sell, name="sell vol", marker_color=C_LOST, showlegend=False), 2, 1)
+        net = buy - sell
+        fig.add_trace(go.Bar(x=idx, y=net, name="net (buy-sell)", marker_color=C_MUTE, showlegend=False), 3, 1)
+        signed = t["size"] * np.where(t.side == "BUY", 1.0, -1.0)
+        cum = signed.cumsum()
+        fig.add_trace(_sg(len(cum))(x=cum.index, y=cum.values, name="cum signed", line=dict(color="#c98bdb", width=1.2)), 3, 1)
+        fig.update_yaxes(title="contracts", row=2, col=1); fig.update_yaxes(title="net / cum", row=3, col=1)
+        fig.update_layout(barmode="relative")
+    # D: spread step
+    fig.add_trace(_sg(n)(x=l1.ts, y=l1.spread_c, name="spread", line=dict(color=C_MUTE, width=1, shape="hv"), showlegend=False), 4, 1)
+    fig.update_yaxes(title="¢", row=4, col=1)
+    # E: realised vol (rolling std of 1-min mid returns)
+    mid1 = l1.set_index("ts")["mid"].resample("1min").last().ffill()
+    rv = mid1.pct_change().rolling(st.session_state.get("rvwin", 5), min_periods=2).std() * 100
+    fig.add_trace(_sg(len(rv))(x=rv.index, y=rv.values, name="rv", line=dict(color="#e8c14c", width=1), showlegend=False), 5, 1)
+    fig.update_yaxes(title="%·", row=5, col=1)
+    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.04), rangeselector=_RANGEBUTTONS, row=5, col=1)
+    return _style(fig, 820)
+
+
 def explore(cid):
     m = market_rows(cid)
     labels = {int(r.outcome_index): r.outcome_label for r in m.itertuples()}
-    try:
-        pair, _ = pair_df(cid)
-    except Exception as e:
-        st.warning(f"pair unavailable: {e}"); pair = None
-
-    st.subheader("Market — both sides, mid & spread, trades")
     a_row = m.iloc[0]
-    l1 = l1_df(a_row.asset_id)
-    if l1.empty:
-        st.info("No L1 events for side A in this market (a quiet or unobserved token).")
-    else:
-        tr = trades_df(a_row.asset_id)
-        fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(12, 5.5), sharex=True, height_ratios=[3, 1])
-        if pair is not None and not pair.empty:
-            for idx in sorted(pair.columns):
-                ax0.plot(pair.index, pair[idx] * 100, lw=0.9, color=(C_A if idx == 0 else C_B),
-                         label=f"{labels.get(idx, idx)}")
-        else:
-            ax0.plot(l1.ts, l1.mid * 100, lw=0.9, color=C_A, label=labels.get(0, "A"))
-        if not tr.empty:
-            buy = tr[tr.side == "BUY"]; sell = tr[tr.side == "SELL"]
-            smax = max(tr["size"].max(), 1)
-            ax0.scatter(buy.ts, buy.price * 100, s=8 + 60 * (buy["size"] / smax), color=C_WON, alpha=0.5, label="BUY", edgecolors="none")
-            ax0.scatter(sell.ts, sell.price * 100, s=8 + 60 * (sell["size"] / smax), color=C_LOST, alpha=0.5, label="SELL", edgecolors="none")
-        ax0.set_ylabel("price (¢)"); ax0.legend(fontsize=7, loc="upper left"); ax0.set_ylim(-3, 103)
-        ax1.plot(l1.ts, l1.spread_c, lw=0.6, color=C_MUTE); ax1.set_ylabel("spread (¢)"); ax1.set_xlabel("UTC")
-        st.pyplot(fig); plt.close(fig)
-        st.caption(f"side A: {len(l1):,} L1 events, {len(tr):,} trades. "
-                   "Blue/orange = the two outcomes' mid; green/red marks = BUY/SELL prints sized by volume.")
 
+    # controls
+    cc = st.columns([1.4, 1, 1, 3])
+    win = cc[0].radio("window", ["all", "1w", "1d", "6h", "1h"], horizontal=True, index=0)
+    scale = cc[1].radio("scale", ["linear", "logit"], horizontal=True)
+    st.session_state["rvwin"] = cc[2].selectbox("vol win (min)", [1, 5, 15], index=1)
+
+    l1_full = l1_df(a_row.asset_id)
+    if l1_full.empty:
+        st.info("No L1 events for this market's side A — a quiet or unobserved token. "
+                "Nothing to plot; this is a real state, not an error."); return
+    tr_full = trades_df(a_row.asset_id)
+    try:
+        pair_full, _ = pair_df(cid)
+    except Exception:
+        pair_full = None
+
+    end = l1_full.ts.max(); delta = _window(end, win)
+    start = end - delta if delta is not None else l1_full.ts.min()
+    def cut(df, col="ts"):
+        if df is None or df.empty: return df
+        return df[(df[col] >= start) & (df[col] <= end)]
+    l1 = cut(l1_full); tr = cut(tr_full)
+    pair = pair_full[(pair_full.index >= start) & (pair_full.index <= end)] if pair_full is not None and not pair_full.empty else pair_full
+
+    st.caption(f"**Window:** {win} · {start:%Y-%m-%d %H:%M} → {end:%Y-%m-%d %H:%M} UTC · "
+               f"{len(l1):,} L1 events, {len(tr):,} trades (stats below cover this window)")
+
+    tabs = st.tabs(["Market", "Markout (adverse selection)", "NegRisk"])
+
+    with tabs[0]:
+        # window stats
+        s = st.columns(5)
+        s[0].metric("median spread", f"{l1.spread_c.median():.1f}¢")
+        s[1].metric("mid range", f"{l1.mid.min()*100:.1f}–{l1.mid.max()*100:.1f}¢")
+        s[2].metric("trades", f"{len(tr):,}")
+        s[3].metric("buy vol", f"{tr[tr.side=='BUY']['size'].sum():,.0f}" if len(tr) else "0")
+        s[4].metric("sell vol", f"{tr[tr.side=='SELL']['size'].sum():,.0f}" if len(tr) else "0")
+        st.plotly_chart(market_panel(l1, pair, tr, labels, scale), width="stretch", theme=None)
+        st.caption("Zoom/pan any subplot — the x-axis is shared. Band = tradeable bid–ask spread; "
+                   "C (imbalance) is the 'are we being run over' panel: net one-sided volume with price following it "
+                   "is adverse selection. Logit scale makes 0.99 vs 0.999 visible.")
+
+    with tabs[1]:
+        markout_tab(a_row.asset_id, start, end)
+
+    with tabs[2]:
+        negrisk_tab(a_row)
+
+
+def markout_tab(asset_id, start, end):
+    st.caption("`trades.side` is the **taker** side (verified: BUY lifts the ask, SELL hits the bid). "
+               "Markout is shown from the **liquidity provider (maker)** view: **negative = the resting "
+               "quote was adversely selected** (price moved against the maker). Positive = benign flow.")
+    mo = markout_df(asset_id)
+    mo = mo[(mo.ts >= start) & (mo.ts <= end)] if not mo.empty else mo
+    if mo.empty:
+        st.info("No trades in this window — nothing to mark out. (A quiet market, not an error.)"); return
+    h = st.selectbox("horizon", [10, 30, 60], index=1, format_func=lambda x: f"{x}s")
+    col = f"markout_{h}"
+    mo = mo.dropna(subset=[col])
+    if mo.empty:
+        st.info("Trades exist but no post-trade mid within the horizon (near end of life)."); return
+    s = st.columns(3)
+    s[0].metric("mean markout (all)", f"{mo[col].mean()*100:+.3f}¢")
+    s[1].metric("mean · BUY (maker sold)", f"{mo[mo.side=='BUY'][col].mean()*100:+.3f}¢")
+    s[2].metric("mean · SELL (maker bought)", f"{mo[mo.side=='SELL'][col].mean()*100:+.3f}¢")
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Spread through the market's life")
-        if not l1.empty:
-            g = l1.copy()
-            t0 = g.ts.min(); span = (g.ts.max() - t0).total_seconds() or 1.0
-            g["frac"] = (g.ts - t0).dt.total_seconds() / span
-            binned = g.groupby(pd.cut(g.frac, 20), observed=True)["spread_c"].median()
-            st.bar_chart(pd.DataFrame({"median spread ¢": binned.values}, index=[f"{int(i.right*100)}%" for i in binned.index]))
-            st.caption("Median spread across 20 slices of the market's life (0%→100%). Does quoting tighten toward resolution?")
+        fig = go.Figure()
+        for side, colr in (("BUY", C_WON), ("SELL", C_LOST)):
+            x = mo[mo.side == side][col] * 100
+            if len(x):
+                fig.add_trace(go.Histogram(x=x.clip(-5, 5), name=side, marker_color=colr, opacity=0.6, nbinsx=60))
+        fig.add_vline(x=0, line=dict(color="#fff", width=1, dash="dot"))
+        fig.update_layout(barmode="overlay", title=f"markout distribution @ {h}s (¢)")
+        st.plotly_chart(_style(fig, 320), width="stretch", theme=None)
     with c2:
-        st.subheader("Resolution path")
-        if pair is not None and not pair.empty and bool(a_row.closed):
-            st.line_chart((pair * 100).rename(columns=lambda i: labels.get(i, i)))
-            st.caption("Both sides' mid over time. If mapping is right, winner → 100¢, loser → 0¢.")
-        else:
-            st.info("Open market (no settlement path yet)." if not bool(a_row.closed) else "No aligned pair data.")
+        fig = go.Figure()
+        fig.add_trace(_sg(len(mo))(x=mo.ts, y=mo[col] * 100, mode="markers",
+                      marker=dict(color=np.where(mo.side == "BUY", C_WON, C_LOST), size=4, opacity=0.5),
+                      name="per-trade"))
+        roll = (mo.set_index("ts")[col] * 100).rolling(50, min_periods=5).mean()
+        fig.add_trace(_sg(len(roll))(x=roll.index, y=roll.values, line=dict(color="#e8c14c", width=1.5), name="rolling mean(50)"))
+        fig.add_hline(y=0, line=dict(color="#fff", width=1, dash="dot"))
+        fig.update_layout(title=f"markout over time @ {h}s (¢) — spikes below 0 = toxic flow")
+        st.plotly_chart(_style(fig, 320), width="stretch", theme=None)
+    neg = (mo[col] < 0).mean()
+    st.caption(f"{neg:.0%} of fills had negative maker markout at {h}s in this window. "
+               "Consistently negative (especially on one side) = flow you'd have been run over by.")
+
+
+def negrisk_tab(a_row):
+    if not bool(a_row.neg_risk):
+        st.info("This market is not NegRisk — the sum-to-1 view applies to NegRisk events (politics)."); return
+    slug = a_row.event_slug
+    ev_markets = cat[cat.event_slug == slug].condition_id.nunique()
+    if ev_markets < 2:
+        st.info(f"Only {ev_markets} market captured for this event — nothing to sum."); return
+    try:
+        wide, meta = event_wide(slug)
+        ns, ncap = negrisk_df(slug)
+    except Exception as e:
+        st.warning(f"event unavailable: {e}"); return
+    yes_cols = [a for a in wide.columns if meta.get(a, {}).get("outcome") == "YES"]
+    if not yes_cols:
+        yes_cols = [a for a in wide.columns if meta.get(a, {}).get("outcome_index") == 0]
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.68, 0.32], vertical_spacing=0.04,
+                        subplot_titles=("every candidate's YES mid", "YES sum (instantaneous, common timestamp)"))
+    for a in yes_cols:
+        fig.add_trace(_sg(len(wide))(x=wide.index, y=wide[a] * 100, line=dict(width=0.7),
+                      opacity=0.5, showlegend=False, hoverinfo="skip"), 1, 1)
+    fig.add_trace(_sg(len(ns))(x=ns.index, y=ns.yes_sum * 100, line=dict(color="#e8c14c", width=1.6), name="YES sum"), 2, 1)
+    fig.add_hline(y=100, line=dict(color=C_LOST, width=1, dash="dash"), row=2, col=1)
+    fig.update_yaxes(title="¢", row=1, col=1); fig.update_yaxes(title="sum ¢", row=2, col=1)
+    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05), row=2, col=1)
+    st.plotly_chart(_style(fig, 560), width="stretch", theme=None)
+    s = st.columns(3)
+    s[0].metric("candidates captured", f"{ncap}")
+    s[1].metric("YES sum · median", f"{ns.yes_sum.median():.3f}")
+    s[2].metric("YES sum · latest", f"{ns.yes_sum.dropna().iloc[-1]:.3f}" if ns.yes_sum.notna().any() else "—")
+    st.caption("Summed **at each timestamp** (never a sum of medians). A sum below 1 is explained by missing "
+               "candidates (below Gamma's volume floor); a sum meaningfully above 1 with all candidates present "
+               "would be a finding. Note: v1 does not store Gamma's full listed-candidate count, only what we captured.")
 
 
 # ================================================================ AUDIT
@@ -301,9 +487,18 @@ def audit():
 
     st.subheader("The stale-book cohort")
     stale = d[(d.universe == "esports") & (d.check4_status == "near_half")]
-    st.metric("esports tokens settled but book never moved (near_half)", f"{len(stale):,}")
-    st.caption("Watched to settlement yet last quote still ~0.5 on a decided outcome. Artefact, or money left "
-               "on the table? Sample below — open one in Explore to inspect.")
+    h = stale["hours_from_last_seen_to_close"]
+    within = int((h.abs() <= 1).sum()); early = int((h.abs() > 1).sum()); noclose = int(h.isna().sum())
+    pol_nh = int(((d.universe == "politics_negrisk") & (d.check4_status == "near_half")).sum())
+    s = st.columns(4)
+    s[0].metric("esports near_half", f"{len(stale):,}")
+    s[1].metric("last obs within ±1h of settle", f"{within:,}")
+    s[2].metric("stopped early (>1h)", f"{early:,}")
+    s[3].metric("no closed_time", f"{noclose:,}")
+    st.caption(f"esports near_half = {len(stale):,} (politics = {pol_nh}; the 21,522 in an earlier draft was BOTH "
+               f"universes combined — corrected). Of the esports ones, {within:,} were watched to within ±1h of "
+               "settlement yet still quoting ~0.5 on a decided outcome — a genuine stale-book phenomenon, not "
+               "'stopped watching'. Artefact, or money left on the table? Sample below — open one in Explore.")
     show(stale.sort_values("n_trades", ascending=False).head(50),
          ["question", "outcome_label", "last_mid", "n_trades", "hours_from_last_seen_to_close", "path"])
 
