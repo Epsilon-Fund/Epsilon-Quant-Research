@@ -89,20 +89,32 @@ def audit_market(ref) -> AuditResult:
 
     # ---- value sanity ----
     mid = l1["mid"].to_numpy(); bb = l1["best_bid"].to_numpy(); ba = l1["best_ask"].to_numpy()
+    n = len(mid)
     out01 = int(((mid <= 0) | (mid >= 1)).sum())
     crossed = int((bb > ba + 1e-9).sum())
     sp0 = int((l1["spread_c"] <= 0).sum()); sp100 = int((l1["spread_c"] >= 100).sum())
     moves = int(pd.Series(mid).round(6).nunique())
-    jump = float(np.abs(np.diff(mid)).max()) if len(mid) > 1 else 0.0
-    lvl = "ok"
-    sane_bits = []
-    if crossed: lvl = "bad"; sane_bits.append(f"{crossed} crossed (bid>ask)")
-    if out01: lvl = "bad"; sane_bits.append(f"{out01} mid outside (0,1)")
-    if moves <= 1: lvl = max(lvl, "note", key=["ok", "note", "bad"].index); sane_bits.append("mid never moves")
-    if jump > 0.5: sane_bits.append(f"max 1-step mid jump {jump*100:.0f}¢")
+    jump = float(np.abs(np.diff(mid)).max()) if n > 1 else 0.0
+    # severity is FRACTION-based: a handful of crossed/out-of-range ticks (intra-ms ordering, a
+    # stale L1) is a NOTE, not a reason to condemn a market with millions of rows.
+    def frac(x): return x / max(n, 1)
+    lvl = "ok"; sane_bits = []
+    lvls = {"ok": 0, "note": 1, "bad": 2}
+    def bump(l):
+        nonlocal lvl
+        if lvls[l] > lvls[lvl]: lvl = l
+    if crossed:
+        sane_bits.append(f"{crossed} crossed bid>ask ({frac(crossed):.2%})"); bump("bad" if frac(crossed) > 0.005 else "note")
+    if out01:
+        sane_bits.append(f"{out01} mid outside (0,1) ({frac(out01):.2%})"); bump("bad" if frac(out01) > 0.005 else "note")
+    if moves <= 1:
+        sane_bits.append("mid never moves"); bump("note")
+    if jump > 0.5:
+        sane_bits.append(f"max 1-step mid jump {jump*100:.0f}¢"); bump("note")
+    # spread=0 (locked/one-tick) and =100¢ (one-sided) are common and NOT defects — report only.
     checks.append(Check("value sanity", lvl,
                         (", ".join(sane_bits) if sane_bits else "no crossed/out-of-range/frozen values") +
-                        f"; spread=0 on {sp0}, =100¢ on {sp100}"))
+                        f"; spread=0 on {frac(sp0):.0%}, =100¢ on {frac(sp100):.0%} (informational)"))
 
     # ---- internal consistency (pair sum ~1) ----
     try:
@@ -119,16 +131,20 @@ def audit_market(ref) -> AuditResult:
         checks.append(Check("pair sum≈1", "note", f"pair unavailable: {str(e)[:60]}"))
 
     # ---- continuity ----
-    gaps = l1["ts"].sort_values().diff().dropna()
-    big = gaps[gaps > pd.Timedelta("1h")]
-    unexplained = 0
-    for ts_end, g in zip(l1["ts"].sort_values().iloc[1:][gaps.values > pd.Timedelta("1h").to_timedelta64()], big):
-        ts_start = ts_end - g
-        in_outage = (ts_start <= _OUTAGE[1]) and (ts_end >= _OUTAGE[0])
-        if not in_outage:
-            unexplained += 1
-    checks.append(Check("continuity", "note" if unexplained else "ok",
-                        f"{len(big)} gaps >1h ({unexplained} not explained by the known outage)"))
+    # A quiet market naturally has a sparse tape, so a >1h gap is NOT a defect. Only a LONG gap
+    # (>12h) that is not the known outage is worth a look.
+    ts_sorted = l1["ts"].sort_values()
+    dt = ts_sorted.diff()
+    big = int((dt > pd.Timedelta("1h")).sum())
+    unexplained_long = 0; max_gap_h = float(dt.max().total_seconds() / 3600) if dt.notna().any() else 0.0
+    for ts_end, g in zip(ts_sorted.iloc[1:], dt.iloc[1:]):
+        if g > pd.Timedelta("12h"):
+            ts_start = ts_end - g
+            if not ((ts_start <= _OUTAGE[1]) and (ts_end >= _OUTAGE[0])):
+                unexplained_long += 1
+    checks.append(Check("continuity", "note" if unexplained_long else "ok",
+                        f"{big} gaps >1h (normal for a quiet market); {unexplained_long} unexplained gaps >12h; "
+                        f"max gap {max_gap_h:.1f}h"))
 
     # ---- trades vs quotes ----
     tr_note = "no trades"
