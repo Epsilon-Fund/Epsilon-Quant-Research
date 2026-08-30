@@ -7,13 +7,11 @@ from pathlib import Path
 __version__ = "1.0"
 
 # Default: the local built library, two levels up from this file (polymarket/research/data/research_v1).
-_DEFAULT_ROOT = Path(__file__).resolve().parent.parent / "data" / "research_v1"
+_DEFAULT_ROOT = str(Path(__file__).resolve().parent.parent / "data" / "research_v1")
 
 
-def data_root() -> Path:
-    """Directory holding tokens.parquet, l1/, trades/, obs_stats.parquet, exclusions.csv.
-
-    Override with the EPSILON_DATA_ROOT env var (or pass root= to the loader functions that
-    accept it). Nothing here hardcodes an absolute path into a caller.
-    """
-    return Path(os.environ.get("EPSILON_DATA_ROOT", str(_DEFAULT_ROOT)))
+def data_root() -> str:
+    """The data root as a STRING — a local directory OR an `s3://…` bucket path. Returned as a
+    string (not Path) because Path() mangles `s3://` on Windows (→ `s3:\\`). Override with the
+    EPSILON_DATA_ROOT env var. Nothing here hardcodes an absolute path into a caller."""
+    return os.environ.get("EPSILON_DATA_ROOT", _DEFAULT_ROOT)

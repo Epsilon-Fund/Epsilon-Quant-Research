@@ -70,21 +70,13 @@ def resolve(ref) -> str:
 
 @functools.lru_cache(maxsize=4)
 def _coverage_cached(root_key: str) -> pd.DataFrame:
-    from pathlib import Path
-    man = Path(_i._p("pc_file_manifest.txt"))
-    rows = []
-    if man.exists():
-        for ln in man.read_text().splitlines():
-            parts = ln.strip().split("/")
-            if len(parts) != 3:
-                continue
-            date, uni, fname = parts
-            for table in ("price_change", "book"):
-                if fname.startswith(f"{table}_{uni}_"):
-                    hh = fname.rsplit("_", 1)[1].split(".")[0]
-                    if hh.isdigit():
-                        rows.append((uni, date, table, hh))
-    return pd.DataFrame(rows, columns=["universe", "date", "table", "hour"])
+    """Read the precomputed coverage.parquet (root-agnostic). Columns per (universe,date):
+    pc_hours, book_hours (list<str>), n_pc, n_book, quiet_hours, missing_hours, n_missing."""
+    c = _i.con()
+    try:
+        return c.execute(f"SELECT * FROM read_parquet('{_i._uri('coverage.parquet')}')").df()
+    finally:
+        c.close()
 
 
 def coverage(universe=None) -> pd.DataFrame:
@@ -93,26 +85,12 @@ def coverage(universe=None) -> pd.DataFrame:
       - `book_hours`    : hours with a book snapshot (present even in a QUIET hour)
       - `missing_hours` : hours with NO book at all (a TRUE gap in capture)
       - `quiet_hours`   : book present but no price_change (a quiet market, NOT a gap)
-    Built from the archive file manifest. The one known multi-hour outage is
-    2026-06-22 15:00 -> 06-23 08:00 (both universes); also a genuine esports-only gap at
-    2026-07-24 h12 and 2026-08-21 h11-12. 2026-06-19 h00-11 is capture start, not a gap."""
-    cov = _coverage_cached(str(_i.data_root()))
+    The one known multi-hour outage is 2026-06-22 15:00 -> 06-23 08:00 (both universes);
+    2026-06-19 h00-11 is capture start (not a gap); esports 2026-07-24 h12 / 08-21 h11-12 are quiet."""
+    cov = _coverage_cached(_i._root())
     if universe is not None:
         cov = cov[cov["universe"] == universe]
-    allh = {f"{h:02d}" for h in range(24)}
-    out = []
-    for (uni, date), g in cov.groupby(["universe", "date"]):
-        pc = set(g[g["table"] == "price_change"]["hour"])
-        bk = set(g[g["table"] == "book"]["hour"])
-        out.append({
-            "universe": uni, "date": date,
-            "pc_hours": sorted(pc), "n_pc": len(pc),
-            "book_hours": sorted(bk), "n_book": len(bk),
-            "quiet_hours": sorted(bk - pc),                 # book, no trading
-            "missing_hours": sorted(allh - bk),             # no book -> true gap
-            "n_missing": len(allh - bk),
-        })
-    return pd.DataFrame(out).sort_values(["universe", "date"]).reset_index(drop=True)
+    return cov.sort_values(["universe", "date"]).reset_index(drop=True)
 
 
 def reconciliation() -> pd.DataFrame:
@@ -122,8 +100,8 @@ def reconciliation() -> pd.DataFrame:
     t = _i.tokens()
     c = _i.con()
     try:
-        l1_rows = c.execute(f"SELECT COUNT(*) FROM read_parquet('{_i._q(_i._p('l1','*','*','*.parquet'))}')").fetchone()[0]
-        tr_rows = c.execute(f"SELECT COUNT(*) FROM read_parquet('{_i._q(_i._p('trades','*','*','*.parquet'))}')").fetchone()[0]
+        l1_rows = c.execute(f"SELECT COUNT(*) FROM read_parquet('{_i._uri('l1','*','*','*.parquet')}')").fetchone()[0]
+        tr_rows = c.execute(f"SELECT COUNT(*) FROM read_parquet('{_i._uri('trades','*','*','*.parquet')}')").fetchone()[0]
     finally:
         c.close()
     return pd.DataFrame([
@@ -136,8 +114,9 @@ def reconciliation() -> pd.DataFrame:
 
 @functools.lru_cache(maxsize=8)
 def _activity_cached(root_key: str, universe: str | None) -> pd.DataFrame:
-    where = f"WHERE CAST(asset_id AS VARCHAR) IN (SELECT CAST(asset_id AS VARCHAR) FROM read_parquet('{_i._q(_i._p('tokens.parquet'))}') WHERE universe='{universe}')" if universe else ""
-    glob = _i._q(_i._p("trades", "*", "*", "*.parquet"))
+    where = (f"WHERE CAST(asset_id AS VARCHAR) IN (SELECT CAST(asset_id AS VARCHAR) FROM "
+             f"read_parquet('{_i._uri('tokens.parquet')}') WHERE universe='{universe}')" if universe else "")
+    glob = _i._uri("trades", "*", "*", "*.parquet")
     c = _i.con()
     try:
         df = c.execute(f"""
@@ -154,7 +133,7 @@ def _activity_cached(root_key: str, universe: str | None) -> pd.DataFrame:
 def activity_by_time(universe=None) -> pd.DataFrame:
     """Trade counts and volume by UTC hour-of-day and weekday (0=Sunday). Answers 'when is there
     flow to capture?'. Scans the 7.2M-row trades table (cached). Esports and politics differ sharply."""
-    return _activity_cached(str(_i.data_root()), universe)
+    return _activity_cached(_i._root(), universe)
 
 
 def negrisk_sum(event_slug):

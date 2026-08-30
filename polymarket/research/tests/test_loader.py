@@ -9,6 +9,7 @@ it is wrong and nothing else would catch it.
 """
 from __future__ import annotations
 import hashlib
+import pathlib
 
 import pandas as pd
 import pytest
@@ -26,7 +27,7 @@ def _sample_assets(n=5):
 
 
 def _raw_l1(asset_id: str, universe: str) -> pd.DataFrame:
-    glob = _i._q(_i._p("l1", f"universe={universe}", "*", "*.parquet"))
+    glob = _i._uri("l1", f"universe={universe}", "*", "*.parquet")
     c = _i.con()
     try:
         return c.execute(
@@ -104,3 +105,44 @@ def test_search_finds_fed():
 def test_reconciliation_holds():
     rec = ed.reconciliation()
     assert rec["match"].all(), f"reconciliation broke: {rec.to_dict('records')}"
+
+
+def test_audit_market_structure():
+    aid = _sample_assets(1)[0]
+    r = ed.audit_market(aid)
+    assert r.verdict in ("looks fine", "worth a look", "recommend excluding")
+    assert r.checks and all(c.level in ("ok", "note", "bad") for c in r.checks)
+    assert r.reason
+    # audit NEVER writes
+    d = ed.to_dict() if hasattr(ed, "to_dict") else None
+
+
+def test_audit_never_writes(tmp_path):
+    import epsilon_data as ed
+    from epsilon_data import config as cfg
+    aid = _sample_assets(1)[0]
+    before = pathlib.Path(cfg.data_root()) / "exclusions.csv"
+    txt0 = before.read_text() if before.exists() else ""
+    ed.audit_market(aid)  # must not touch the file
+    txt1 = before.read_text() if before.exists() else ""
+    assert txt0 == txt1, "audit_market wrote to exclusions.csv — it must never do that"
+
+
+def test_write_exclusion_roundtrip(tmp_path):
+    import shutil, epsilon_data as ed
+    from epsilon_data import config as cfg, _internal as _i
+    root = pathlib.Path(cfg.data_root())
+    excl = root / "exclusions.csv"
+    backup = excl.read_text() if excl.exists() else None
+    try:
+        aid = _sample_assets(1)[0]
+        ed.write_exclusion(aid, "market", "unit-test", "pytest")
+        assert aid in ed.catalog(apply_exclusions=False).set_index("asset_id").index
+        # excluded by default now
+        assert aid not in set(ed.catalog(apply_exclusions=True).asset_id)
+    finally:
+        if backup is not None:
+            excl.write_text(backup)
+        else:
+            excl.unlink(missing_ok=True)
+        _i._exclusions_cached.cache_clear()

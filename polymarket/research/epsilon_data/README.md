@@ -11,6 +11,21 @@ aid = ed.resolve("politics/fed-decision-in-july-181/…/yes")
 l1  = ed.load_l1(aid)                      # its L1 tape (UTC-indexed)
 ```
 
+## Quickstart (from `git clone`)
+
+```bash
+cd polymarket/research
+python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (uv users: `uv sync`)
+#  point at the data (choose ONE):
+#    local (fast, after you fetch it):   set EPSILON_DATA_ROOT=…\polymarket\research\data\research_v1
+#    straight from R2 (nothing to download, slower first touch):  see "Getting the data" below
+python scripts/check_setup.py            # verifies env + data; tells you what to fix in a sentence
+.venv/Scripts/streamlit run dashboard/app.py
+```
+
+Both data paths work with **only `EPSILON_DATA_ROOT` changed** — no code edit. See
+"Getting the data" and "Troubleshooting" below, and `CONTRIBUTING.md` to add a panel.
+
 ## The tree (four levels)
 
 ```
@@ -53,6 +68,10 @@ edits. Files:
 | `coverage(universe)` | per (universe,date): active / quiet / gap hours (the calendar) |
 | `reconciliation()` | the identities that must hold (catalog sums vs table row counts) |
 | `activity_by_time(universe)` | trade counts & volume by UTC hour-of-day and weekday |
+| `markout(ref, horizons=(10,30,60))` | per-trade adverse-selection markout from the maker's view (see units) |
+| `negrisk_sum(event_slug)` | instantaneous YES-sum for a NegRisk event (common timestamp, never a sum of medians) |
+| `audit_market(ref)` | run every cheap sanity check; returns a verdict + evidence + recommendation (never writes) |
+| `write_exclusion(asset_id, scope, reason, who)` | append to exclusions.csv — **explicit action only**, never called by audit |
 
 - **Exclusions apply by default.** `apply_exclusions=False` is deliberate — use it only to
   *show* excluded/flagged tokens (marked), never to silently analyse them back in. Nothing is
@@ -99,9 +118,10 @@ received_ns)`.
 - **`outcome` is null for esports.** Those markets are *team A vs team B* (and some Yes/No
   props); `outcome_label` holds the verbatim string. Only ~4,836 tokens (all politics + some
   esports props) carry `YES`/`NO`.
-- **`check4_status` is categorical, and `near_half` is the biggest bucket (21,522) and is NOT a
-  failure.** Values: `converged_correct` (6,650), `near_half` (21,522 — settled but the book
-  never traded to the extreme, mostly esports), `no_convergence` (328), `not_resolved` (2,148),
+- **`check4_status` is categorical, and `near_half` is the biggest bucket and is NOT a
+  failure.** Values: `converged_correct` (6,650), `near_half` (21,522 across both universes —
+  esports 21,082 + politics 440; settled but the book never traded to the extreme),
+  `no_convergence` (328), `not_resolved` (2,148),
   `no_price` (40), `inverted` (14 — genuine upsets: the underdog won; the mapping is still
   correct, confirmed by checks 1/2). `identity_status='unresolved'` tokens have it null.
 - **`l1` is deduped to touch-moving rows — it is NOT every message.** A row exists only where
@@ -140,3 +160,104 @@ The anti-drift test (`tests/test_loader.py::test_anti_drift_l1`) proves the load
 exactly what a raw parquet read returns. Run: `PYTHONPATH=. python -m pytest tests/ -q`.
 
 See `notebooks/epsilon_data_examples.ipynb` for five worked tasks end to end.
+
+## Getting the data — two ways, `EPSILON_DATA_ROOT` picks
+
+Both work with **no code change** — only the env var differs.
+
+1. **Read straight from R2** (nothing to download; slower first touch — good for a quick look):
+   ```
+   set EPSILON_DATA_ROOT=s3://epsilon-polymarket-data/research/v1
+   ```
+   DuckDB httpfs with predicate pushdown fetches only the bytes a single-token read needs.
+
+2. **Sync locally** (fast browsing — best for real work). Fetch once with the exact safe command:
+   ```
+   rclone copy r2:epsilon-polymarket-data/research/v1  <yourdir>/research_v1  -P
+   set EPSILON_DATA_ROOT=<yourdir>/research_v1
+   ```
+
+### Credentials
+
+The loader (for the R2 path) reads R2 credentials from environment variables
+`EPSILON_R2_KEY_ID`, `EPSILON_R2_SECRET`, `EPSILON_R2_ENDPOINT`, or falls back to your local
+`rclone.conf` `[r2]` remote. Put them in a `.env` (gitignored) or the rclone config file —
+**never in the repo, a committed config, or a command string.**
+
+> ### ⚠️ The R2 key can write and delete. Only ever `rclone copy`.
+> **Never `sync`, `delete`, `purge` or `move` with `r2:` as the target.** The 71 GB raw archive
+> is not backed up anywhere else — a mistyped `sync` destroys it permanently. (A read-only token
+> scoped to the research prefix is the eventual fix; ask the operator.)
+
+## Troubleshooting
+
+| symptom | fix |
+|---|---|
+| `EPSILON_DATA_ROOT is not set` | set it (see Quickstart) — local dir or `s3://…`. |
+| `no R2 credentials found` (s3 root) | set `EPSILON_R2_KEY_ID/_SECRET/_ENDPOINT` or configure rclone `[r2]`. |
+| `No module named streamlit` / plotly | `pip install -r requirements.txt` (or `uv sync`); make sure the venv is activated. |
+| `pip: No module named pip` (uv venv) | `python -m ensurepip --upgrade` then `pip install -r requirements.txt`, or use `uv sync`. |
+| dashboard shows a blank chart | it shouldn't — empty states say why ("No trades in this window"). If truly blank, check `python scripts/check_setup.py`. |
+| wrong Python | need ≥ 3.10 (the venv targets 3.14). |
+| unsure what's wrong | run `python scripts/check_setup.py` — it names the problem in a sentence. |
+
+## What this library is for — and what it is NOT for
+
+This library is for **looking at data**: screening markets, plotting them, auditing quality,
+forming intuitions. It is **not** the backtester's feed.
+
+**The research library does NOT feed the existing backtester.** `mm_engine/feeds/replay_parquet.py`
+replays *raw events* and needs order-book **depth** for queue position; the library is deduped L1
+with identity attached, for *viewing*. Do not assume a backtest can read `research_v1` today — it
+cannot. **Step F (`book`) is the bridge.** Details and the scoped task are below.
+
+### Backtest adapter — the next person's first task (scoped, not built)
+
+`mm_engine/feeds/replay_parquet.py` reads the **raw** capture layout:
+`parquet/{date}/{universe}/{table}_{shard}.parquet`, the four tables `book`/`trades`/
+`price_change`/`bba`, with `market` and `received_at` columns and a `capture_gaps.parquet`
+sidecar. It builds a `MarketEvent` stream ordered by exchange time.
+
+A library-fed replay would need:
+- **`market` and `received_at`** — not in `l1`/`trades` today. `market` (= `condition_id`) is
+  **recoverable** by joining `asset_id → condition_id` from `tokens.parquet`; `received_at` (the
+  local ISO receive time) is **not** in the library — only `received_ns` (monotonic) and
+  `timestamp_ms` (exchange) — so it needs a rebuild of `l1`/`trades` to carry it, or the engine
+  adapted to use `timestamp_ms`/`received_ns`.
+- **`book`** — does **not** exist yet. This is **Step F** and it is the real dependency: queue
+  position cannot be modelled from L1 alone.
+- **`l1` is deduped to touch-moving rows** — it is neither `price_change` nor `bba`. It can
+  legitimately produce `best_bid_ask`-style L1 events (the touch over time); it **cannot**
+  reproduce full `price_change` depth deltas or a `book` snapshot stream.
+- **the gap sidecar** — that information now lives in `coverage()` (active/quiet/gap per hour) and
+  the documented outage; an adapter would synthesize `GapMarker`s from it rather than a
+  `capture_gaps.parquet`.
+
+**Why do it:** replaying from the library means one clean, verified, documented dataset instead
+of 71 GB of raw JSON-derived parquet with no identity attached — the whole reason the library
+exists. Scope: build `book` (Step F), then a `research_v1 → MarketEvent` adapter; the anti-drift
+discipline (parity vs a known-good replay) applies.
+
+## The two-book finding (counter-intuitive — read before you "discover" it)
+
+- We have **both** tokens' quotes and trades. Nothing is missing.
+- **NO quotes are the exact complement of YES quotes**: `NO_bid = 1 − YES_ask`, at the 1st and
+  99th percentile across 1.29 M observations. They carry **no independent information**.
+- This is **Polymarket's design, not our capture**: the daemon subscribes to both tokens and
+  stores `best_bid`/`best_ask` verbatim; nothing computes a complement. The matching engine mints
+  a complete set from a YES buyer and a NO buyer, so a bid on NO *is* an ask on YES — two order
+  ledgers over one pool of liquidity.
+- **Consequence:** plotting both mids is redundant by construction. **Trades are not** — those are
+  two genuine streams of intent (someone bearish must *buy NO*, they cannot short YES).
+- **Honest limit:** with no independent NO quotes, this dataset **cannot** answer whether
+  cross-book arbitrage ever existed. That is a limit, not a finding.
+
+## Known gaps & a data caveat
+
+- **Outage:** 2026-06-22 15:00 → 06-23 08:29 UTC (~17 h, both universes) — no book, no trades.
+- **Capture start ramp:** 2026-06-19 h00-11 (both) — not a loss.
+- **Reboot tail:** 2026-08-21 h21-23 (both).
+- **esports quiet hours:** book present, no trading (e.g. 07-24 h12, 08-21 h11-12) — **not gaps**.
+  `coverage()` separates `quiet_hours` from `missing_hours` (true gap = no book).
+- **Caveat:** `median_mid − median_spread/2` goes **negative for 71 tokens** — two independently
+  taken medians cannot rebuild a book. Use `l1` for a real bid/ask at a time, not the medians.

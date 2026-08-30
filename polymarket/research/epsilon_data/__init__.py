@@ -15,10 +15,12 @@ from .catalog import (
     coverage, reconciliation, activity_by_time, negrisk_sum,
 )
 from .tape import load_l1, load_trades, load_pair, load_event, markout
+from .audit import audit_market, write_exclusion
 
 __all__ = [
     "catalog", "events", "search", "resolve",
     "load_l1", "load_trades", "load_pair", "load_event", "markout",
     "coverage", "reconciliation", "activity_by_time", "negrisk_sum",
+    "audit_market", "write_exclusion",
     "data_root", "__version__",
 ]
