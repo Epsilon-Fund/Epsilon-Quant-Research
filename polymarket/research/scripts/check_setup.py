@@ -63,7 +63,8 @@ elif dr:
     p = pathlib.Path(dr) / "tokens.parquet"
     check(p.exists(),
           f"found tokens.parquet under {dr}",
-          f"no tokens.parquet under {dr} — fetch the data (see README) or fix EPSILON_DATA_ROOT.")
+          f"no tokens.parquet under {dr} — fetch the data with  python scripts/fetch_data.py --dest \"{dr}\"  "
+          f"(or fix EPSILON_DATA_ROOT if the data lives elsewhere).")
 
 # the real test: can the loader read?
 if not problems:

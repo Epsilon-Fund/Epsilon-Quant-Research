@@ -15,6 +15,19 @@
 
 ---
 
+## Polymarket research library + dashboard (v1, Aug 2026)
+
+A cleaned, navigable **L1 + trades dataset** over 64 days of captured Polymarket order-book data
+(**30,772 tokens · 101 M L1 rows · 7.2 M trades · 1.09 GB**), a documented Python loader
+(`epsilon_data`), and a **Streamlit research terminal** for auditing it and finding strategy ideas.
+
+- **Start here:** [`polymarket/research/HANDOVER.md`](polymarket/research/HANDOVER.md)
+- **Loader API + data dictionary:** [`polymarket/research/epsilon_data/README.md`](polymarket/research/epsilon_data/README.md)
+- **Adding a panel or a tool:** [`polymarket/research/CONTRIBUTING.md`](polymarket/research/CONTRIBUTING.md)
+- **Get the data (no rclone needed):** `cd polymarket/research && python scripts/fetch_data.py`
+
+---
+
 ## What's inside
 
 This repo has **two main research branches** plus a shared knowledge layer:

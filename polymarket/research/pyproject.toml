@@ -22,6 +22,9 @@ dependencies = [
     "streamlit>=1.62.0",
     "plotly>=7.0.0",
     "matplotlib>=3.10.8",
+    # scripts/fetch_data.py ONLY (no-rclone R2 download). The loader stays boto3-free — it reads
+    # R2 via DuckDB httpfs, not boto3.
+    "boto3>=1.35.0",
 ]
 
 [dependency-groups]

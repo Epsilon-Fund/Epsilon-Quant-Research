@@ -34,21 +34,27 @@ cd polymarket/research
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (uv users: `uv sync`)
 ```
 
-Then point `EPSILON_DATA_ROOT` at the data — **two ways, no code change**:
+Then get the data and point `EPSILON_DATA_ROOT` at it — **no code change either way**:
 
-- **Straight from R2** (nothing to download): `set EPSILON_DATA_ROOT=s3://epsilon-polymarket-data/research/v1`
-  (needs R2 creds — see README "Credentials").
-- **Local** (fast): `rclone copy r2:epsilon-polymarket-data/research/v1 <dir>/research_v1 -P`
-  then `set EPSILON_DATA_ROOT=<dir>/research_v1`.
+- **Fetch it locally** (recommended — no rclone): `python scripts/fetch_data.py`, then
+  `set EPSILON_DATA_ROOT=<repo>/polymarket/research/data/research_v1`. Pure Python, ~1.09 GB in
+  ~1–2 min, resumable (re-run to finish), read-only against R2, verifies itself and writes
+  `_fetch_receipt.json`. Needs only the three R2 env vars below.
+- **Straight from R2** (nothing to download): `set EPSILON_DATA_ROOT=s3://epsilon-polymarket-data/research/v1`.
+
+Both need R2 credentials — the **same three env vars** for the fetch script and the loader:
+`EPSILON_R2_KEY_ID`, `EPSILON_R2_SECRET`, `EPSILON_R2_ENDPOINT` (or a local `rclone.conf` `[r2]`
+remote). Ask the operator; put them in a gitignored `.env` — never in a command string or the repo.
 
 ```bash
 python scripts/check_setup.py                      # tells you what's wrong, in a sentence
 .venv/Scripts/streamlit run dashboard/app.py       # search "fed july", then Explore / Audit
 ```
 
-> ### ⚠️ The R2 key can write AND delete. Only ever `rclone copy`.
-> **Never `sync` / `delete` / `purge` / `move` with `r2:` as the target.** The 71 GB raw archive
-> has no other backup — a mistyped `sync` destroys it permanently.
+> ### ⚠️ The R2 key can write AND delete. Only ever *copy*.
+> **Never `sync` / `delete` / `purge` / `move` with `r2:` as the target** (`fetch_data.py` is
+> read-only and never does). The 71 GB raw archive has no other backup — a mistyped `sync` destroys
+> it permanently. If you use rclone instead of the script, it's `rclone copy … -P`, **copy only**.
 
 ## The tree, tables, units, traps (the short version; full detail in `epsilon_data/README.md`)
 

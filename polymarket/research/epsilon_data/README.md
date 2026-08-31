@@ -16,8 +16,9 @@ l1  = ed.load_l1(aid)                      # its L1 tape (UTC-indexed)
 ```bash
 cd polymarket/research
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (uv users: `uv sync`)
+python scripts/fetch_data.py             # download the data (~1.09 GB, no rclone; needs 3 R2 env vars)
 #  point at the data (choose ONE):
-#    local (fast, after you fetch it):   set EPSILON_DATA_ROOT=…\polymarket\research\data\research_v1
+#    local (fast, what fetch_data.py just wrote):  set EPSILON_DATA_ROOT=…\polymarket\research\data\research_v1
 #    straight from R2 (nothing to download, slower first touch):  see "Getting the data" below
 python scripts/check_setup.py            # verifies env + data; tells you what to fix in a sentence
 .venv/Scripts/streamlit run dashboard/app.py
@@ -165,35 +166,54 @@ See `notebooks/epsilon_data_examples.ipynb` for five worked tasks end to end.
 
 Both work with **no code change** — only the env var differs.
 
-1. **Read straight from R2** (nothing to download; slower first touch — good for a quick look):
+1. **Fetch it locally** (recommended — fast browsing, best for real work). One command, no rclone,
+   nothing to install beyond `requirements.txt`:
+   ```
+   python scripts/fetch_data.py
+   set EPSILON_DATA_ROOT=<repo>/polymarket/research/data/research_v1
+   ```
+   `fetch_data.py` is a pure-Python (boto3) downloader: it reads the **same three credentials the
+   loader uses** (below), byte-copies all 792 files (~1.09 GB) in parallel, is **resumable** (re-run
+   to finish a partial fetch — it skips files already present at the right size), and is **read-only
+   against R2** (it only lists and gets — no `put`/`delete`/`copy`). After the copy it verifies file
+   count, total bytes, `tokens.parquet` row count, and that L1+trades are non-empty, then writes
+   `_fetch_receipt.json`. Add `--dest <dir>` to fetch elsewhere, `--dry-run` to list without
+   transferring. It fetches into the loader's default dir, so a bare `python scripts/fetch_data.py`
+   followed by the `set` above is the whole setup. A full fetch takes ~1–2 min on a normal
+   connection; the byte counter can appear to sit still while several large L1 files finish in
+   parallel — the *files* counter keeps climbing, so it's working, not hung.
+
+2. **Read straight from R2** (nothing to download; slower first touch — good for a quick look):
    ```
    set EPSILON_DATA_ROOT=s3://epsilon-polymarket-data/research/v1
    ```
    DuckDB httpfs with predicate pushdown fetches only the bytes a single-token read needs.
 
-2. **Sync locally** (fast browsing — best for real work). Fetch once with the exact safe command:
-   ```
-   rclone copy r2:epsilon-polymarket-data/research/v1  <yourdir>/research_v1  -P
-   set EPSILON_DATA_ROOT=<yourdir>/research_v1
-   ```
+*(Alternative to (1), if you already have rclone configured:
+`rclone copy r2:epsilon-polymarket-data/research/v1 <yourdir>/research_v1 -P` — **`copy` only**, see
+the warning below. `fetch_data.py` needs no rclone and is the supported path.)*
 
 ### Credentials
 
-The loader (for the R2 path) reads R2 credentials from environment variables
-`EPSILON_R2_KEY_ID`, `EPSILON_R2_SECRET`, `EPSILON_R2_ENDPOINT`, or falls back to your local
-`rclone.conf` `[r2]` remote. Put them in a `.env` (gitignored) or the rclone config file —
-**never in the repo, a committed config, or a command string.**
+Both the loader (R2 path) and `fetch_data.py` read the **same** R2 credentials — from environment
+variables `EPSILON_R2_KEY_ID`, `EPSILON_R2_SECRET`, `EPSILON_R2_ENDPOINT`, falling back to your
+local `rclone.conf` `[r2]` remote if those aren't set. So a newcomer needs only those three env
+vars — no rclone install required. Ask the operator for them and put them in a `.env` (gitignored)
+or the rclone config file — **never in the repo, a committed config, or a command string.** The
+key is read/write today, so treat it accordingly.
 
-> ### ⚠️ The R2 key can write and delete. Only ever `rclone copy`.
-> **Never `sync`, `delete`, `purge` or `move` with `r2:` as the target.** The 71 GB raw archive
-> is not backed up anywhere else — a mistyped `sync` destroys it permanently. (A read-only token
-> scoped to the research prefix is the eventual fix; ask the operator.)
+> ### ⚠️ The R2 key can write and delete. Only ever *copy*.
+> **Never `sync`, `delete`, `purge` or `move` with `r2:` as the target** (and `fetch_data.py` never
+> does — it's read-only by construction). The 71 GB raw archive is not backed up anywhere else — a
+> mistyped `sync` destroys it permanently. (A read-only token scoped to the research prefix is the
+> eventual fix; ask the operator.)
 
 ## Troubleshooting
 
 | symptom | fix |
 |---|---|
 | `EPSILON_DATA_ROOT is not set` | set it (see Quickstart) — local dir or `s3://…`. |
+| `no tokens.parquet under <dir>` | fetch the data: `python scripts/fetch_data.py` (re-run to resume a partial fetch). |
 | `no R2 credentials found` (s3 root) | set `EPSILON_R2_KEY_ID/_SECRET/_ENDPOINT` or configure rclone `[r2]`. |
 | `No module named streamlit` / plotly | `pip install -r requirements.txt` (or `uv sync`); make sure the venv is activated. |
 | `pip: No module named pip` (uv venv) | `python -m ensurepip --upgrade` then `pip install -r requirements.txt`, or use `uv sync`. |
