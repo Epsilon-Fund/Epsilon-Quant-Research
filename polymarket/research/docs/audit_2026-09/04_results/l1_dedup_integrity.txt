@@ -1,0 +1,17 @@
+# 2026-09-02T16:52:23Z check_l1_dedup_integrity.py
+{"universe": "politics_negrisk", "month": "2026-06", "rows": 1648268, "non_touch_move_rows": 8, "share": 5e-06, "at_part_boundary": 0, "n_parts": 1, "seconds": 0.2}
+{"universe": "politics_negrisk", "month": "2026-07", "rows": 8430318, "non_touch_move_rows": 10, "share": 1e-06, "at_part_boundary": 0, "n_parts": 1, "seconds": 0.6}
+{"universe": "politics_negrisk", "month": "2026-08", "rows": 3757012, "non_touch_move_rows": 0, "share": 0.0, "at_part_boundary": 0, "n_parts": 1, "seconds": 0.3}
+{"universe": "esports", "month": "2026-06", "rows": 10611146, "non_touch_move_rows": 1414, "share": 0.000133, "at_part_boundary": 1264, "n_parts": 12, "seconds": 0.8}
+{"universe": "esports", "month": "2026-07", "rows": 44684318, "non_touch_move_rows": 65924, "share": 0.001475, "at_part_boundary": 65732, "n_parts": 283, "seconds": 6.9}
+{"universe": "esports", "month": "2026-08", "rows": 31920440, "non_touch_move_rows": 128628, "share": 0.00403, "at_part_boundary": 128628, "n_parts": 481, "seconds": 2.6}
+{
+ "TOTAL_non_touch_move_rows": 195984,
+ "of_rows": 101051502,
+ "share": 0.001939,
+ "expected_under_documented_rule": 0,
+ "PASS": false
+}
+real 13.03
+user 52.56
+sys 18.46
