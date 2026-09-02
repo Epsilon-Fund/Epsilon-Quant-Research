@@ -5,6 +5,10 @@
 Checks Python version, required packages, EPSILON_DATA_ROOT, R2 credentials (if the root is
 s3://), and that the data is actually readable through the loader. Exits non-zero if anything
 would stop the dashboard from starting.
+
+Settings come from the shell first and then from `polymarket/research/.env` (loaded via
+epsilon_data.config.load_env — shell env always wins). No value is ever printed except
+EPSILON_DATA_ROOT, which is a path, not a secret.
 """
 from __future__ import annotations
 import os
@@ -27,7 +31,17 @@ root = next((p for p in pathlib.Path(__file__).resolve().parents if (p / "epsilo
 if root and str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
+# Load polymarket/research/.env BEFORE reading any env var below — the docs tell you to put
+# EPSILON_DATA_ROOT and the R2 credentials there. Shell env wins; nothing is printed.
+env_loaded = False
+try:
+    from epsilon_data.config import ENV_FILE, load_env
+    env_loaded = load_env()
+except Exception:
+    ENV_FILE = (root / ".env") if root else None
+
 print("Epsilon research — setup check\n" + "-" * 40)
+print(f"[{OK}] read {ENV_FILE}" if env_loaded else f"[      ] no .env at {ENV_FILE} (using shell environment only)")
 
 check(sys.version_info >= (3, 10),
       f"Python {sys.version.split()[0]}",
@@ -46,7 +60,8 @@ check(not missing,
 dr = os.environ.get("EPSILON_DATA_ROOT")
 check(dr is not None,
       f"EPSILON_DATA_ROOT = {dr}",
-      "EPSILON_DATA_ROOT is not set — point it at your local research_v1/ dir or the s3:// bucket.")
+      "EPSILON_DATA_ROOT is not set — export it, or put it in polymarket/research/.env, "
+      "pointing at your local research_v1/ dir or the s3:// bucket.")
 
 is_s3 = bool(dr) and dr.startswith("s3://")
 if is_s3:
@@ -58,7 +73,8 @@ if is_s3:
     check(creds is not None,
           "R2 credentials found",
           "EPSILON_DATA_ROOT is s3:// but no R2 credentials — set EPSILON_R2_KEY_ID / _SECRET / "
-          "_ENDPOINT (or configure an rclone [r2] remote). See the README credentials section.")
+          "_ENDPOINT in the shell or in polymarket/research/.env (or configure an rclone [r2] "
+          "remote). See the README credentials section.")
 elif dr:
     p = pathlib.Path(dr) / "tokens.parquet"
     check(p.exists(),

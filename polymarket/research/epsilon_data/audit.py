@@ -13,8 +13,17 @@ import pandas as pd
 from . import _internal as _i
 from .tape import load_l1, load_trades, load_pair
 
-# the one real multi-hour capture outage (both universes)
-_OUTAGE = (pd.Timestamp("2026-06-22T15:00:00Z"), pd.Timestamp("2026-06-23T08:29:00Z"))
+# The one real multi-hour capture outage (both universes), measured from the parquet rather than
+# from coverage.parquet's hour granularity: the last L1 event before the gap is 2026-06-22
+# 14:03:30Z and the first after is 2026-06-23 08:29:10Z (both universes agree to within 0.5 s and
+# 0.01 s respectively). 18h26m, not the ~17h from 15:00 the docs used to say — there are zero
+# rows between 14:03:31 and 15:00.
+_OUTAGE = (pd.Timestamp("2026-06-22T14:03:30Z"), pd.Timestamp("2026-06-23T08:29:10Z"))
+# How far outside the outage a long gap may extend and still count as explained by it. A token's
+# gap runs from its last quote before the outage to its first after, so some slack is needed for a
+# sparse tape — but the gap must be CONTAINED in the widened window, not merely overlap it,
+# or a months-long hole that happens to span 06-22 would be silently excused.
+_OUTAGE_SLACK = pd.Timedelta("1h")
 _EXCL_HEADER = "asset_id,scope,reason,date,who"
 
 
@@ -140,7 +149,8 @@ def audit_market(ref) -> AuditResult:
     for ts_end, g in zip(ts_sorted.iloc[1:], dt.iloc[1:]):
         if g > pd.Timedelta("12h"):
             ts_start = ts_end - g
-            if not ((ts_start <= _OUTAGE[1]) and (ts_end >= _OUTAGE[0])):
+            explained = (ts_start >= _OUTAGE[0] - _OUTAGE_SLACK) and (ts_end <= _OUTAGE[1] + _OUTAGE_SLACK)
+            if not explained:
                 unexplained_long += 1
     checks.append(Check("continuity", "note" if unexplained_long else "ok",
                         f"{big} gaps >1h (normal for a quiet market); {unexplained_long} unexplained gaps >12h; "

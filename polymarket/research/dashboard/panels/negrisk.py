@@ -22,7 +22,8 @@ def render(ctx: Ctx):
     yes_cols = [a for a in wide.columns if meta.get(a, {}).get("outcome") == "YES"] \
         or [a for a in wide.columns if meta.get(a, {}).get("outcome_index") == 0]
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.68, 0.32], vertical_spacing=0.04,
-                        subplot_titles=("every candidate's YES mid", "YES sum (instantaneous, common timestamp)"))
+                        subplot_titles=("every candidate's YES mid",
+                                        "YES sum of LAST-KNOWN mids (ffilled — NOT instantaneous)"))
     for a in yes_cols:
         fig.add_trace(D.sg(len(wide))(x=wide.index, y=wide[a] * 100, line=dict(width=0.7), opacity=0.5,
                       showlegend=False, hoverinfo="skip"), 1, 1)
@@ -35,8 +36,11 @@ def render(ctx: Ctx):
     s[0].metric("candidates captured", f"{ncap}")
     s[1].metric("YES sum · median", f"{ns.yes_sum.median():.3f}")
     s[2].metric("YES sum · latest", f"{ns.yes_sum.dropna().iloc[-1]:.3f}" if ns.yes_sum.notna().any() else "—")
-    st.caption("Summed **at each timestamp** (never a sum of medians). Below 1 is explained by missing "
-               "candidates; meaningfully above 1 with all present is a finding. Caveat: the sum uses "
-               "mid=(bid+ask)/2 and forward-fills quiet candidates, so it can overstate for many-candidate "
-               "range events (e.g. Elon-tweet ranges) — read it as a diagnostic, not a clean arb signal. "
-               "v1 does not store Gamma's full listed-candidate count, only what we captured.")
+    st.caption("⚠️ **This is a stale composite, not an instantaneous sum.** Candidates are aligned on a "
+               "1-second index and **forward-filled with no limit**, so each leg contributes its last "
+               "known mid: on a 25-leg Elon-tweet-range event only ~1.3 legs actually update per second "
+               "and the median summed quote is **~20 hours old** (audit 2026-09). Below 1 can be missing "
+               "candidates; above 1 is at least as likely to be the ffill keeping dead candidates alive. "
+               "The sum uses mid=(bid+ask)/2. Read it as a diagnostic of shape and of the right tail — "
+               "never as a live arb signal. v1 does not store Gamma's full listed-candidate count, only "
+               "what we captured.")

@@ -1,7 +1,9 @@
 """epsilon_data — the public loader for the Polymarket research library (research/v1).
 
-Everything a dashboard, notebook or analysis should use lives here. No side effects on import,
-no printing. See README.md for the full manual, tables, units and traps.
+Everything a dashboard, notebook or analysis should use lives here. No printing, and the only
+side effect on import is loading `polymarket/research/.env` if one exists (shell env wins;
+values are never printed) — see config.load_env. See README.md for the full manual, tables,
+units and traps.
 
     import epsilon_data as ed
     ed.search("fed")                       # find a market
@@ -9,7 +11,7 @@ no printing. See README.md for the full manual, tables, units and traps.
 """
 from __future__ import annotations
 
-from .config import __version__, data_root
+from .config import __version__, data_root, load_env
 from .catalog import (
     catalog, events, search, resolve,
     coverage, reconciliation, activity_by_time, negrisk_sum,
@@ -22,5 +24,5 @@ __all__ = [
     "load_l1", "load_trades", "load_pair", "load_event", "markout",
     "coverage", "reconciliation", "activity_by_time", "negrisk_sum",
     "audit_market", "write_exclusion",
-    "data_root", "__version__",
+    "data_root", "load_env", "__version__",
 ]

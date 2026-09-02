@@ -15,7 +15,10 @@ l1  = ed.load_l1(aid)                      # its L1 tape (UTC-indexed)
 
 ```bash
 cd polymarket/research
-python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (uv users: `uv sync`)
+uv pip install -r requirements.txt       # or `uv sync`. No uv? python -m venv .venv &&
+                                         # .venv/bin/python -m pip install -r requirements.txt
+                                         # (.venv/Scripts/… on Windows). This .venv is uv-created
+                                         # and has no pip binary, so `.venv/bin/pip` will not work.
 python scripts/fetch_data.py             # download the data (~1.09 GB, no rclone; needs 3 R2 env vars)
 #  point at the data (choose ONE):
 #    local (fast, what fetch_data.py just wrote):  set EPSILON_DATA_ROOT=…\polymarket\research\data\research_v1
@@ -50,9 +53,11 @@ edits. Files:
 | `tokens.parquet` | the tree — one row per token (30,772) |
 | `l1/universe=…/month=…/*.parquet` | L1 tape, 101,051,502 rows, deduped to touch-moving rows |
 | `trades/universe=…/month=…/*.parquet` | trade prints, 7,227,528 rows |
-| `obs_stats.parquet` | per-asset observation stats (feeds `tokens`) |
+| `coverage.parquet` | per (universe, date) capture coverage — **this is what `coverage()` reads** |
+| `obs_stats.parquet` | per-asset observation stats (fed the build; not read at runtime) |
+| `e2_counts.csv` | per (universe, month) raw→kept ledger: `l1_raw`, `l1_kept`, `trades`, `l1_parts`. The only per-partition raw→library reconciliation shipped with the data |
 | `exclusions.csv` | operator-edited exclusions, applied at load; **currently empty** |
-| `pc_file_manifest.txt` | archive file list (drives `coverage()`) |
+| `pc_file_manifest.txt` | archive file list, shipped for reference. **Nothing in the code reads it** |
 
 ## Public functions
 
@@ -135,8 +140,12 @@ received_ns)`.
 
 ## Known gaps (from `coverage()` and the capture log)
 
-- **The one real outage: 2026-06-22 15:00 → 06-23 08:00 UTC, ~17 h, both universes** (an OOM
-  crash). No book, no trades — a true gap, distinct from a quiet market.
+- **The one real outage: 2026-06-22 14:03:30Z → 06-23 08:29:10Z, 18 h 26 m, both universes** (an
+  OOM crash). No book, no trades — a true gap, distinct from a quiet market. Measured from the
+  parquet: the last L1 event before the gap and the first after, both universes agreeing to within
+  a second. `coverage()` is hour-granular and marks hour 14 present because it has data up to
+  14:03, so **filter on the timestamps above, not on `15:00`** — the hour form leaves 57 minutes of
+  dead capture in your data, looking exactly like a quiet market.
 - **2026-06-19 h00-11** both universes: capture started midday — not a loss.
 - **2026-08-21 h21-23** both universes: reboot tail (deliberately skipped compression).
 - **esports quiet hours:** ~24 hours across 14 esports days have a book snapshot but no
@@ -157,8 +166,11 @@ From `polymarket/research/` with the package importable (`PYTHONPATH=.` or an in
 import epsilon_data as ed
 ```
 
-The anti-drift test (`tests/test_loader.py::test_anti_drift_l1`) proves the loader returns
-exactly what a raw parquet read returns. Run: `PYTHONPATH=. python -m pytest tests/ -q`.
+The anti-drift test (`tests/test_loader.py::test_anti_drift`) proves the loader returns exactly
+what a raw parquet read returns — 20 seeded-random tokens per universe, every column, `l1` and
+`trades`. Run: `PYTHONPATH=. uv run pytest tests/ -q`. It tests the **loader**, not the data:
+its raw side is the built library, so dropped trades, dedup errors and mapping errors are out of
+its reach — those are what `scripts/audit_checks/` is for.
 
 See `notebooks/epsilon_data_examples.ipynb` for five worked tasks end to end.
 
@@ -274,7 +286,8 @@ discipline (parity vs a known-good replay) applies.
 
 ## Known gaps & a data caveat
 
-- **Outage:** 2026-06-22 15:00 → 06-23 08:29 UTC (~17 h, both universes) — no book, no trades.
+- **Outage:** 2026-06-22 14:03:30Z → 06-23 08:29:10Z (18 h 26 m, both universes) — no book, no
+  trades. Filter on those timestamps, not on the hour boundary (see Known gaps above).
 - **Capture start ramp:** 2026-06-19 h00-11 (both) — not a loss.
 - **Reboot tail:** 2026-08-21 h21-23 (both).
 - **esports quiet hours:** book present, no trading (e.g. 07-24 h12, 08-21 h11-12) — **not gaps**.
