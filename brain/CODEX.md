@@ -32,7 +32,7 @@ Two independent research projects, one repo:
 
 | Project | Root | What it does |
 |---|---|---|
-| **Polymarket alpha** | `polymarket/research/` + `polymarket/execution/` (Midas) | Prediction-market trading: copytrade (Midas bot, per-leader audit), Block K (maker + options-delta), and the dali/Polymarket research lineage |
+| **Polymarket alpha** | `polymarket/research/` + `polymarket/execution/` (Midas) | Prediction-market trading. **Active: market-making** ([[strat_market_making]] → [[mm_model]]). Copy-trading is deprioritised; the valuation-overlay and microstructure lineages are parked (banners on every note) |
 | **Crypto live trading** | `live_trading/` + `topics/` + `infrastructure/` | Momentum / stat-arb / BB-breakout strategies on Binance; walk-forward + CPCV research engine |
 
 They share **no code**. Separate venvs, separate pyproject/requirements. Never cross-import.
@@ -123,9 +123,9 @@ Thread status is authoritative in [[TODO]] and [[VAULT_MAP]] § Active research 
 | Thread | Hub |
 |---|---|
 | MM — market-making | [[strat_market_making]] (`polymarket/research/notes/market_making/`) |
-| OD — options-delta | [[strat_options_delta]] (`polymarket/research/notes/options_delta/`) |
-| copytrade | [[TODO]] § copytrade + `polymarket/research/notes/copytrade/` |
-| dali / research lineage | [[COWORK]] § dali cluster + `polymarket/research/notes/dali/` |
+| valuation overlay (PARKED) | `polymarket/research/notes/options_delta/` — do not build on |
+| copy-trading (deprioritised) | `polymarket/research/notes/copytrade/` + [[TODO_ARCHIVE]] |
+| microstructure lineage (PARKED) | `polymarket/research/notes/dali/` — do not build on |
 
 ### Key invariants (never violate)
 - `PYTHONPATH=. uv run python …` from inside `polymarket/research/`
@@ -233,7 +233,7 @@ Worked anchor: the 2026-06-02 same-day OD Arm T survivor passed OOS+BH (fair) bu
 
 1. Run the Agent Bootstrap ([[VAULT_MAP]] § Agent Bootstrap — includes the personal-branch rule), then read this file (`brain/CODEX.md`)
 2. Read `brain/TODO.md` — check active thread, open tasks, blockers — and `brain/COWORK.md` § Active threads
-3. Read `brain/POLYMARKET_BRAIN.md` for Polymarket work, then the relevant hub (MM, OD, copytrade, dali, or STRATEGY_REFERENCE as appropriate)
+3. Read `brain/POLYMARKET_BRAIN.md` for Polymarket work, then the market-making canon surface ([[strat_market_making]] → [[mm_model]]); for crypto work, `docs/STRATEGY_REFERENCE.md`
 4. When hunting for prior work or related notes, use the **gbrain MCP tools** (semantic `search` + `traverse_graph`/`get_backlinks`) before grep/folder scans — it indexes this vault and resolves `[[basename]]` links as graph edges. Retrieval only; synthesis stays in-agent. Setup/teardown: `docs/tooling/gbrain_retrieval_layer.md`.
 5. For data-heavy work, read the relevant data/artifact manifest before scanning raw folders
 6. **Surface skills for the task (Sherpa).** Run `python3 tools/sherpa.py "<the task in a sentence>"` and load whatever skills it surfaces — at session start and again whenever the task shifts. It ranks the installed skills by keyword + local-semantic match (offline; keyword-only if the local embedder is down) and returns each with a one-line "use when". This is the reliable auto-surfacing mechanism; it complements Claude Code's native description-triggering. Wrapper skill: `find-skills`. See [[VAULT_MAP]] § Agent Bootstrap step 6 and [[SKILL_MAP]] § Sherpa.

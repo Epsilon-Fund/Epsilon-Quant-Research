@@ -12,6 +12,9 @@ tags:
   - dali
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CANON** — terminal A0 capture data-quality record (25 shards, max inter-shard gap 0.085s); the numbers that gate all A1 work. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Block A0 Capture Status

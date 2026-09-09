@@ -17,6 +17,9 @@ hubs:
   - COWORK
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CANON** — the strategic triage that separated the falsified continuation FRAMING from the still-descriptive signal, and spawned Block A18/Block I; minor known error: describes A1.2 as an 'L2 proxy' test when it was a true per-level replay. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Reconciliation — External Strategy Library vs A1.4–A1.7

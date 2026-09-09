@@ -12,6 +12,9 @@ tags:
   - research
   - market-making
 ---
+
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
 # PM CLOB Capture Semantics
 > Hub: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · [[COWORK]]
 > Where the captured data lives + how to pull it (VPS → Cloudflare R2): [[mm_vps_capture_setup]]. The continuous capture this note describes now runs 24/7 on a VPS and backs up to R2; the local `data/live_clob/` shards were pruned, so pull from R2 first.

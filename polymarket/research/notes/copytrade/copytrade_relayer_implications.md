@@ -10,6 +10,9 @@ hubs:
   - COWORK
 ---
 
+> **DEPRIORITISED (2026-08-25).** The copy-trading thread is not the active research thread (that is [[strat_market_making]]). It is not archived either — its execution/signing infrastructure is live and shared with the market-making machinery. Pick this thread back up only with Justin.
+
+
 > **Canon status (2026-07-19 audit): CANON** — twice-falsified 'invisible taker wallet' hypothesis (0/2,051 sampled senders join traders; aggressor already in maker, 99.7% join); prevented an expensive wrong rebuild. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Copytrade Relayer Implications

@@ -12,6 +12,9 @@ tags:
   - copytrade
 ---
 
+> **DEPRIORITISED (2026-08-25).** The copy-trading thread is not the active research thread (that is [[strat_market_making]]). It is not archived either — its execution/signing infrastructure is live and shared with the market-making machinery. Pick this thread back up only with Justin.
+
+
 > **Canon status (2026-07-19 audit): HISTORICAL** — sound walk-forward design spec, since executed; its flat-3c slippage fallback was superseded by [[copytrade_spread_surface_mtm_findings]] with no verdict flips. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Phase 5 — Walk-Forward Cohort Backtesting

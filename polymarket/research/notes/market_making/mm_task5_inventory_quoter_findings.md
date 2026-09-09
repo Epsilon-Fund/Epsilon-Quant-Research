@@ -20,6 +20,9 @@ tags:
   - backtesting
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # Inventory-Managed Market-Making on Polymarket (Task 5 + 5.1)
 
 > Hubs: [[strat_market_making]] · [[mm_backtesting_methodology_explainer]]. Builds on [[mm_symmetric_quoter_validation_findings]] (Task 4 baseline) and [[mm_market_screen_and_ttr_regime_findings]] (screen + τ-regime). Engine lock: [[mm_join1_reconciliation_findings]]. **Full Task-5.1 technical record:** [[mm_task5_1_neutral_quoter_cpcv_findings]]. PRDs: [[2026-07-07_mm_task5_prd_reference]] · [[2026-07-07_mm_task5_1_redesign_prd_reference]]. Next steps + manual audit: [[2026-07-08_mm_task5_next_steps_and_manual_audit]].

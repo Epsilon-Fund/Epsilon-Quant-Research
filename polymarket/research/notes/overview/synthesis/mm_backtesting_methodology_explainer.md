@@ -20,6 +20,9 @@ tags:
   - explainer
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # How Institutional Market-Making Backtesting Works — and What It Means for Us
 
 > Hubs: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · concepts: [[mm_concepts_and_strategy_buildup]] · our data limits: [[mm_clob_capture_semantics]]

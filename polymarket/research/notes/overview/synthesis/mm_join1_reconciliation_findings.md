@@ -16,6 +16,9 @@ tags:
   - data-quality
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Engine JOIN 1 — Integrity Reconciliation
 
 > Hub: [[strat_market_making]] · [[POLYMARKET_BRAIN]] · Engine plan: [[2026-06-23_mm_engine_phase01_buildplan]] · How/why: [[mm_backtesting_methodology_explainer]] §6 · Data limits: [[mm_clob_capture_semantics]] · Book-accuracy detail: [[mm_reconstruction_audit_findings]]

@@ -5,6 +5,9 @@ created: 2026-06-04
 status: no-live-screen-candidates-after-directional-gate
 ---
 
+> **PARKED (2026-08-25).** Out of scope for the active market-making project — historical record of an earlier research era. Do not build on this note or quote its numbers as current. The canon surface is [[strat_market_making]] + [[mm_model]].
+
+
 # MM Non-Politics Target Screen Findings
 
 > Hub: [[strat_market_making]] · [[COWORK]]

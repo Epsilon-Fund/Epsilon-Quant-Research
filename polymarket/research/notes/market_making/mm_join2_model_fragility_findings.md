@@ -15,6 +15,9 @@ tags:
   - fragility
 ---
 
+> **HISTORICAL EVIDENCE (2026-08-25).** Detailed findings behind the active market-making project, kept for verification. Read the de-jargoned canon surface first — [[strat_market_making]] + [[mm_model]] — and treat every number here as preliminary per the hub reliability ledger.
+
+
 # MM Join-2 model-fragility audit — does the politics maker sign survive the two suspect models?
 
 > Hub: [[strat_market_making]] · [[COWORK]]

@@ -10,6 +10,9 @@ hubs:
   - COWORK
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — pre-registered OOS bar on a genuine later holdout capture with frozen discovery thresholds; P2's deep-book fade correctly closed. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # P3' A0c OOS Reversion Replication Findings

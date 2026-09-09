@@ -7,6 +7,9 @@ hubs:
   - COWORK
 ---
 
+> **DEPRIORITISED (2026-08-25).** The copy-trading thread is not the active research thread (that is [[strat_market_making]]). It is not archived either — its execution/signing infrastructure is live and shared with the market-making machinery. Pick this thread back up only with Justin.
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — taker-copy of structural-carrier direction fails net-of-cost in all three sleeves with market-cluster bootstrap CIs; kill only strengthens under the later spread-surface costs; known gap: the replay script was never committed (reproducibility, not correctness). Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 # Copytrade Structural Directional Carriers Findings

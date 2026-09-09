@@ -6,6 +6,9 @@ hubs:
 tags: [dali, block-a1, viz, results]
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): HISTORICAL** — rendering pass over audited A1 CSVs; no new numbers. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 > Hub: [[COWORK]]

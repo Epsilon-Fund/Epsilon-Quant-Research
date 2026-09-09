@@ -122,15 +122,17 @@ Concurrent-edit safety comes from the branch model: each collaborator edits on t
 
 ## Active research branches
 
-| Branch | Folder | Status | Hub |
-|---|---|---|---|
-| copytrade | `polymarket/research/notes/copytrade/` | active — first real-money smoke pending | [[COWORK]] § copytrade |
-| MM — market-making | `polymarket/research/notes/market_making/` | active live-measurement track; old single-venue K2/K-PEG path closed | [[strat_market_making]] |
-| OD — options-delta | `polymarket/research/notes/options_delta/` | standalone pricing closed; selected sizing/execution diagnostics feed MM | [[strat_options_delta]] |
-| dali / research lineage | `polymarket/research/notes/dali/` | not globally closed; individual branches falsified — every note carries a canon-audit banner ([[pm_prealvaro_canon_audit_findings]]) | [[COWORK]] § dali |
-| crypto momentum (live) | `live_trading/dashboards/momentum/` | live (6-asset universe) | `docs/STRATEGY_REFERENCE.md` |
+> Rewritten 2026-08-25 for the market-making handoff. One active thread; tier banners on every research note enforce this at the note level.
 
-> Closed/falsified branch anchors live in [[POLYMARKET_BRAIN]] § Falsification And Redesign Anchors. The single high-level map of the whole arc is [[2026-06-04_state_of_the_arc_and_novelty_frontier]].
+| Branch | Folder | Status | Start here |
+|---|---|---|---|
+| **Market-making (Polymarket)** | `polymarket/research/notes/market_making/` + `mm_engine/`/`mm_eval/` + `polymarket/execution/` | **ACTIVE — the only live research thread** | [[strat_market_making]] → [[mm_model]] |
+| copy-trading | `polymarket/research/notes/copytrade/` | deprioritised (paused pre-first-live-trade; shares live execution infra with MM) | banner on any note in the folder |
+| news-agent / calibration observatory | `polymarket/research/notes/news_agent/` | deprioritised (shipped; Justin-owned open items) | [[strat_news_agent_showcase]] |
+| crypto momentum (live book) | `live_trading/dashboards/momentum/` | live system, not under active research | `docs/STRATEGY_REFERENCE.md` |
+| valuation overlay + microstructure lineage + earlier MM eras | `notes/options_delta/`, `notes/dali/`, K-era notes | **PARKED** — historical record, do not build on | PARKED banners in the notes |
+
+> The map of what is active/parked on the Polymarket side is [[POLYMARKET_BRAIN]]. The live task list is [[TODO]]; the pre-handoff task history is [[TODO_ARCHIVE]].
 
 ## Generated reports + data manifests
 

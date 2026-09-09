@@ -6,6 +6,9 @@ hubs:
 tags: [dali, block-a14d, executable-cost, results]
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-19 audit): CLOSED-ROBUST** — 6/198 cells in one market with CI through zero, correctly not claimed; spread filtering does not rescue the signal. Full ledger: [[pm_prealvaro_canon_audit_findings]].
 
 > Hub: [[COWORK]]

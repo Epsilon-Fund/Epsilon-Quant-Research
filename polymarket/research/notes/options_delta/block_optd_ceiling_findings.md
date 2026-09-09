@@ -11,6 +11,9 @@ hubs:
 tags: [dali, optd, optuna, ceiling, in-sample, results]
 ---
 
+> **PARKED (2026-08-25).** Out of scope for the active market-making project — historical record of an earlier research era. Do not build on this note or quote its numbers as current. The canon surface is [[strat_market_making]] + [[mm_model]].
+
+
 # OPT-D Directional Ceiling Search Findings
 
 > Hub: [[COWORK]] · [[strat_options_delta]]

@@ -1,7 +1,8 @@
 ---
 title: "Polymarket Brain Map"
 created: 2026-06-05
-status: closed
+updated: 2026-08-25
+status: active
 owner: justin
 project: infra
 para: area
@@ -15,74 +16,37 @@ tags:
 ---
 # Polymarket Brain Map
 
-> Start here when you need the Obsidian-level map of the Polymarket project. For execution details, read the linked notes themselves.
+> Start here for anything Polymarket. As of 2026-08-25 this map has one active project and a set of parked/deprioritised areas. If you are here to work, you almost certainly want the market-making project.
 
-## Why Wikilinks Matter
+## The one active project: market-making
 
-Wikilinks keep the research memory navigable. A finding is only useful later if a future Codex or Cowork session can discover its hub, sibling notes, and closure status without re-reading the whole repo. Obsidian then gives us a graph view of clusters, orphans, and broken links, which is exactly how we avoid repeating dead branches or losing the one note that explains why a strategy was closed.
+**Read, in order: [[strat_market_making]] (the hub — current state of both lanes, honest framing, reliability ledger) → [[mm_model]] (the model — fundamentals vs additions).** Those two notes are self-contained and de-jargoned; they are the canon surface. Everything else under `polymarket/research/notes/` carries a status banner (HISTORICAL EVIDENCE / PARKED / DEPRIORITISED) — evidence notes back the canon with details and numbers, parked notes are archaeology.
 
-## Core Hubs
+Operational references for the active project:
 
-- [[COWORK]] — strategic orientation, active clusters, and prompt discipline.
-- [[CODEX]] — implementation orientation and required startup context.
-- [[TODO]] — authoritative active task list.
-- [[glossary]] — cross-project terms.
+- [[mm_vps_capture_setup]] — the live 24/7 order-book capture (rented server → Cloudflare R2 bucket): cloud layout, formats, pull commands, and the two known capture gaps.
+- [[mm_engine_build_log]] — the replay engine's build history and component map (historical evidence; the engine lives in `polymarket/research/mm_engine/` + `mm_eval/`).
+- [[MM_JOIN2_RUNBOOK]] (`polymarket/execution/maker/`) — operator runbook for the live measurement machinery.
+- [[polymarket_data_manifest]] — where all Polymarket data artifacts live; [[polymarket_table_dictionary]] and [[polymarket_csv_output_audit]] — shared table/CSV conventions; [[METRICS_REFERENCE]] — metric formulas.
+- [[mm_clob_capture_semantics]] — what the public order-book feed can and cannot prove (it is anonymous: no wallets, no order IDs, no own-queue position).
 
-## Overarching Polymarket Docs
+## Deprioritised (not active, not archived)
 
-- [[polymarket/research/README|research README]] — copytrade/data infrastructure overview and reproduction guide.
-- [[polymarket/research/CLAUDE|research rules]] — Polymarket research implementation conventions.
-- [[polymarket/research/notebooks/README|research notebook index]] — bridge from Markdown notes to notebooks.
-- [[polymarket/execution/README|execution README]] — Polymarket execution bot entry point.
-- [[block_k_plain_english_synthesis]] — plain-English explanation of the Block K arc and the MM/OD split.
-- [[block_k_maker_options_research]] — foundation research for maker/options-delta work.
-- [[strat_market_making]] — MM hub.
-- [[strat_options_delta]] — OD hub.
-- [[od_methodology_realism_audit_findings]] — OD-specific realism audit: RV-model fair is physical-probability fair, not option-IV fair; PM implied vol is diagnostic only.
-- [[polymarket/research/RESEARCH_FINDINGS|RESEARCH_FINDINGS]] — copytrade/data-side overview findings.
-- [[METRICS_REFERENCE]] — authoritative metric formulas and caveats.
-- [[dali_literature_synthesis]] and [[dali_factor_construction]] — academic/deep-research foundation for the dali / Polymarket research lineage.
-- [[external_ofi_tob_l2_midfreq_strategy_research]] — imported external OFI/TOB/L2 research library and triage source.
-- [[polymarket_csv_output_audit]] — CSV output layout and convention for generated result/report tables.
-- [[polymarket_data_manifest]] — family-level manifest for Parquet, CSV, JSONL, DuckDB, and raw Polymarket data artifacts.
-- [[polymarket_table_dictionary]] — shared definitions for compact table columns, bucket labels, filters, and indicators.
-- [[mm_clob_capture_semantics]] — public PM CLOB capture semantics: anonymous L2, trade-print alignment, timestamp handling, and reconstruction limits.
-- [[mm_engine_build_log]] — `mm_engine` recap: chronological build log (Phase 0 → Join 1), component map (every module + queue/latency models + strategy layer), and where-we-are (Join 1 LOCKED; Task 4 ‖ Join 2 in parallel). The navigable index over the engine notes.
-- [[trade_anchored_spread_surface_findings]] — SPREAD-1: trade-anchored half-spread surface from /prices-history mid + OrderFilled; `/prices-history` confirmed a true book midpoint; pre-registered validation gate FAIL (Spearman 0.496 < 0.6, MedAE exactly 1.000c) with a measured diagnosis — trade-time vs time-averaged spread divergence in fast crypto (2.29c vs 4.00c) + 1-min mid staleness; slow-category level prior survives (MedAE ≤ 0.9c).
-- [[spread_surface_tradetime_regate_findings]] — SPREAD-1b: the pre-registered successor gate — same frozen surface scored against the quoted half-spread as-of trade times (the quantity copy fills pay). **PASS on all three bars** (pooled MedAE 0.75c, fast-crypto 0.80c, 71.7% head-to-head vs flat-3c); the surface is a validated trade-time taker-cost prior for all categories except politics_negrisk (n=2); time-averaged consumers still must not use it.
-- [[polymarket_plot_gallery_index]] — wikilinked index of generated Polymarket plot-gallery attachments.
-- [[spacex_ipo_market_map_handoff]] — SpaceX IPO cross-market map for PM, Hyperliquid, TradingView, proxy funds, and agent handoff.
-- [[spacex_ipo_coworker_addendum]] — companion note from the coworker DOCX/PNG covering Class A vs Class B, `xyz:SPCX` vs `vntl:SPACEX`, Trade Republic, TradingView, and the PCHIP distribution.
-- [[spacex_pdf_construction_audit]] — methodology stress-test of the coworker PCHIP scripts: the multi-peak shape is an interpolation/differentiation artifact (not crowd belief); central stats (P(close>$135)≈80%, mean≈$167) are method-invariant, but shape/tail stats (mode, excess kurtosis +3.4→+0.8, P1/P99) are distorted; liquidity is unused. Reproduces the full original metric set under a liquidity-weighted lognormal and ships a drop-in replacement builder. Strategy framing intentionally out of scope.
-- [[data_contract_validation_layer_findings]] — executable data-contract + drift validation layer (the `data-contract` skill): schema, append-only, and lookahead invariants checked before any backtest/replay/research run.
+- **Copy-trading** (`notes/copytrade/`) — identify skilled wallets and test whether copying them survives execution costs. Engineering was completed to the brink of a first tiny live trade and paused. Its execution/signing infrastructure (`polymarket/execution/` mirror + signer) is **live and shared with market-making**. Pick up only with Justin.
+- **News-agent / calibration observatory** (`notes/news_agent/`, `polymarket/research/newsagent/`) — a public forecasting-calibration showcase, not a trading strategy. Shipped; has its own open items owned by Justin.
 
-## Strategy Folders
+## Parked (historical record — do not build on)
 
-Folder index: [[INDEX]].
+Every note in these areas carries a parked banner; concepts the active project needs are already explained inline in the canon surface.
 
-- `polymarket/research/notes/market_making/` — MM notes: K1/K2/K5/K-PEG, real-maker playbook, maker dominance.
-- `polymarket/research/notes/options_delta/` — OD notes: K3/K4/K6/K7, basis, vol, static hedge, longshot premium.
-- `polymarket/research/notes/copytrade/` — copytrade notes: relayer work, Domah profile, Block B/E, Phase 5, weather FTC.
-- `polymarket/research/notes/dali/` — dali lineage notes: A0/A1/A14/A15/A16/A17/P blocks, capture state, falsified branches, and redesign cues that fed Block K/MM/OD.
-- `polymarket/research/notes/overview/synthesis/` — cross-branch synthesis, plain-English explainers, and high-level maps.
-- `polymarket/research/notes/overview/foundations/` — academic/deep research and external research libraries.
-- `polymarket/research/notes/overview/data_quality/` — validation, reconciliation, freshness, trigger, and methodology notes.
-- `polymarket/research/notes/overview/market_maps/` — market screens and maps.
-- `polymarket/research/notes/news_agent/` — News-Agent Fair-Value + Calibration Showcase (public showcase thread, Block-J lineage): hub [[strat_news_agent_showcase]], gate pre-registration [[newsagent_v0_gate_preregistration]], radar [[newsagent_repo_data_radar_findings]].
+- **Earlier market-making eras** — single-venue quoting variants (tested, closed) and wallet-level studies of profitable makers (which motivated the politics focus). In `notes/market_making/` with PARKED banners.
+- **Valuation / fair-value overlay** (`notes/options_delta/`) — pricing Polymarket binaries against external fair values; closed standalone. One era's bridge ideas were folded into the old maker work; nothing here is input to the active project.
+- **Microstructure signal lineage** (`notes/dali/`) — order-flow research that was falsified for direct trading; its salvageable concepts (e.g. book-imbalance as a state/gate variable) are described where needed in the canon surface. Notes carry both an older audit banner (which graded them as *history*) and the parked banner.
+- **Archived strays** — `polymarket/archive/` (a retired pipeline, sports-arb stray, an execution-stack audit snapshot).
 
-## Falsification And Redesign Anchors
+## Rules that outlive any project
 
-- **Pre-Alvaro canon audit (2026-07-19): [[pm_prealvaro_canon_audit_findings]]** — verdict ledger for all 62 dali/copytrade/foundations notes (16 CANON, 17 CLOSED-ROBUST, 29 HISTORICAL, 0 DEMOTED); every audited note now carries a status banner. Read this before citing any pre-MM-era number.
-- **Dali workflow revision decision (2026-07-21): [[pm_dali_workflow_revision_decision]]** — the "should the whole dali workflow be revised?" answer: strategy stays closed (Tier 1), fix five recurring workflow defects (Tier 2), re-measure the dali features on real captured L2 as MM-gate inputs only (Tier 3, Cowork-scoped). Standing rule: read spread/depth from the real book, never estimate.
-- **Pre-Alvaro pipeline trust audit (2026-07-21): [[pm_prealvaro_pipeline_trust_audit_findings]]** — the adversarial snowball pass: corrected the 73.7%/36.0% record (metric mismatch), proved the sign-fix never reached the derived tables **plus** a larger aggressor double-count/phantom-position defect (position pipeline condemned pending bundle-aware regeneration; esports latency screen condemned; Join-2 screen-4 must stay a preference), confirmed A17's regime confound (calibration table condemned), and stress-tested every kill against replay/fill/fee/split assumptions — no reopens, most kills strengthen.
-- dali is not globally closed; its original direct local microstructure continuation branch was falsified/redesigned via [[block_p3prime_oos_findings]], [[block_a0c_holdout_retest_findings]], [[block_a14h_maker_non_overlap_findings]], and [[block_a17_lightgbm_findings]].
-- Single-venue Polymarket market-making is closed; surviving maker value is in [[block_k5_findings]], [[block_k5b_findings]], and the copy/learn route.
-- Continuous/banded options-delta gamma scalp is closed; static-hedge Strategy A moved through [[block_k6_strategy_a_static_hedge_findings]] into [[od_strategy_a_v2_lifecycle_findings]], where the primary OOS lifecycle gate failed and the hedge overlay stayed gated.
-- OD pricing-method caveat is now explicit in [[od_methodology_realism_audit_findings]]: old `fair` language often meant causal realized-vol physical probability, not external option-implied fair.
-- Cross-project Binance daily momentum plus Polymarket BTC/ETH binary overlay is closed in [[2026-06-02_binance_momentum_polymarket_hybrid]]: the [[STRATEGY_REFERENCE]] daily momentum baseline keeps the best CAGR and Sharpe, while the PM hedge only improves drawdown by paying away too much return and the alpha sleeve fails even under proxy quote-edge assumptions.
-- Latest politics NegRisk live-loop handoffs: [[2026-06-03_politics_negrisk_live_loop]] and [[2026-06-03_politics_negrisk_phase1_review]].
-- Latest graph cleanup context: [[2026-06-04_obsidian_orphan_link_pass]].
-
-## Prompt Rule
-
-Every Cowork-authored Codex prompt must begin by telling Codex to read [[CODEX]] first, then [[TODO]], [[COWORK]], this map, and the relevant strategy hub. [[CODEX]] is the implementation-agent README; this rule keeps Codex from running on stale or partial context.
+- Never mark inventory or unrealized P&L at the midpoint; use the executable exit price.
+- Read spread/depth from a real captured book, never estimate them.
+- Test-data splits keep a market's whole life on one side (see [[mm_model]] for why).
+- Every Cowork-authored implementation prompt starts by telling the agent to read [[CODEX]], then [[TODO]], [[COWORK]], this map, and [[strat_market_making]].

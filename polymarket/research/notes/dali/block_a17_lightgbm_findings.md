@@ -10,6 +10,9 @@ hubs:
   - COWORK
 ---
 
+> **PARKED (2026-08-25).** This research lineage is closed/parked. Any concept from it that the active market-making project needs is explained inline in [[strat_market_making]] / [[mm_model]] — do not build on this note. (An older audit banner below may say CANON/CLOSED-ROBUST/HISTORICAL; that classified the note as *history*, not as active work.)
+
+
 > **Canon status (2026-07-21 pipeline audit): CLOSED-ROBUST, scope narrowed.** The per-market chronological split is a **confirmed regime confound** (same shape Task 5.1 caught in the MM era): for the dominant btc-4h markets the test slices end 3–27 minutes before expiry, and one market's train window overlaps another's test on the same underlying. The *deployment* kill survives on the cost floor (the ML beat both rule baselines by +1,805–6,922 bps and still landed −418 to −1,397 bps vs a touch+fee floor). Two consequences: (1) cite this note only as "no *executable* ML edge near the cost floor," never as "the features carry no conditional signal"; (2) **the calibration table is condemned as evidence** — its high-confidence-bin breakdown is regime-shift-shaped, not proof of feature emptiness. 'Walk-forward' = a single chronological split. Details: [[pm_prealvaro_pipeline_trust_audit_findings]] Finding 3. Ledger: [[pm_prealvaro_canon_audit_findings]].
 >
 > **Clean-split resolution (2026-07-21, real L2):** the reopen-eligible sub-claim is now settled — under a doubly-disjoint split (disjoint markets × 3-week-embargoed disjoint weeks) on the politics-NegRisk/esports capture, the dali-descended features **do carry conditional signal** (TOB ~73% conditional both universes; microprice-dev likewise; L1 OFI real on esports, dead on politics). The executable-taker deployment kill is unchanged (cost floor re-measured on the new markets and still binding). See [[dali_features_real_l2_remeasure_findings]] § B4.

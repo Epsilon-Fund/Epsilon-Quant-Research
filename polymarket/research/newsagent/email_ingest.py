@@ -265,7 +265,17 @@ def _fetch_imap(since_days: int) -> list[dict]:
 def fetch_newsletters(since_days: int = 3, day: str | None = None) -> list[dict]:
     """Newsletter items from the inbox (Gmail API preferred, IMAP fallback); day-cached.
 
-    Returns [] when no credential is present (pipeline stays additive)."""
+    Returns [] when no credential is present, and ALSO when a credential is present
+    but no longer works — a revoked/expired OAuth refresh token, a changed app
+    password, an inbox outage. This channel is additive: a dead credential must
+    degrade the packet, never break the daily run (same contract as `_refresh_gdelt`
+    and the macro-PDF fetch). The reason is printed so an attended run can see it.
+
+    Failure observed 2026-08-24: Google returned HTTP 400 on the refresh-token
+    grant after the token sat unused since 2026-07-05 (unverified/testing OAuth
+    apps expire refresh tokens in ~7 days) — before this guard it raised straight
+    out of `--stage fetch` and stopped the run.
+    """
     ok, mode = available()
     if not ok:
         return []
@@ -274,7 +284,13 @@ def fetch_newsletters(since_days: int = 3, day: str | None = None) -> list[dict]
     cache = CACHE_DIR / f"{day}.json"
     if cache.exists():
         return json.loads(cache.read_text())
-    items = _fetch_gmail(since_days) if mode == "gmail" else _fetch_imap(since_days)
+    try:
+        items = _fetch_gmail(since_days) if mode == "gmail" else _fetch_imap(since_days)
+    except Exception as e:
+        print(f"  newsletters: skipped — {mode} credential failed ({type(e).__name__}: "
+              f"{str(e)[:120]}). Re-run the attended consent: "
+              "PYTHONPATH=. uv run python -m newsagent.email_ingest --consent")
+        return []
     # dedupe by (title, date-day)
     seen, out = set(), []
     for it in sorted(items, key=lambda x: x.get("seendate", ""), reverse=True):
