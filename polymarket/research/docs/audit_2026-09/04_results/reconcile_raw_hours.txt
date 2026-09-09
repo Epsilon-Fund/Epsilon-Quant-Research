@@ -1,0 +1,45 @@
+################ 2026-08-10 politics_negrisk 03 ################
+Traceback (most recent call last):
+  File "/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/scripts/audit_checks/check_reconcile_raw_hour.py", line 21, in <module>
+    DATE, UNI, HH = sys.argv[1], sys.argv[2], sys.argv[3]
+                                 ~~~~~~~~^^^
+IndexError: list index out of range
+real 0.44
+user 0.37
+sys 0.06
+################ 2026-07-06 politics_negrisk 14 ################
+Traceback (most recent call last):
+  File "/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/scripts/audit_checks/check_reconcile_raw_hour.py", line 21, in <module>
+    DATE, UNI, HH = sys.argv[1], sys.argv[2], sys.argv[3]
+                                 ~~~~~~~~^^^
+IndexError: list index out of range
+real 0.41
+user 0.35
+sys 0.05
+################ 2026-06-20 politics_negrisk 20 ################
+Traceback (most recent call last):
+  File "/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/scripts/audit_checks/check_reconcile_raw_hour.py", line 21, in <module>
+    DATE, UNI, HH = sys.argv[1], sys.argv[2], sys.argv[3]
+                                 ~~~~~~~~^^^
+IndexError: list index out of range
+real 0.41
+user 0.36
+sys 0.05
+################ 2026-07-15 esports 10 ################
+Traceback (most recent call last):
+  File "/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/scripts/audit_checks/check_reconcile_raw_hour.py", line 21, in <module>
+    DATE, UNI, HH = sys.argv[1], sys.argv[2], sys.argv[3]
+                                 ~~~~~~~~^^^
+IndexError: list index out of range
+real 0.42
+user 0.35
+sys 0.05
+################ 2026-08-17 esports 12 ################
+Traceback (most recent call last):
+  File "/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/scripts/audit_checks/check_reconcile_raw_hour.py", line 21, in <module>
+    DATE, UNI, HH = sys.argv[1], sys.argv[2], sys.argv[3]
+                                 ~~~~~~~~^^^
+IndexError: list index out of range
+real 0.41
+user 0.35
+sys 0.05

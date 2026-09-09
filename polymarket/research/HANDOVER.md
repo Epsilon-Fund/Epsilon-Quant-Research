@@ -31,8 +31,12 @@ You never touch raw parquet: one library, `epsilon_data`, is the only way in.
 
 ```bash
 cd polymarket/research
-python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (uv users: `uv sync`)
+uv pip install -r requirements.txt      # or `uv sync`
 ```
+
+> This project's `.venv` is uv-created and has **no `pip` binary** — `.venv/bin/pip` does not
+> exist. Without uv: `python -m venv .venv && .venv/bin/python -m pip install -r requirements.txt`
+> (`.venv/Scripts/python -m pip …` on Windows).
 
 Then get the data and point `EPSILON_DATA_ROOT` at it — **no code change either way**:
 
@@ -48,7 +52,7 @@ remote). Ask the operator; put them in a gitignored `.env` — never in a comman
 
 ```bash
 python scripts/check_setup.py                      # tells you what's wrong, in a sentence
-.venv/Scripts/streamlit run dashboard/app.py       # search "fed july", then Explore / Audit
+uv run streamlit run dashboard/app.py              # search "fed", then Explore / Audit
 ```
 
 > ### ⚠️ The R2 key can write AND delete. Only ever *copy*.
@@ -69,7 +73,9 @@ python scripts/check_setup.py                      # tells you what's wrong, in 
 
 ## What is known wrong or missing
 
-- One real **outage**: 2026-06-22 15:00 → 06-23 08:29 (both universes). Capture-start ramp on
+- One real **outage**: 2026-06-22 14:03:30Z → 06-23 08:29:10Z, 18 h 26 m (both universes;
+  measured from the parquet — the hour-granular `15:00` in older text leaves 57 minutes of dead
+  capture inside any filter built on it). Capture-start ramp on
   06-19 and a reboot tail on 08-21. esports has quiet hours (book, no trading) that are **not**
   gaps — `coverage()` tells them apart.
 - **No independent NO quotes**: NO_bid = 1 − YES_ask exactly (Polymarket's design). So both mids
@@ -105,5 +111,7 @@ is the whole reason the library exists.
 
 ## Where the detailed record lives
 
-`brain/handoff/reports/step{1..J}.md` and `brain/handoff/LOG.md` — the full build history, findable
-if you want it, not required reading. `CONTRIBUTING.md` — how to add a panel or a loader function.
+Dated session notes live in `brain/handoffs/` (plural). The step-by-step build history that used to
+be referenced here (`brain/handoff/reports/step{1..J}.md`, `brain/handoff/LOG.md`) is **not in this
+repo** — no such directory and no such files exist anywhere under `brain/`. `CONTRIBUTING.md` — how
+to add a panel or a loader function.

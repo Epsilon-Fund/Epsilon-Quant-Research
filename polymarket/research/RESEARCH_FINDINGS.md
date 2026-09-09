@@ -12,6 +12,13 @@ tags:
   - polymarket
 ---
 # Research Findings
+
+> ### ⚠️ This documents the copytrade/positions dataset (2022 → 2026-04), NOT `research_v1`.
+> `research_v1` is the 2026-06-19 → 08-21 order-book capture and shares **no** table, column,
+> grain or time range with anything below. For it, read
+> [`epsilon_data/README.md`](epsilon_data/README.md) and
+> [`HANDOVER.md`](HANDOVER.md).
+
 > Hub: [[COWORK]]
 > Table terms: [[polymarket_table_dictionary]]
 

@@ -35,7 +35,7 @@ st.sidebar.title("Epsilon · Polymarket")
 st.sidebar.caption(f"{len(cat):,} tokens · {cat.condition_id.nunique():,} markets · 2 universes")
 mode = st.sidebar.radio("Mode", ["Explore", "Audit"], horizontal=True)
 st.sidebar.markdown("### Find a market")
-query = st.sidebar.text_input("Search (question or slug)", placeholder="e.g. fed july", key="q")
+query = st.sidebar.text_input("Search (question or slug)", placeholder="e.g. fed", key="q")
 if query:
     res = D.search_df(query)
     if res.empty:
@@ -109,7 +109,7 @@ def render_audit(cid):
 # ---------------------------------------------------------------- routing
 if st.session_state.cid is None:
     st.title("Epsilon · Polymarket research terminal")
-    st.markdown("**Search a market** in the sidebar (try `fed july`) or pick a busy one. Then switch **Explore** / **Audit**.")
+    st.markdown("**Search a market** in the sidebar (try `fed`) or pick a busy one. Then switch **Explore** / **Audit**.")
     if mode == "Audit":
         for i, p in enumerate(panels_for("audit", has_market=False)):
             if i: st.divider()

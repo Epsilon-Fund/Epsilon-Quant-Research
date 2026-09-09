@@ -1,0 +1,46 @@
+# 2026-09-02T16:48:54Z  check_resolution_convergence.py 11
+
+=== converged_correct: 10 markets ===
+{
+ "resolved_outcome_agrees_with_clob": 10,
+ "winner_token_present_in_ours": 10,
+ "winner_final_mid>0.9": 8,
+ "loser_final_mid<0.1": 8,
+ "INVERTED_vs_clob (mapping-error signature)": 0,
+ "median_final_mid_winner": 0.968
+}
+universe clob_winner_outcome ours_resolved_outcome            check4  final_mid_winner  final_mid_loser  n_l1_winner
+ esports               Fuego                 Fuego converged_correct           0.94250          0.05750         1833
+ esports           Iron Wing             Iron Wing converged_correct           0.87500          0.12500         6713
+ esports        Division One          Division One converged_correct           0.92750          0.07250         5943
+ esports                  No                    No converged_correct           0.98000          0.02000         2554
+ esports  DIA Ozarox Esports    DIA Ozarox Esports converged_correct           0.99550          0.00450         2354
+ esports               Under                 Under converged_correct           0.96500          0.03500         4459
+ esports           Iron Wing             Iron Wing converged_correct           0.51000          0.49000         4380
+ esports                  No                    No converged_correct           0.99525          0.00475         4351
+ esports     ex-MANA eSports       ex-MANA eSports converged_correct           0.99525          0.00475         8762
+ esports     Phantom Academy       Phantom Academy converged_correct           0.97000          0.03000          668
+
+=== random_resolved: 10 markets ===
+{
+ "resolved_outcome_agrees_with_clob": 10,
+ "winner_token_present_in_ours": 10,
+ "winner_final_mid>0.9": 8,
+ "loser_final_mid<0.1": 8,
+ "INVERTED_vs_clob (mapping-error signature)": 0,
+ "median_final_mid_winner": 0.954
+}
+        universe clob_winner_outcome ours_resolved_outcome            check4  final_mid_winner  final_mid_loser  n_l1_winner
+         esports      Miami Heretics        Miami Heretics         near_half            0.9100           0.0900          595
+         esports               Acend                 Acend         near_half            0.9225           0.0775         8485
+         esports               Gen.G                 Gen.G         near_half            0.9950           0.0050         1799
+         esports         4ikibamboni           4ikibamboni         near_half            0.9850           0.0150         1827
+         esports      BESTIA Academy        BESTIA Academy         near_half            0.5050           0.4950          966
+         esports              Liquid                Liquid         near_half            0.9750           0.0250         1577
+politics_negrisk                  No                    No converged_correct            0.9950           0.0050         7227
+         esports         TEC Esports           TEC Esports         near_half            0.9375           0.0625         9884
+         esports  ThunderTalk Gaming    ThunderTalk Gaming converged_correct            0.9700           0.0300         1857
+         esports        Sashi Esport          Sashi Esport         near_half            0.8125           0.1875         5679
+real 8.49
+user 7.12
+sys 5.96

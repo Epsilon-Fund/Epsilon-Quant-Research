@@ -6,8 +6,9 @@
 
 Credentials: the SAME three env vars the loader uses — EPSILON_R2_KEY_ID / EPSILON_R2_SECRET /
 EPSILON_R2_ENDPOINT — read via epsilon_data's own credential path (with the rclone.conf [r2]
-fallback). Ask the operator for them; put them in a gitignored .env. They are read/write today,
-so treat them accordingly. Secrets are never printed or written anywhere.
+fallback). Ask the operator for them; put them in a gitignored `polymarket/research/.env`, which
+this script loads on startup (shell env always wins). They are read/write today, so treat them
+accordingly. Secrets are never printed or written anywhere.
 
 READ-ONLY against R2: this script only lists and gets objects. It contains no put/delete/copy —
 the key can delete and the 71 GB raw archive has no second copy.
@@ -27,6 +28,14 @@ _root = next((p for p in Path(__file__).resolve().parents if (p / "epsilon_data"
 if _root and str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
+# Load polymarket/research/.env before anything reads a credential or EPSILON_DATA_ROOT.
+# Shell env wins; no value is printed.
+try:
+    from epsilon_data.config import load_env
+    load_env()
+except Exception:
+    pass
+
 BUCKET = "epsilon-polymarket-data"
 PREFIX = "research/v1/"
 EXPECT_FILES = 792
@@ -39,7 +48,8 @@ def _client():
     creds = _r2_creds()
     if not creds:
         sys.exit("No R2 credentials. Set EPSILON_R2_KEY_ID / EPSILON_R2_SECRET / EPSILON_R2_ENDPOINT "
-                 "(or an rclone [r2] remote). Ask the operator; put them in a gitignored .env.")
+                 "in the shell or in polymarket/research/.env (or an rclone [r2] remote). "
+                 "Ask the operator.")
     kid, sec, ep = creds
     import boto3
     from botocore.config import Config

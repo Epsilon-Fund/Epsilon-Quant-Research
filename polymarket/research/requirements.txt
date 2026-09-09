@@ -1,7 +1,10 @@
-# epsilon_data research library + dashboard — pip install path for a clean clone.
-#   python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   (Windows)
-#   python -m venv .venv && .venv/bin/pip install -r requirements.txt        (macOS/Linux)
-# (uv users: `uv sync` reads pyproject.toml/uv.lock instead.)
+# epsilon_data research library + dashboard — install path for a clean clone.
+#   uv pip install -r requirements.txt                    (this repo's .venv is uv-created and
+#                                                          has no pip binary of its own)
+#   uv sync                                               (equivalent; reads pyproject.toml/uv.lock)
+# Plain venv, no uv:
+#   python -m venv .venv && .venv/Scripts/python -m pip install -r requirements.txt   (Windows)
+#   python -m venv .venv && .venv/bin/python -m pip install -r requirements.txt       (macOS/Linux)
 duckdb>=1.5.2
 pandas>=3.0.2
 pyarrow>=24.0.0

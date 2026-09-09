@@ -65,7 +65,12 @@ whole table.
 PYTHONPATH=. python -m pytest tests/ -q
 ```
 
-`tests/test_loader.py::test_anti_drift_l1` proves the loader returns exactly what a raw parquet
-read returns. **It must keep passing** — if the loader ever silently diverges from the data,
-everything built on it is wrong and nothing else would catch it. Also kept green:
-`test_audit_never_writes` (the audit tool must never touch `exclusions.csv`).
+`tests/test_loader.py::test_anti_drift` proves the **loader** returns exactly what a raw parquet
+read returns — 20 seeded-random tokens per universe, every column, `l1` and `trades`.
+**It must keep passing** — if the loader ever silently diverges from the data, everything built
+on it is wrong and nothing else would catch it. Also kept green: `test_audit_never_writes` (the
+audit tool must never touch `exclusions.csv`).
+
+Be precise about its scope: its "raw" side is the **built library**, not the capture, so it
+cannot see a dropped trade, a wrong dedup rule, part-boundary duplicates or a mapping error. For
+those, `scripts/audit_checks/` reconciles against the raw archive and against live oracles.

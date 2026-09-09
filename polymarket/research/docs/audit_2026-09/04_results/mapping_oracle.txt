@@ -1,0 +1,105 @@
+# 2026-09-02T16:47:48Z  check_mapping_oracle.py random 30 7
+{
+  "mode": "random",
+  "sampled": 60,
+  "clob_ok": 60,
+  "gamma_found": 60,
+  "asset_in_clob_market": {
+    "pass": 60,
+    "of": 60
+  },
+  "outcome_label_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "slug_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "question_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "neg_risk_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "closed_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "event_slug_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "event_id_match": {
+    "pass": 60,
+    "of": 60
+  },
+  "clob_winner_rows": 25,
+  "ours_resolved_outcome_equals_clob_winner": 25
+}
+
+rows with a CLOB mismatch: 0
+real 30.60
+user 1.43
+sys 0.41
+
+# check_mapping_oracle.py check3 20 10
+{
+  "mode": "check3",
+  "sampled": 30,
+  "clob_ok": 30,
+  "gamma_found": 30,
+  "asset_in_clob_market": {
+    "pass": 30,
+    "of": 30
+  },
+  "outcome_label_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "slug_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "question_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "neg_risk_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "closed_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "event_slug_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "event_id_match": {
+    "pass": 30,
+    "of": 30
+  },
+  "clob_winner_rows": 11,
+  "ours_resolved_outcome_equals_clob_winner": 11,
+  "check3=False": {
+    "n": 20,
+    "asset+outcome ok": 20,
+    "slug ok": 20,
+    "event_slug ok": 20
+  },
+  "check3=True": {
+    "n": 10,
+    "asset+outcome ok": 10,
+    "slug ok": 10,
+    "event_slug ok": 10
+  }
+}
+
+rows with a CLOB mismatch: 0
+real 19.70
+user 1.00
+sys 0.26

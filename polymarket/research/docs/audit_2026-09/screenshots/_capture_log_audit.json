@@ -1,0 +1,48 @@
+{
+  "log": [
+    {
+      "event": "mode_switch",
+      "detail": "-> Audit (dataset-wide, no market)",
+      "seconds": 4.02
+    },
+    {
+      "event": "audit_mode_text_len",
+      "detail": "2830 chars"
+    },
+    {
+      "event": "screenshot",
+      "detail": "20_audit_mode_full.png (145 KB)"
+    },
+    {
+      "event": "panel_shot",
+      "detail": "21_audit_0_reconciliation.png",
+      "seconds": 1.59
+    },
+    {
+      "event": "panel_shot",
+      "detail": "21_audit_1_coverage.png",
+      "seconds": 1.59
+    },
+    {
+      "event": "panel_shot",
+      "detail": "21_audit_2_distributions.png",
+      "seconds": 1.58
+    },
+    {
+      "event": "panel_shot",
+      "detail": "21_audit_3_outliers.png",
+      "seconds": 1.58
+    },
+    {
+      "event": "panel_shot",
+      "detail": "21_audit_4_activity.png",
+      "seconds": 1.59
+    },
+    {
+      "event": "panel_shot",
+      "detail": "21_audit_5_the.png",
+      "seconds": 1.58
+    }
+  ],
+  "browser_errors": []
+}

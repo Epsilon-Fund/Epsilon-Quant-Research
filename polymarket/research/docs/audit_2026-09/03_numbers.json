@@ -1,0 +1,2467 @@
+{
+  "dataset": {
+    "n_tokens": 30772,
+    "n_markets": 15386,
+    "n_events": 4443,
+    "n_events_incl_null_group": 4444,
+    "excluded_tokens": 0,
+    "reconciliation": [
+      {
+        "identity": "sum(n_l1_events) == l1 rows",
+        "catalog_sum": 101051502,
+        "table_rows": 101051502,
+        "match": true
+      },
+      {
+        "identity": "sum(n_trades) == trades rows",
+        "catalog_sum": 7227528,
+        "table_rows": 7227528,
+        "match": true
+      }
+    ],
+    "by_universe": {
+      "politics_negrisk": {
+        "tokens": 2854,
+        "markets": 1427,
+        "events": 273,
+        "l1_events": 13835598,
+        "trades": 1595527
+      },
+      "esports": {
+        "tokens": 27918,
+        "markets": 13959,
+        "events": 4170,
+        "l1_events": 87215904,
+        "trades": 5632001
+      }
+    }
+  },
+  "coverage": {
+    "n_dates": 64,
+    "date_min": "2026-06-19",
+    "date_max": "2026-08-21",
+    "documented_outage": {
+      "start": "2026-06-22T15:00:00Z",
+      "end": "2026-06-23T08:29:00Z"
+    },
+    "measured_outage": {
+      "start": "2026-06-22T14:03:30Z",
+      "end": "2026-06-23T08:29:10Z",
+      "note": "last L1 event before / first after; docs say 15:00 start"
+    },
+    "missing_hours_total_per_universe": {
+      "politics_negrisk": 32,
+      "esports": 32
+    },
+    "quiet_hours_total_per_universe": {
+      "politics_negrisk": 0,
+      "esports": 24
+    },
+    "days_with_quiet_hours": {
+      "politics_negrisk": 0,
+      "esports": 14
+    },
+    "quiet_day_detail": [
+      {
+        "universe": "esports",
+        "date": "2026-07-05",
+        "hours": [
+          "16"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-17",
+        "hours": [
+          "11",
+          "12"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-24",
+        "hours": [
+          "12"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-05",
+        "hours": [
+          "17",
+          "18"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-07",
+        "hours": [
+          "10",
+          "11"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-08",
+        "hours": [
+          "09",
+          "10"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-09",
+        "hours": [
+          "09",
+          "11"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-13",
+        "hours": [
+          "11"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-14",
+        "hours": [
+          "09"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-15",
+        "hours": [
+          "11"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-16",
+        "hours": [
+          "11"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-19",
+        "hours": [
+          "17",
+          "18"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-20",
+        "hours": [
+          "11",
+          "14",
+          "15",
+          "16"
+        ]
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-21",
+        "hours": [
+          "11",
+          "12"
+        ]
+      }
+    ],
+    "daily_rows": [
+      {
+        "universe": "esports",
+        "date": "2026-06-19",
+        "l1_rows": 647986,
+        "trades": 66338,
+        "notional": 9051419.697655
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-20",
+        "l1_rows": 1003650,
+        "trades": 76417,
+        "notional": 11430837.124071233
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-21",
+        "l1_rows": 968884,
+        "trades": 64938,
+        "notional": 9037206.210037937
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-22",
+        "l1_rows": 383592,
+        "trades": 25813,
+        "notional": 1711612.3947576669
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-23",
+        "l1_rows": 657486,
+        "trades": 43729,
+        "notional": 3828439.139628329
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-24",
+        "l1_rows": 802372,
+        "trades": 60365,
+        "notional": 5541939.498496199
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-25",
+        "l1_rows": 1046710,
+        "trades": 52887,
+        "notional": 4136970.2317014183
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-26",
+        "l1_rows": 1156624,
+        "trades": 58644,
+        "notional": 4868803.441537456
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-27",
+        "l1_rows": 1108720,
+        "trades": 48358,
+        "notional": 4670241.1504021855
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-28",
+        "l1_rows": 1134940,
+        "trades": 61568,
+        "notional": 8400805.71779753
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-29",
+        "l1_rows": 799832,
+        "trades": 50508,
+        "notional": 6766343.150545178
+      },
+      {
+        "universe": "esports",
+        "date": "2026-06-30",
+        "l1_rows": 816620,
+        "trades": 49831,
+        "notional": 4686839.674803746
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-01",
+        "l1_rows": 1083200,
+        "trades": 60077,
+        "notional": 7853927.4912571525
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-02",
+        "l1_rows": 1167728,
+        "trades": 56014,
+        "notional": 5225373.6580805965
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-03",
+        "l1_rows": 1239066,
+        "trades": 91224,
+        "notional": 13366470.58780103
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-04",
+        "l1_rows": 1315860,
+        "trades": 108027,
+        "notional": 16628579.158835705
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-05",
+        "l1_rows": 2132330,
+        "trades": 87653,
+        "notional": 13695580.287454046
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-06",
+        "l1_rows": 754610,
+        "trades": 52598,
+        "notional": 8076572.638593979
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-07",
+        "l1_rows": 1144584,
+        "trades": 65397,
+        "notional": 7931089.345838461
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-08",
+        "l1_rows": 1533584,
+        "trades": 106151,
+        "notional": 17611090.586364456
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-09",
+        "l1_rows": 1573008,
+        "trades": 103247,
+        "notional": 17675218.431058086
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-10",
+        "l1_rows": 1680664,
+        "trades": 105302,
+        "notional": 16876550.5889088
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-11",
+        "l1_rows": 2046214,
+        "trades": 104487,
+        "notional": 16920099.707307465
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-12",
+        "l1_rows": 1897900,
+        "trades": 130306,
+        "notional": 18394528.36167193
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-13",
+        "l1_rows": 684042,
+        "trades": 33461,
+        "notional": 1743816.3685183963
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-14",
+        "l1_rows": 849256,
+        "trades": 50055,
+        "notional": 6840316.183532909
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-15",
+        "l1_rows": 1135998,
+        "trades": 91904,
+        "notional": 17384852.833438642
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-16",
+        "l1_rows": 1235030,
+        "trades": 97190,
+        "notional": 19452487.674595222
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-17",
+        "l1_rows": 1275918,
+        "trades": 84819,
+        "notional": 12681806.915120885
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-18",
+        "l1_rows": 1351592,
+        "trades": 92981,
+        "notional": 18039042.930761922
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-19",
+        "l1_rows": 1263002,
+        "trades": 80208,
+        "notional": 19310087.520727284
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-20",
+        "l1_rows": 1099660,
+        "trades": 72670,
+        "notional": 6791111.017453831
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-21",
+        "l1_rows": 1257542,
+        "trades": 91878,
+        "notional": 11446095.20437682
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-22",
+        "l1_rows": 1332302,
+        "trades": 101485,
+        "notional": 13336031.539848773
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-23",
+        "l1_rows": 1983804,
+        "trades": 111192,
+        "notional": 15190699.580862775
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-24",
+        "l1_rows": 1329558,
+        "trades": 109555,
+        "notional": 16961589.977377154
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-25",
+        "l1_rows": 1548758,
+        "trades": 108864,
+        "notional": 18187965.213429235
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-26",
+        "l1_rows": 1812824,
+        "trades": 123658,
+        "notional": 19131723.768647175
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-27",
+        "l1_rows": 1006284,
+        "trades": 68456,
+        "notional": 8873393.54800595
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-28",
+        "l1_rows": 1172576,
+        "trades": 60889,
+        "notional": 6113811.937679067
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-29",
+        "l1_rows": 2186754,
+        "trades": 87899,
+        "notional": 12473368.710331254
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-30",
+        "l1_rows": 1994684,
+        "trades": 107439,
+        "notional": 19368156.17878983
+      },
+      {
+        "universe": "esports",
+        "date": "2026-07-31",
+        "l1_rows": 2460252,
+        "trades": 123736,
+        "notional": 22313912.07259772
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-01",
+        "l1_rows": 2128378,
+        "trades": 204397,
+        "notional": 26075305.799234353
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-02",
+        "l1_rows": 1506872,
+        "trades": 167988,
+        "notional": 25108744.22228916
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-03",
+        "l1_rows": 1517108,
+        "trades": 87844,
+        "notional": 14600479.674273977
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-04",
+        "l1_rows": 1949360,
+        "trades": 85406,
+        "notional": 11825208.471722726
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-05",
+        "l1_rows": 1811890,
+        "trades": 98988,
+        "notional": 18662062.407299202
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-06",
+        "l1_rows": 1969930,
+        "trades": 104575,
+        "notional": 15037645.027418382
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-07",
+        "l1_rows": 1253356,
+        "trades": 78219,
+        "notional": 14120151.73196767
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-08",
+        "l1_rows": 1169902,
+        "trades": 87225,
+        "notional": 13196311.76039504
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-09",
+        "l1_rows": 1310884,
+        "trades": 75951,
+        "notional": 11647689.920608873
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-10",
+        "l1_rows": 1461680,
+        "trades": 73426,
+        "notional": 11576089.87509146
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-11",
+        "l1_rows": 1229548,
+        "trades": 57922,
+        "notional": 6333045.143466894
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-12",
+        "l1_rows": 1299998,
+        "trades": 108208,
+        "notional": 23187198.129585348
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-13",
+        "l1_rows": 1689588,
+        "trades": 114515,
+        "notional": 24674512.229635023
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-14",
+        "l1_rows": 1948514,
+        "trades": 156614,
+        "notional": 30666158.26841865
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-15",
+        "l1_rows": 1831854,
+        "trades": 154488,
+        "notional": 32815805.049838047
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-16",
+        "l1_rows": 1491064,
+        "trades": 126739,
+        "notional": 27160830.342595413
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-17",
+        "l1_rows": 1290148,
+        "trades": 61623,
+        "notional": 9049111.33419789
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-18",
+        "l1_rows": 1195822,
+        "trades": 56690,
+        "notional": 6505669.60703811
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-19",
+        "l1_rows": 1181210,
+        "trades": 79585,
+        "notional": 13412975.449211588
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-20",
+        "l1_rows": 1726170,
+        "trades": 103111,
+        "notional": 30076472.66347589
+      },
+      {
+        "universe": "esports",
+        "date": "2026-08-21",
+        "l1_rows": 1176628,
+        "trades": 120269,
+        "notional": 34723462.3823879
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-19",
+        "l1_rows": 100102,
+        "trades": 18689,
+        "notional": 1032322.0210992069
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-20",
+        "l1_rows": 374322,
+        "trades": 43079,
+        "notional": 3233482.238199088
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-21",
+        "l1_rows": 95816,
+        "trades": 35587,
+        "notional": 2326961.923727094
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-22",
+        "l1_rows": 29878,
+        "trades": 22589,
+        "notional": 2278773.1272742134
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-23",
+        "l1_rows": 96316,
+        "trades": 29351,
+        "notional": 1825752.714594951
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-24",
+        "l1_rows": 118234,
+        "trades": 37626,
+        "notional": 2999095.810880743
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-25",
+        "l1_rows": 120418,
+        "trades": 36854,
+        "notional": 2609418.8919385634
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-26",
+        "l1_rows": 292292,
+        "trades": 34446,
+        "notional": 2767057.0863876436
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-27",
+        "l1_rows": 69826,
+        "trades": 26094,
+        "notional": 2014441.1359759355
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-28",
+        "l1_rows": 61892,
+        "trades": 20910,
+        "notional": 1418503.6813996853
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-29",
+        "l1_rows": 139852,
+        "trades": 32270,
+        "notional": 2851332.973348793
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-06-30",
+        "l1_rows": 142350,
+        "trades": 36179,
+        "notional": 5665200.743315042
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-01",
+        "l1_rows": 55972,
+        "trades": 24881,
+        "notional": 2858469.541079073
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-02",
+        "l1_rows": 68984,
+        "trades": 23267,
+        "notional": 4766273.677138599
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-03",
+        "l1_rows": 79152,
+        "trades": 29811,
+        "notional": 2598707.9122013035
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-04",
+        "l1_rows": 93914,
+        "trades": 27585,
+        "notional": 1130910.910869845
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-05",
+        "l1_rows": 199206,
+        "trades": 22510,
+        "notional": 1017954.8007971246
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-06",
+        "l1_rows": 271816,
+        "trades": 23784,
+        "notional": 1848975.2933835192
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-07",
+        "l1_rows": 431668,
+        "trades": 38168,
+        "notional": 4129431.5471051745
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-08",
+        "l1_rows": 389288,
+        "trades": 40541,
+        "notional": 4920571.478514623
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-09",
+        "l1_rows": 435792,
+        "trades": 32239,
+        "notional": 2578735.44243616
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-10",
+        "l1_rows": 448180,
+        "trades": 35868,
+        "notional": 2727718.9745940184
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-11",
+        "l1_rows": 507542,
+        "trades": 25684,
+        "notional": 2081736.511524912
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-12",
+        "l1_rows": 206914,
+        "trades": 24886,
+        "notional": 1475693.097900154
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-13",
+        "l1_rows": 228546,
+        "trades": 22587,
+        "notional": 2121016.23726221
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-14",
+        "l1_rows": 263324,
+        "trades": 36357,
+        "notional": 5507819.504808876
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-15",
+        "l1_rows": 432528,
+        "trades": 32570,
+        "notional": 3282009.746265363
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-16",
+        "l1_rows": 108866,
+        "trades": 30232,
+        "notional": 2446556.6322876443
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-17",
+        "l1_rows": 184294,
+        "trades": 35302,
+        "notional": 2831823.3224012577
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-18",
+        "l1_rows": 95652,
+        "trades": 20052,
+        "notional": 1242479.1448900981
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-19",
+        "l1_rows": 77924,
+        "trades": 17556,
+        "notional": 1559769.95507036
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-20",
+        "l1_rows": 148118,
+        "trades": 21994,
+        "notional": 2312230.1708310777
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-21",
+        "l1_rows": 81376,
+        "trades": 28205,
+        "notional": 2942311.4831870575
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-22",
+        "l1_rows": 274686,
+        "trades": 27911,
+        "notional": 2682324.08027153
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-23",
+        "l1_rows": 117878,
+        "trades": 20799,
+        "notional": 2380161.377008342
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-24",
+        "l1_rows": 332180,
+        "trades": 23802,
+        "notional": 2320453.1629288667
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-25",
+        "l1_rows": 357916,
+        "trades": 24217,
+        "notional": 1588843.7293303232
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-26",
+        "l1_rows": 321020,
+        "trades": 17436,
+        "notional": 1494222.3834279182
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-27",
+        "l1_rows": 555474,
+        "trades": 24813,
+        "notional": 3584238.9482490537
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-28",
+        "l1_rows": 563558,
+        "trades": 23194,
+        "notional": 5688988.181732688
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-29",
+        "l1_rows": 281262,
+        "trades": 23688,
+        "notional": 1607057.4920096807
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-30",
+        "l1_rows": 487022,
+        "trades": 18297,
+        "notional": 2213166.3494330887
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-07-31",
+        "l1_rows": 324048,
+        "trades": 34984,
+        "notional": 2065226.2628469474
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-01",
+        "l1_rows": 154182,
+        "trades": 22323,
+        "notional": 1064944.7497572869
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-02",
+        "l1_rows": 86216,
+        "trades": 15615,
+        "notional": 1026737.8938361055
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-03",
+        "l1_rows": 165770,
+        "trades": 17182,
+        "notional": 1149974.1594532377
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-04",
+        "l1_rows": 320160,
+        "trades": 18878,
+        "notional": 1539850.6447049621
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-05",
+        "l1_rows": 183030,
+        "trades": 15856,
+        "notional": 1168215.281602096
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-06",
+        "l1_rows": 224936,
+        "trades": 15360,
+        "notional": 1366628.4495520464
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-07",
+        "l1_rows": 65684,
+        "trades": 16225,
+        "notional": 1496146.5496764176
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-08",
+        "l1_rows": 120470,
+        "trades": 12095,
+        "notional": 944119.8296149336
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-09",
+        "l1_rows": 39214,
+        "trades": 10058,
+        "notional": 862659.8825523824
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-10",
+        "l1_rows": 84834,
+        "trades": 15547,
+        "notional": 2337147.0433139466
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-11",
+        "l1_rows": 47968,
+        "trades": 17473,
+        "notional": 1450598.1705252838
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-12",
+        "l1_rows": 66566,
+        "trades": 16905,
+        "notional": 2085097.5795063032
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-13",
+        "l1_rows": 157510,
+        "trades": 18372,
+        "notional": 2204673.8007290037
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-14",
+        "l1_rows": 352694,
+        "trades": 23462,
+        "notional": 1721537.7872694281
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-15",
+        "l1_rows": 33450,
+        "trades": 15966,
+        "notional": 875057.9817785134
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-16",
+        "l1_rows": 113512,
+        "trades": 15815,
+        "notional": 931066.1065039053
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-17",
+        "l1_rows": 251814,
+        "trades": 22794,
+        "notional": 2236543.8956824928
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-18",
+        "l1_rows": 160942,
+        "trades": 29059,
+        "notional": 1912275.3533005887
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-19",
+        "l1_rows": 264654,
+        "trades": 22342,
+        "notional": 1777981.5322746115
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-20",
+        "l1_rows": 607264,
+        "trades": 22654,
+        "notional": 2530316.628515962
+      },
+      {
+        "universe": "politics_negrisk",
+        "date": "2026-08-21",
+        "l1_rows": 269330,
+        "trades": 24652,
+        "notional": 2954664.583724444
+      }
+    ]
+  },
+  "census": {
+    "per_universe": {
+      "politics_negrisk": {
+        "tokens": 2854,
+        "with_trades": 2628,
+        "book_only": 226,
+        "fully_empty": 0
+      },
+      "esports": {
+        "tokens": 27918,
+        "with_trades": 24032,
+        "book_only": 3846,
+        "fully_empty": 40
+      }
+    },
+    "events_total": 4443,
+    "events_rows_from_events_fn": 4444,
+    "events_fn_note": "events() returns one extra row: the 70 null-identity tokens form a NaN event group",
+    "markets_per_event": {
+      "median": 3.0,
+      "p95": 8.0,
+      "max": 52,
+      "n_events_multi_market": 3151,
+      "n_events_single_market": 1293
+    },
+    "tokens_with_trades": 26660,
+    "tokens_book_only": 4072,
+    "tokens_fully_empty": 40
+  },
+  "identity": {
+    "checks_1235": [
+      {
+        "universe": "politics_negrisk",
+        "check": "c1 roundtrip",
+        "pass": 2854,
+        "fail": 0,
+        "null": 0
+      },
+      {
+        "universe": "politics_negrisk",
+        "check": "c2 pairing",
+        "pass": 2780,
+        "fail": 0,
+        "null": 74
+      },
+      {
+        "universe": "politics_negrisk",
+        "check": "c3 negrisk",
+        "pass": 742,
+        "fail": 1900,
+        "null": 212
+      },
+      {
+        "universe": "politics_negrisk",
+        "check": "c5 indep",
+        "pass": 100,
+        "fail": 0,
+        "null": 2754
+      },
+      {
+        "universe": "esports",
+        "check": "c1 roundtrip",
+        "pass": 27848,
+        "fail": 0,
+        "null": 70
+      },
+      {
+        "universe": "esports",
+        "check": "c2 pairing",
+        "pass": 27562,
+        "fail": 0,
+        "null": 356
+      },
+      {
+        "universe": "esports",
+        "check": "c3 negrisk",
+        "pass": 0,
+        "fail": 0,
+        "null": 27918
+      },
+      {
+        "universe": "esports",
+        "check": "c5 indep",
+        "pass": 16,
+        "fail": 0,
+        "null": 27902
+      }
+    ],
+    "check_coverage": [
+      {
+        "check": "check1_roundtrip",
+        "evaluated": 30702,
+        "not_evaluated": 70,
+        "pct_evaluated": 99.77252047315741,
+        "n_true": 30702,
+        "n_false": 0
+      },
+      {
+        "check": "check2_pairing",
+        "evaluated": 30342,
+        "not_evaluated": 430,
+        "pct_evaluated": 98.60262576368127,
+        "n_true": 30342,
+        "n_false": 0
+      },
+      {
+        "check": "check3_negrisk",
+        "evaluated": 2642,
+        "not_evaluated": 28130,
+        "pct_evaluated": 8.58572728454439,
+        "n_true": 742,
+        "n_false": 1900
+      },
+      {
+        "check": "check5_indep",
+        "evaluated": 116,
+        "not_evaluated": 30656,
+        "pct_evaluated": 0.37696607305342517,
+        "n_true": 116,
+        "n_false": 0
+      }
+    ],
+    "check3_negrisk_FAILURES": {
+      "n_false": 1900,
+      "n_evaluated": 2642,
+      "failure_rate_of_evaluated": 0.7191521574564723,
+      "by_universe": {
+        "politics_negrisk": 1900
+      },
+      "by_check4_status": {
+        "converged_correct": 1010,
+        "not_resolved": 478,
+        "near_half": 366,
+        "no_convergence": 42,
+        "inverted": 4
+      },
+      "definition_found_in_repo": false,
+      "note": "No definition of check3_negrisk exists anywhere in the repo \u2014 only the column name. HANDOVER.md:24-26 claims NegRisk orientation was verified and 'the mapping is trustworthy'."
+    },
+    "check4_status": {
+      "(null \u00b7 unresolved identity)": 70,
+      "converged_correct": 6650,
+      "inverted": 14,
+      "near_half": 21522,
+      "no_convergence": 328,
+      "no_price": 40,
+      "not_resolved": 2148
+    },
+    "check4_by_universe": {
+      "politics_negrisk": {
+        "converged_correct": 1300,
+        "inverted": 6,
+        "near_half": 440,
+        "no_convergence": 130,
+        "not_resolved": 978
+      },
+      "esports": {
+        "converged_correct": 5350,
+        "inverted": 8,
+        "near_half": 21082,
+        "no_convergence": 198,
+        "no_price": 40,
+        "not_resolved": 1170,
+        "(null \u00b7 unresolved identity)": 70
+      }
+    },
+    "identity_status": {
+      "resolved": 30702,
+      "unresolved": 70
+    },
+    "unresolved_conditions": 35,
+    "any_hard_fail": 1900
+  },
+  "l1_sanity": {
+    "median_spread_cents": {
+      "politics_negrisk": {
+        "count": 2854.0,
+        "mean": 1.3809390329362299,
+        "std": 5.020593869778228,
+        "min": 0.09999999999999992,
+        "5%": 0.1,
+        "50%": 0.30000000000000027,
+        "95%": 3.200000000000001,
+        "max": 75.8
+      },
+      "esports": {
+        "count": 27878.0,
+        "mean": 11.24617260922591,
+        "std": 17.30717912133303,
+        "min": 0.1,
+        "5%": 0.10000000000000009,
+        "50%": 4.0000000000000036,
+        "95%": 50.05,
+        "max": 100.0
+      }
+    },
+    "median_mid": {
+      "politics_negrisk": {
+        "count": 2854.0,
+        "mean": 0.5,
+        "std": 0.43660244965513545,
+        "min": 0.0005,
+        "5%": 0.0015,
+        "50%": 0.5,
+        "95%": 0.9984999999999999,
+        "max": 0.9995
+      },
+      "esports": {
+        "count": 27878.0,
+        "mean": 0.5,
+        "std": 0.28820591970846526,
+        "min": 0.0005,
+        "5%": 0.00275,
+        "50%": 0.5,
+        "95%": 0.99725,
+        "max": 0.9995
+      }
+    },
+    "negative_reconstructed_bid_tokens": 71,
+    "negative_bid_by_universe": {
+      "esports": 66,
+      "politics_negrisk": 5
+    },
+    "pair_sum_is_tautological": {
+      "verdict": true,
+      "why": "NO_bid = 1 - YES_ask and NO_ask = 1 - YES_bid (Polymarket design), therefore mid(NO) = 1 - mid(YES) identically and mid(A)+mid(B) == 1 to float precision. check2_pairing / audit.py 'pair sum~1' / HANDOVER.md:24 'pair-sums-to-1' carry no information.",
+      "worst_abs_deviation_observed": 1.1102230246251565e-16
+    },
+    "pair_sum_sample": {
+      "markets_sampled": 120,
+      "observations": 162041,
+      "median": 1.0,
+      "p01": 0.9999999999999999,
+      "p99": 1.0,
+      "frac_within_1c_of_1": 1.0,
+      "per_market_median_worst": 0.0
+    },
+    "crossed_book": {
+      "n_rows": 101051502,
+      "n_crossed": 24,
+      "min_spread_c": -65.9,
+      "max_spread_c": 100.0,
+      "n_mid_outside_01": 0
+    }
+  },
+  "activity": {
+    "trades_total": 7227528,
+    "notional_total_usd": 1047146194.544664,
+    "notional_by_universe": {
+      "politics_negrisk": 146664457.60380182,
+      "esports": 900481736.9408622
+    },
+    "top20_by_trades": [
+      {
+        "universe": "esports",
+        "question": "Will Ultra Prime win the LPL 2026 season?",
+        "n_trades": 115890.0,
+        "notional": 620.9924999995803,
+        "side_balance": 0.9999870567475332
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will there be no change in Fed interest rates after the July 2026 meeting?",
+        "n_trades": 39440.0,
+        "notional": 17878126.176659543,
+        "side_balance": 0.7149239884505232
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed decrease interest rates by 25 bps after the September 2026 meeting?",
+        "n_trades": 27953.0,
+        "notional": 4853826.66938687,
+        "side_balance": 0.8182905169625859
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will Mojtaba Khamenei be head of state in Iran end of 2026?",
+        "n_trades": 25829.0,
+        "notional": 2130524.279881316,
+        "side_balance": 0.9231093190268461
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed increase interest rates by 25 bps after the July 2026 meeting?",
+        "n_trades": 25327.0,
+        "notional": 6507572.735321334,
+        "side_balance": 0.725649997766792
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed decrease interest rates by 25 bps after the July 2026 meeting?",
+        "n_trades": 18003.0,
+        "notional": 3692841.9723870032,
+        "side_balance": 0.6719483215579711
+      },
+      {
+        "universe": "esports",
+        "question": "Counter-Strike: Spirit vs G2 (BO3) - IEM Cologne Major Playoffs",
+        "n_trades": 17874.0,
+        "notional": 3141649.512105595,
+        "side_balance": 0.6971294081261085
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will there be no change in Fed interest rates after the September 2026 meeting?",
+        "n_trades": 17463.0,
+        "notional": 5075352.334268944,
+        "side_balance": 0.7819010265472239
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Bilibili Gaming vs Hanwha Life Esports (BO5) - Mid-Season Invitational Playoffs",
+        "n_trades": 16322.0,
+        "notional": 4797476.005586833,
+        "side_balance": 0.7538390388885423
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will Josh Stein win the 2028 US Presidential Election?",
+        "n_trades": 15593.0,
+        "notional": 86585.41587200174,
+        "side_balance": 0.43088314700516
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed increase interest rates by 50+ bps after the July 2026 meeting?",
+        "n_trades": 15558.0,
+        "notional": 5322920.346829307,
+        "side_balance": 0.716028532981124
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed decrease interest rates by 50+ bps after the July 2026 meeting?",
+        "n_trades": 15195.0,
+        "notional": 3132058.014513712,
+        "side_balance": 0.5738458171106389
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Bilibili Gaming vs T1 (BO5) - Mid-Season Invitational Playoffs",
+        "n_trades": 15042.0,
+        "notional": 3986878.6114385,
+        "side_balance": 0.7131138157538998
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will Luiz In\u00e1cio Lula da Silva win the 2026 Brazilian presidential election?",
+        "n_trades": 14317.0,
+        "notional": 1171957.8303862792,
+        "side_balance": 0.5990743249897781
+      },
+      {
+        "universe": "esports",
+        "question": "Counter-Strike: Spirit vs Team Falcons (BO3) - IEM Cologne Major Playoffs",
+        "n_trades": 14110.0,
+        "notional": 3209113.82522667,
+        "side_balance": 0.7317754599015147
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will Renan Santos win the 2026 Brazilian presidential election?",
+        "n_trades": 13092.0,
+        "notional": 1401644.8512325385,
+        "side_balance": 0.6561322545884246
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will Pete Buttigieg win the 2028 US Presidential Election?",
+        "n_trades": 12868.0,
+        "notional": 2714049.8787297383,
+        "side_balance": 0.4685795511203955
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed increase interest rates by 25 bps after the September 2026 meeting?",
+        "n_trades": 12741.0,
+        "notional": 4062196.910418722,
+        "side_balance": 0.8075976873123883
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will United Russia (ER) gain the most seats in the next Russian parliamentary election?",
+        "n_trades": 12220.0,
+        "notional": 1693825.9832633124,
+        "side_balance": 0.7697723940760604
+      },
+      {
+        "universe": "esports",
+        "question": "Counter-Strike: Vitality vs Team Falcons (BO3) - IEM Cologne Major Playoffs",
+        "n_trades": 12198.0,
+        "notional": 2450587.974490797,
+        "side_balance": 0.7091100340021683
+      }
+    ],
+    "top20_by_notional": [
+      {
+        "universe": "politics_negrisk",
+        "question": "Will there be no change in Fed interest rates after the July 2026 meeting?",
+        "n_trades": 39440.0,
+        "notional": 17878126.176659543,
+        "side_balance": 0.7149239884505232
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed increase interest rates by 25 bps after the July 2026 meeting?",
+        "n_trades": 25327.0,
+        "notional": 6507572.735321334,
+        "side_balance": 0.725649997766792
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed increase interest rates by 50+ bps after the July 2026 meeting?",
+        "n_trades": 15558.0,
+        "notional": 5322920.346829307,
+        "side_balance": 0.716028532981124
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will there be no change in Fed interest rates after the September 2026 meeting?",
+        "n_trades": 17463.0,
+        "notional": 5075352.334268944,
+        "side_balance": 0.7819010265472239
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed decrease interest rates by 25 bps after the September 2026 meeting?",
+        "n_trades": 27953.0,
+        "notional": 4853826.66938687,
+        "side_balance": 0.8182905169625859
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Bilibili Gaming vs Hanwha Life Esports (BO5) - Mid-Season Invitational Playoffs",
+        "n_trades": 16322.0,
+        "notional": 4797476.005586833,
+        "side_balance": 0.7538390388885423
+      },
+      {
+        "universe": "esports",
+        "question": "Dota 2: Iron Wing vs BoomBoys (BO3) - The International Playoffs",
+        "n_trades": 7113.0,
+        "notional": 4763900.257573294,
+        "side_balance": 0.8440369736228109
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed increase interest rates by 25 bps after the September 2026 meeting?",
+        "n_trades": 12741.0,
+        "notional": 4062196.910418722,
+        "side_balance": 0.8075976873123883
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Bilibili Gaming vs T1 (BO5) - Mid-Season Invitational Playoffs",
+        "n_trades": 15042.0,
+        "notional": 3986878.6114385,
+        "side_balance": 0.7131138157538998
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed decrease interest rates by 25 bps after the July 2026 meeting?",
+        "n_trades": 18003.0,
+        "notional": 3692841.9723870032,
+        "side_balance": 0.6719483215579711
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Bilibili Gaming vs Hanwha Life Esports (BO5) - Mid-Season Invitational Playoffs",
+        "n_trades": 8667.0,
+        "notional": 3320227.382627937,
+        "side_balance": 0.713597697714588
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Hanwha Life Esports vs LYON (BO5) - Mid-Season Invitational Playoffs",
+        "n_trades": 11340.0,
+        "notional": 3240815.5293196905,
+        "side_balance": 0.7906985863322914
+      },
+      {
+        "universe": "esports",
+        "question": "Counter-Strike: Spirit vs Team Falcons (BO3) - IEM Cologne Major Playoffs",
+        "n_trades": 14110.0,
+        "notional": 3209113.82522667,
+        "side_balance": 0.7317754599015147
+      },
+      {
+        "universe": "esports",
+        "question": "Counter-Strike: Spirit vs G2 (BO3) - IEM Cologne Major Playoffs",
+        "n_trades": 17874.0,
+        "notional": 3141649.512105595,
+        "side_balance": 0.6971294081261085
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will the Fed decrease interest rates by 50+ bps after the July 2026 meeting?",
+        "n_trades": 15195.0,
+        "notional": 3132058.014513712,
+        "side_balance": 0.5738458171106389
+      },
+      {
+        "universe": "esports",
+        "question": "Dota 2: Nigma Galaxy vs Team Falcons (BO3) - The International Playoffs",
+        "n_trades": 3293.0,
+        "notional": 2931054.9854687494,
+        "side_balance": 0.5627966319044213
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: T1 vs Gen.G (BO3) - Esports World Cup Playoffs",
+        "n_trades": 6806.0,
+        "notional": 2866790.7160700047,
+        "side_balance": 0.6960754409224321
+      },
+      {
+        "universe": "politics_negrisk",
+        "question": "Will Vladimir Putin be the next leader out before 2027?",
+        "n_trades": 2911.0,
+        "notional": 2806488.0801678565,
+        "side_balance": 0.7863237392050757
+      },
+      {
+        "universe": "esports",
+        "question": "Dota 2: Team Liquid vs Team Falcons (BO3) - The International Playoffs",
+        "n_trades": 6207.0,
+        "notional": 2795599.2328754724,
+        "side_balance": 0.8638892430753335
+      },
+      {
+        "universe": "esports",
+        "question": "LoL: Gen.G vs Dplus KIA (BO3) - Esports World Cup Playoffs",
+        "n_trades": 8248.0,
+        "notional": 2734693.8773043193,
+        "side_balance": 0.7302701862338054
+      }
+    ],
+    "top20_overlap_trades_vs_notional": 12,
+    "side_balance": {
+      "politics_negrisk": {
+        "median": 0.6270742768141342,
+        "frac_above_0_95": 0.04031465093411996,
+        "n_markets": 1017
+      },
+      "esports": {
+        "median": 0.7674035455586082,
+        "frac_above_0_95": 0.0531992244304411,
+        "n_markets": 8252
+      }
+    }
+  },
+  "negrisk": {
+    "method": "ed.negrisk_sum(event) per event = load_event -> align_mids(1s buckets, ffill) -> sum YES columns",
+    "n_events_measured": 320,
+    "n_events_by_universe": {
+      "politics_negrisk": 173,
+      "esports": 147
+    },
+    "across_event_medians_ALL": {
+      "median": 0.99,
+      "p5": 0.07422500000000001,
+      "p95": 2.3628250000000004,
+      "n_events_above_1_05": 55
+    },
+    "across_event_medians_by_universe": {
+      "politics_negrisk": {
+        "n_events": 173,
+        "median": 0.995,
+        "p5": 0.03725,
+        "p95": 2.4955000000000007,
+        "n_events_above_1_05": 28
+      },
+      "esports": {
+        "n_events": 147,
+        "median": 0.9614999999999999,
+        "p5": 0.37500000000000006,
+        "p95": 2.0323,
+        "n_events_above_1_05": 27
+      }
+    },
+    "old_invalid_for_comparison": {
+      "median": 1.007,
+      "p5": 0.081,
+      "p95": 1.579,
+      "n_events_above_1_05": 59
+    },
+    "events_above_1_05": 55,
+    "events_below_0_95": 119,
+    "max_event_median": 10.1385,
+    "worst_events": [
+      {
+        "event_slug": "blast-bounty-2026-season-2-winner-20260709030103861",
+        "universe": "esports",
+        "n_markets": 32,
+        "median": 10.1385,
+        "p95": 15.02,
+        "max": 16.4995,
+        "mean_n_live": 31.071195632124542
+      },
+      {
+        "event_slug": "ewc-2026-cs2-winner-20260810160005076",
+        "universe": "esports",
+        "n_markets": 32,
+        "median": 6.1165,
+        "p95": 12.024999999999999,
+        "max": 12.586,
+        "mean_n_live": 31.686579920463267
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-21-july-28",
+        "universe": "politics_negrisk",
+        "n_markets": 25,
+        "median": 4.527999999999999,
+        "p95": 5.512999999999999,
+        "max": 5.711499999999999,
+        "mean_n_live": 24.71556157167975
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-august-14-august-21",
+        "universe": "politics_negrisk",
+        "n_markets": 23,
+        "median": 4.4945,
+        "p95": 6.010499999999998,
+        "max": 6.057499999999998,
+        "mean_n_live": 20.422713882041723
+      },
+      {
+        "event_slug": "ewc-league-of-legends-winner-20260624162214234",
+        "universe": "esports",
+        "n_markets": 15,
+        "median": 4.4935,
+        "p95": 6.491499999999999,
+        "max": 7.0005,
+        "mean_n_live": 13.001876808698706
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-7-july-14",
+        "universe": "politics_negrisk",
+        "n_markets": 26,
+        "median": 3.524,
+        "p95": 5.001499999999999,
+        "max": 5.113499999999999,
+        "mean_n_live": 25.480257355257354
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-june-19-june-26",
+        "universe": "politics_negrisk",
+        "n_markets": 24,
+        "median": 3.4905,
+        "p95": 4.5145,
+        "max": 4.5489999999999995,
+        "mean_n_live": 22.441697025329166
+      },
+      {
+        "event_slug": "ewc-chess-2026-winner-20260811210011824",
+        "universe": "esports",
+        "n_markets": 8,
+        "median": 3.479,
+        "p95": 3.5285,
+        "max": 4.4995,
+        "mean_n_live": 7.25
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-17-july-24",
+        "universe": "politics_negrisk",
+        "n_markets": 25,
+        "median": 3.022,
+        "p95": 4.502999999999999,
+        "max": 4.517999999999999,
+        "mean_n_live": 24.267548118110685
+      },
+      {
+        "event_slug": "xse-pro-league-2026-winner-20260629154109040",
+        "universe": "esports",
+        "n_markets": 8,
+        "median": 3.0115,
+        "p95": 4.005,
+        "max": 4.4995,
+        "mean_n_live": 7.882411120021384
+      }
+    ],
+    "ffill_vs_instantaneous": [
+      {
+        "event_slug": "presidential-election-winner-2028",
+        "median_ffill": 0.9639999999999997,
+        "median_instantaneous": 0.0895,
+        "mean_legs_updating": 1.0107238605898123,
+        "n_legs": 52
+      },
+      {
+        "event_slug": "democratic-presidential-nominee-2028",
+        "median_ffill": 0.9819999999999999,
+        "median_instantaneous": 0.129,
+        "mean_legs_updating": 1.0131143667296787,
+        "n_legs": 51
+      },
+      {
+        "event_slug": "republican-presidential-nominee-2028",
+        "median_ffill": 0.9849999999999999,
+        "median_instantaneous": 0.3935,
+        "mean_legs_updating": 1.0103188252414341,
+        "n_legs": 42
+      },
+      {
+        "event_slug": "next-french-presidential-election",
+        "median_ffill": 0.998,
+        "median_instantaneous": 0.0595,
+        "mean_legs_updating": 1.0261306532663317,
+        "n_legs": 41
+      },
+      {
+        "event_slug": "blast-bounty-2026-season-2-winner-20260709030103861",
+        "median_ffill": 10.1385,
+        "median_instantaneous": 0.107,
+        "mean_legs_updating": 1.2943647453633735,
+        "n_legs": 32
+      },
+      {
+        "event_slug": "ewc-2026-cs2-winner-20260810160005076",
+        "median_ffill": 6.1165,
+        "median_instantaneous": 0.08499999999999999,
+        "mean_legs_updating": 1.2972921015049983,
+        "n_legs": 32
+      },
+      {
+        "event_slug": "iran-leader-end-of-2026",
+        "median_ffill": 0.9489999999999998,
+        "median_instantaneous": 0.7605,
+        "mean_legs_updating": 1.0034861126985941,
+        "n_legs": 26
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-3-july-10",
+        "median_ffill": 2.042,
+        "median_instantaneous": 0.245,
+        "mean_legs_updating": 1.2207332743687733,
+        "n_legs": 26
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-7-july-14",
+        "median_ffill": 3.524,
+        "median_instantaneous": 0.19,
+        "mean_legs_updating": 1.1905054791852467,
+        "n_legs": 26
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-august-18-august-25",
+        "median_ffill": 2.5164999999999997,
+        "median_instantaneous": 0.0945,
+        "mean_legs_updating": 1.2890510299417182,
+        "n_legs": 25
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-17-july-24",
+        "median_ffill": 3.022,
+        "median_instantaneous": 0.1795,
+        "mean_legs_updating": 1.1287844260694055,
+        "n_legs": 25
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-21-july-28",
+        "median_ffill": 4.527999999999999,
+        "median_instantaneous": 0.266,
+        "mean_legs_updating": 1.2820510779858496,
+        "n_legs": 25
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-june-19-june-26",
+        "median_ffill": 3.4905,
+        "median_instantaneous": 0.1345,
+        "mean_legs_updating": 1.1771412594364534,
+        "n_legs": 24
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-june-26-july-3",
+        "median_ffill": 2.9909999999999997,
+        "median_instantaneous": 0.1365,
+        "mean_legs_updating": 1.0913389211261553,
+        "n_legs": 24
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-june-23-june-30",
+        "median_ffill": 2.521,
+        "median_instantaneous": 0.1,
+        "mean_legs_updating": 1.145518614983913,
+        "n_legs": 24
+      },
+      {
+        "event_slug": "next-leader-out-of-power-before-2027-no-orban",
+        "median_ffill": 1.0149999999999997,
+        "median_instantaneous": 0.003,
+        "mean_legs_updating": 1.0365971431454228,
+        "n_legs": 24
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-june-30-july-7",
+        "median_ffill": 1.4989999999999997,
+        "median_instantaneous": 0.3235,
+        "mean_legs_updating": 1.178930055401662,
+        "n_legs": 23
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-august-14-august-21",
+        "median_ffill": 4.4945,
+        "median_instantaneous": 0.2585,
+        "mean_legs_updating": 1.2639032191498143,
+        "n_legs": 23
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-24-july-31",
+        "median_ffill": 2.5185000000000004,
+        "median_instantaneous": 0.2245,
+        "mean_legs_updating": 1.2322348162222367,
+        "n_legs": 23
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-10-july-17",
+        "median_ffill": 1.5074999999999998,
+        "median_instantaneous": 0.1065,
+        "mean_legs_updating": 1.134052163776774,
+        "n_legs": 23
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-14-july-21",
+        "median_ffill": 0.7104999999999997,
+        "median_instantaneous": 0.022,
+        "mean_legs_updating": 1.061110029211295,
+        "n_legs": 23
+      },
+      {
+        "event_slug": "ewc-dota-2-winner-20260622213517296",
+        "median_ffill": 1.1495000000000002,
+        "median_instantaneous": 0.069,
+        "mean_legs_updating": 1.121504821223375,
+        "n_legs": 22
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-28-august-4",
+        "median_ffill": 2.481500000000001,
+        "median_instantaneous": 0.125,
+        "mean_legs_updating": 1.0753831417624522,
+        "n_legs": 21
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-july-31-august-7",
+        "median_ffill": 1.9885,
+        "median_instantaneous": 0.138,
+        "mean_legs_updating": 1.0731757451181911,
+        "n_legs": 20
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-august-7-august-14",
+        "median_ffill": 1.5365,
+        "median_instantaneous": 0.08299999999999999,
+        "mean_legs_updating": 1.101693840005075,
+        "n_legs": 20
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-august-4-august-11",
+        "median_ffill": 1.4899999999999998,
+        "median_instantaneous": 0.047,
+        "mean_legs_updating": 1.0851111111111111,
+        "n_legs": 19
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-august-11-august-18",
+        "median_ffill": 1.4939999999999998,
+        "median_instantaneous": 0.162,
+        "mean_legs_updating": 1.0808228053126012,
+        "n_legs": 19
+      },
+      {
+        "event_slug": "where-will-the-next-us-iran-diplomatic-meeting-happen-455",
+        "median_ffill": 0.9914999999999998,
+        "median_instantaneous": 0.273,
+        "mean_legs_updating": 1.248729416548079,
+        "n_legs": 19
+      },
+      {
+        "event_slug": "league-of-legends-global-power-rankings-post-worlds-rank-1-20260729165154424",
+        "median_ffill": 1.174,
+        "median_instantaneous": 0.069,
+        "mean_legs_updating": 1.09610652771747,
+        "n_legs": 19
+      },
+      {
+        "event_slug": "who-will-be-the-next-prime-minister-of-israel-after-the-next-election",
+        "median_ffill": 0.9745,
+        "median_instantaneous": 0.14,
+        "mean_legs_updating": 1.0184034558257886,
+        "n_legs": 18
+      },
+      {
+        "event_slug": "brazil-presidential-election",
+        "median_ffill": 1.0225,
+        "median_instantaneous": 0.033,
+        "mean_legs_updating": 1.0526721876446685,
+        "n_legs": 18
+      },
+      {
+        "event_slug": "where-will-the-next-next-round-of-us-iran-peace-talks-beptptpt-20260623023740663",
+        "median_ffill": 0.9095000000000001,
+        "median_instantaneous": 0.2855,
+        "mean_legs_updating": 1.0238123030232287,
+        "n_legs": 17
+      },
+      {
+        "event_slug": "next-uk-prime-minister-in-2026-122",
+        "median_ffill": 1.0065,
+        "median_instantaneous": 0.037,
+        "mean_legs_updating": 1.0702737110120941,
+        "n_legs": 17
+      },
+      {
+        "event_slug": "brazil-presidential-election-first-round-2nd-place",
+        "median_ffill": 0.9055,
+        "median_instantaneous": 0.0615,
+        "mean_legs_updating": 1.0016828721017204,
+        "n_legs": 16
+      },
+      {
+        "event_slug": "the-international-2026-winner-20260629212545745",
+        "median_ffill": 1.1835,
+        "median_instantaneous": 0.077,
+        "mean_legs_updating": 1.156044210193176,
+        "n_legs": 16
+      },
+      {
+        "event_slug": "venezuela-leader-end-of-2026",
+        "median_ffill": 1.0685,
+        "median_instantaneous": 0.0365,
+        "mean_legs_updating": 1.001023769251313,
+        "n_legs": 16
+      },
+      {
+        "event_slug": "ewc-league-of-legends-winner-20260624162214234",
+        "median_ffill": 4.4935,
+        "median_instantaneous": 0.067,
+        "mean_legs_updating": 1.1139719522148845,
+        "n_legs": 15
+      },
+      {
+        "event_slug": "nobel-peace-prize-winner-2026-139",
+        "median_ffill": 0.3055,
+        "median_instantaneous": 0.0985,
+        "mean_legs_updating": 1.0003578955740247,
+        "n_legs": 15
+      },
+      {
+        "event_slug": "lol-lpl-2026-season-winner",
+        "median_ffill": 0.9955,
+        "median_instantaneous": 0.089,
+        "mean_legs_updating": 1.0281801162676125,
+        "n_legs": 14
+      },
+      {
+        "event_slug": "elon-musk-of-tweets-june-16-june-23",
+        "median_ffill": 1.5019999999999998,
+        "median_instantaneous": 0.036000000000000004,
+        "mean_legs_updating": 1.09247311827957,
+        "n_legs": 14
+      }
+    ],
+    "ffill_vs_instantaneous_summary": {
+      "n_events": 40,
+      "median_of_ffill_medians": 1.4919999999999998,
+      "median_of_instantaneous_medians": 0.10325000000000001,
+      "mean_legs_updating_per_bucket": 1.1132201293896344,
+      "mean_legs_in_event": 23.725
+    },
+    "handover_claim_elon_235": {
+      "claim": "HANDOVER.md:83-85 \u2014 Elon-tweet-range events ~2.35",
+      "measured_elon_event_medians": [
+        {
+          "event_slug": "elon-musk-of-tweets-july-21-july-28",
+          "median": 4.527999999999999,
+          "p95": 5.512999999999999,
+          "max": 5.711499999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-14-august-21",
+          "median": 4.4945,
+          "p95": 6.010499999999998,
+          "max": 6.057499999999998
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-7-july-14",
+          "median": 3.524,
+          "p95": 5.001499999999999,
+          "max": 5.113499999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-19-june-26",
+          "median": 3.4905,
+          "p95": 4.5145,
+          "max": 4.5489999999999995
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-17-july-24",
+          "median": 3.022,
+          "p95": 4.502999999999999,
+          "max": 4.517999999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-26-july-3",
+          "median": 2.9909999999999997,
+          "p95": 3.5079999999999996,
+          "max": 3.525499999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-23-june-30",
+          "median": 2.521,
+          "p95": 4.505999999999999,
+          "max": 4.631499999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-24-july-31",
+          "median": 2.5185000000000004,
+          "p95": 4.4995,
+          "max": 4.528499999999998
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-18-august-25",
+          "median": 2.5164999999999997,
+          "p95": 3.513,
+          "max": 3.5355
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-28-august-4",
+          "median": 2.481500000000001,
+          "p95": 3.0100000000000002,
+          "max": 3.507000000000001
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-3-july-10",
+          "median": 2.042,
+          "p95": 4.510999999999999,
+          "max": 5.036499999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-22-june-24",
+          "median": 2.0045,
+          "p95": 2.5075,
+          "max": 2.5365
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-31-august-7",
+          "median": 1.9885,
+          "p95": 3.0095,
+          "max": 3.528
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-23-july-25",
+          "median": 1.9674999999999998,
+          "p95": 2.5145,
+          "max": 2.622
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-7-august-14",
+          "median": 1.5365,
+          "p95": 3.508,
+          "max": 3.517
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-10-july-17",
+          "median": 1.5074999999999998,
+          "p95": 2.999,
+          "max": 3.1340000000000003
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-16-june-23",
+          "median": 1.5019999999999998,
+          "p95": 2.192000000000001,
+          "max": 2.255500000000001
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-30-august-1",
+          "median": 1.501,
+          "p95": 2.009,
+          "max": 2.0389999999999997
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-20-july-22",
+          "median": 1.4994999999999998,
+          "p95": 2.0055,
+          "max": 2.041
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-30-july-7",
+          "median": 1.4989999999999997,
+          "p95": 2.0119999999999996,
+          "max": 2.1809999999999996
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-18-june-20",
+          "median": 1.4965,
+          "p95": 1.5139999999999998,
+          "max": 1.5614999999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-11-august-18",
+          "median": 1.4939999999999998,
+          "p95": 1.5239999999999996,
+          "max": 1.5549999999999997
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-4-august-11",
+          "median": 1.4899999999999998,
+          "p95": 2.511,
+          "max": 2.5505
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-29-july-1",
+          "median": 1.4654999999999998,
+          "p95": 1.5204999999999997,
+          "max": 1.5979999999999996
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-13-august-15",
+          "median": 1.0245,
+          "p95": 1.5164999999999997,
+          "max": 1.533
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-20-june-22",
+          "median": 1.0105,
+          "p95": 1.51,
+          "max": 1.5279999999999996
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-27-july-29",
+          "median": 1.01,
+          "p95": 1.5074999999999998,
+          "max": 1.5714999999999997
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-9-july-11",
+          "median": 1.0085,
+          "p95": 2.001,
+          "max": 2.03
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-27-june-29",
+          "median": 1.0075,
+          "p95": 1.5094999999999998,
+          "max": 1.547
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-2-july-4",
+          "median": 1.0045,
+          "p95": 1.0175,
+          "max": 1.034
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-25-july-27",
+          "median": 1.0045,
+          "p95": 1.513,
+          "max": 1.545
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-1-august-3",
+          "median": 1.0034999999999998,
+          "p95": 1.0255,
+          "max": 1.0675
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-12-june-19",
+          "median": 1.003,
+          "p95": 1.0185,
+          "max": 1.0884999999999998
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-june-25-june-27",
+          "median": 1.003,
+          "p95": 1.513,
+          "max": 1.568
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-18-july-20",
+          "median": 1.001,
+          "p95": 1.0155,
+          "max": 1.0370000000000001
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-8-august-10",
+          "median": 1.001,
+          "p95": 1.0224499999999999,
+          "max": 1.0410000000000001
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-10-august-12",
+          "median": 1.0005,
+          "p95": 1.0151999999999999,
+          "max": 1.031
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-6-august-8",
+          "median": 1.0005,
+          "p95": 1.0204999999999997,
+          "max": 1.0614999999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-11-july-13",
+          "median": 1.0004999999999997,
+          "p95": 1.017,
+          "max": 1.0339999999999998
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-16-july-18",
+          "median": 0.9995,
+          "p95": 1.5045,
+          "max": 1.5195
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-4-july-6",
+          "median": 0.9995,
+          "p95": 1.02,
+          "max": 1.1059999999999999
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-15-august-17",
+          "median": 0.9989999999999999,
+          "p95": 1.0210000000000001,
+          "max": 1.0325
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-13-july-15",
+          "median": 0.9984999999999998,
+          "p95": 1.0155,
+          "max": 1.079
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-17-august-19",
+          "median": 0.9954999999999999,
+          "p95": 1.02,
+          "max": 1.3224999999999998
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-3-august-5",
+          "median": 0.9899999999999999,
+          "p95": 1.5005,
+          "max": 1.5114999999999998
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-6-july-8",
+          "median": 0.9894999999999999,
+          "p95": 1.0174999999999998,
+          "max": 1.0605
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-2026",
+          "median": 0.9764999999999999,
+          "p95": 1.039,
+          "max": 1.069
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-20-august-22",
+          "median": 0.7344999999999999,
+          "p95": 1.4914999999999998,
+          "max": 1.522
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-july-14-july-21",
+          "median": 0.7104999999999997,
+          "p95": 3.0095000000000005,
+          "max": 3.1490000000000005
+        },
+        {
+          "event_slug": "elon-musk-tweets-in-june-2026-20260608234701516",
+          "median": 0.10600000000000001,
+          "p95": 0.131,
+          "max": 0.191
+        },
+        {
+          "event_slug": "elon-musk-of-tweets-august-21-august-28-2026",
+          "median": 0.025,
+          "p95": 0.030000000000000002,
+          "max": 0.042499999999999996
+        }
+      ]
+    }
+  },
+  "whats_missing": {
+    "no_bid_equals_one_minus_yes_ask": {
+      "observations": 1343233,
+      "fraction_exact": 0.9966394512344471,
+      "residual_p01": -1.1102230246251565e-16,
+      "residual_p50": 0.0,
+      "residual_p99": 1.1102230246251565e-16
+    },
+    "book_tier_exists": false,
+    "received_at_present": false,
+    "tables_present": [
+      "tokens",
+      "l1",
+      "trades",
+      "obs_stats",
+      "coverage",
+      "exclusions",
+      "pc_file_manifest",
+      "e2_counts"
+    ]
+  },
+  "_meta": {
+    "generated_utc": "2026-09-01T18:45:05Z",
+    "data_root": "/Users/justiniturregui/Desktop/github/epsilon-quant-research/polymarket/research/data/research_v1",
+    "epsilon_data_version": "1.0",
+    "total_seconds": 196.46,
+    "loader_calls": [
+      {
+        "panel": "base",
+        "call": "ed.catalog()",
+        "seconds": 0.075,
+        "note": "",
+        "rows": 30772
+      },
+      {
+        "panel": "base",
+        "call": "ed.catalog(apply_exclusions=False)",
+        "seconds": 0.001,
+        "note": "",
+        "rows": 30772
+      },
+      {
+        "panel": "base",
+        "call": "ed.coverage()",
+        "seconds": 0.01,
+        "note": "",
+        "rows": 128
+      },
+      {
+        "panel": "base",
+        "call": "ed.reconciliation()",
+        "seconds": 0.052,
+        "note": "",
+        "rows": null
+      },
+      {
+        "panel": "coverage",
+        "call": "API-GAP: rows per (universe, date) for l1 + trades",
+        "seconds": 2.246,
+        "note": "epsilon_data._internal.con()",
+        "rows": 128
+      },
+      {
+        "panel": "census",
+        "call": "ed.events()",
+        "seconds": 0.016,
+        "note": "",
+        "rows": 4444
+      },
+      {
+        "panel": "l1_sanity",
+        "call": "ed.load_pair() x120",
+        "seconds": 9.038,
+        "note": "stratified sample",
+        "rows": 120
+      },
+      {
+        "panel": "l1_sanity",
+        "call": "API-GAP: crossed-book rows dataset-wide",
+        "seconds": 0.348,
+        "note": "epsilon_data._internal.con()",
+        "rows": 1
+      },
+      {
+        "panel": "activity",
+        "call": "API-GAP: per-market trade count + notional",
+        "seconds": 0.054,
+        "note": "epsilon_data._internal.con()",
+        "rows": 14263
+      },
+      {
+        "panel": "negrisk",
+        "call": "ed.negrisk_sum() x320",
+        "seconds": 129.541,
+        "note": "one call per event",
+        "rows": 320
+      },
+      {
+        "panel": "negrisk",
+        "call": "true-instantaneous recompute",
+        "seconds": 54.959,
+        "note": "load_event + no ffill, sampled",
+        "rows": 40
+      },
+      {
+        "panel": "missing",
+        "call": "API-GAP: NO_bid vs 1 - YES_ask (politics, exact timestamp join)",
+        "seconds": 0.119,
+        "note": "epsilon_data._internal.con()",
+        "rows": 1
+      }
+    ]
+  }
+}

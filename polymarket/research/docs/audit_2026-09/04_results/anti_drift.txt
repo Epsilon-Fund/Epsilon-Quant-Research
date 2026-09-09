@@ -1,0 +1,23 @@
+# 2026-09-02T16:48:44Z  check_anti_drift_full.py 40 3
+{
+  "l1": {
+    "tokens": 40,
+    "rowcount_ok": 40,
+    "all_columns_checksum_ok": 40,
+    "bad": []
+  },
+  "trades": {
+    "tokens": 40,
+    "rowcount_ok": 40,
+    "all_columns_checksum_ok": 40,
+    "bad": []
+  }
+}
+real 5.71
+user 10.71
+sys 4.45
+
+# shipped suite for comparison: pytest tests/test_loader.py -q
+real 2.73
+user 2.53
+sys 0.66

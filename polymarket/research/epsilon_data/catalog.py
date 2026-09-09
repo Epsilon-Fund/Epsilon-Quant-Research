@@ -85,7 +85,8 @@ def coverage(universe=None) -> pd.DataFrame:
       - `book_hours`    : hours with a book snapshot (present even in a QUIET hour)
       - `missing_hours` : hours with NO book at all (a TRUE gap in capture)
       - `quiet_hours`   : book present but no price_change (a quiet market, NOT a gap)
-    The one known multi-hour outage is 2026-06-22 15:00 -> 06-23 08:00 (both universes);
+    The one known multi-hour outage is 2026-06-22 14:03:30Z -> 06-23 08:29:10Z (18h26m, both
+    universes; `coverage()` marks hour 14 present because it has data up to 14:03);
     2026-06-19 h00-11 is capture start (not a gap); esports 2026-07-24 h12 / 08-21 h11-12 are quiet."""
     cov = _coverage_cached(_i._root())
     if universe is not None:
@@ -137,13 +138,31 @@ def activity_by_time(universe=None) -> pd.DataFrame:
 
 
 def negrisk_sum(event_slug):
-    """The NegRisk YES-sum for an event computed **at a common timestamp** — never a sum of
-    per-candidate medians (which is invalid: sum-to-1 holds instantaneously, and candidates live
-    in different windows). Uses `load_event()` to align the tapes. Returns a DataFrame indexed by
-    `ts` with `yes_sum` (sum of the YES-side mids present at that instant) and `n_live` (how many
-    candidates were quoting then). `.attrs['n_captured']` = candidates we hold; `.attrs['note']`
-    flags that Gamma's full listed count is not in v1 (a sum < 1 with missing candidates is
-    explained; a sum meaningfully > 1 with all present is a finding)."""
+    """The NegRisk YES-sum for an event, on a common 1-second index — a sum of each candidate's
+    LAST KNOWN mid, **not** an instantaneous sum.
+
+    ⚠️ **The summed quotes are stale, often by many hours.** `load_event()` → `align_mids()` floors
+    to 1-second buckets, outer-joins the candidates and forward-fills with **no limit**. Measured on
+    `elon-musk-of-tweets-july-21-july-28` (25 YES legs, 135,931 buckets): a mean of 1.31 of 25 legs
+    actually update in a given second; the median age of a summed quote is **20.2 hours**, p90 135
+    hours, max 10.1 days, and 67.7% of summed values are over an hour old. The median `yes_sum` is
+    4.528 as returned here versus 0.270 computed truly instantaneously (audit 2026-09,
+    01_digest.md §8.1).
+
+    So this is a **stale composite**, in the same family of error as the sum-of-per-candidate-medians
+    that this docstring used to condemn — just on a finer clock. For events where fewer than two legs
+    quote per second, the instantaneous NegRisk sum is **not measurable from this capture**. Use this
+    for shape and for spotting the right tail, not as a live no-arbitrage figure.
+
+    Returns a DataFrame indexed by `ts` with:
+      `yes_sum` : sum of the YES-side mids **carried forward** to that instant
+      `n_live`  : how many candidates have EVER quoted by that instant (it is `notna().sum()` AFTER
+                  the ffill, so it does NOT count candidates quoting then — on
+                  `presidential-election-winner-2028` it averages 44.15 against 1.01 legs actually
+                  updating per second)
+    `.attrs['n_captured']` = candidates we hold; `.attrs['note']` records the direction of the two
+    biases. A sum < 1 can be explained by candidates missing from v1; a sum > 1 is at least as
+    likely to be the ffill carrying dead candidates as it is to be a finding."""
     from .tape import load_event
     from . import _internal as _i2  # local alias for clarity
     wide = load_event(event_slug)
@@ -154,5 +173,8 @@ def negrisk_sum(event_slug):
     sub = wide[yes_cols]
     out = pd.DataFrame({"yes_sum": sub.sum(axis=1, min_count=1), "n_live": sub.notna().sum(axis=1)})
     out.attrs["n_captured"] = len(yes_cols)
-    out.attrs["note"] = "YES-sum at a common timestamp; missing candidates pull the sum down only."
+    out.attrs["note"] = ("YES-sum of LAST-KNOWN mids on a 1s index (ffilled, no limit) — not "
+                         "instantaneous; median summed quote is ~20h stale. Missing candidates pull "
+                         "the sum DOWN; the ffill keeping dead candidates alive pulls it UP, and that "
+                         "is the larger effect. n_live counts ever-quoted legs, not legs quoting now.")
     return out

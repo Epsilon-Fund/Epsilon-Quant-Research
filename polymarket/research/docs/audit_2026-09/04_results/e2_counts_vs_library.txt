@@ -1,0 +1,11 @@
+# 2026-09-02T16:52:36Z check_e2_counts_vs_library.py
+{"universe": "politics_negrisk", "month": "2026-06", "e2_l1_kept": 1648268, "lib_l1": 1648268, "e2_trades": 375618, "lib_trades": 375618, "e2_l1_raw": 358793860, "keep_ratio": 0.004594, "match": true}
+{"universe": "politics_negrisk", "month": "2026-07", "e2_l1_kept": 8430318, "lib_l1": 8430318, "e2_trades": 834184, "lib_trades": 834184, "e2_l1_raw": 701196398, "keep_ratio": 0.012023, "match": true}
+{"universe": "politics_negrisk", "month": "2026-08", "e2_l1_kept": 3757012, "lib_l1": 3757012, "e2_trades": 385725, "lib_trades": 385725, "e2_l1_raw": 324931790, "keep_ratio": 0.011562, "match": true}
+{"universe": "esports", "month": "2026-06", "e2_l1_kept": 10611146, "lib_l1": 10611146, "e2_trades": 661512, "lib_trades": 661512, "e2_l1_raw": 322501654, "keep_ratio": 0.032903, "match": true}
+{"universe": "esports", "month": "2026-07", "e2_l1_kept": 44684318, "lib_l1": 44684318, "e2_trades": 2772034, "lib_trades": 2772034, "e2_l1_raw": 1221361798, "keep_ratio": 0.036586, "match": true}
+{"universe": "esports", "month": "2026-08", "e2_l1_kept": 31920440, "lib_l1": 31920440, "e2_trades": 2198455, "lib_trades": 2198455, "e2_l1_raw": 903735722, "keep_ratio": 0.035321, "match": true}
+{"ALL_MATCH": true}
+real 0.57
+user 0.59
+sys 0.16
