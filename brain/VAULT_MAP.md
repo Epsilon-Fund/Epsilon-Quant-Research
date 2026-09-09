@@ -117,6 +117,7 @@ After bootstrap:
 | Agent personal overlay | `local_agents/<agent>.md` (top-level, local-only) | never link from canonical notes except setup docs |
 | Agent scratch (WIP) | `scratch/<agent>/YYYY-MM-DD.md` (top-level, local-only) | own lane only |
 | Code / scripts | under the relevant project — **never** in `brain/` | — |
+| Pre-migration vault material (May 2026) | `brain/archive/pre-migration-vault-2026-05/` — historical only, never a write target | [[pre-migration-vault-2026-05]] |
 
 Concurrent-edit safety comes from the branch model: each collaborator edits on their own branch and conflicts are resolved at merge time per [[MERGE_PROTOCOL]]. There are no per-file edit locks.
 

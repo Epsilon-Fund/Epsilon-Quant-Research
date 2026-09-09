@@ -95,6 +95,12 @@ Prompt files should not be committed to the repo; prompts live in chat and outpu
 - Run scripts with `PYTHONPATH=. uv run python …` from inside `polymarket/research/`.
 - `pip install` is never to be run directly; use uv, or `--break-system-packages` only if explicitly necessary outside a venv.
 
+### Cowork on a connected mount — fetch and inspect only
+
+A repo folder connected to a Cowork session is read/write for content but cannot unlink, and git's atomic replace needs unlink. `checkout`, `merge` and `pull` abort partway and leave a stale `.git/index.lock`. `git status` there also needs `-c filter.nbstripout.clean=cat -c filter.nbstripout.required=false`.
+
+From Cowork: `git fetch` plus read-only inspection only (`git show <branch>:<path>`, `git log`, `git archive <branch> | tar -x` into scratch), and create new files only — modifying a tracked file blocks the next native checkout. Every checkout, merge, pull, commit and push belongs in the prompt run natively. Detail: [[2026-09-09_vault_consolidation]] § 2.1.
+
 ## Cowork vs Codex split (current intent)
 
 - **Cowork (this tool)**: strategic discussion, prompt drafting for Codex, interpretation of Codex outputs, updating living docs in `brain/` and `polymarket/research/notes/`.

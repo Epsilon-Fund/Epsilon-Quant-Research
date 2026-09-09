@@ -43,6 +43,7 @@ Rules:
 - **Session start, and after anyone merges to main**: catch up with `git checkout <handle> && git merge main`. Resolve any conflicts using § 3 below. Branches that don't pull main in regularly drift and make merges painful.
 - Merge to main in **small, frequent units** (a finished note, a completed task) — not big infrequent dumps.
 - Recommended: a GitHub branch-protection rule on `main` blocking direct pushes, if the plan supports it.
+- `alvaro` is a **live remote branch** — Alvaro works on it and pushes to it. Never rebase, force-update or treat it as disposable; convergence merges into a line that preserves it.
 
 ## 2. Merging a personal branch into main
 
