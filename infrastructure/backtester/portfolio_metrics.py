@@ -15,8 +15,9 @@ Public API
 ----------
   load_pkl(path)                               → pd.DataFrame
   mom_bar_returns(df, cost)                    → pd.Series
+  to_daily(bar_returns)                        → pd.Series
   wrap_as_sleeve(bar_returns)                  → pd.DataFrame
-  sleeve_freq(df)                              → 'hourly' | 'daily'
+  sleeve_freq(df)                             → 'hourly' | 'daily'
   norm_weights(d)                              → dict
   sa_inverse_vol_weights(dfs, method, window)  → dict
   build_momentum_weights(mom_dfs, mom_sel,
@@ -31,7 +32,8 @@ Public API
                   step, current_sa_weight)     → list[dict]
   sweep_momentum_strategy(mom_dfs, mom_sel,
                           strat_weights_grid,
-                          coin_weights, cost)  → list[dict]
+                          coin_weights, cost,
+                          daily=False)         → list[dict]
   realized_sized_equity(sleeve_raw_dfs,
                         mom_labels, weights,
                         cost)                  → pd.Series
@@ -75,8 +77,8 @@ def mom_bar_returns(df: pd.DataFrame, cost: float) -> pd.Series:
     """
     Per-bar net return for a momentum OOS PKL.
 
-    Exact replica of wf_visualizer._strat_ret — kept here so notebooks and
-    combined_portfolio.py can import a single canonical implementation.
+    Mirrors wf_visualizer._strat_ret, except turnover is measured on
+    position × position_size so costs scale with the size actually traded.
 
     df must have: Close, position.  position_size is optional (default 1.0).
     """
@@ -85,8 +87,15 @@ def mom_bar_returns(df: pd.DataFrame, cost: float) -> pd.Series:
             if 'position_size' in df.columns
             else pd.Series(1.0, index=df.index))
     ret  = df['Close'].pct_change().fillna(0)
-    to   = df['position'].diff().abs().fillna(0)
+    expo = df['position'] * (df['position_size'].fillna(0)
+                             if 'position_size' in df.columns else 1.0)
+    to   = expo.diff().abs().fillna(0)
     return ret * pos * size - cost * to
+
+
+def to_daily(bar_returns: pd.Series) -> pd.Series:
+    """Compound bar returns into calendar-day returns (no-op for daily data)."""
+    return (1 + bar_returns).resample('D').prod() - 1
 
 
 def sleeve_freq(df: pd.DataFrame) -> str:
@@ -342,6 +351,7 @@ def sweep_momentum_strategy(
     strat_weights_grid: list[dict],
     coin_weights: dict | None,
     cost: float,
+    daily: bool = False,
 ) -> list[dict]:
     """
     Sweep momentum strategy-level weights (e.g. bb vs wf2 split) and return
@@ -353,6 +363,8 @@ def sweep_momentum_strategy(
                         e.g. [{'bb': 0.0, 'wf2': 1.0}, {'bb': 0.1, 'wf2': 0.9}, ...]
     coin_weights      : {tag: {coin: weight}} or None for equal within each strategy
     cost              : per-leg trading cost for momentum
+    daily             : if True, resample each sleeve to daily returns (to_daily)
+                        before combining, matching DAILY_METRICS in the notebook
 
     Returns list of dicts with keys:
       strat_weights, sleeve_weights, sharpe_ratio, total_return, max_drawdown, calmar_ratio
@@ -375,13 +387,15 @@ def sweep_momentum_strategy(
                 result[s] = msw.get(tag, 0) * cw_n[mom_selection[s][1]]
         return result
 
+    _prep = to_daily if daily else (lambda r: r)
+
     rows = []
     for msw_raw in strat_weights_grid:
         mw = _build_mom_w(msw_raw)
         # Use pd.concat + fillna(0) to align mixed hourly/daily series — same
         # approach as plot_portfolio_oos so sweep numbers are directly comparable.
         aligned = pd.concat(
-            [mom_bar_returns(mom_dfs[s], cost).rename(s) for s in mom_dfs],
+            [_prep(mom_bar_returns(mom_dfs[s], cost)).rename(s) for s in mom_dfs],
             axis=1,
         ).fillna(0)
         all_ret = sum(aligned[s] * mw[s] for s in mom_dfs)
